@@ -1,8 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --coral: #D85A30;
+  --purple: #7F77DD;
+  --teal: #1D9E75;
+  --ink: #2C2C2A;
+  --cream: #FAEEDA;
+  --sand: #F1EFE8;
+  --card-bg: #ffffff;
+}
+
+html.dark {
+  --background: #16151c;
+  --foreground: #F1EFE8;
+  --ink: #F1EFE8;
+  --sand: #232129;
+  --card-bg: #232129;
 }
 
 @theme inline {
@@ -10,13 +26,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
