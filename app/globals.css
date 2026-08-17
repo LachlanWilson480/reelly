@@ -11,6 +11,8 @@
   --cream: #FAEEDA;
   --sand: #F1EFE8;
   --card-bg: #ffffff;
+  --text-secondary: #555555;
+  --text-muted: #999999;
 }
 
 html.dark {
@@ -19,6 +21,8 @@ html.dark {
   --ink: #F1EFE8;
   --sand: #232129;
   --card-bg: #232129;
+  --text-secondary: #C9C7D1;
+  --text-muted: #9C9AA5;
 }
 
 @theme inline {

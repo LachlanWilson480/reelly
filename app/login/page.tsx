@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -31,6 +33,8 @@ export default function LoginPage() {
       .eq('user_id', user.id)
       .maybeSingle()
 
+    localStorage.setItem('reelly-has-logged-in', 'true')
+
     if (profile) {
       router.push('/dashboard')
     } else {
@@ -45,13 +49,13 @@ export default function LoginPage() {
       <Sidebar />
       <div style={{ marginLeft: 56 }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-          <a href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
+          <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly
-          </a>
+          </Link>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <a href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
               Sign up
-            </a>
+            </Link>
           </div>
         </nav>
 
@@ -84,9 +88,9 @@ export default function LoginPage() {
             )}
             <p style={{ marginTop: 20, fontSize: 13, color: '#D3D1C7', textAlign: 'center' }}>
               Don&apos;t have an account?{' '}
-              <a href="/signup" style={{ color: 'var(--coral)', fontWeight: 600 }}>
+              <Link href="/signup" style={{ color: 'var(--coral)', fontWeight: 600 }}>
                 Sign up
-              </a>
+              </Link>
             </p>
           </div>
         </div>

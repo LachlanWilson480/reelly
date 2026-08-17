@@ -1,0 +1,101 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import Sidebar from '@/components/Sidebar'
+
+export default function CustomisePage() {
+  const router = useRouter()
+  const [guidance, setGuidance] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: sessionData } = await supabase.auth.getUser()
+      const user = sessionData.user
+
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const { data } = await supabase
+        .from('business_profiles')
+        .select('custom_guidance')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      setGuidance(data?.custom_guidance || '')
+      setLoading(false)
+    }
+    load()
+  }, [router])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setMessage('')
+
+    const { data: sessionData } = await supabase.auth.getUser()
+    const user = sessionData.user
+    if (!user) return
+
+    const { error } = await supabase
+      .from('business_profiles')
+      .update({ custom_guidance: guidance })
+      .eq('user_id', user.id)
+
+    setSaving(false)
+    setMessage(error ? 'Something went wrong saving your guidance.' : 'Saved.')
+  }
+
+  if (loading) {
+    return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+      <Sidebar />
+      <div style={{ marginLeft: 56, padding: '48px', maxWidth: 700, margin: '0 auto' }}>
+        <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
+          Customise generation
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
+          Add pointers for how Reelly should generate your ideas and filming instructions \u2014 things you like, things to avoid, specific angles or phrases you prefer. This is applied on top of your business profile and Reelly's core safety and realism guidelines, which always stay in place.
+        </p>
+
+        <textarea
+          value={guidance}
+          onChange={(e) => setGuidance(e.target.value)}
+          rows={10}
+          placeholder="e.g. I prefer filming outside near the van. Avoid suggesting anything involving client faces. I like a cheeky, confident tone."
+          style={{
+            width: '100%',
+            padding: '14px',
+            borderRadius: 8,
+            border: '1px solid rgba(128,128,128,0.25)',
+            background: 'var(--sand)',
+            fontSize: 14,
+            fontFamily: "'Inter', sans-serif",
+            color: 'var(--ink)',
+            outline: 'none',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            marginBottom: 16,
+          }}
+        />
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+        >
+          {saving ? 'Saving...' : 'Save guidance'}
+        </button>
+        {message && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 12 }}>{message}</p>}
+      </div>
+    </div>
+  )
+}

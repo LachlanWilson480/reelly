@@ -1,4 +1,4 @@
-'use client'
+}'use client'
 
 import { useEffect, useState } from 'react'
 
@@ -6,27 +6,33 @@ export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('reelly-theme')
+    const savedTheme = localStorage.getItem('reelly-theme')
 
-    if (saved === 'dark' || saved === 'light') {
-      applyTheme(saved === 'dark')
-      return
+    if (savedTheme === 'dark') {
+      setIsDark(true)
+      document.documentElement.classList.add('dark')
+    } else if (savedTheme === 'light') {
+      setIsDark(false)
+      document.documentElement.classList.remove('dark')
+    } else {
+      const hour = new Date().getHours()
+      const shouldBeDark = hour >= 18 || hour < 6
+
+      setIsDark(shouldBeDark)
+      document.documentElement.classList.toggle('dark', shouldBeDark)
     }
-
-    const hour = new Date().getHours()
-    const shouldBeDark = hour >= 18 || hour < 6
-    applyTheme(shouldBeDark)
   }, [])
 
-  const applyTheme = (dark: boolean) => {
-    setIsDark(dark)
-    document.documentElement.classList.toggle('dark', dark)
-  }
-
   const toggle = () => {
-    const newValue = !isDark
-    applyTheme(newValue)
-    localStorage.setItem('reelly-theme', newValue ? 'dark' : 'light')
+    const newTheme = !isDark
+
+    setIsDark(newTheme)
+    document.documentElement.classList.toggle('dark', newTheme)
+
+    localStorage.setItem(
+      'reelly-theme',
+      newTheme ? 'dark' : 'light'
+    )
   }
 
   return (
@@ -42,6 +48,7 @@ export default function ThemeToggle() {
         cursor: 'pointer',
         fontFamily: "'Inter', sans-serif",
       }}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? '☀️ Light' : '🌙 Dark'}
     </button>

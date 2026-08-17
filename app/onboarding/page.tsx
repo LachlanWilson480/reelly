@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -102,6 +104,8 @@ export default function OnboardingPage() {
 
     setLoading(false)
 
+    localStorage.setItem('reelly-has-logged-in', 'true')
+
     if (error) {
       setMessage(error.message)
     } else {
@@ -129,9 +133,9 @@ export default function OnboardingPage() {
       <Sidebar />
       <div style={{ marginLeft: 56 }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-          <a href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
+          <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly
-          </a>
+          </Link>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 24px 48px' }}>
