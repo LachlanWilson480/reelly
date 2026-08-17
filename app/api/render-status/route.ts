@@ -7,8 +7,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(req: NextRequest) {
   try {
     const { renderId } = await req.json()
@@ -37,7 +35,9 @@ export async function POST(req: NextRequest) {
       .update({ status, output_url: outputUrl })
       .eq('id', renderId)
 
-    if (status === 'done' && !renderRow.notified) {
+    if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY)
+
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(renderRow.user_id)
       const { data: profile } = await supabaseAdmin
         .from('business_profiles')
