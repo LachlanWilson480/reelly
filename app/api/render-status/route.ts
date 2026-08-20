@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     )
 
     const shotstackData = await shotstackRes.json()
+    if (shotstackData.response.status === 'failed') console.log('RENDER FAILED:', JSON.stringify(shotstackData.response, null, 2))
     const status = shotstackData.response.status
     const outputUrl = shotstackData.response.url || null
 

@@ -1,28 +1,38 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import CheckoutModal from '@/components/CheckoutModal'
 
 export default function PlansPage() {
+  const router = useRouter()
+  const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
+  const [success, setSuccess] = useState(false)
+
   const pricing = [
     {
+      id: 'basic',
       name: 'Basic',
-      price: '$20–$30',
+      price: '$25',
       period: '/mo',
       desc: '~2 render minutes/week',
       features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Instagram & Facebook posting', 'Email support'],
     },
     {
+      id: 'mid',
       name: 'Mid',
-      price: '$68–$79',
+      price: '$69',
       period: '/mo',
       desc: '~10 render minutes/week',
       features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Content calendar', 'Overage renders available'],
       highlight: true,
     },
     {
+      id: 'top',
       name: 'Top',
-      price: '$120–$140',
+      price: '$120',
       period: '/mo',
       desc: '~15 render minutes/week',
       features: ['Everything in Mid', 'Long-form video support', 'Highest render allowance', 'Early access to new features'],
@@ -37,9 +47,6 @@ export default function PlansPage() {
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly
           </Link>
-          <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-            Sign up
-          </Link>
         </nav>
 
         <div style={{ padding: '32px 48px 64px', maxWidth: 1000, margin: '0 auto' }}>
@@ -50,10 +57,16 @@ export default function PlansPage() {
             Every plan includes AI content ideas and filming checklists. Pricing scales with how many render minutes you need each week.
           </p>
 
+          {success && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'center' }}>
+              <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Subscription active! You're all set.</p>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 48 }}>
             {pricing.map((tier) => (
               <div
-                key={tier.name}
+                key={tier.id}
                 style={{
                   background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)',
                   borderRadius: 20,
@@ -77,10 +90,11 @@ export default function PlansPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href="/signup"
+                <button
+                  onClick={() => setCheckoutPlan({ id: tier.id, label: tier.name })}
                   style={{
                     display: 'block',
+                    width: '100%',
                     textAlign: 'center',
                     padding: '12px',
                     borderRadius: 8,
@@ -89,11 +103,11 @@ export default function PlansPage() {
                     color: tier.highlight ? '#fff' : 'var(--ink)',
                     fontSize: 14,
                     fontWeight: 600,
-                    textDecoration: 'none',
+                    cursor: 'pointer',
                   }}
                 >
                   Get started
-                </Link>
+                </button>
               </div>
             ))}
           </div>
@@ -108,6 +122,19 @@ export default function PlansPage() {
           </div>
         </div>
       </div>
+
+      {checkoutPlan && (
+        <CheckoutModal
+          plan={checkoutPlan.id}
+          planLabel={checkoutPlan.label}
+          onClose={() => setCheckoutPlan(null)}
+          onSuccess={() => {
+            setCheckoutPlan(null)
+            setSuccess(true)
+            setTimeout(() => router.push('/dashboard'), 1500)
+          }}
+        />
+      )}
     </div>
   )
 }

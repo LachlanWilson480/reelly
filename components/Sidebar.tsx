@@ -34,6 +34,7 @@ export default function Sidebar() {
   const navItems = [
     { href: '/?stay=1', label: 'Home', icon: '⌂' },
     { href: '/dashboard', label: 'Dashboard', icon: '▦' },
+    { href: '/editor', label: 'Editor', icon: '✂' },
     { href: '/plans', label: 'Plans', icon: '◆' },
     { href: '/settings', label: 'Settings', icon: '⚙' },
     { href: '/customise', label: 'Customise Generation', icon: '✎' },

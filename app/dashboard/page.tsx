@@ -27,6 +27,16 @@ type Idea = {
 
 type FilmingItem = Idea & { checklist: string[] }
 
+const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
+
+const CAPTION_PRESETS = [
+  { id: 'word_by_word', label: 'Word by Word', desc: 'One word pops as it is spoken (karaoke)' },
+  { id: 'bold_center', label: 'Bold Pop', desc: 'Large, punchy, scales on each word' },
+  { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle fade-in, out of the way' },
+  { id: 'coral_pop', label: 'Coral Bounce', desc: 'On-brand coral, bouncy' },
+  { id: 'typewriter', label: 'Typewriter', desc: 'Words build up in sequence' },
+]
+
 export default function DashboardPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -47,6 +57,19 @@ export default function DashboardPage() {
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
+
+  const [captionPreset, setCaptionPreset] = useState('bold_center')
+  const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(false)
+  const [captionFontSize, setCaptionFontSize] = useState(36)
+  const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
+  const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [speechClipIndex, setSpeechClipIndex] = useState<number | null>(0)
+  const [lastRenderedPaths, setLastRenderedPaths] = useState<string[]>([])
+  const [lastMusicPath, setLastMusicPath] = useState<string | null>(null)
+  const musicInputRef = useRef<HTMLInputElement>(null)
+  const [captionColor, setCaptionColor] = useState('#FFFFFF')
+  const [captionBgColor, setCaptionBgColor] = useState('#000000')
+  const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
 
   useEffect(() => {
     const load = async () => {
@@ -164,6 +187,7 @@ export default function DashboardPage() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setSelectedFiles(Array.from(e.target.files))
+      setSpeechClipIndex(0)
       setUploadError('')
     }
   }
@@ -186,10 +210,27 @@ export default function DashboardPage() {
         clipPaths.push(path)
       }
 
+      let musicPath: string | null = null
+      if (musicFile) {
+        const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
+        const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
+        if (!musicError) musicPath = mPath
+      }
+
+      const captionStyle = showAdvancedCaptions
+        ? {
+            preset: captionPreset,
+            custom: {
+              font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
+              position: captionPosition,
+            },
+          }
+        : captionPreset
+
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex }),
       })
 
       const data = await res.json()
@@ -197,7 +238,10 @@ export default function DashboardPage() {
 
       setRenderId(data.renderId)
       setRenderStatus('queued')
+      setLastRenderedPaths(clipPaths)
+      setLastMusicPath(musicPath)
       setSelectedFiles([])
+      setMusicFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Something went wrong')
@@ -228,6 +272,9 @@ export default function DashboardPage() {
   ]
 
   const savedIdeas = ideas.filter((idea) => savedIds.has(idea.id))
+
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
@@ -283,7 +330,22 @@ export default function DashboardPage() {
                 {t.label}{t.id === 'myideas' && savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
               </button>
             ))}
-          </div>
+            <button
+              onClick={() => router.push("/editor")}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: "2px solid transparent",
+                padding: "10px 16px",
+                fontSize: 14,
+                fontWeight: 500,
+                color: "var(--coral)",
+                cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              ✂ Editor
+            </button>          </div>
 
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
@@ -479,8 +541,112 @@ export default function DashboardPage() {
                   accept="video/*"
                   multiple
                   onChange={handleFileSelect}
-                  style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}
+                  style={{ display: "none" }}
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    backgroundColor: "var(--coral)",
+                    color: "#fff",
+                    padding: "10px 20px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    marginBottom: 24,
+                  }}
+                >
+                  Choose files
+                </button>
+                <input
+                  ref={musicInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setMusicFile(e.target.files?.[0] || null)}
+                  style={{ display: "none" }}
+                />
+                <div style={{ marginBottom: 24 }}>
+                  <button
+                    type="button"
+                    onClick={() => musicInputRef.current?.click()}
+                    style={{
+                      background: "none",
+                      border: "1px solid rgba(128,128,128,0.3)",
+                      borderRadius: 8,
+                      padding: "9px 16px",
+                      fontSize: 13,
+                      color: "var(--ink)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {musicFile ? `\u266a ${musicFile.name}` : "+ Add background music (optional)"}
+                  </button>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
+                    Upload your own audio file. You are responsible for ensuring you have the rights to use it.
+                  </p>
+                </div>
+
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Caption style</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+                  {CAPTION_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => setCaptionPreset(preset.id)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '14px',
+                        borderRadius: 10,
+                        border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
+                        background: 'var(--card-bg)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{preset.label}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{preset.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)}
+                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: 20 }}
+                >
+                  {showAdvancedCaptions ? '− Hide advanced options' : '+ Advanced caption options'}
+                </button>
+
+                {showAdvancedCaptions && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20, background: 'var(--card-bg)', padding: 16, borderRadius: 10 }}>
+                    <div>
+                      <label style={labelStyle}>Font</label>
+                      <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={inputStyle}>
+                        {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Font size</label>
+                      <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Text color</label>
+                      <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Background color</label>
+                      <input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Position</label>
+                      <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={inputStyle}>
+                        <option value="bottom">Bottom</option>
+                        <option value="center">Center</option>
+                        <option value="top">Top</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {selectedFiles.length > 0 && (
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
@@ -488,6 +654,46 @@ export default function DashboardPage() {
                   </p>
                 )}
 
+                {selectedFiles.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Which clip has the speech to caption?</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {selectedFiles.map((file, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setSpeechClipIndex(i)}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: speechClipIndex === i ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)",
+                            background: "var(--card-bg)",
+                            fontSize: 12,
+                            color: "var(--ink)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {file.name.length > 20 ? file.name.slice(0, 20) + "..." : file.name}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSpeechClipIndex(null)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          border: speechClipIndex === null ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)",
+                          background: "var(--card-bg)",
+                          fontSize: 12,
+                          color: "var(--text-secondary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        No captions
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {uploadError && (
                   <p style={{ fontSize: 13, color: 'var(--coral)', marginBottom: 16 }}>{uploadError}</p>
                 )}
@@ -499,6 +705,8 @@ export default function DashboardPage() {
                     backgroundColor: 'var(--coral)',
                     color: '#fff',
                     padding: '12px 24px',
+                    marginTop: 24,
+                    display: 'block',
                     borderRadius: 8,
                     fontSize: 14,
                     fontWeight: 600,
@@ -527,11 +735,37 @@ export default function DashboardPage() {
                     </p>
                   )}
                   {renderStatus === 'done' && outputUrl && (
-                    <video
-                      controls
-                      src={outputUrl}
-                      style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }}
-                    />
+                    <>
+                      <video
+                        controls
+                        src={outputUrl}
+                        style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }}
+                      />
+                      <button
+                        onClick={() => {
+                          localStorage.setItem("reelly-editor-seed", JSON.stringify({
+                            clipPaths: lastRenderedPaths,
+                            musicPath: lastMusicPath,
+                            speechClipIndex,
+                            captionStyle: captionPreset,
+                          }))
+                          router.push("/editor")
+                        }}
+                        style={{
+                          display: "block",
+                          marginTop: 12,
+                          background: "none",
+                          border: "1px solid var(--coral)",
+                          borderRadius: 8,
+                          padding: "8px 16px",
+                          fontSize: 13,
+                          color: "var(--coral)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✂ Edit this video
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -539,34 +773,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-
-      {tab === 'myideas' && savedIdeas.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 56,
-            right: 0,
-            background: 'var(--card-bg)',
-            borderTop: '1px solid rgba(128,128,128,0.15)',
-            padding: '16px 48px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            zIndex: 100,
-          }}
-        >
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {savedIdeas.length} idea{savedIdeas.length !== 1 ? 's' : ''} selected
-          </p>
-          <button
-            onClick={() => proceedToFilming(savedIdeas)}
-            style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}
-          >
-            Proceed to filming →
-          </button>
-        </div>
-      )}
     </div>
   )
 }
