@@ -15,10 +15,10 @@ export default function PlansPage() {
     {
       id: 'basic',
       name: 'Basic',
-      price: '$25',
+      price: '$20',
       period: '/mo',
       desc: '~2 render minutes/week',
-      features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Instagram & Facebook posting', 'Email support'],
+      features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Instagram & Facebook posting', 'Email support', 'Long-form video support'],
     },
     {
       id: 'mid',
@@ -26,19 +26,10 @@ export default function PlansPage() {
       price: '$69',
       period: '/mo',
       desc: '~10 render minutes/week',
-      features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Content calendar', 'Overage renders available'],
+      features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Content calendar', 'Overage renders available', 'Highest render allowance', 'Early access to new features'],
       highlight: true,
     },
-    {
-      id: 'top',
-      name: 'Top',
-      price: '$120',
-      period: '/mo',
-      desc: '~15 render minutes/week',
-      features: ['Everything in Mid', 'Long-form video support', 'Highest render allowance', 'Early access to new features'],
-    },
   ]
-
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
@@ -86,7 +77,7 @@ export default function PlansPage() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {tier.features.map((f) => (
                     <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
-                      ✓ {f}
+                      • {f}
                     </li>
                   ))}
                 </ul>
@@ -117,7 +108,7 @@ export default function PlansPage() {
               What happens if I go over my render minutes?
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Overage renders are billed monthly with a 50% markup plus a flat fee. You'll always see a confirm-before-charge summary before anything is billed.
+              Overage renders are billed monthly at a flat fee of $5/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
             </p>
           </div>
         </div>

@@ -49,209 +49,276 @@ export default function HomePage() {
   const faqs = [
     { q: 'Does this replace my videographer?', a: "Not necessarily. Reelly helps you plan, film, and edit content yourself in minutes. Many businesses use it for everyday posts and still hire a videographer for bigger campaigns." },
     { q: 'What if I don\u2019t post often?', a: 'That\u2019s exactly who Reelly is built for. Content ideas and filming steps are designed to take minutes, not hours, so posting consistently becomes realistic even with a busy schedule.' },
-    { q: 'Is my business data safe?', a: 'Yes. Your business details are stored securely and only used to generate content tailored to you \u2014 never shared or sold.' },
+    { q: 'Is my business data safe?', a: "Your business information is used to personalise your Reelly experience and generate relevant content. We don't use or sell any of your information. (More details in the ToS)" },
     { q: 'Do I need filming or editing experience?', a: 'No. Reelly gives you step-by-step filming instructions, and handles editing, captions, and sound automatically.' },
-    { q: 'Can I use my own phone to film?', a: 'Yes \u2014 most businesses film everything on their phone. Reelly is built around that.' },
+    { q: 'Can I use my own phone to film?', a: 'Yes. Reelly is built around you filming on your phone.' },
   ]
 
   const steps = [
-    { title: 'Tell us about your business', desc: 'A quick onboarding covering your services, tone, and audience \u2014 so every idea is built for you, not generic.' },
-    { title: 'Get content ideas', desc: 'Hyperlocal video ideas, titles, hashtags, and step-by-step filming checklists, ready when you are.' },
-    { title: 'Post in minutes', desc: 'Upload your clips, get them edited automatically, and schedule across your platforms \u2014 all from one place.' },
+    { title: 'Tell us about your business', desc: 'A quick onboarding covers:', points: ['Your services', 'Your location', 'Your brand voice', 'Preferred video styles'] },
+    { title: 'Get content ideas', desc: 'Reelly generates:', points: ['Video ideas and hooks', 'Titles and hashtags', 'Step-by-step filming guides', 'Tailored to your business and local audience'] },
+    { title: 'Post in minutes', desc: 'To finish a video:', points: ['Film clips on your phone', 'Upload them to Reelly', 'Let the platform edit automatically', 'Or fine-tune it yourself in the editor'] },
   ]
 
   const pricing = [
-    { name: 'Basic', price: '$20\u2013$30', period: '/mo', desc: '~2 render minutes/week', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling'] },
-    { name: 'Mid', price: '$68\u2013$79', period: '/mo', desc: '~10 render minutes/week', features: ['Everything in Basic', 'More renders/week', 'Priority support'], highlight: true },
-    { name: 'Top', price: '$120\u2013$140', period: '/mo', desc: '~15 render minutes/week', features: ['Everything in Mid', 'Long-form video support', 'Highest render allowance'] },
+    { name: 'Basic', price: '$20', period: '/mo', desc: '~2 render minutes/week', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
+    { name: 'Mid', price: '$69', period: '/mo', desc: '~10 render minutes/week', features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Highest render allowance'], highlight: true },
   ]
+
+  const mockIdeas = [
+    { title: 'Behind the chair: 3 quick tips', tag: '#sydneysalon' },
+    { title: 'Before & after reveal', tag: '#transformation' },
+    { title: 'Booking slots open this week', tag: '#comebookus' },
+  ]
+
+  const SECTION_PAD = '120px 64px'
+  const CONTAINER_WIDTH = 1080
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 56 }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 64px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             Reelly
           </span>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
             <Link href="/login" style={{ color: 'var(--ink)', fontSize: 14, textDecoration: 'none' }}>
               Log in
             </Link>
-            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 22px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
               Sign up
             </Link>
           </div>
         </nav>
 
-        <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, margin: '24px 48px', padding: '80px 48px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 20 }}>
-          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 600, color: '#F1EFE8', maxWidth: 600, lineHeight: 1.2 }}>
-            Content ideas, filmed and posted in minutes.
-          </h1>
-          <p style={{ fontSize: 17, color: '#D3D1C7', maxWidth: 480 }}>
-            Reelly gives Sydney salons, studios, and small businesses AI-powered content ideas, filming steps, and scheduling \u2014 built for your suburb, your audience, your brand.
-          </p>
-          <div style={{ width: '100%', maxWidth: 600, height: 220, borderRadius: 12, background: 'rgba(127,119,221,0.2)', border: '1px dashed rgba(127,119,221,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 12 }}>
-            <span style={{ fontSize: 13, color: '#AFA9EC' }}>3D animation coming soon</span>
-          </div>
-          <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '14px 28px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', marginTop: 8 }}>
-            Get started free
-          </Link>
-        </section>
-
-        <section style={{ padding: '24px 48px', textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: 0.5, textTransform: 'uppercase' }}>
-            Built for salons, tattoo studios & wedding vendors across Sydney
-          </p>
-        </section>
-
-        <section style={{ padding: '48px 48px', maxWidth: 900, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 40, textAlign: 'center' }}>
-            How it works
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24 }}>
-            {steps.map((s, i) => (
-              <div key={s.title} style={{ position: 'relative', padding: '28px 24px', background: 'var(--sand)', borderRadius: 16 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--coral)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-                  {i + 1}
-                </div>
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 8 }}>
-                  {s.title}
-                </h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section style={{ padding: '48px 48px', maxWidth: 900, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 40, textAlign: 'center' }}>
-            Everything you need to post consistently
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
-            {[
-              { title: 'AI content ideas', desc: 'Hyperlocal video ideas, titles, hashtags, and step-by-step filming checklists built for your business.' },
-              { title: 'Automatic editing', desc: 'Upload your clips and get them stitched together with captions, pause removal, and sound.' },
-              { title: 'Scheduling built in', desc: 'Plan and post across Instagram, Facebook, and soon TikTok \u2014 all from one place.' },
-            ].map((f) => (
-              <div key={f.title} style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px 24px' }}>
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-                  {f.title}
-                </h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section style={{ padding: '48px 48px', maxWidth: 1000, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
-            Simple pricing
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 40 }}>
-            Priced by render minutes per week. Full details at checkout.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
-            {pricing.map((tier) => (
-              <div
-                key={tier.name}
-                style={{
-                  background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)',
-                  borderRadius: 16,
-                  padding: '32px 24px',
-                  border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)',
-                }}
-              >
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {tier.name}
-                </h3>
-                <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {tier.price}<span style={{ fontSize: 14, fontWeight: 400 }}>{tier.period}</span>
-                </p>
-                <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 20 }}>
-                  {tier.desc}
-                </p>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {tier.features.map((f) => (
-                    <li key={f} style={{ fontSize: 13, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
-                      ✓ {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <Link href="/plans" style={{ fontSize: 14, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>
-              See full plan details →
+        <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 28, margin: '16px 64px 0', padding: '96px 72px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 64, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 28 }}>
+            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 52, fontWeight: 600, color: '#F1EFE8', maxWidth: 560, lineHeight: 1.12, letterSpacing: -0.5 }}>
+              Content ideas, filmed and posted in minutes.
+            </h1>
+            <p style={{ fontSize: 17, color: '#D3D1C7', maxWidth: 440, lineHeight: 1.6 }}>
+              Reelly helps businesses turn everyday work into social media content. With AI-powered ideas, simple filming guides, automatic editing, and scheduling all in one place.
+            </p>
+            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 30px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
+              Get started free
             </Link>
           </div>
-        </section>
 
-        <section style={{ padding: '48px 48px', maxWidth: 700, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 32, textAlign: 'center' }}>
-            Questions? Answered.
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {faqs.map((f, i) => (
-              <div key={f.q} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{ width: '100%', textAlign: 'left', padding: '18px 20px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 500, color: 'var(--ink)' }}
-                >
-                  {f.q}
-                  <span style={{ fontSize: 18, color: 'var(--coral)' }}>{openFaq === i ? '\u2212' : '+'}</span>
-                </button>
-                {openFaq === i && (
-                  <p style={{ padding: '0 20px 18px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    {f.a}
-                  </p>
-                )}
+          <div style={{ position: "relative", width: 420, height: 300 }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 340, height: 210, boxSizing: "border-box", background: "#16151c", borderRadius: "12px 12px 3px 3px", padding: "10px 10px 24px", boxShadow: "0 30px 60px rgba(0,0,0,0.4)", border: "4px solid #2a2833" }}>
+              <div style={{ background: "#0d0c11", borderRadius: 4, padding: 10, display: "flex", flexDirection: "column", gap: 6, height: "100%", justifyContent: "space-between" }}>
+                {mockIdeas.map((idea) => (
+                  <div key={"laptop-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "8px 10px" }}>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
+                    <p style={{ fontSize: 8, color: "var(--coral)" }}>{idea.tag}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div style={{ position: "absolute", top: 210, right: -18, width: 376, height: 14, background: "#2a2833", borderRadius: "0 0 8px 8px" }} />
+            <div style={{ position: "absolute", top: 223, right: 152, width: 52, height: 4, background: "#3a3743", borderRadius: 3 }} />
+
+            <div style={{ position: "absolute", top: 60, left: 30, width: 150, height: 230, overflow: "hidden", background: "#1c1a22", borderRadius: 16, padding: 12, boxShadow: "0 24px 48px rgba(0,0,0,0.4)", border: "5px solid #2a2833" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%", justifyContent: "space-between" }}>
+                {mockIdeas.map((idea) => (
+                  <div key={"tablet-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "9px 10px" }}>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
+                    <p style={{ fontSize: 8, color: "var(--coral)" }}>{idea.tag}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", bottom: 0, left: 0, width: 110, background: "#16151c", borderRadius: 20, padding: "12px 8px", boxShadow: "0 20px 40px rgba(0,0,0,0.45)", transform: "rotate(-4deg)", border: "5px solid #2a2833" }}>
+              <div style={{ width: 30, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 8px" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {mockIdeas.map((idea) => (
+                  <div key={"phone-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "7px 8px" }}>
+                    <p style={{ fontSize: 8, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 2 }}>{idea.title}</p>
+                    <p style={{ fontSize: 7, color: "var(--coral)" }}>{idea.tag}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, margin: '24px 48px', padding: '56px 48px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, color: '#F1EFE8', marginBottom: 12 }}>
+        <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 500 }}>
+            Built for creators, freelancers, and small businesses — anywhere
+          </p>
+        </section>
+
+        <section style={{ padding: '112px 64px 0' }}>
+          <div style={{ maxWidth: 1320, margin: '0 auto' }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 56, textAlign: 'center', letterSpacing: -0.3 }}>
+              How it works
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 28 }}>
+              {steps.map((s, i) => (
+                <div key={s.title} style={{ position: 'relative', padding: '32px 28px', background: 'var(--sand)', borderRadius: 16 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--coral)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, marginBottom: 18 }}>
+                    {i + 1}
+                  </div>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
+                    {s.title}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{s.desc}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {s.points.map((pt) => (
+                      <li key={pt} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 0, color: 'var(--coral)' }}>•</span>{pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: '112px 64px 0' }}>
+          <div style={{ maxWidth: 1320, margin: '0 auto' }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 56, textAlign: 'center', letterSpacing: -0.3 }}>
+              Everything you need to post consistently
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 28 }}>
+              {[
+                { title: 'AI content ideas', desc: 'Get:', points: ['Hyperlocal video ideas', 'Titles and hashtags', 'Step-by-step filming checklists'] },
+                { title: 'Automatic editing', desc: 'Reelly handles:', points: ['Stitching your clips together', 'Captions', 'Pause removal', 'Sound'] },
+                { title: 'Scheduling built in', desc: 'Stay consistent by:', points: ['Planning content ahead of time', 'Keeping your accounts active', 'Never having to remember to post'] },
+              ].map((f) => (
+                <div key={f.title} style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px 28px' }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 10 }}>
+                    {f.title}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{f.desc}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {f.points.map((pt) => (
+                      <li key={pt} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 0, color: 'var(--coral)' }}>•</span>{pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: '112px 64px 0' }}>
+          <div style={{ maxWidth: 1320, margin: '0 auto' }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>
+              Simple pricing
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48 }}>
+              Priced by render minutes per week. Full details at checkout.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 28 }}>
+              {pricing.map((tier) => (
+                <div
+                  key={tier.name}
+                  style={{
+                    background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)',
+                    borderRadius: 16,
+                    padding: '36px 28px',
+                    border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)',
+                  }}
+                >
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                    {tier.name}
+                  </h3>
+                  <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                    {tier.price}<span style={{ fontSize: 14, fontWeight: 400 }}>{tier.period}</span>
+                  </p>
+                  <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 22 }}>
+                    {tier.desc}
+                  </p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                    {tier.features.map((f) => (
+                      <li key={f} style={{ fontSize: 13, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
+                        • {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 28 }}>
+              <Link href="/plans" style={{ fontSize: 14, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>
+                See full plan details \u2192
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: '112px 64px 0' }}>
+          <div style={{ maxWidth: 680, margin: '0 auto' }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 40, textAlign: 'center', letterSpacing: -0.3 }}>
+              Questions? Answered.
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {faqs.map((f, i) => (
+                <div key={f.q} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                  <button
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    style={{ width: '100%', textAlign: 'left', padding: '18px 22px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 500, color: 'var(--ink)' }}
+                  >
+                    {f.q}
+                    <span style={{ fontSize: 18, color: 'var(--coral)' }}>{openFaq === i ? '\u2212' : '+'}</span>
+                  </button>
+                  {openFaq === i && (
+                    <p style={{ padding: '0 22px 20px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.65 }}>
+                      {f.a}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 28, margin: '112px 64px 0', padding: '64px 56px', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, color: '#F1EFE8', marginBottom: 14, letterSpacing: -0.3 }}>
             Ready to post consistently?
           </h2>
-          <p style={{ fontSize: 15, color: '#D3D1C7', marginBottom: 24 }}>
+          <p style={{ fontSize: 15, color: '#D3D1C7', marginBottom: 28 }}>
             Start free \u2014 no credit card required.
           </p>
-          <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '14px 32px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 34px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
             Get started free
           </Link>
         </section>
 
-        <footer style={{ padding: '48px', borderTop: '1px solid rgba(128,128,128,0.15)', marginTop: 24 }}>
-          <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
+        <footer style={{ padding: '64px', borderTop: '1px solid rgba(128,128,128,0.15)', marginTop: 64 }}>
+          <div style={{ maxWidth: 1320, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32 }}>
             <div>
               <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600 }}>Reelly</span>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 240 }}>
-                AI-powered content for Sydney's personal-service businesses.
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10, maxWidth: 240, lineHeight: 1.6 }}>
+                AI-powered content for anyone creating on social media.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 48 }}>
+            <div style={{ display: 'flex', gap: 56 }}>
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Product</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Product</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   <Link href="/plans" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Plans</Link>
                   <Link href="/signup" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Sign up</Link>
                   <Link href="/login" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Log in</Link>
                 </div>
               </div>
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Company</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Company</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sydney, Australia</span>
                   <Link href="/terms" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms of Service</Link>
                 </div>
               </div>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 40 }}>
-            © 2026 Reelly. Built in Sydney.
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>
+            \u00a9 2026 Reelly. Built in Sydney.
           </p>
         </footer>
       </div>

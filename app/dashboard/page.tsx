@@ -23,6 +23,7 @@ type Idea = {
   hook: string
   description: string
   tags: string
+  notes?: string
 }
 
 type FilmingItem = Idea & { checklist: string[] }
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('overview')
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -118,6 +120,9 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [renderId, renderStatus])
 
+  const updateIdeaNotes = (id: string, notes: string) => {
+    setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, notes } : idea)))
+  }
   const toggleSave = (id: string) => {
     setSavedIds((prev) => {
       const next = new Set(prev)
@@ -427,7 +432,9 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
                       {idea.hook}
                     </p>
-                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
+                      {idea.description}
+                    </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
                   </div>
                 ))}
               </div>
@@ -471,10 +478,41 @@ export default function DashboardPage() {
                         <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
                           {idea.hook}
                         </p>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
+                          {idea.description}
+                        </p>
                         <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
+                        {editingNotesId === idea.id ? (
+                          <textarea
+                            value={idea.notes || ''}
+                            onChange={(e) => updateIdeaNotes(idea.id, e.target.value)}
+                            onBlur={() => setEditingNotesId(null)}
+                            autoFocus
+                            placeholder="Add your own notes or tweaks for this idea..."
+                            style={{ width: '100%', marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", minHeight: 70, resize: 'vertical', boxSizing: 'border-box' }}
+                          />
+                        ) : idea.notes ? (
+                          <div onClick={() => setEditingNotesId(idea.id)} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--card-bg)', cursor: 'pointer' }}>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Your notes (click to edit)</p>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{idea.notes}</p>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingNotesId(idea.id)}
+                            style={{ marginTop: 12, background: 'none', border: '1px dashed rgba(128,128,128,0.35)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                          >
+                            + Add notes
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
+                  <button
+                    onClick={() => proceedToFilming(savedIdeas)}
+                    style={{ display: 'block', marginTop: 24, backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                  >
+                    Proceed to filming →
+                  </button>
                 </div>
               )}
             </div>
