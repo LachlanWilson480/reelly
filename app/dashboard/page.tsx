@@ -50,9 +50,17 @@ export default function DashboardPage() {
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [ideas, setIdeas] = useState<Idea[]>([])
+  const [dbSavedIdeas, setDbSavedIdeas] = useState<Idea[]>([])
+  const [currentBatch, setCurrentBatch] = useState(0)
+  const [previousBatch, setPreviousBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
+  const [redoBatch, setRedoBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
   const [generatingIdeas, setGeneratingIdeas] = useState(false)
   const [ideaError, setIdeaError] = useState('')
-
+  const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number } | null>(null)
+  const [userPlan, setUserPlan] = useState<'basic' | 'mid'>('mid')
+  const [refiningId, setRefiningId] = useState<string | null>(null)
+  const [refineInstruction, setRefineInstruction] = useState('')
+  const [refineLoading, setRefineLoading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [renderId, setRenderId] = useState<string | null>(null)
@@ -97,6 +105,39 @@ export default function DashboardPage() {
         return
       }
 
+      const { data: allIdeas } = await supabase
+        .from("generated_ideas")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("batch_number", { ascending: false })
+
+      if (allIdeas && allIdeas.length > 0) {
+        const toIdea = (row: Record<string, unknown>): Idea => ({
+          id: row.id as string,
+          title: row.title as string,
+          hook: row.hook as string,
+          description: row.description as string,
+          tags: row.tags as string,
+          notes: (row.notes as string) || undefined,
+        })
+
+        const maxBatch = Math.max(...allIdeas.map((r) => r.batch_number as number))
+        const currentRows = allIdeas.filter((r) => r.batch_number === maxBatch)
+        const prevBatchNum = Math.max(...allIdeas.filter((r) => r.batch_number < maxBatch).map((r) => r.batch_number as number), -1)
+        const prevRows = prevBatchNum >= 0 ? allIdeas.filter((r) => r.batch_number === prevBatchNum) : []
+        const savedRows = allIdeas.filter((r) => r.saved)
+
+        setIdeas(currentRows.map(toIdea))
+        setCurrentBatch(maxBatch)
+        if (prevRows.length > 0) setPreviousBatch({ ideas: prevRows.map(toIdea), batchNumber: prevBatchNum })
+        setDbSavedIdeas(savedRows.map(toIdea))
+        setSavedIds(new Set(savedRows.map((r) => r.id as string)))
+
+        const filmingRows = savedRows.filter((r) => r.checklist)
+        if (filmingRows.length > 0) {
+          setFilmingItems(filmingRows.map((r) => ({ ...toIdea(r), checklist: r.checklist as string[] })))
+        }
+      }
       setProfile(data)
       setLoading(false)
     }
@@ -122,44 +163,132 @@ export default function DashboardPage() {
 
   const updateIdeaNotes = (id: string, notes: string) => {
     setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, notes } : idea)))
+    supabase.from("generated_ideas").update({ notes }).eq("id", id).then(() => {})
+  }
+
+  const refineIdea = async (idea: Idea) => {
+    if (!profile || !refineInstruction.trim()) return
+    setRefineLoading(true)
+    try {
+      const res = await fetch("/api/refine-idea", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea, instruction: refineInstruction, profile, userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to refine idea")
+
+      setIdeas((prev) => prev.map((i) => (i.id === idea.id ? { ...i, ...data.idea } : i)))
+      setRefiningId(null)
+      setRefineInstruction("")
+    } catch (err) {
+      setIdeaError(err instanceof Error ? err.message : "Failed to refine idea")
+    } finally {
+      setRefineLoading(false)
+    }
   }
   const toggleSave = (id: string) => {
+    const idea = ideas.find((i) => i.id === id) || dbSavedIdeas.find((i) => i.id === id)
+    const willBeSaved = !savedIds.has(id)
+
     setSavedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
-  }
 
+    if (idea) {
+      if (willBeSaved) {
+        setDbSavedIdeas((prev) => [...prev, idea])
+      } else {
+        setDbSavedIdeas((prev) => prev.filter((i) => i.id !== id))
+      }
+    }
+
+    supabase.from("generated_ideas").update({ saved: willBeSaved }).eq("id", id).then(() => {})
+  }
   const generateIdeas = async () => {
-    if (!profile) return
+    if (!profile || !userId) return
     setGeneratingIdeas(true)
-    setIdeaError('')
+    setIdeaError("")
 
     try {
-      const res = await fetch('/api/generate-ideas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, customization: profile.custom_guidance }),
+      const res = await fetch("/api/generate-ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId }),
       })
 
-      if (!res.ok) throw new Error('Request failed')
-
       const data = await res.json()
-      const withIds: Idea[] = data.ideas.map((idea: Omit<Idea, 'id'>, i: number) => ({
-        ...idea,
-        id: `${Date.now()}-${i}`,
+      if (!res.ok) throw new Error(data.error || "Request failed")
+
+      const nextBatch = currentBatch + 1
+      const rowsToInsert = data.ideas.map((idea: Omit<Idea, "id">) => ({
+        user_id: userId,
+        title: idea.title,
+        hook: idea.hook,
+        description: idea.description,
+        tags: idea.tags,
+        batch_number: nextBatch,
+        saved: false,
       }))
-      setIdeas(withIds)
-    } catch {
-      setIdeaError('Something went wrong generating ideas. Please try again.')
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("generated_ideas")
+        .insert(rowsToInsert)
+        .select()
+
+      if (insertError || !inserted) throw new Error("Failed to save generated ideas")
+
+      const newIdeas: Idea[] = inserted.map((row) => ({
+        id: row.id,
+        title: row.title,
+        hook: row.hook,
+        description: row.description,
+        tags: row.tags,
+      }))
+
+      if (ideas.length > 0) {
+        setPreviousBatch({ ideas, batchNumber: currentBatch })
+      }
+      setRedoBatch(null)
+
+      // Clean up old unsaved batches beyond one level of undo history
+      if (currentBatch > 1) {
+        await supabase
+          .from("generated_ideas")
+          .delete()
+          .eq("user_id", userId)
+          .lt("batch_number", currentBatch)
+          .eq("saved", false)
+      }
+
+      setIdeas(newIdeas)
+      setCurrentBatch(nextBatch)
+      setUserPlan(data.plan || "mid")
+      if (data.usage) setUsageInfo(data.usage)
+    } catch (err) {
+      setIdeaError(err instanceof Error ? err.message : "Something went wrong generating ideas. Please try again.")
     } finally {
       setGeneratingIdeas(false)
     }
+  }
+
+  const undoIdeas = () => {
+    if (!previousBatch) return
+    setRedoBatch({ ideas, batchNumber: currentBatch })
+    setIdeas(previousBatch.ideas)
+    setCurrentBatch(previousBatch.batchNumber)
+    setPreviousBatch(null)
+  }
+
+  const redoIdeas = () => {
+    if (!redoBatch) return
+    setPreviousBatch({ ideas, batchNumber: currentBatch })
+    setIdeas(redoBatch.ideas)
+    setCurrentBatch(redoBatch.batchNumber)
+    setRedoBatch(null)
   }
 
   const proceedToFilming = async (ideasToGenerate: Idea[]) => {
@@ -171,7 +300,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/generate-checklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideas: ideasToGenerate, profile, customization: profile.custom_guidance }),
+        body: JSON.stringify({ ideas: ideasToGenerate, profile, customization: profile.custom_guidance, userId }),
       })
 
       if (!res.ok) throw new Error('Request failed')
@@ -276,7 +405,7 @@ export default function DashboardPage() {
     { label: 'Render minutes used', value: '0 / 2' },
   ]
 
-  const savedIdeas = ideas.filter((idea) => savedIds.has(idea.id))
+  const savedIdeas = dbSavedIdeas
 
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
   const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
@@ -387,6 +516,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   Tap the star to save an idea for filming.
                 </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <button
                   onClick={generateIdeas}
                   disabled={generatingIdeas}
@@ -394,6 +524,33 @@ export default function DashboardPage() {
                 >
                   {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
                 </button>
+                  <button
+                    onClick={undoIdeas}
+                    disabled={!previousBatch}
+                    title="Undo: load previous set of ideas"
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: previousBatch ? "var(--ink)" : "var(--text-muted)", cursor: previousBatch ? "pointer" : "not-allowed", opacity: previousBatch ? 1 : 0.5 }}
+                  >
+                    ↶ Undo
+                  </button>
+                  <button
+                    onClick={redoIdeas}
+                    disabled={!redoBatch}
+                    title="Redo"
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: redoBatch ? "var(--ink)" : "var(--text-muted)", cursor: redoBatch ? "pointer" : "not-allowed", opacity: redoBatch ? 1 : 0.5 }}
+                  >
+                    Redo ↷
+                  </button>
+                </div>
+              {userPlan === 'basic' && usageInfo && (
+                <div style={{ background: usageInfo.used >= usageInfo.limit ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: usageInfo.used >= usageInfo.limit ? '1px solid var(--coral)' : 'none', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {usageInfo.used} of {usageInfo.limit} idea generations used this week (Basic plan)
+                  </p>
+                  {usageInfo.used >= usageInfo.limit && (
+                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>Upgrade to Mid →</a>
+                  )}
+                </div>
+              )}
               </div>
 
               {ideaError && (
@@ -435,7 +592,41 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                       {idea.description}
                     </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
-                  </div>
+                    {userPlan === "mid" && (
+                      refiningId === idea.id ? (
+                        <div style={{ marginTop: 12 }}>
+                          <input
+                            type="text"
+                            value={refineInstruction}
+                            onChange={(e) => setRefineInstruction(e.target.value)}
+                            placeholder="e.g. make it funnier, shorter, more casual..."
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", color: "var(--ink)", fontSize: 12, marginBottom: 8, boxSizing: "border-box" }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => refineIdea(idea)}
+                              disabled={refineLoading}
+                              style={{ background: "var(--coral)", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: refineLoading ? "not-allowed" : "pointer" }}
+                            >
+                              {refineLoading ? "Refining..." : "Apply"}
+                            </button>
+                            <button
+                              onClick={() => { setRefiningId(null); setRefineInstruction("") }}
+                              style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setRefiningId(idea.id)}
+                          style={{ marginTop: 10, background: "none", border: "1px dashed rgba(128,128,128,0.35)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}
+                        >
+                          ✎ Refine this idea
+                        </button>
+                      )
+                    )}                  </div>
                 ))}
               </div>
             </div>
