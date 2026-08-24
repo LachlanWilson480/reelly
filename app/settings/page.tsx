@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [targetAudience, setTargetAudience] = useState('')
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
+  const [locationType, setLocationType] = useState('fixed')
   const [onCameraPeople, setOnCameraPeople] = useState('')
 
   const [website, setWebsite] = useState('')
@@ -96,6 +97,7 @@ export default function SettingsPage() {
         setTargetAudience(data.target_audience || '')
         setCoreServices(data.core_services || '')
         setFilmingComfort(data.filming_comfort || '')
+        setLocationType(data.location_type || 'fixed')
         setOnCameraPeople(data.on_camera_people || '')
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
@@ -171,6 +173,7 @@ export default function SettingsPage() {
         target_audience: targetAudience,
         core_services: coreServices,
         filming_comfort: filmingComfort,
+        location_type: locationType,
         on_camera_people: onCameraPeople,
         website,
         instagram_handle: instagramHandle,
@@ -374,6 +377,25 @@ export default function SettingsPage() {
             <Field label="Tone of voice" value={tone} onChange={setTone} />
             <Field label="Ideal customer" value={targetAudience} onChange={setTargetAudience} textarea />
             <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>Do customers come to you, or do you travel to them?</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {[
+                  { value: "fixed", label: "Fixed location (shop/studio)" },
+                  { value: "mobile", label: "Mobile (I travel to customers)" },
+                  { value: "both", label: "Both" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLocationType(opt.value)}
+                    style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(216,90,48,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
 
@@ -382,7 +404,7 @@ export default function SettingsPage() {
               onClick={() => setShowOptional(!showOptional)}
               style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
             >
-              {showOptional ? '− Hide additional details' : '+ Show additional details'}
+              {showOptional ? '− Hide additional details' : '+ Show more details (improves your idea and filming generations)'}
             </button>
 
             {showOptional && (
@@ -435,7 +457,7 @@ export default function SettingsPage() {
             <button
               onClick={handleSaveProfile}
               disabled={saving}
-              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: 16 }}
+              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: 16, display: 'block' }}
             >
               {saving ? 'Saving...' : 'Save changes'}
             </button>

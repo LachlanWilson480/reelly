@@ -21,7 +21,7 @@ export default function OnboardingPage() {
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
   const [onCameraPeople, setOnCameraPeople] = useState('')
-
+  const [locationType, setLocationType] = useState('fixed')
   const [website, setWebsite] = useState('')
   const [instagramHandle, setInstagramHandle] = useState('')
   const [tiktokHandle, setTiktokHandle] = useState('')
@@ -73,6 +73,7 @@ export default function OnboardingPage() {
       core_services: coreServices,
       filming_comfort: filmingComfort,
       on_camera_people: onCameraPeople,
+      location_type: locationType,
       website,
       instagram_handle: instagramHandle,
       tiktok_handle: tiktokHandle,
@@ -154,6 +155,25 @@ export default function OnboardingPage() {
               <Field label="Tone of voice" value={tone} onChange={setTone} placeholder="e.g. playful, professional, edgy" />
               <Field label="Who is your ideal customer?" value={customerDescription} onChange={setCustomerDescription} placeholder="Age range, lifestyle, what they're looking for" textarea />
               <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>Do customers come to you, or do you travel to them? *</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {[
+                    { value: "fixed", label: "Fixed location (shop/studio)" },
+                    { value: "mobile", label: "Mobile (I travel to customers)" },
+                    { value: "both", label: "Both" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setLocationType(opt.value)}
+                      style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(216,90,48,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. just my phone, hired videographer, studio setup" />
               <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names/roles" />
 

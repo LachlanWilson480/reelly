@@ -100,6 +100,12 @@ export async function POST(req: NextRequest) {
     const angles = pickAngles(anglePool, ideaCount)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
+    const locationType = profile.location_type || 'fixed'
+    const locationGuidance = locationType === 'mobile'
+      ? "This business is MOBILE — they travel to customers rather than customers visiting a shop. Do NOT suggest ideas that rely on a physical storefront, shop interior, or 'come visit us at our location' framing. Instead lean into what's always with them: their van/vehicle, tools, uniform, expertise, and opinions. Local suburb mentions should reference their general service area, not a specific address customers can visit."
+      : locationType === 'both'
+      ? "This business operates BOTH from a fixed location AND travels to customers. Ideas can reference their shop/studio space when relevant, but don't assume every idea needs to happen at a fixed premises — some should work anywhere (van, tools, expertise)."
+      : "This business operates from a FIXED location that customers visit. Feel free to suggest ideas that show their shop/studio space, ambiance, and physical setup where relevant, alongside expertise-based ideas."
     const prompt = `You help busy small business owners in Sydney create short-form social media content by themselves, alone, on their phone, in a few spare minutes. They are NOT content creators, have NO crew, and NO time to spare.
 
 CRITICAL CONSTRAINT — read this carefully: this business owner CANNOT control or predict what job, customer, or scenario will show up on any given day. Never invent or narrate a SPECIFIC fictional customer, address, or live job as if it is happening right now (e.g. never write something like "I just arrived at a place in Coogee where the customer..." or "we're at a house right now where..."). That is dishonest content and impossible to guarantee they can film that day.
@@ -115,6 +121,7 @@ Tone: ${profile.tone || 'not specified'}
 Ideal customer: ${profile.target_audience || 'not specified'}
 Core services: ${profile.core_services || 'not specified'}
 
+LOCATION TYPE: ${locationGuidance}
 Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above — not generic industry advice that could apply to any business in this trade):
 ${angleLines}
 

@@ -44,7 +44,15 @@ export async function POST(req: NextRequest) {
     const customNote = effectiveCustomization ? `\n\nOwner's style guidance: ${effectiveCustomization}` : ''
     const styleNote = styleOverride ? `\n\nDelivery style for this version: ${styleOverride}` : ''
 
-    const prompt = `You are a filming coach turning a chosen video idea into a precise filming checklist for ${profile.business_name}, a ${profile.industry} in ${profile.suburb}, Sydney. They film ALONE on a phone, no crew, under 10 minutes total including setup.
+
+    const locationType = profile.location_type || "fixed"
+    const locationGuidance = locationType === "mobile"
+      ? "This business travels to customers rather than having a shop customers visit — never suggest filming steps set inside a shop/storefront or walking to a shop door. Use their van, tools, and current surroundings instead."
+      : locationType === "both"
+      ? "This business sometimes works from a fixed location and sometimes travels — shop/studio setting is fine if it fits this specific idea, but don't assume it."
+      : "This business works from a fixed shop/studio location — filming there is fine and encouraged where it fits the idea."
+
+    const prompt = `You are a filming coach turning a chosen video idea into a precise filming checklist for ${profile.business_name}, a ${profile.industry} in ${profile.suburb}, Sydney. They film ALONE on a phone, no crew, under 10 minutes total including setup. ${locationGuidance}
 
 Rules for every checklist step:
 - Continue the idea's existing opening line naturally — don't invent a new opening.
@@ -72,6 +80,7 @@ You must produce a real, non-empty checklist for every idea listed above — nev
     while (attempts < 3 && normalizedChecklists.length === 0) {
       attempts++
       const message = await anthropic.messages.create({
+        thinking: { type: "disabled" },
         model,
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }],

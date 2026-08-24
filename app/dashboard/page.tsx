@@ -13,6 +13,7 @@ type Profile = {
   target_audience: string | null
   core_services: string | null
   custom_guidance: string | null
+  location_type: string | null
 }
 
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'calendar' | 'uploads'
@@ -51,6 +52,9 @@ export default function DashboardPage() {
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [dbSavedIdeas, setDbSavedIdeas] = useState<Idea[]>([])
+  const [totalIdeasGenerated, setTotalIdeasGenerated] = useState(0)
+  const [totalFilmingGenerated, setTotalFilmingGenerated] = useState(0)
+  const [totalRenders, setTotalRenders] = useState(0)
   const [currentBatch, setCurrentBatch] = useState(0)
   const [previousBatch, setPreviousBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
   const [redoBatch, setRedoBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
@@ -96,7 +100,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance')
+        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -111,6 +115,29 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .order("batch_number", { ascending: false })
 
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+      const { count: ideaCount } = await supabase
+        .from("generated_ideas")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart)
+      setTotalIdeasGenerated(ideaCount || 0)
+
+      const { count: filmingCount } = await supabase
+        .from("generated_ideas")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("checklist", "is", null)
+        .gte("created_at", monthStart)
+      setTotalFilmingGenerated(filmingCount || 0)
+
+      const { count: renderCount } = await supabase
+        .from("renders")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart)
+      setTotalRenders(renderCount || 0)
       if (allIdeas && allIdeas.length > 0) {
         const toIdea = (row: Record<string, unknown>): Idea => ({
           id: row.id as string,
@@ -400,7 +427,9 @@ export default function DashboardPage() {
   ]
 
   const stats = [
-    { label: 'Ideas generated', value: String(ideas.length) },
+    { label: 'Ideas generated', value: String(totalIdeasGenerated) },
+    { label: 'Filming instructions generated', value: String(totalFilmingGenerated) },
+    { label: 'Renders', value: String(totalRenders) },
     { label: 'Posts this week', value: '0' },
     { label: 'Render minutes used', value: '0 / 2' },
   ]

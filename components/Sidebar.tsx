@@ -35,6 +35,7 @@ export default function Sidebar() {
     { href: '/?stay=1', label: 'Home', icon: '⌂' },
     { href: '/dashboard', label: 'Dashboard', icon: '▦' },
     { href: '/editor', label: 'Editor', icon: '✂' },
+    { href: '/history', label: 'History', icon: '◷' },
     { href: '/plans', label: 'Plans', icon: '◆' },
     { href: '/settings', label: 'Settings', icon: '⚙' },
     { href: '/customise', label: 'Customise Generation', icon: '✎' },
