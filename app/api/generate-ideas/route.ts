@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const effectiveCustomization = plan === 'mid' ? customization : null
     const customNote = effectiveCustomization ? `\n\nAdditional guidance from the business owner (follow this, but never at the expense of safety, realism, or the constraints above):\n${effectiveCustomization}` : ''
 
-    const ideaCount = plan === 'mid' ? 6 : 3
+    const ideaCount = plan === 'mid' ? Math.max(1, Math.min(7, profile.videos_per_week || 6)) : 3
     const anglePool = plan === 'mid' ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, ideaCount)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')

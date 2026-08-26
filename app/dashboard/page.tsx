@@ -14,9 +14,10 @@ type Profile = {
   core_services: string | null
   custom_guidance: string | null
   location_type: string | null
+  videos_per_week: number | null
 }
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'calendar' | 'uploads'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads'
 
 type Idea = {
   id: string
@@ -25,9 +26,10 @@ type Idea = {
   description: string
   tags: string
   notes?: string
+  day_of_week?: number
 }
 
-type FilmingItem = Idea & { checklist: string[] }
+type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
 
@@ -100,7 +102,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type')
+        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -146,6 +148,7 @@ export default function DashboardPage() {
           description: row.description as string,
           tags: row.tags as string,
           notes: (row.notes as string) || undefined,
+          day_of_week: row.day_of_week as number | undefined,
         })
 
         const maxBatch = Math.max(...allIdeas.map((r) => r.batch_number as number))
@@ -162,7 +165,7 @@ export default function DashboardPage() {
 
         const filmingRows = savedRows.filter((r) => r.checklist)
         if (filmingRows.length > 0) {
-          setFilmingItems(filmingRows.map((r) => ({ ...toIdea(r), checklist: r.checklist as string[] })))
+          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "" } }))
         }
       }
       setProfile(data)
@@ -251,13 +254,15 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(data.error || "Request failed")
 
       const nextBatch = currentBatch + 1
-      const rowsToInsert = data.ideas.map((idea: Omit<Idea, "id">) => ({
+      const shuffledDays = [0, 1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5)
+      const rowsToInsert = data.ideas.map((idea: Omit<Idea, "id">, i: number) => ({
         user_id: userId,
         title: idea.title,
         hook: idea.hook,
         description: idea.description,
         tags: idea.tags,
         batch_number: nextBatch,
+        day_of_week: shuffledDays[i % 7],
         saved: false,
       }))
 
@@ -336,8 +341,17 @@ export default function DashboardPage() {
       const merged: FilmingItem[] = ideasToGenerate.map((idea, i) => ({
         ...idea,
         checklist: data.checklists[i]?.checklist || [],
+        prep: data.checklists[i]?.prep || [],
+        caption: data.checklists[i]?.caption || "",
       }))
       setFilmingItems(merged)
+
+      for (const item of merged) {
+        await supabase
+          .from("generated_ideas")
+          .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption } })
+          .eq("id", item.id)
+      }
     } catch {
       setFilmingItems([])
     } finally {
@@ -422,7 +436,6 @@ export default function DashboardPage() {
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
-    { id: 'calendar', label: 'Calendar' },
     { id: 'uploads', label: 'Uploads' },
   ]
 
@@ -663,6 +676,69 @@ export default function DashboardPage() {
 
           {tab === 'myideas' && (
             <div>
+              {userPlan === "mid" && dbSavedIdeas.length > 0 && (
+                <div style={{ marginBottom: 32 }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Weekly Calendar</h3>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>Drag an idea onto any day to schedule it.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, dayIndex) => {
+                      const isToday = new Date().getDay() === dayIndex
+                      const dayIdeas = dbSavedIdeas.filter((i) => i.day_of_week === dayIndex)
+                      return (
+                        <div
+                          key={dayIndex}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            const ideaId = e.dataTransfer.getData("text/plain")
+                            setDbSavedIdeas((prev) => prev.map((i) => (i.id === ideaId ? { ...i, day_of_week: dayIndex } : i)))
+                            supabase.from("generated_ideas").update({ day_of_week: dayIndex }).eq("id", ideaId).then(() => {})
+                          }}
+                          style={{
+                            background: isToday ? "linear-gradient(160deg, rgba(216,90,48,0.12), rgba(127,119,221,0.08))" : "var(--sand)",
+                            border: isToday ? "1.5px solid var(--coral)" : "1px solid rgba(128,128,128,0.12)",
+                            borderRadius: 12,
+                            padding: "12px 10px",
+                            minHeight: 180,
+                            transition: "background 0.15s ease",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: isToday ? "var(--coral)" : "var(--text-secondary)" }}>{dayName}</p>
+                            {dayIdeas.length > 0 && (
+                              <span style={{ fontSize: 10, fontWeight: 700, background: "var(--coral)", color: "#fff", borderRadius: 999, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>{dayIdeas.length}</span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {dayIdeas.length === 0 && (
+                              <div style={{ border: "1px dashed rgba(128,128,128,0.25)", borderRadius: 8, padding: "14px 6px", textAlign: "center" }}>
+                                <p style={{ fontSize: 10, color: "var(--text-muted)" }}>Drop here</p>
+                              </div>
+                            )}
+                            {dayIdeas.map((idea) => (
+                              <div
+                                key={idea.id}
+                                draggable
+                                onDragStart={(e) => e.dataTransfer.setData("text/plain", idea.id)}
+                                style={{
+                                  background: "var(--card-bg)",
+                                  borderLeft: "3px solid var(--coral)",
+                                  borderRadius: "4px 8px 8px 4px",
+                                  padding: "8px 10px",
+                                  cursor: "grab",
+                                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                                }}
+                              >
+                                <p style={{ fontSize: 10.5, fontWeight: 600, lineHeight: 1.35 }}>{idea.title}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               {savedIdeas.length === 0 ? (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
@@ -760,7 +836,17 @@ export default function DashboardPage() {
                         {item.title}
                       </h3>
                       <p style={{ fontSize: 12, color: 'var(--coral)', marginBottom: 16 }}>{item.tags}</p>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {item.prep && item.prep.length > 0 && (
+                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>WHAT YOU'LL NEED</p>
+                          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                            {item.prep.map((p, i) => (
+                              <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)" }}>✓ {p}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                         {item.checklist.map((step, i) => (
                           <li key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', gap: 8 }}>
                             <span style={{ color: 'var(--coral)', flexShrink: 0 }}>•</span>
@@ -768,18 +854,16 @@ export default function DashboardPage() {
                           </li>
                         ))}
                       </ul>
+                      {item.caption && (
+                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginTop: 16 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>SUGGESTED CAPTION</p>
+                          <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{item.caption}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {tab === 'calendar' && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                Your content calendar will show up here — coming soon.
-              </p>
             </div>
           )}
 

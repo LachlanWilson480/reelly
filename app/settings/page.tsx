@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
   const [locationType, setLocationType] = useState('fixed')
+  const [videosPerWeek, setVideosPerWeek] = useState(3)
   const [onCameraPeople, setOnCameraPeople] = useState('')
 
   const [website, setWebsite] = useState('')
@@ -98,6 +99,7 @@ export default function SettingsPage() {
         setCoreServices(data.core_services || '')
         setFilmingComfort(data.filming_comfort || '')
         setLocationType(data.location_type || 'fixed')
+        setVideosPerWeek(data.videos_per_week || 3)
         setOnCameraPeople(data.on_camera_people || '')
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
@@ -174,6 +176,7 @@ export default function SettingsPage() {
         core_services: coreServices,
         filming_comfort: filmingComfort,
         location_type: locationType,
+        videos_per_week: videosPerWeek,
         on_camera_people: onCameraPeople,
         website,
         instagram_handle: instagramHandle,

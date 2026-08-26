@@ -67,9 +67,15 @@ Example step showing correct pacing (24 words, 11 seconds — note how generous 
 
 ${ideasList}${customNote}${styleNote}
 
-You must produce a real, non-empty checklist for every idea listed above — never respond with an empty array or skip an idea. Respond ONLY with valid JSON, no markdown, no code fences, no other text before or after. Every "checklist" value must be an array of plain strings (never objects), one object per idea in the same order:
+You must produce a real, non-empty checklist for every idea listed above — never respond with an empty array or skip an idea. Every video must have a clear structure: a hook/opening (first 2-3 seconds), a middle that delivers the actual content, and a closing line with a soft call-to-action (e.g. inviting a follow, a question, or a reason to book/get in touch) — never just trail off after the content.
+
+For each idea also provide:
+- "prep": a short array of 2-4 plain-text items listing exactly what to grab/set up before filming (e.g. "Phone", "Your work van or a tool relevant to this video", "Good natural light — film facing a window or outdoors"). Always include the phone; add other items only if genuinely needed for this specific idea.
+- "caption": a ready-to-post social caption (2-4 sentences) in the business's tone, expanding on the video's point, ending with 2-4 relevant hashtags already used in the idea's tags.
+
+Respond ONLY with valid JSON, no markdown, no code fences, no other text before or after. Use this exact structure, one object per idea in the same order:
 [
-  { "checklist": ["step 1", "step 2"] }
+  { "prep": ["item 1", "item 2"], "checklist": ["step 1", "step 2"], "caption": "..." }
 ]`
 
     const model = plan === 'mid' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
