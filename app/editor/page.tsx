@@ -578,7 +578,7 @@ export default function EditorPage() {
         </div>
 
         {panelOpen && (
-          <div style={{ width: 320, borderLeft: '1px solid rgba(128,128,128,0.15)', padding: 24, overflowY: 'auto', flexShrink: 0 }}>
+          <div className="editor-panel" style={{ width: 320, borderLeft: '1px solid rgba(128,128,128,0.15)', padding: 24, overflowY: 'auto', flexShrink: 0 }}>
             {clips.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <button
