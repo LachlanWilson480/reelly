@@ -92,7 +92,7 @@ export default function HomePage() {
           </div>
         </nav>
 
-        <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 28, margin: '16px 64px 0', padding: '96px 72px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 64, alignItems: 'center' }}>
+        <section className="hero-section" style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 28, margin: '16px 64px 0', padding: '96px 72px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 64, alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 28 }}>
             <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 52, fontWeight: 600, color: '#F1EFE8', maxWidth: 560, lineHeight: 1.12, letterSpacing: -0.5 }}>
               Content ideas, filmed and posted in minutes.
