@@ -247,7 +247,7 @@ export default function HomePage() {
             </div>
             <div style={{ textAlign: 'center', marginTop: 28 }}>
               <Link href="/plans" style={{ fontSize: 14, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>
-                See full plan details \u2192
+                See full plan details →
               </Link>
             </div>
           </div>
@@ -284,7 +284,7 @@ export default function HomePage() {
             Ready to post consistently?
           </h2>
           <p style={{ fontSize: 15, color: '#D3D1C7', marginBottom: 28 }}>
-            Start free \ -  no credit card required.
+            Start free - no credit card required.
           </p>
           <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 34px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
             Get started free
