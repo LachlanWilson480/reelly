@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-
+import { useSearchParams } from 'next/navigation'
 type Profile = {
   business_name: string
   industry: string
@@ -48,7 +48,9 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTabState] = useState<Tab>('overview')
+  const searchParams = useSearchParams()
+  const setTab = (t: Tab) => { setTabState(t); router.replace(`/dashboard?tab=${t}`, { scroll: false }) }
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
@@ -188,6 +190,13 @@ export default function DashboardPage() {
     load()
   }, [router])
 
+  useEffect(() => {
+    const urlTab = searchParams.get("tab") as Tab | null
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "uploads", "aiuploads"]
+    if (urlTab && validTabs.includes(urlTab)) {
+      setTabState(urlTab)
+    }
+  }, [searchParams])
   useEffect(() => {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
 
@@ -583,7 +592,7 @@ export default function DashboardPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
+        <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             Reelly
           </span>

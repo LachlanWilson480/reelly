@@ -2,11 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
+
+const DASHBOARD_TABS = [
+  { id: 'overview', label: 'Overview', icon: '▦' },
+  { id: 'ideas', label: 'Content Ideas', icon: '✎' },
+  { id: 'myideas', label: 'My Ideas', icon: '★' },
+  { id: 'filming', label: 'Filming', icon: '✂' },
+  { id: 'uploads', label: 'Uploads', icon: '⬆' },
+  { id: 'aiuploads', label: 'AI Editor Uploads', icon: '⚡' },
+]
 
 export default function Sidebar() {
   const [isDark, setIsDark] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileShowFullMenu, setMobileShowFullMenu] = useState(false)
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const saved = localStorage.getItem('reelly-theme')
@@ -20,6 +33,10 @@ export default function Sidebar() {
     const shouldBeDark = hour >= 18 || hour < 6
     applyTheme(shouldBeDark)
   }, [])
+
+  useEffect(() => {
+    setMobileShowFullMenu(false)
+  }, [pathname])
 
   const applyTheme = (dark: boolean) => {
     setIsDark(dark)
@@ -43,72 +60,127 @@ export default function Sidebar() {
     { href: '/terms', label: 'Terms of Service', icon: '§' },
   ]
 
-  const railContent = (isMobileDrawer: boolean) => (
-    <>
-      <button
-        onClick={() => (isMobileDrawer ? setMobileOpen(false) : setExpanded(!expanded))}
-        style={{
-          background: 'none',
-          border: 'none',
-          fontSize: 18,
-          cursor: 'pointer',
-          color: 'var(--ink)',
-          padding: '8px 4px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginBottom: 16,
-          width: '100%',
-        }}
-      >
-        <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
-        {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
-      </button>
+  const isOnDashboard = pathname === '/dashboard'
+  const currentTab = searchParams.get('tab') || 'overview'
 
-      {navItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={() => isMobileDrawer && setMobileOpen(false)}
+  const railContent = (isMobileDrawer: boolean) => {
+    const showDashboardTabs = isMobileDrawer && isOnDashboard && !mobileShowFullMenu
+
+    return (
+      <>
+        <button
+          onClick={() => (isMobileDrawer ? setMobileOpen(false) : setExpanded(!expanded))}
           style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 18,
+            cursor: 'pointer',
+            color: 'var(--ink)',
+            padding: '8px 4px',
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '10px 4px',
-            borderRadius: 8,
-            textDecoration: 'none',
-            color: 'var(--ink)',
-            fontSize: 13,
-            fontFamily: "'Inter', sans-serif",
-            whiteSpace: 'nowrap',
+            marginBottom: 16,
+            width: '100%',
           }}
         >
-          <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
-          {(expanded || isMobileDrawer) && <span>{item.label}</span>}
-        </Link>
-      ))}
+          <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
+          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
+        </button>
 
-      <div style={{ flex: 1 }} />
+        {showDashboardTabs && (
+          <button
+            onClick={() => setMobileShowFullMenu(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 4px',
+              borderRadius: 8,
+              background: 'var(--sand)',
+              border: 'none',
+              textAlign: 'left',
+              color: 'var(--ink)',
+              fontSize: 13,
+              fontFamily: "'Inter', sans-serif",
+              cursor: 'pointer',
+              marginBottom: 8,
+            }}
+          >
+            <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>⌂</span>
+            <span>Full menu</span>
+          </button>
+        )}
 
-      <button
-        onClick={toggleTheme}
-        style={{
-          background: 'none',
-          border: 'none',
-          fontSize: 15,
-          cursor: 'pointer',
-          color: 'var(--ink)',
-          padding: '10px 4px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <span style={{ width: 20, textAlign: 'center' }}>{isDark ? '☀️' : '🌙'}</span>
-        {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif" }}>{isDark ? 'Light mode' : 'Dark mode'}</span>}
-      </button>
-    </>
-  )
+        {showDashboardTabs
+          ? DASHBOARD_TABS.map((item) => (
+              <Link
+                key={item.id}
+                href={`/dashboard?tab=${item.id}`}
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 4px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  color: currentTab === item.id ? 'var(--coral)' : 'var(--ink)',
+                  fontWeight: currentTab === item.id ? 600 : 400,
+                  fontSize: 13,
+                  fontFamily: "'Inter', sans-serif",
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))
+          : navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => isMobileDrawer && setMobileOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 4px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  color: 'var(--ink)',
+                  fontSize: 13,
+                  fontFamily: "'Inter', sans-serif",
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                {(expanded || isMobileDrawer) && <span>{item.label}</span>}
+              </Link>
+            ))}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          onClick={toggleTheme}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 15,
+            cursor: 'pointer',
+            color: 'var(--ink)',
+            padding: '10px 4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span style={{ width: 20, textAlign: 'center' }}>{isDark ? '☀️' : '🌙'}</span>
+          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif" }}>{isDark ? 'Light mode' : 'Dark mode'}</span>}
+        </button>
+      </>
+    )
+  }
 
   return (
     <>

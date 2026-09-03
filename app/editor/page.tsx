@@ -70,7 +70,7 @@ export default function EditorPage() {
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [musicPath, setMusicPath] = useState<string | null>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isTrimming, setIsTrimming] = useState(false)
@@ -400,7 +400,7 @@ export default function EditorPage() {
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', display: 'flex', height: '100vh' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
+          <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
             <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", color: "var(--ink)" }}>
               ← Dashboard
             </a>
@@ -413,7 +413,7 @@ export default function EditorPage() {
           </nav>
 
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, minHeight: 0 }}>
-            <div style={{ background: '#000', borderRadius: 16, overflow: 'hidden', height: '100%', aspectRatio: '9 / 16', display: 'flex', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', position: 'relative' }}>
+            <div style={{ background: '#000', borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 380, aspectRatio: '9 / 16', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               {clips.length > 0 ? (
                 <>
                   <video
