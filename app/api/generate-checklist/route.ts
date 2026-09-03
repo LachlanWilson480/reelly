@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
     const effectiveCustomization = plan === 'mid' ? customization : null
     const notesLine = idea.notes ? ` Owner's notes (priority if conflicting): ${idea.notes}` : ''
     const customNote = effectiveCustomization ? `\n\nOwner's style guidance: ${effectiveCustomization}` : ''
+    const brandNote = profile.brand_personality ? `\n\nBrand personality: ${profile.brand_personality}` : ""
+    const avoidNote = profile.words_to_avoid ? `\n\nNever use these words/phrases: ${profile.words_to_avoid}` : ""
     const styleNote = styleOverride ? `\n\nDelivery style for this version: ${styleOverride}` : ''
 
     const locationType = profile.location_type || 'fixed'
@@ -64,7 +66,7 @@ Example step showing correct pacing (24 words, 11 seconds  -  note how generous 
 The idea:
 Title: ${idea.title}
 Opening line already chosen: "${idea.hook}"
-Point of the video: ${idea.description}${notesLine}${customNote}${styleNote}
+Point of the video: ${idea.description}${notesLine}${customNote}${styleNote}${brandNote}${avoidNote}
 
 You must produce a real, non-empty checklist  -  never respond with an empty array. The video must have a clear structure: a hook/opening (first 2-3 seconds), a middle that delivers the actual content, and a closing line with a soft call-to-action (e.g. inviting a follow, a question, or a reason to book/get in touch)  -  never just trail off after the content.
 

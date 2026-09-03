@@ -147,7 +147,12 @@ Suburb: ${profile.suburb}
 Tone: ${profile.tone || 'not specified'}
 Ideal customer: ${profile.target_audience || 'not specified'}
 Core services: ${profile.core_services || 'not specified'}
-
+${profile.brand_personality ? `Brand personality: ${profile.brand_personality}` : ""}
+${profile.words_to_avoid ? `Words/phrases to avoid: ${profile.words_to_avoid}` : ""}
+${profile.signature_service ? `Signature service they're known for: ${profile.signature_service}` : ""}
+${profile.common_objections ? `Common objections/hesitations customers have: ${profile.common_objections}` : ""}
+${profile.current_promotions ? `Current promotions/offers: ${profile.current_promotions}` : ""}
+${profile.customer_problem ? `The core problem customers come to them with: ${profile.customer_problem}` : ""}
 LOCATION TYPE: ${locationGuidance}
 
 ${seasonalGuidance}
@@ -164,6 +169,9 @@ For each idea, provide:
 - 3-4 relevant hashtags, including the suburb where natural
 
 ${customNote}
+
+
+If the business has listed words/phrases to avoid, current promotions, a signature service, common customer objections, brand personality, or a core customer problem above, weave these in naturally where relevant - they should meaningfully shape the ideas, not just sit unused.
 
 IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere inside any string value (e.g. if quoting what someone says or a phrase, use single quotes ' ' instead). This is critical for valid JSON output.
 Respond ONLY with valid JSON, no markdown formatting, no code fences, in this exact structure:

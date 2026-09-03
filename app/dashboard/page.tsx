@@ -16,7 +16,12 @@ type Profile = {
   location_type: string | null
   videos_per_week: number | null
   local_seasonal_context: string | null
-}
+  brand_personality: string | null
+  words_to_avoid: string | null
+  signature_service: string | null
+  common_objections: string | null
+  current_promotions: string | null
+  customer_problem: string | null}
 
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads' | 'aiuploads'
 
@@ -118,7 +123,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context')
+        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem')
         .eq('user_id', user.id)
         .maybeSingle()
 
