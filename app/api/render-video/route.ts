@@ -54,11 +54,11 @@ const PRESETS: Record<string, CaptionPreset> = {
 }
 
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
-type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean }
+type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings } = await req.json()
+    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
 
     const captionEntries: { start: number; length: number; alias: string }[] = []
 
+    const backgroundClips: Record<string, unknown>[] = []
     const clips = signedUrls.map((url, i) => {
       const trim = trims[i] || {}
       const setting = settings[i] || {}
@@ -147,10 +148,18 @@ export async function POST(req: NextRequest) {
         transition: i > 0 ? { in: 'fade' } : undefined,
       }
 
-      if (setting.fit) {
+      if (setting.letterbox) {
+        clipEntry.fit = "contain"
+        backgroundClips.push({
+          asset: { type: "video", src: url, ...(typeof trim.trimStart === "number" && trim.trimStart > 0 ? { trim: trim.trimStart } : {}), volume: 0 },
+          start: clipStartTimes[i],
+          length: effectiveLengths[i],
+          fit: "crop",
+          filter: "blur",
+        })
+      } else if (setting.fit) {
         clipEntry.fit = setting.fit
       }
-
       if (setting.filter && setting.filter !== 'none') {
         clipEntry.filter = setting.filter
       }
@@ -216,6 +225,9 @@ export async function POST(req: NextRequest) {
 
     tracks.push({ clips })
 
+    if (backgroundClips.length > 0) {
+      tracks.push({ clips: backgroundClips })
+    }
     if (musicUrl) {
       tracks.push({
         clips: [
@@ -232,10 +244,10 @@ export async function POST(req: NextRequest) {
 
     const edit = {
       timeline,
-      output: { format: 'mp4', size: { width: 1080, height: 1920 } },
+      output: { format: 'mp4', size: outputOrientation === 'landscape' ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 } },
     }
 
-    const shotstackRes = await fetch('https://api.shotstack.io/edit/stage/render', {
+    const shotstackRes = await fetch('https://api.shotstack.io/edit/v1/render', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

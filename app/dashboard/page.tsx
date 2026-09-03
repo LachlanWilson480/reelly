@@ -15,9 +15,10 @@ type Profile = {
   custom_guidance: string | null
   location_type: string | null
   videos_per_week: number | null
+  local_seasonal_context: string | null
 }
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads' | 'aiuploads'
 
 type Idea = {
   id: string
@@ -51,7 +52,16 @@ export default function DashboardPage() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
+  const [selectedFilmingId, setSelectedFilmingId] = useState<string | null>(null)
+  const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
+  const [aiUploading, setAiUploading] = useState(false)
+  const [aiRenderId, setAiRenderId] = useState<string | null>(null)
+  const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
+  const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
+  const [aiCaptionPreset, setAiCaptionPreset] = useState('bold_center')
+  const [aiSpeechSteps, setAiSpeechSteps] = useState<Set<number>>(new Set())
   const [generatingFilming, setGeneratingFilming] = useState(false)
+  const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [dbSavedIdeas, setDbSavedIdeas] = useState<Idea[]>([])
   const [totalIdeasGenerated, setTotalIdeasGenerated] = useState(0)
@@ -71,6 +81,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false)
   const [renderId, setRenderId] = useState<string | null>(null)
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
+  const [renderError, setRenderError] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
 
@@ -79,6 +90,9 @@ export default function DashboardPage() {
   const [captionFontSize, setCaptionFontSize] = useState(36)
   const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
+  const [landscapeTouched, setLandscapeTouched] = useState(false)
+  const [captionTouched, setCaptionTouched] = useState(false)
   const [speechClipIndex, setSpeechClipIndex] = useState<number | null>(0)
   const [lastRenderedPaths, setLastRenderedPaths] = useState<string[]>([])
   const [lastMusicPath, setLastMusicPath] = useState<string | null>(null)
@@ -102,7 +116,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week')
+        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -163,7 +177,7 @@ export default function DashboardPage() {
         setDbSavedIdeas(savedRows.map(toIdea))
         setSavedIds(new Set(savedRows.map((r) => r.id as string)))
 
-        const filmingRows = savedRows.filter((r) => r.checklist)
+        const filmingRows = savedRows.filter((r) => r.checklist && !r.filming_cleared)
         if (filmingRows.length > 0) {
           setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "" } }))
         }
@@ -185,12 +199,29 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setRenderStatus(data.status)
+      if (data.error) setRenderError(data.error)
       if (data.outputUrl) setOutputUrl(data.outputUrl)
     }, 4000)
 
     return () => clearInterval(interval)
   }, [renderId, renderStatus])
 
+  useEffect(() => {
+    if (!aiRenderId || aiRenderStatus === "done" || aiRenderStatus === "failed") return
+
+    const interval = setInterval(async () => {
+      const res = await fetch("/api/render-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ renderId: aiRenderId }),
+      })
+      const data = await res.json()
+      setAiRenderStatus(data.status)
+      if (data.outputUrl) setAiOutputUrl(data.outputUrl)
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [aiRenderId, aiRenderStatus])
   const updateIdeaNotes = (id: string, notes: string) => {
     setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, notes } : idea)))
     supabase.from("generated_ideas").update({ notes }).eq("id", id).then(() => {})
@@ -306,6 +337,12 @@ export default function DashboardPage() {
       setGeneratingIdeas(false)
     }
   }
+  const clearFilming = async () => {
+    if (filmingItems.length === 0) return
+    const ids = filmingItems.map((i) => i.id)
+    setFilmingItems([])
+    await supabase.from("generated_ideas").update({ filming_cleared: true }).in("id", ids)
+  }
 
   const undoIdeas = () => {
     if (!previousBatch) return
@@ -326,37 +363,67 @@ export default function DashboardPage() {
   const proceedToFilming = async (ideasToGenerate: Idea[]) => {
     if (!profile) return
     setGeneratingFilming(true)
-    setTab('filming')
+    setTab("filming")
+    setFilmingError(null)
 
     try {
-      const res = await fetch('/api/generate-checklist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideas: ideasToGenerate, profile, customization: profile.custom_guidance, userId }),
-      })
+      const results = await Promise.allSettled(
+        ideasToGenerate.map((idea) =>
+          fetch("/api/generate-checklist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId }),
+          }).then(async (res) => {
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || "Request failed")
+            return { idea, data }
+          })
+        )
+      )
 
-      if (!res.ok) throw new Error('Request failed')
+      const merged: FilmingItem[] = []
+      let failCount = 0
 
-      const data = await res.json()
-      const merged: FilmingItem[] = ideasToGenerate.map((idea, i) => ({
-        ...idea,
-        checklist: data.checklists[i]?.checklist || [],
-        prep: data.checklists[i]?.prep || [],
-        caption: data.checklists[i]?.caption || "",
-      }))
-      setFilmingItems(merged)
-
-      for (const item of merged) {
-        await supabase
-          .from("generated_ideas")
-          .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption } })
-          .eq("id", item.id)
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const { idea, data } = result.value
+          const item: FilmingItem = {
+            ...idea,
+            checklist: data.checklist || [],
+            prep: data.prep || [],
+            caption: data.caption || "",
+          }
+          merged.push(item)
+          await supabase
+            .from("generated_ideas")
+            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption } })
+            .eq("id", item.id)
+        } else {
+          failCount++
+        }
       }
-    } catch {
-      setFilmingItems([])
+
+      setFilmingItems(merged)
+      if (failCount > 0) {
+        setFilmingError(`${failCount} of ${ideasToGenerate.length} idea${failCount > 1 ? "s" : ""} failed to generate. You can try again for those.`)
+      }
+    } catch (err) {
+      setFilmingError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setGeneratingFilming(false)
     }
+  }
+  const isLandscapeVideo = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src)
+        resolve(video.videoWidth > video.videoHeight)
+      }
+      video.onerror = () => resolve(false)
+      video.src = URL.createObjectURL(file)
+    })
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -367,6 +434,54 @@ export default function DashboardPage() {
     }
   }
 
+  const submitAiEditorUploads = async () => {
+    if (!userId) return
+    const selectedItem = filmingItems.find((f) => f.id === selectedFilmingId)
+    if (!selectedItem) return
+
+    setAiUploading(true)
+    setAiRenderId(null)
+    setAiRenderStatus(null)
+    setAiOutputUrl(null)
+
+    try {
+      const stepIndices = Object.keys(stepUploads).map(Number).sort((a, b) => a - b)
+      const clipPaths: string[] = []
+      const speechIndices: number[] = []
+
+      for (const stepIndex of stepIndices) {
+        const file = stepUploads[stepIndex]
+        const path = `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
+        const { error } = await supabase.storage.from("video-uploads").upload(path, file)
+        if (error) throw new Error(error.message)
+        clipPaths.push(path)
+        if (aiSpeechSteps.has(stepIndex)) speechIndices.push(clipPaths.length - 1)
+      }
+
+      if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
+
+      const res = await fetch("/api/render-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          clipPaths,
+          captionStyle: aiCaptionPreset,
+          speechClipIndices: speechIndices,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Render failed to start")
+
+      setAiRenderId(data.renderId)
+      setAiRenderStatus("queued")
+    } catch (err) {
+      setIdeaError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setAiUploading(false)
+    }
+  }
   const startUploadAndRender = async () => {
     if (!userId || selectedFiles.length === 0) return
     setUploading(true)
@@ -392,6 +507,17 @@ export default function DashboardPage() {
         if (!musicError) musicPath = mPath
       }
 
+      let clipSettings: { letterbox?: boolean }[] | undefined = undefined
+      let outputOrientation: string | undefined = undefined
+      const anyLandscape = (await Promise.all(selectedFiles.map((f) => isLandscapeVideo(f)))).some((v) => v)
+      if (anyLandscape) {
+        if (landscapeHandling === "landscape") {
+          outputOrientation = "landscape"
+        } else if (landscapeHandling === "blur") {
+          const orientationChecks = await Promise.all(selectedFiles.map((f) => isLandscapeVideo(f)))
+          clipSettings = orientationChecks.map((isLandscape) => (isLandscape ? { letterbox: true } : {}))
+        }
+      }
       const captionStyle = showAdvancedCaptions
         ? {
             preset: captionPreset,
@@ -405,7 +531,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation }),
       })
 
       const data = await res.json()
@@ -437,6 +563,7 @@ export default function DashboardPage() {
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
     { id: 'uploads', label: 'Uploads' },
+    { id: 'aiuploads', label: 'AI Editor Uploads' },
   ]
 
   const stats = [
@@ -455,17 +582,24 @@ export default function DashboardPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             Reelly
           </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <a href="/plans" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: userPlan === "mid" ? "var(--coral)" : "var(--text-muted)" }} />
+              {userPlan === "mid" ? "Pro Plan" : "Basic Plan"}
+              <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
+            </a>
           <button
             onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
             style={{ background: 'none', border: 'none', fontSize: 14, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
           >
             Log out
           </button>
+          </div>
         </nav>
 
         <div style={{ padding: '0 48px 100px' }}>
@@ -589,7 +723,7 @@ export default function DashboardPage() {
                     {usageInfo.used} of {usageInfo.limit} idea generations used this week (Basic plan)
                   </p>
                   {usageInfo.used >= usageInfo.limit && (
-                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>Upgrade to Mid →</a>
+                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>Upgrade to Pro →</a>
                   )}
                 </div>
               )}
@@ -816,7 +950,16 @@ export default function DashboardPage() {
 
           {tab === 'filming' && (
             <div>
-              {generatingFilming && (
+              {filmingError && (
+                <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
+              )}              {filmingItems.length > 0 && (
+                <button
+                  onClick={clearFilming}
+                  style={{ marginBottom: 16, background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
+                >
+                  Clear
+                </button>
+              )}              {generatingFilming && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions...</p>
                 </div>
@@ -935,7 +1078,7 @@ export default function DashboardPage() {
                   {CAPTION_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
-                      onClick={() => setCaptionPreset(preset.id)}
+                      onClick={() => { setCaptionPreset(preset.id); setCaptionTouched(true) }}
                       style={{
                         textAlign: 'left',
                         padding: '14px',
@@ -998,6 +1141,26 @@ export default function DashboardPage() {
 
                 {selectedFiles.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips  -  how should they be handled?</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {[
+                        { id: "crop", label: "Crop & zoom" },
+                        { id: "blur", label: "Blurred bars" },
+                        { id: "landscape", label: "Keep landscape shape" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => { setLandscapeHandling(opt.id as "crop" | "blur" | "landscape"); setLandscapeTouched(true) }}
+                          style={{ padding: "8px 14px", borderRadius: 8, border: landscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}                {selectedFiles.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
                     <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Which clip has the speech to caption?</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {selectedFiles.map((file, i) => (
@@ -1042,7 +1205,7 @@ export default function DashboardPage() {
 
                 <button
                   onClick={startUploadAndRender}
-                  disabled={uploading || selectedFiles.length === 0}
+                  disabled={uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched}
                   style={{
                     backgroundColor: 'var(--coral)',
                     color: '#fff',
@@ -1053,13 +1216,15 @@ export default function DashboardPage() {
                     fontSize: 14,
                     fontWeight: 600,
                     border: 'none',
-                    cursor: uploading || selectedFiles.length === 0 ? 'not-allowed' : 'pointer',
-                    opacity: uploading || selectedFiles.length === 0 ? 0.5 : 1,
+                    cursor: uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched ? "not-allowed" : "pointer",
+                    opacity: uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched ? 0.5 : 1,
                   }}
                 >
                   {uploading ? 'Uploading...' : 'Upload & create video'}
                 </button>
-              </div>
+                {selectedFiles.length > 0 && (!landscapeTouched || !captionTouched) && (
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Choose a caption style and landscape handling option above before rendering.</p>
+                )}              </div>
 
               {renderId && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px' }}>
@@ -1071,12 +1236,15 @@ export default function DashboardPage() {
                       Status: {renderStatus || 'starting'}... this usually takes a minute or two.
                     </p>
                   )}
-                  {renderStatus === 'failed' && (
-                    <p style={{ fontSize: 13, color: 'var(--coral)' }}>
-                      Something went wrong rendering your video. Please try again.
-                    </p>
-                  )}
-                  {renderStatus === 'done' && outputUrl && (
+                  {renderStatus === "failed" && (
+                    <div>
+                      <p style={{ fontSize: 13, color: "var(--coral)" }}>
+                        {renderError && renderError.includes("No spoken audio") 
+                          ? "One of your clips was marked as having speech, but Reelly could not detect any. Try unchecking \"Has speech\" for that clip and rendering again."
+                          : renderError || "Something went wrong rendering your video. Please try again."}
+                      </p>
+                    </div>
+                  )}                  {renderStatus === 'done' && outputUrl && (
                     <>
                       <video
                         controls
@@ -1108,6 +1276,112 @@ export default function DashboardPage() {
                         ✂ Edit this video
                       </button>
                     </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}          {tab === "aiuploads" && (
+            <div>
+              <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", marginBottom: 24 }}>
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+                  Pick one of your filmed ideas below, then upload a clip for each instruction step. Reelly will stitch them in order and edit automatically.
+                </p>
+
+                {filmingItems.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generate filming instructions for an idea first (My Ideas → Proceed to filming).</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+                    {filmingItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()) }}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: selectedFilmingId === item.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                      >
+                        {item.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedFilmingId && (() => {
+                  const item = filmingItems.find((f) => f.id === selectedFilmingId)
+                  if (!item) return null
+                  return (
+                    <div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+                        {item.checklist.map((step, i) => (
+                          <div key={i} style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px" }}>
+                            <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: 8 }}>{step}</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <input
+                                type="file"
+                                accept="video/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) setStepUploads((prev) => ({ ...prev, [i]: file }))
+                                }}
+                                style={{ fontSize: 11 }}
+                              />
+                              {stepUploads[i] && (
+                                <span style={{ fontSize: 11, color: "var(--coral)" }}>✓ {stepUploads[i].name}</span>
+                              )}
+                              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={aiSpeechSteps.has(i)}
+                                  onChange={(e) => {
+                                    setAiSpeechSteps((prev) => {
+                                      const next = new Set(prev)
+                                      if (e.target.checked) next.add(i)
+                                      else next.delete(i)
+                                      return next
+                                    })
+                                  }}
+                                />
+                                Has speech
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Caption style</p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
+                        {CAPTION_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => setAiCaptionPreset(preset.id)}
+                            style={{ textAlign: "left", padding: "10px", borderRadius: 8, border: aiCaptionPreset === preset.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", cursor: "pointer" }}
+                          >
+                            <p style={{ fontSize: 11, fontWeight: 600 }}>{preset.label}</p>
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={submitAiEditorUploads}
+                        disabled={aiUploading || Object.keys(stepUploads).length === 0}
+                        style={{ display: "block", backgroundColor: "var(--coral)", color: "#fff", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: aiUploading ? "not-allowed" : "pointer", opacity: aiUploading || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
+                      >
+                        {aiUploading ? "Uploading..." : "Create video"}
+                      </button>
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {aiRenderId && (
+                <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px" }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
+                  {aiRenderStatus !== "done" && aiRenderStatus !== "failed" && (
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Status: {aiRenderStatus || "starting"}...</p>
+                  )}
+                  {aiRenderStatus === "failed" && (
+                    <p style={{ fontSize: 13, color: "var(--coral)" }}>Something went wrong rendering your video.</p>
+                  )}
+                  {aiRenderStatus === "done" && aiOutputUrl && (
+                    <video controls src={aiOutputUrl} style={{ width: "100%", maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
                   )}
                 </div>
               )}

@@ -7,7 +7,7 @@ export default function TermsPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly
@@ -41,17 +41,17 @@ export default function TermsPage() {
 
             <h2 style={sectionStyle}>3. Subscription Tiers & Fees</h2>
             <ul style={ulStyle}>
-              <li><strong>Basic</strong> — approximately 2 render minutes/week — AUD $20–$30/month</li>
-              <li><strong>Mid</strong> — approximately 10 render minutes/week — AUD $68–$79/month</li>
-              <li><strong>Top</strong> — approximately 15 render minutes/week, including long-form video support — AUD $120–$140/month</li>
+              <li><strong>Basic</strong>  -  approximately 2 render minutes/week  -  AUD $20–$30/month</li>
+              <li><strong>Mid</strong>  -  approximately 10 render minutes/week  -  AUD $68–$79/month</li>
+              <li><strong>Top</strong>  -  approximately 15 render minutes/week, including long-form video support  -  AUD $120–$140/month</li>
             </ul>
             <p style={pStyle}>Exact current pricing is displayed at signup and in your account dashboard. Fees are billed in advance monthly via Stripe and are non-refundable except as required by the Australian Consumer Law (ACL). Cancellation takes effect at the end of the current billing period. We may change pricing on at least 14 days' notice.</p>
 
             <h2 style={sectionStyle}>4. Overage Renders</h2>
             <p style={pStyle}>If you exceed your weekly render-minute allowance, additional minutes are billed at a 50% markup plus a flat processing fee. You'll always see a confirm-before-charge summary before any overage is billed. Unused minutes do not roll over.</p>
 
-            <h2 style={sectionStyle}>5. AI-Generated Content — Important Disclaimers</h2>
-            <p style={pStyle}>The Service uses third-party AI models (including Anthropic's Claude models) to generate content suggestions, captions, scripts, and related material ("Generated Content"). Generated Content is provided as a starting point only — you are solely responsible for reviewing, editing, and approving it before publishing. We do not guarantee Generated Content is accurate, original, non-infringing, or suitable for your purposes.</p>
+            <h2 style={sectionStyle}>5. AI-Generated Content  -  Important Disclaimers</h2>
+            <p style={pStyle}>The Service uses third-party AI models (including Anthropic's Claude models) to generate content suggestions, captions, scripts, and related material ("Generated Content"). Generated Content is provided as a starting point only  -  you are solely responsible for reviewing, editing, and approving it before publishing. We do not guarantee Generated Content is accurate, original, non-infringing, or suitable for your purposes.</p>
 
             <h2 style={sectionStyle}>6. Your Content & Data</h2>
             <p style={pStyle}>You retain ownership of content you upload ("Your Content"). You grant Reelly a limited, non-exclusive licence to use, store, and process Your Content solely to provide the Service. Personal information is handled per our Privacy Policy and the Australian Privacy Act 1988 (Cth).</p>

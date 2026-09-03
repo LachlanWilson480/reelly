@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const allowed = await isMidPlan(userId)
     if (!allowed) {
-      return NextResponse.json({ error: 'Refining ideas is a Mid plan feature. Upgrade to unlock it.' }, { status: 403 })
+      return NextResponse.json({ error: 'Refining ideas is a Pro plan feature. Upgrade to unlock it.' }, { status: 403 })
     }
 
     const prompt = `You are refining a single existing social media video idea for a small business owner based on their feedback. Keep the same overall angle/topic, but adjust it based on their instruction below.

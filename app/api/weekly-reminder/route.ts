@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         subject: 'A fresh batch of content ideas is waiting',
         html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #2C2C2A;">Time for this week's content, ${profile.business_name || 'there'}</h2>
-          <p style="color: #555;">Jump into Reelly and generate a fresh set of content ideas built for your business \u2014 it only takes a couple of minutes.</p>
+          <p style="color: #555;">Jump into Reelly and generate a fresh set of content ideas built for your business \ -  it only takes a couple of minutes.</p>
           <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://reelly.com.au'}/dashboard" style="display: inline-block; background: #D85A30; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">Generate ideas</a>
         </div>`,
       })

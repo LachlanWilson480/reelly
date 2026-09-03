@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     const shotstackRes = await fetch(
-      `https://api.shotstack.io/edit/stage/render/${renderRow.shotstack_render_id}`,
+      `https://api.shotstack.io/edit/v1/render/${renderRow.shotstack_render_id}`,
       { headers: { 'x-api-key': process.env.SHOTSTACK_API_KEY! } }
     )
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('renders').update({ notified: true }).eq('id', renderId)
     }
 
-    return NextResponse.json({ status, outputUrl })
+    return NextResponse.json({ status, outputUrl, error: status === "failed" ? shotstackData.response.error : undefined })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })

@@ -6,6 +6,7 @@ import Link from 'next/link'
 export default function Sidebar() {
   const [isDark, setIsDark] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('reelly-theme')
@@ -42,26 +43,10 @@ export default function Sidebar() {
     { href: '/terms', label: 'Terms of Service', icon: '§' },
   ]
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '100vh',
-        width: expanded ? 200 : 56,
-        backgroundColor: 'var(--card-bg)',
-        borderRight: '1px solid rgba(128,128,128,0.15)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '20px 12px',
-        gap: 4,
-        transition: 'width 0.2s ease',
-        zIndex: 100,
-      }}
-    >
+  const railContent = (isMobileDrawer: boolean) => (
+    <>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => (isMobileDrawer ? setMobileOpen(false) : setExpanded(!expanded))}
         style={{
           background: 'none',
           border: 'none',
@@ -76,14 +61,15 @@ export default function Sidebar() {
           width: '100%',
         }}
       >
-        <span style={{ width: 20, textAlign: 'center' }}>{expanded ? '←' : '☰'}</span>
-        {expanded && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>Collapse</span>}
+        <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
+        {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
       </button>
 
       {navItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
+          onClick={() => isMobileDrawer && setMobileOpen(false)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -98,7 +84,7 @@ export default function Sidebar() {
           }}
         >
           <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
-          {expanded && <span>{item.label}</span>}
+          {(expanded || isMobileDrawer) && <span>{item.label}</span>}
         </Link>
       ))}
 
@@ -119,8 +105,83 @@ export default function Sidebar() {
         }}
       >
         <span style={{ width: 20, textAlign: 'center' }}>{isDark ? '☀️' : '🌙'}</span>
-        {expanded && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif" }}>{isDark ? 'Light mode' : 'Dark mode'}</span>}
+        {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif" }}>{isDark ? 'Light mode' : 'Dark mode'}</span>}
       </button>
-    </div>
+    </>
+  )
+
+  return (
+    <>
+      <div
+        className="sidebar-rail"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          width: expanded ? 200 : 56,
+          backgroundColor: 'var(--card-bg)',
+          borderRight: '1px solid rgba(128,128,128,0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '20px 12px',
+          gap: 4,
+          transition: 'width 0.2s ease',
+          zIndex: 100,
+        }}
+      >
+        {railContent(false)}
+      </div>
+
+      <button
+        className="sidebar-mobile-trigger"
+        onClick={() => setMobileOpen(true)}
+        style={{
+          position: 'fixed',
+          top: 16,
+          left: 16,
+          zIndex: 100,
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          border: '1px solid rgba(128,128,128,0.25)',
+          background: 'var(--card-bg)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          color: 'var(--ink)',
+          cursor: 'pointer',
+        }}
+      >
+        ☰
+      </button>
+
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 199 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              height: '100vh',
+              width: 220,
+              backgroundColor: 'var(--card-bg)',
+              borderRight: '1px solid rgba(128,128,128,0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '20px 12px',
+              gap: 4,
+              zIndex: 200,
+            }}
+          >
+            {railContent(true)}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

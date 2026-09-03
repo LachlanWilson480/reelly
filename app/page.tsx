@@ -62,7 +62,7 @@ export default function HomePage() {
 
   const pricing = [
     { name: 'Basic', price: '$20', period: '/mo', desc: '~2 render minutes/week', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
-    { name: 'Mid', price: '$69', period: '/mo', desc: '~10 render minutes/week', features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Highest render allowance'], highlight: true },
+    { name: 'Pro', price: '$69', period: '/mo', desc: '~10 render minutes/week', features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Highest render allowance'], highlight: true },
   ]
 
   const mockIdeas = [
@@ -77,7 +77,7 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 64px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             Reelly
@@ -146,7 +146,7 @@ export default function HomePage() {
 
         <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 500 }}>
-            Built for creators, freelancers, and small businesses — anywhere
+            Built for creators, freelancers, and small businesses  -  anywhere
           </p>
         </section>
 
@@ -284,7 +284,7 @@ export default function HomePage() {
             Ready to post consistently?
           </h2>
           <p style={{ fontSize: 15, color: '#D3D1C7', marginBottom: 28 }}>
-            Start free \u2014 no credit card required.
+            Start free \ -  no credit card required.
           </p>
           <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 34px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
             Get started free

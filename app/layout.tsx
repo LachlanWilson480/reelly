@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reelly — AI Content Ideas & Video Editing for Social Media",
-  description: "Reelly generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses. Plan, film, and post consistently — built for Sydney and beyond.",
+  title: "Reelly - Social Media Generator and Editor",
+  description: "Reelly generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses. Plan, film, and post consistently  -  built for Sydney and beyond.",
 };
 
 const themeScript = `

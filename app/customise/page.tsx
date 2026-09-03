@@ -72,28 +72,28 @@ export default function CustomisePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56, padding: '48px', maxWidth: 700, margin: '0 auto' }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '48px', maxWidth: 700, margin: '0 auto' }}>
         <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
           Customise generation
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
-          Add pointers for how Reelly should generate your ideas and filming instructions — things you like, things to avoid, specific angles or phrases you prefer. This is applied on top of your business profile and Reelly's core safety and realism guidelines, which always stay in place.
+          Add pointers for how Reelly should generate your ideas and filming instructions  -  things you like, things to avoid, specific angles or phrases you prefer. This is applied on top of your business profile and Reelly's core safety and realism guidelines, which always stay in place.
         </p>
 
         {plan === 'basic' ? (
           <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
             <p style={{ fontSize: 32, marginBottom: 12 }}>🔒</p>
             <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
-              Custom guidance is a Mid plan feature
+              Custom guidance is a Pro plan feature
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
-              Upgrade to Mid to give Reelly your own style pointers — preferred tone, filming preferences, and things to avoid — applied to every idea and checklist it generates for you.
+              Upgrade to Pro to give Reelly your own style pointers  -  preferred tone, filming preferences, and things to avoid  -  applied to every idea and checklist it generates for you.
             </p>
             
             <a href="/plans"
               style={{ display: 'inline-block', backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
             >
-              Upgrade to Mid
+              Upgrade to Pro
             </a>
           </div>
         ) : (

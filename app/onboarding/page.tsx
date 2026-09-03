@@ -134,7 +134,7 @@ export default function OnboardingPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
               Tell us about your business
             </h1>
             <p style={{ fontSize: 14, color: '#D3D1C7', marginBottom: 28 }}>
-              These help us generate content ideas made for you. The essentials below are required — everything else can be added now or later for even better results.
+              These help us generate content ideas made for you. The essentials below are required  -  everything else can be added now or later for even better results.
             </p>
 
             <form onSubmit={handleSubmit}>

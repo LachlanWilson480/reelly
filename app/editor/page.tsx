@@ -23,6 +23,7 @@ type ClipItem = {
   rotate: number
   flipH: boolean
   flipV: boolean
+  letterbox: boolean
 }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
@@ -121,6 +122,7 @@ export default function EditorPage() {
                   rotate: 0,
                   flipH: false,
                   flipV: false,
+                  letterbox: false,
                   duration: 0,
                   previewUrl: data?.signedUrl || null,
                 }
@@ -234,6 +236,7 @@ export default function EditorPage() {
       rotate: 0,
       flipH: false,
       flipV: false,
+      letterbox: false,
       duration: 0,
       previewUrl: URL.createObjectURL(file),
     }))
@@ -352,7 +355,7 @@ export default function EditorPage() {
       }
 
       const clipTrims = clips.map((c) => ({ trimStart: c.trimStart, trimLength: c.trimLength, duration: c.duration }))
-      const clipSettings = clips.map((c) => ({ muted: c.muted, volume: c.volume, fit: c.fit, position: c.position, speed: c.speed, filter: c.filter, rotate: c.rotate, flipH: c.flipH, flipV: c.flipV }))
+      const clipSettings = clips.map((c) => ({ muted: c.muted, volume: c.volume, fit: c.fit, position: c.position, speed: c.speed, filter: c.filter, rotate: c.rotate, flipH: c.flipH, flipV: c.flipV, letterbox: c.letterbox }))
       const captionStyle = showAdvancedCaptions
         ? {
             preset: captionPreset,
@@ -395,12 +398,12 @@ export default function EditorPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56, display: 'flex', height: '100vh' }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', display: 'flex', height: '100vh' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 32px', borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
-            <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600 }}>
-              Reelly Editor
-            </span>
+            <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", color: "var(--ink)" }}>
+              ← Dashboard
+            </a>
             <button
               onClick={() => setPanelOpen(!panelOpen)}
               style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
@@ -502,6 +505,10 @@ export default function EditorPage() {
                             <option value="cover">Cover</option>
                             <option value="contain">Contain (fit whole clip)</option>
                           </select>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <input type="checkbox" checked={clip.letterbox} onChange={(e) => updateClipSetting(clip.id, "letterbox", e.target.checked)} />
+                          <label style={{ fontSize: 9, color: "var(--text-secondary)" }}>Landscape clip  -  add blurred bars</label>
                         </div>
                         <div>
                           <label style={{ fontSize: 9, color: "var(--text-secondary)", display: "block", marginBottom: 2 }}>Speed {clip.speed.toFixed(2)}x</label>

@@ -46,6 +46,27 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid'> {
   return data.plan === 'basic' ? 'basic' : 'mid'
 }
 
+function getUpcomingSeasonalEvent(): string | null {
+  const now = new Date()
+  const events: { name: string; month: number; day: number; windowDays: number }[] = [
+    { name: "Australia Day", month: 1, day: 26, windowDays: 21 },
+    { name: "Valentine's Day", month: 2, day: 14, windowDays: 21 },
+    { name: "Easter", month: 4, day: 10, windowDays: 28 },
+    { name: "Mother's Day", month: 5, day: 11, windowDays: 21 },
+    { name: "Winter school holidays", month: 7, day: 1, windowDays: 21 },
+    { name: "Father's Day", month: 9, day: 7, windowDays: 21 },
+    { name: "Halloween", month: 10, day: 31, windowDays: 21 },
+    { name: "Melbourne Cup", month: 11, day: 4, windowDays: 14 },
+    { name: "Christmas / EOFY holiday season", month: 12, day: 25, windowDays: 35 },
+    { name: "New Year", month: 1, day: 1, windowDays: 14 },
+  ]
+  for (const e of events) {
+    const eventDate = new Date(now.getFullYear(), e.month - 1, e.day)
+    const diffDays = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    if (diffDays >= -3 && diffDays <= e.windowDays) return e.name
+  }
+  return null
+}
 function pickAngles(pool: string[], count: number): string[] {
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, count)
@@ -102,17 +123,23 @@ export async function POST(req: NextRequest) {
 
     const locationType = profile.location_type || 'fixed'
     const locationGuidance = locationType === 'mobile'
-      ? "This business is MOBILE — they travel to customers rather than customers visiting a shop. Do NOT suggest ideas that rely on a physical storefront, shop interior, or 'come visit us at our location' framing. Instead lean into what's always with them: their van/vehicle, tools, uniform, expertise, and opinions. Local suburb mentions should reference their general service area, not a specific address customers can visit."
+      ? "This business is MOBILE  -  they travel to customers rather than customers visiting a shop. Do NOT suggest ideas that rely on a physical storefront, shop interior, or 'come visit us at our location' framing. Instead lean into what's always with them: their van/vehicle, tools, uniform, expertise, and opinions. Local suburb mentions should reference their general service area, not a specific address customers can visit."
       : locationType === 'both'
-      ? "This business operates BOTH from a fixed location AND travels to customers. Ideas can reference their shop/studio space when relevant, but don't assume every idea needs to happen at a fixed premises — some should work anywhere (van, tools, expertise)."
+      ? "This business operates BOTH from a fixed location AND travels to customers. Ideas can reference their shop/studio space when relevant, but don't assume every idea needs to happen at a fixed premises  -  some should work anywhere (van, tools, expertise)."
       : "This business operates from a FIXED location that customers visit. Feel free to suggest ideas that show their shop/studio space, ambiance, and physical setup where relevant, alongside expertise-based ideas."
+
+    const upcomingEvent = getUpcomingSeasonalEvent()
+    const ownSeasonalNote = profile.local_seasonal_context ? ` The business owner also says their own busy/relevant times are: ${profile.local_seasonal_context}.` : ""
+    const seasonalGuidance = (upcomingEvent || ownSeasonalNote)
+      ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in Australia.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
+      : ""
     const prompt = `You help busy small business owners in Sydney create short-form social media content by themselves, alone, on their phone, in a few spare minutes. They are NOT content creators, have NO crew, and NO time to spare.
 
-CRITICAL CONSTRAINT — read this carefully: this business owner CANNOT control or predict what job, customer, or scenario will show up on any given day. Never invent or narrate a SPECIFIC fictional customer, address, or live job as if it is happening right now (e.g. never write something like "I just arrived at a place in Coogee where the customer..." or "we're at a house right now where..."). That is dishonest content and impossible to guarantee they can film that day.
+CRITICAL CONSTRAINT  -  read this carefully: this business owner CANNOT control or predict what job, customer, or scenario will show up on any given day. Never invent or narrate a SPECIFIC fictional customer, address, or live job as if it is happening right now (e.g. never write something like "I just arrived at a place in Coogee where the customer..." or "we're at a house right now where..."). That is dishonest content and impossible to guarantee they can film that day.
 
-If the business owner's style guidance below asks for a "problem → solution" format, that is fine and encouraged — but the problem must be framed as a COMMON, GENERAL problem this business sees all the time (e.g. "One thing I get called out for constantly is...", "If your power keeps tripping, here's usually why...", "Say your switchboard does this — here's what's going on"), never as a specific customer or job happening at this exact moment. This way it's honest, always true, and filmable today regardless of what's actually on the schedule.
+If the business owner's style guidance below asks for a "problem → solution" format, that is fine and encouraged  -  but the problem must be framed as a COMMON, GENERAL problem this business sees all the time (e.g. "One thing I get called out for constantly is...", "If your power keeps tripping, here's usually why...", "Say your switchboard does this  -  here's what's going on"), never as a specific customer or job happening at this exact moment. This way it's honest, always true, and filmable today regardless of what's actually on the schedule.
 
-IMPORTANT — factual accuracy: you are not a domain expert in this business's trade, so NEVER state a specific technical fact, cause, diagnosis, safety claim, or "why" answer yourself (e.g. never assert a specific electrical fault cause, a specific health/legal claim, or any specific technical explanation). If an idea involves explaining a cause, reason, or technical detail, write the hook so it sets up the topic and then hands off to the business owner to explain the specific technical answer themselves, in their own words, since they are the actual expert — for example "explain what usually causes this in your own words" rather than stating a cause yourself. This keeps every video factually safe regardless of the industry.
+IMPORTANT  -  factual accuracy: you are not a domain expert in this business's trade, so NEVER state a specific technical fact, cause, diagnosis, safety claim, or "why" answer yourself (e.g. never assert a specific electrical fault cause, a specific health/legal claim, or any specific technical explanation). If an idea involves explaining a cause, reason, or technical detail, write the hook so it sets up the topic and then hands off to the business owner to explain the specific technical answer themselves, in their own words, since they are the actual expert  -  for example "explain what usually causes this in your own words" rather than stating a cause yourself. This keeps every video factually safe regardless of the industry.
 
 Business: ${profile.business_name}
 Industry: ${profile.industry}
@@ -122,15 +149,18 @@ Ideal customer: ${profile.target_audience || 'not specified'}
 Core services: ${profile.core_services || 'not specified'}
 
 LOCATION TYPE: ${locationGuidance}
-Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above — not generic industry advice that could apply to any business in this trade):
+
+${seasonalGuidance}
+
+Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above  -  not generic industry advice that could apply to any business in this trade):
 ${angleLines}
 
 Each video should be 15-30 seconds, filmable in one continuous take, alone, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelly automatically handles (captions, trimming, music).
 
 For each idea, provide:
-- A short, specific title referencing a real detail from this business (not a generic template title — avoid phrases like "Behind the scenes", "Day in the life", "3 quick tips" unless the content genuinely is a numbered list)
+- A short, specific title referencing a real detail from this business (not a generic template title  -  avoid phrases like "Behind the scenes", "Day in the life", "3 quick tips" unless the content genuinely is a numbered list)
 - A one-sentence hook: literally what to say or do in the first 3 seconds, in plain words, specific to this business, following the CRITICAL CONSTRAINT above
-- A one-sentence description of the actual point or payoff of the video — what it communicates or the actual answer/opinion/tip being shared. This is NOT staging or camera direction (never write things like 'start at the van' or 'walk toward X' here — that belongs in filming instructions elsewhere). If the angle is a personal opinion, preference, or general tip (not a technical diagnosis), state the actual specific answer or opinion here, don't leave it vague — only technical/diagnostic causes should be left for the business owner to explain themselves.
+- A one-sentence description of the actual point or payoff of the video  -  what it communicates or the actual answer/opinion/tip being shared. This is NOT staging or camera direction (never write things like 'start at the van' or 'walk toward X' here  -  that belongs in filming instructions elsewhere). If the angle is a personal opinion, preference, or general tip (not a technical diagnosis), state the actual specific answer or opinion here, don't leave it vague  -  only technical/diagnostic causes should be left for the business owner to explain themselves.
 - 3-4 relevant hashtags, including the suburb where natural
 
 ${customNote}

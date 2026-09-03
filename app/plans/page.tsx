@@ -22,7 +22,7 @@ export default function PlansPage() {
     },
     {
       id: 'mid',
-      name: 'Mid',
+      name: 'Pro',
       price: '$69',
       period: '/mo',
       desc: '~10 render minutes/week',
@@ -33,7 +33,7 @@ export default function PlansPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelly

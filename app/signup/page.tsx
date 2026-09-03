@@ -62,7 +62,7 @@ export default function SignUpPage() {
     >
       <Sidebar />
 
-      <div style={{ marginLeft: 56 }}>
+      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav
           style={{
             display: 'flex',
