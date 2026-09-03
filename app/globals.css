@@ -131,3 +131,17 @@ input[type="checkbox"]:checked::after {
     border-left: none !important;
   }
 }
+
+@media (max-width: 640px) {
+  .editor-panel-close {
+    display: block !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .editor-preview-box {
+    max-height: calc(100vh - 260px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}

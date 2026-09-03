@@ -413,7 +413,7 @@ export default function EditorPage() {
           </nav>
 
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, minHeight: 0 }}>
-            <div style={{ background: '#000', borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 380, aspectRatio: '9 / 16', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <div className="editor-preview-box" style={{ background: '#000', borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 380, aspectRatio: '9 / 16', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               {clips.length > 0 ? (
                 <>
                   <video
