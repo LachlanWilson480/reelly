@@ -140,8 +140,7 @@ input[type="checkbox"]:checked::after {
 
 @media (max-width: 640px) {
   .editor-preview-box {
-    max-height: calc(100vh - 260px) !important;
-    width: auto !important;
-    max-width: none !important;
-  }
-}
+    width: 88vw !important;
+    max-width: 340px !important;
+    max-height: calc(100vh - 200px) !important;
+  }}
