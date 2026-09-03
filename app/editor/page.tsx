@@ -579,6 +579,16 @@ export default function EditorPage() {
 
         {panelOpen && (
           <div className="editor-panel" style={{ width: 320, borderLeft: '1px solid rgba(128,128,128,0.15)', padding: 24, overflowY: 'auto', flexShrink: 0 }}>
+            <button
+              className="editor-panel-close"
+              onClick={() => setPanelOpen(false)}
+              style={{ display: "none", background: "var(--sand)", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--ink)", cursor: "pointer", marginBottom: 16 }}
+            >
+              ✕ Close panel
+            </button>
+            {clips.length === 0 && (
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Add a clip first to access editing options.</p>
+            )}
             {clips.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <button
