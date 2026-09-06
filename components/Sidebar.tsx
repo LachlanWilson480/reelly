@@ -50,16 +50,18 @@ export default function Sidebar() {
   }
 
   const navItems = [
-    { href: '/?stay=1', label: 'Home', icon: '⌂' },
-    { href: '/dashboard', label: 'Dashboard', icon: '▦' },
-    { href: '/editor', label: 'Editor', icon: '✂' },
-    { href: '/history', label: 'History', icon: '◷' },
-    { href: '/plans', label: 'Plans', icon: '◆' },
-    { href: '/settings', label: 'Settings', icon: '⚙' },
-    { href: '/customise', label: 'Customise Generation', icon: '✎' },
-    { href: '/terms', label: 'Terms of Service', icon: '§' },
+    { href: "/?stay=1", label: "Home", icon: "⌂" },
+    { href: "/dashboard", label: "Dashboard", icon: "⊞" },
+    { href: "/editor", label: "Editor", icon: "✂" },
+    { href: "/history", label: "History", icon: "◷" },
+    { href: "/plans", label: "Plans", icon: "$" },
+    { href: "/customise", label: "Customise Generation", icon: "✎" },
   ]
 
+  const bottomNavItems = [
+    { href: "/settings", label: "Settings", icon: "⚙" },
+    { href: "/terms", label: "Terms of Service", icon: "§" },
+  ]
   const isOnDashboard = pathname === '/dashboard'
   const currentTab = searchParams.get('tab') || 'overview'
 
@@ -161,6 +163,28 @@ export default function Sidebar() {
 
         <div style={{ flex: 1 }} />
 
+        {!showDashboardTabs && bottomNavItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={() => isMobileDrawer && setMobileOpen(false)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 4px",
+              borderRadius: 8,
+              textDecoration: "none",
+              color: "var(--ink)",
+              fontSize: 13,
+              fontFamily: "'Inter', sans-serif",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ width: 20, textAlign: "center", fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+            {(expanded || isMobileDrawer) && <span>{item.label}</span>}
+          </Link>
+        ))}
         <button
           onClick={toggleTheme}
           style={{
