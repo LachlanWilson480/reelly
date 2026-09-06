@@ -19,84 +19,160 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 32 }}>
-            Reelly · ABN: 76 182 998 115 · Last updated: 16 August 2026
+            Reelly · ABN 76 182 998 115 · Last updated: 6 September 2026
           </p>
 
           <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
             <p style={{ marginBottom: 24 }}>
-              These Terms of Service ("Terms") govern access to and use of the Reelly platform, website, and related services (the "Service"), provided by Reelly (ABN 76 182 998 115) ("Reelly", "we", "us", "our"). By creating an account or using the Service, you ("Customer", "you", "your") agree to be bound by these Terms. If you do not agree, do not use the Service.
+              These Terms of Service (&quot;Terms&quot;) govern your access to and use of the Reelly platform, website,
+              and related services (the &quot;Service&quot;), provided by Reelly (ABN 76 182 998 115) (&quot;Reelly&quot;,
+              &quot;we&quot;, &quot;us&quot;, &quot;our&quot;). By creating an account, ticking the acceptance box at signup, or
+              using the Service, you (&quot;you&quot;, &quot;your&quot;) agree to be bound by these Terms. If you do not agree,
+              do not use the Service.
             </p>
 
             <h2 style={sectionStyle}>1. The Service</h2>
-            <p style={pStyle}>Reelly is a subscription software product that helps small personal-service businesses generate AI-assisted social media content, including content ideas, filming instructions, video editing assistance, and scheduling (the "Service"). Features may be added, changed, or removed at our discretion, with reasonable notice for material reductions in functionality.</p>
+            <p style={pStyle}>
+              Reelly is a subscription software product that helps small businesses and independent creators produce
+              short-form social media content. It generates AI-assisted content ideas and filming instructions,
+              provides tools to upload and automatically edit video clips (stitching, captions, trimming, music), and
+              offers basic scheduling and planning features. Features may be added, changed, or removed at our
+              discretion. We will give reasonable notice of any material reduction in functionality.
+            </p>
 
-            <h2 style={sectionStyle}>2. Eligibility & Accounts</h2>
+            <h2 style={sectionStyle}>2. Eligibility &amp; Accounts</h2>
             <ul style={ulStyle}>
               <li>You must be at least 18 years old and able to form a binding contract to use the Service.</li>
-              <li>You are responsible for the accuracy of information provided when creating an account, and for maintaining the confidentiality of your login credentials.</li>
-              <li>You are responsible for all activity that occurs under your account, whether or not authorised by you, except where caused by our breach of these Terms.</li>
-              <li>You must notify us promptly at LachlanWilson480@gmail.com of any unauthorised use of your account.</li>
-              <li>One free trial is provided per business profile, verified by email. Trials do not require payment details up front. We may take reasonable steps to prevent trial abuse.</li>
+              <li>You are responsible for the accuracy of the information you provide and for keeping your login credentials confidential.</li>
+              <li>You are responsible for all activity under your account, except to the extent caused by our breach of these Terms.</li>
+              <li>Notify us promptly at lachlanwilson480@gmail.com of any unauthorised use of your account.</li>
+              <li>Accounts are for a single business or creator. Do not share your account outside your own business.</li>
             </ul>
 
-            <h2 style={sectionStyle}>3. Subscription Tiers & Fees</h2>
+            <h2 style={sectionStyle}>3. Plans &amp; Fees</h2>
+            <p style={pStyle}>Reelly is offered on the following subscription plans:</p>
             <ul style={ulStyle}>
-              <li><strong>Basic</strong>  -  approximately 2 render minutes/week  -  AUD $20–$30/month</li>
-              <li><strong>Mid</strong>  -  approximately 10 render minutes/week  -  AUD $68–$79/month</li>
-              <li><strong>Top</strong>  -  approximately 15 render minutes/week, including long-form video support  -  AUD $120–$140/month</li>
+              <li><strong>Basic</strong> — approximately 2 render minutes per week — AUD $20/month.</li>
+              <li><strong>Pro</strong> — approximately 10 render minutes per week, plus content calendar, idea refinement, and custom generation guidance — AUD $69/month.</li>
             </ul>
-            <p style={pStyle}>Exact current pricing is displayed at signup and in your account dashboard. Fees are billed in advance monthly via Stripe and are non-refundable except as required by the Australian Consumer Law (ACL). Cancellation takes effect at the end of the current billing period. We may change pricing on at least 14 days' notice.</p>
+            <p style={pStyle}>
+              Current pricing is always shown at signup and in your account. Fees are billed monthly in advance through
+              Stripe and are non-refundable except where required by the Australian Consumer Law. You can cancel at any
+              time; cancellation takes effect at the end of the current billing period. We may change pricing on at
+              least 14 days&apos; notice.
+            </p>
 
-            <h2 style={sectionStyle}>4. Overage Renders</h2>
-            <p style={pStyle}>If you exceed your weekly render-minute allowance, additional minutes are billed at a 50% markup plus a flat processing fee. You'll always see a confirm-before-charge summary before any overage is billed. Unused minutes do not roll over.</p>
+            <h2 style={sectionStyle}>4. Render Minutes &amp; Overage</h2>
+            <p style={pStyle}>
+              Each plan includes a weekly allowance of video render minutes. Unused minutes do not roll over. If you
+              choose to render beyond your allowance, additional minutes are billed at a flat rate of AUD $5 per minute
+              over, charged on the 1st of the following month. You will always see a confirmation of the extra cost
+              before any overage render begins.
+            </p>
 
-            <h2 style={sectionStyle}>5. AI-Generated Content  -  Important Disclaimers</h2>
-            <p style={pStyle}>The Service uses third-party AI models (including Anthropic's Claude models) to generate content suggestions, captions, scripts, and related material ("Generated Content"). Generated Content is provided as a starting point only  -  you are solely responsible for reviewing, editing, and approving it before publishing. We do not guarantee Generated Content is accurate, original, non-infringing, or suitable for your purposes.</p>
+            <h2 style={sectionStyle}>5. AI-Generated Content — Important Disclaimers</h2>
+            <p style={pStyle}>
+              The Service uses third-party AI models (including Anthropic&apos;s Claude models) to generate content
+              ideas, hooks, filming instructions, captions, and related material (&quot;Generated Content&quot;).
+              Generated Content is a starting point only. You are solely responsible for reviewing, editing, fact-checking,
+              and approving it before publishing or acting on it. We do not warrant that Generated Content is accurate,
+              current, original, non-infringing, or suitable for your purposes. You must not rely on Generated Content
+              for professional, legal, safety, medical, or financial advice.
+            </p>
 
-            <h2 style={sectionStyle}>6. Your Content & Data</h2>
-            <p style={pStyle}>You retain ownership of content you upload ("Your Content"). You grant Reelly a limited, non-exclusive licence to use, store, and process Your Content solely to provide the Service. Personal information is handled per our Privacy Policy and the Australian Privacy Act 1988 (Cth).</p>
+            <h2 style={sectionStyle}>6. Your Content &amp; Media Rights</h2>
+            <p style={pStyle}>
+              You retain ownership of the videos, images, audio, business information, and other material you upload
+              (&quot;Your Content&quot;). You grant Reelly a limited, non-exclusive licence to store, process, and
+              transmit Your Content solely to operate and provide the Service (including sending it to our rendering
+              provider). You are responsible for ensuring you hold all necessary rights to Your Content, including any
+              music, footage, logos, or people appearing in it, and for obtaining consent from anyone shown on camera.
+            </p>
 
-            <h2 style={sectionStyle}>7. Data Retention & Deletion</h2>
-            <p style={pStyle}>Account data is retained for 30 days after cancellation in case of reactivation, then permanently deleted other than data we're legally required to retain. You may request earlier deletion by emailing us.</p>
+            <h2 style={sectionStyle}>7. Ownership of Output</h2>
+            <p style={pStyle}>
+              As between you and Reelly, you own the final rendered videos and the Generated Content produced for your
+              account, subject to any rights held by third parties in material you supplied. Reelly retains all rights
+              in the Service itself, including its software, design, and underlying prompts and systems. You must not
+              copy, reverse-engineer, resell, or white-label the Service without our written consent.
+            </p>
 
-            <h2 style={sectionStyle}>8. Intellectual Property</h2>
-            <p style={pStyle}>Reelly retains all rights in the Service itself. You own the Generated Content produced for your account. You must not copy, reverse-engineer, resell, or white-label the Service without our written consent.</p>
+            <h2 style={sectionStyle}>8. Acceptable Use</h2>
+            <p style={pStyle}>You must not use the Service to:</p>
+            <ul style={ulStyle}>
+              <li>break any law or infringe anyone&apos;s intellectual property, privacy, or other rights;</li>
+              <li>create misleading, deceptive, defamatory, hateful, or harassing content;</li>
+              <li>upload content you do not have the rights to use;</li>
+              <li>attempt to gain unauthorised access to, disrupt, overload, or reverse-engineer the Service;</li>
+              <li>resell or share your account outside your own business.</li>
+            </ul>
+            <p style={pStyle}>We may suspend or terminate accounts that breach this section, without prior notice where urgent action is needed.</p>
 
-            <h2 style={sectionStyle}>9. Acceptable Use</h2>
-            <p style={pStyle}>You must not use the Service unlawfully, attempt unauthorised access, disrupt the Service, send spam or misleading content, or share your account outside your own business. We may suspend accounts breaching this section without prior notice where urgent action is needed.</p>
+            <h2 style={sectionStyle}>9. Third-Party Platforms &amp; Providers</h2>
+            <p style={pStyle}>
+              You are solely responsible for complying with the terms of any third-party platform you publish to,
+              including Instagram, Facebook, and TikTok, and for any action those platforms take against your accounts.
+              The Service also relies on providers including Anthropic, Supabase, Stripe, Resend, Shotstack, and Vercel.
+              We are not responsible for outages, errors, or changes caused by these providers beyond our reasonable
+              control.
+            </p>
 
-            <h2 style={sectionStyle}>10. Third-Party Platforms</h2>
-            <p style={pStyle}>You are solely responsible for complying with the terms of any third-party platform you connect to or publish through (Instagram, Facebook, TikTok). We are not responsible for actions taken by these platforms against your account.</p>
+            <h2 style={sectionStyle}>10. Privacy &amp; Data</h2>
+            <p style={pStyle}>
+              We handle personal information in line with the Australian Privacy Act 1988 (Cth). We use your business
+              profile and account data to personalise the Service and generate relevant content. We do not sell your
+              information. Account and profile data is retained for 30 days after cancellation in case you reactivate,
+              then permanently deleted, other than anything we are legally required to keep. You can request earlier
+              deletion by emailing us, or delete your account directly from Settings.
+            </p>
 
-            <h2 style={sectionStyle}>11. Third-Party Service Providers</h2>
-            <p style={pStyle}>The Service relies on providers including Anthropic, Supabase, Stripe, Resend, Shotstack, and Vercel. We are not responsible for outages or errors caused by these providers beyond our reasonable control.</p>
+            <h2 style={sectionStyle}>11. Warranties &amp; Disclaimers</h2>
+            <p style={pStyle}>
+              The Service is provided &quot;as is&quot; and &quot;as available&quot;, without warranties beyond those
+              that cannot be excluded under the Australian Consumer Law. Where a non-excludable guarantee applies and is
+              breached, our liability is limited, to the extent permitted by law, to re-supplying the Service or paying
+              the cost of re-supply.
+            </p>
 
-            <h2 style={sectionStyle}>12. Warranties & Disclaimers</h2>
-            <p style={pStyle}>The Service is provided "as is," without warranties beyond those which cannot be excluded under the ACL. Where a non-excludable guarantee is breached, our liability is limited to re-supply of the Service or its cost.</p>
+            <h2 style={sectionStyle}>12. Limitation of Liability</h2>
+            <p style={pStyle}>
+              To the extent permitted by law, our total liability arising out of or in connection with the Service is
+              limited to the fees you paid to Reelly in the 3 months before the event giving rise to the claim. We are
+              not liable for indirect, incidental, or consequential loss, or for loss of profits, revenue, data, or
+              goodwill.
+            </p>
 
-            <h2 style={sectionStyle}>13. Limitation of Liability</h2>
-            <p style={pStyle}>Our total liability is limited to fees paid by you in the 3 months preceding a claim. We are not liable for indirect or consequential loss, except where liability cannot be excluded by law.</p>
+            <h2 style={sectionStyle}>13. Indemnity</h2>
+            <p style={pStyle}>
+              You agree to indemnify Reelly against claims, losses, and costs arising from Your Content, your use or
+              publication of Generated Content, or your breach of these Terms, except to the extent caused by our
+              negligence or breach.
+            </p>
 
-            <h2 style={sectionStyle}>14. Indemnity</h2>
-            <p style={pStyle}>You agree to indemnify Reelly against claims arising from Your Content, your breach of these Terms, or your misuse of Generated Content, except to the extent caused by our negligence.</p>
+            <h2 style={sectionStyle}>14. Termination</h2>
+            <p style={pStyle}>
+              You may cancel at any time from your account. We may suspend or terminate access for breach of these
+              Terms, non-payment, or where required by law. Sections that by their nature should survive termination
+              (including ownership, disclaimers, liability, indemnity, and data retention) continue to apply.
+            </p>
 
-            <h2 style={sectionStyle}>15. Termination</h2>
-            <p style={pStyle}>You may cancel anytime. We may suspend or terminate access for breach, non-payment, or as required by law. Provisions that should survive termination (IP, liability, indemnity, data retention) continue to apply.</p>
+            <h2 style={sectionStyle}>15. Changes to These Terms</h2>
+            <p style={pStyle}>
+              We may update these Terms from time to time. For material changes we will give at least 14 days&apos;
+              notice before they take effect. Continuing to use the Service after changes take effect means you accept
+              the updated Terms.
+            </p>
 
-            <h2 style={sectionStyle}>16. Force Majeure</h2>
-            <p style={pStyle}>Neither party is liable for delays caused by circumstances beyond reasonable control, including third-party provider outages, infrastructure failures, or government action.</p>
+            <h2 style={sectionStyle}>16. General</h2>
+            <p style={pStyle}>
+              If any provision of these Terms is unenforceable, the rest continues in force. These Terms are the entire
+              agreement between you and Reelly about the Service. You may not assign your rights without our consent.
+              Our failure to enforce a provision is not a waiver of it. These Terms are governed by the laws of New
+              South Wales, Australia, and the courts of New South Wales have non-exclusive jurisdiction.
+            </p>
 
-            <h2 style={sectionStyle}>17. Changes to These Terms</h2>
-            <p style={pStyle}>We may update these Terms. Material changes are notified at least 14 days before taking effect. Continued use after changes take effect constitutes acceptance.</p>
-
-            <h2 style={sectionStyle}>18. General</h2>
-            <p style={pStyle}>If any provision is unenforceable, the remainder continues in force. These Terms and our Privacy Policy form the entire agreement. You may not assign your rights without our consent. Failure to enforce a provision is not a waiver.</p>
-
-            <h2 style={sectionStyle}>19. Governing Law</h2>
-            <p style={pStyle}>These Terms are governed by the laws of New South Wales, Australia.</p>
-
-            <h2 style={sectionStyle}>20. Contact</h2>
-            <p style={pStyle}>Reelly · Email: LachlanWilson480@gmail.com · ABN: 76 182 998 115</p>
+            <h2 style={sectionStyle}>17. Contact</h2>
+            <p style={pStyle}>Reelly · Email: lachlanwilson480@gmail.com · ABN 76 182 998 115</p>
 
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 32, fontStyle: 'italic' }}>
               This document is a general template and does not constitute legal advice.

@@ -11,11 +11,17 @@ export default function SignUpPage() {
   const [message, setMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (isSigningUp) return
+
+    if (!agreedToTerms) {
+      setMessage('Please confirm you agree to the Terms of Service.')
+      return
+    }
 
     setMessage('')
     setIsSigningUp(true)
@@ -201,9 +207,42 @@ export default function SignUpPage() {
                 </button>
               </div>
 
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  marginBottom: 20,
+                  fontSize: 13,
+                  color: '#D3D1C7',
+                  lineHeight: 1.5,
+                  cursor: isSigningUp ? 'default' : 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  disabled={isSigningUp}
+                  style={{ marginTop: 2 }}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--coral)', fontWeight: 600 }}
+                  >
+                    Terms of Service
+                  </Link>
+                  .
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={isSigningUp}
+                disabled={isSigningUp || !agreedToTerms}
                 style={{
                   width: '100%',
                   padding: '13px',
@@ -214,8 +253,8 @@ export default function SignUpPage() {
                   fontSize: 15,
                   fontWeight: 600,
                   fontFamily: "'Outfit', sans-serif",
-                  cursor: isSigningUp ? 'wait' : 'pointer',
-                  opacity: isSigningUp ? 0.7 : 1,
+                  cursor: isSigningUp ? 'wait' : !agreedToTerms ? 'not-allowed' : 'pointer',
+                  opacity: isSigningUp || !agreedToTerms ? 0.7 : 1,
                   transition: 'opacity 0.15s ease',
                 }}
               >
