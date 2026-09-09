@@ -67,6 +67,7 @@ export default function DashboardPage() {
   const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
   const [aiCaptionPreset, setAiCaptionPreset] = useState('bold_center')
   const [aiSpeechSteps, setAiSpeechSteps] = useState<Set<number>>(new Set())
+  const [showSpeechWarning, setShowSpeechWarning] = useState(false)
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -576,8 +577,8 @@ export default function DashboardPage() {
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
-    { id: 'uploads', label: 'Uploads' },
     { id: 'aiuploads', label: 'AI Editor Uploads' },
+    { id: 'uploads', label: 'Uploads For Any Video' },
   ]
 
   const stats = [
@@ -1331,6 +1332,7 @@ export default function DashboardPage() {
                               <input
                                 type="file"
                                 accept="video/*"
+                                className="step-upload-input"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0]
                                   if (file) setStepUploads((prev) => ({ ...prev, [i]: file }))
@@ -1373,10 +1375,35 @@ export default function DashboardPage() {
                         ))}
                       </div>
 
+                      {showSpeechWarning && (
+                        <div style={{ marginBottom: 12, padding: "12px 16px", borderRadius: 8, border: "1px solid var(--coral)", background: "rgba(216,90,48,0.08)" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--ink)" }}>
+                            Please check which clips have speech (text-to-speech captions) before continuing. Confirm your selections are correct.
+                          </p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => setShowSpeechWarning(false)}
+                              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(128,128,128,0.3)", background: "transparent", fontSize: 13, cursor: "pointer" }}
+                            >
+                              Go back and check
+                            </button>
+                            <button
+                              onClick={() => { setShowSpeechWarning(false); submitAiEditorUploads() }}
+                              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--coral)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                            >
+                              Confirm & create video
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <button
-                        onClick={submitAiEditorUploads}
+                        onClick={() => {
+                          if (aiUploading || Object.keys(stepUploads).length === 0) return
+                          setShowSpeechWarning(true)
+                        }}
                         disabled={aiUploading || Object.keys(stepUploads).length === 0}
-                        style={{ display: "block", backgroundColor: "var(--coral)", color: "#fff", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: aiUploading ? "not-allowed" : "pointer", opacity: aiUploading || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
+                        style={{ display: "block", backgroundColor: "var(--coral)", color: "#fff", padding: "14px 28px", borderRadius: 8, fontSize: 15, fontWeight: 700, border: "none", boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? "none" : "0 4px 14px rgba(216,90,48,0.35)", cursor: aiUploading ? "not-allowed" : "pointer", opacity: aiUploading || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
                       >
                         {aiUploading ? "Uploading..." : "Create video"}
                       </button>

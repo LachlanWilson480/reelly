@@ -229,10 +229,10 @@ export default function EditorPage() {
       trimLength: 0,
       muted: false,
       volume: 1,
-      fit: 'crop',
-      position: 'center',
+      fit: "crop",
+      position: "center",
       speed: 1,
-      filter: 'none',
+      filter: "none",
       rotate: 0,
       flipH: false,
       flipV: false,
@@ -241,8 +241,8 @@ export default function EditorPage() {
       previewUrl: URL.createObjectURL(file),
     }))
     setClips((prev) => [...prev, ...newClips])
+    setPanelOpen(true)
   }
-
   const handleLoadedMetadata = (clipId: string, e: React.SyntheticEvent<HTMLVideoElement>) => {
     const dur = e.currentTarget.duration
     setClips((prev) => prev.map((c) => (c.id === clipId ? { ...c, duration: dur } : c)))
@@ -412,7 +412,7 @@ export default function EditorPage() {
             </button>
           </nav>
 
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, minHeight: 0, maxWidth: 1400, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             <div className="editor-preview-box" style={{ background: '#000', borderRadius: 16, overflow: 'hidden', width: '100%', maxWidth: 380, aspectRatio: '9 / 16', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               {clips.length > 0 ? (
                 <>
