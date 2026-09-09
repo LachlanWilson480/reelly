@@ -7,6 +7,21 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
+const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
+const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: '#F1EFE8', marginTop: 24, marginBottom: 12, opacity: 0.9 }
+
+const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
+  <div>
+    <label style={labelStyle}>{label}</label>
+    {textarea ? (
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
+    ) : (
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+    )}
+  </div>
+)
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [showOptional, setShowOptional] = useState(false)
@@ -115,21 +130,6 @@ export default function OnboardingPage() {
       router.push('/dashboard')
     }
   }
-
-  const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
-  const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
-  const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: '#F1EFE8', marginTop: 24, marginBottom: 12, opacity: 0.9 }
-
-  const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      {textarea ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
-      ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
-      )}
-    </div>
-  )
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
