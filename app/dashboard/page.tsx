@@ -66,8 +66,11 @@ export default function DashboardPage() {
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
   const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
   const [aiCaptionPreset, setAiCaptionPreset] = useState('bold_center')
+  const [aiAddCaptions, setAiAddCaptions] = useState(false)
   const [aiSpeechSteps, setAiSpeechSteps] = useState<Set<number>>(new Set())
+  const [aiLandscapeSteps, setAiLandscapeSteps] = useState<Set<number>>(new Set())
   const [showSpeechWarning, setShowSpeechWarning] = useState(false)
+  const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -75,6 +78,7 @@ export default function DashboardPage() {
   const [totalIdeasGenerated, setTotalIdeasGenerated] = useState(0)
   const [totalFilmingGenerated, setTotalFilmingGenerated] = useState(0)
   const [totalRenders, setTotalRenders] = useState(0)
+  const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
   const [currentBatch, setCurrentBatch] = useState(0)
   const [previousBatch, setPreviousBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
   const [redoBatch, setRedoBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
@@ -162,6 +166,15 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .gte("created_at", monthStart)
       setTotalRenders(renderCount || 0)
+
+      const { data: durationRows } = await supabase
+        .from("renders")
+        .select("duration_seconds")
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart)
+        .not("duration_seconds", "is", null)
+      const summedSeconds = (durationRows || []).reduce((sum, row) => sum + (row.duration_seconds || 0), 0)
+      setTotalRenderSeconds(summedSeconds)
       if (allIdeas && allIdeas.length > 0) {
         const toIdea = (row: Record<string, unknown>): Idea => ({
           id: row.id as string,
@@ -428,6 +441,36 @@ export default function DashboardPage() {
       setGeneratingFilming(false)
     }
   }
+  const downloadVideo = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.error("Download failed", err)
+    }
+  }
+
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src)
+        resolve(video.duration || 5)
+      }
+      video.onerror = () => resolve(5)
+      video.src = URL.createObjectURL(file)
+    })
+  }
+
   const isLandscapeVideo = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
       const video = document.createElement("video")
@@ -463,6 +506,9 @@ export default function DashboardPage() {
       const stepIndices = Object.keys(stepUploads).map(Number).sort((a, b) => a - b)
       const clipPaths: string[] = []
       const speechIndices: number[] = []
+      const clipTrims: { duration: number }[] = []
+      const clipSettings: { letterbox?: boolean }[] = []
+      let anyLandscape = false
 
       for (const stepIndex of stepIndices) {
         const file = stepUploads[stepIndex]
@@ -471,9 +517,22 @@ export default function DashboardPage() {
         if (error) throw new Error(error.message)
         clipPaths.push(path)
         if (aiSpeechSteps.has(stepIndex)) speechIndices.push(clipPaths.length - 1)
+
+        const duration = await getVideoDuration(file)
+        clipTrims.push({ duration })
+
+        const isLandscape = aiLandscapeSteps.has(stepIndex)
+        if (isLandscape) {
+          anyLandscape = true
+          clipSettings.push(aiLandscapeHandling === "blur" ? { letterbox: true } : {})
+        } else {
+          clipSettings.push({})
+        }
       }
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
+
+      const outputOrientation = anyLandscape && aiLandscapeHandling === "landscape" ? "landscape" : undefined
 
       const res = await fetch("/api/render-video", {
         method: "POST",
@@ -481,8 +540,11 @@ export default function DashboardPage() {
         body: JSON.stringify({
           userId,
           clipPaths,
-          captionStyle: aiCaptionPreset,
+          captionStyle: aiAddCaptions ? aiCaptionPreset : null,
           speechClipIndices: speechIndices,
+          clipTrims,
+          clipSettings,
+          outputOrientation,
         }),
       })
 
@@ -507,12 +569,15 @@ export default function DashboardPage() {
 
     try {
       const clipPaths: string[] = []
+      const clipTrims: { duration: number }[] = []
 
       for (const file of selectedFiles) {
         const path = `${userId}/${Date.now()}-${file.name}`
         const { error } = await supabase.storage.from('video-uploads').upload(path, file)
         if (error) throw new Error(error.message)
         clipPaths.push(path)
+        const duration = await getVideoDuration(file)
+        clipTrims.push({ duration })
       }
 
       let musicPath: string | null = null
@@ -546,7 +611,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation, clipTrims }),
       })
 
       const data = await res.json()
@@ -586,7 +651,11 @@ export default function DashboardPage() {
     { label: 'Filming instructions generated', value: String(totalFilmingGenerated) },
     { label: 'Renders', value: String(totalRenders) },
     { label: 'Posts this week', value: '0' },
-    { label: 'Render minutes used', value: '0 / 2' },
+    { label: 'Render minutes used', value: (() => {
+      const usedMin = Math.floor(totalRenderSeconds / 60)
+      const usedSec = totalRenderSeconds % 60
+      return `${usedMin}:${String(usedSec).padStart(2, '0')} / 10:00`
+    })() },
   ]
 
   const savedIdeas = dbSavedIdeas
@@ -1267,6 +1336,27 @@ export default function DashboardPage() {
                         style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }}
                       />
                       <button
+                        onClick={() => downloadVideo(outputUrl, "reelly-video.mp4")}
+                        title="Download video"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginTop: 12,
+                          marginRight: 8,
+                          backgroundColor: "var(--coral)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          width: 38,
+                          height: 38,
+                          fontSize: 16,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ⬇
+                      </button>
+                      <button
                         onClick={() => {
                           localStorage.setItem("reelly-editor-seed", JSON.stringify({
                             clipPaths: lastRenderedPaths,
@@ -1357,23 +1447,66 @@ export default function DashboardPage() {
                                 />
                                 Has speech
                               </label>
+                              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={aiLandscapeSteps.has(i)}
+                                  onChange={(e) => {
+                                    setAiLandscapeSteps((prev) => {
+                                      const next = new Set(prev)
+                                      if (e.target.checked) next.add(i)
+                                      else next.delete(i)
+                                      return next
+                                    })
+                                  }}
+                                />
+                                Landscape
+                              </label>
                             </div>
                           </div>
                         ))}
                       </div>
 
-                      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Caption style</p>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
-                        {CAPTION_PRESETS.map((preset) => (
+                      <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                        {[
+                          { id: "crop", label: "Crop & zoom" },
+                          { id: "blur", label: "Blurred bars" },
+                          { id: "landscape", label: "Keep landscape shape" },
+                        ].map((opt) => (
                           <button
-                            key={preset.id}
-                            onClick={() => setAiCaptionPreset(preset.id)}
-                            style={{ textAlign: "left", padding: "10px", borderRadius: 8, border: aiCaptionPreset === preset.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", cursor: "pointer" }}
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setAiLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
+                            style={{ padding: "8px 14px", borderRadius: 8, border: aiLandscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
                           >
-                            <p style={{ fontSize: 11, fontWeight: 600 }}>{preset.label}</p>
+                            {opt.label}
                           </button>
                         ))}
                       </div>
+
+                      <label style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={aiAddCaptions}
+                          onChange={(e) => setAiAddCaptions(e.target.checked)}
+                        />
+                        Add captions
+                      </label>
+
+                      {aiAddCaptions && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
+                          {CAPTION_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              onClick={() => setAiCaptionPreset(preset.id)}
+                              style={{ textAlign: "left", padding: "10px", borderRadius: 8, border: aiCaptionPreset === preset.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", cursor: "pointer" }}
+                            >
+                              <p style={{ fontSize: 11, fontWeight: 600 }}>{preset.label}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       {showSpeechWarning && (
                         <div style={{ marginBottom: 12, padding: "12px 16px", borderRadius: 8, border: "1px solid var(--coral)", background: "rgba(216,90,48,0.08)" }}>
@@ -1422,7 +1555,29 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 13, color: "var(--coral)" }}>Something went wrong rendering your video.</p>
                   )}
                   {aiRenderStatus === "done" && aiOutputUrl && (
-                    <video controls src={aiOutputUrl} style={{ width: "100%", maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
+                    <>
+                      <video controls src={aiOutputUrl} style={{ width: "100%", maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
+                      <button
+                        onClick={() => downloadVideo(aiOutputUrl, "reelly-video.mp4")}
+                        title="Download video"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginTop: 12,
+                          backgroundColor: "var(--coral)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          width: 38,
+                          height: 38,
+                          fontSize: 16,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ⬇
+                      </button>
+                    </>
                   )}
                 </div>
               )}

@@ -31,9 +31,18 @@ export async function POST(req: NextRequest) {
     const status = shotstackData.response.status
     const outputUrl = shotstackData.response.url || null
 
+    const durationSeconds = status === 'done' && typeof shotstackData.response.duration === 'number'
+      ? Math.round(shotstackData.response.duration)
+      : null
+
+    const updateData: Record<string, unknown> = { status, output_url: outputUrl }
+    if (durationSeconds !== null) {
+      updateData.duration_seconds = durationSeconds
+    }
+
     await supabaseAdmin
       .from('renders')
-      .update({ status, output_url: outputUrl })
+      .update(updateData)
       .eq('id', renderId)
 
     if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {

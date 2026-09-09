@@ -715,7 +715,44 @@ export default function EditorPage() {
                   <p style={{ fontSize: 12, color: 'var(--coral)' }}>Something went wrong rendering your video.</p>
                 )}
                 {renderStatus === 'done' && outputUrl && (
-                  <video controls src={outputUrl} style={{ width: '100%', borderRadius: 12, marginTop: 8 }} />
+                  <>
+                    <video controls src={outputUrl} style={{ width: '100%', borderRadius: 12, marginTop: 8 }} />
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(outputUrl)
+                          const blob = await res.blob()
+                          const blobUrl = URL.createObjectURL(blob)
+                          const a = document.createElement("a")
+                          a.href = blobUrl
+                          a.download = "reelly-video.mp4"
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          URL.revokeObjectURL(blobUrl)
+                        } catch (err) {
+                          console.error("Download failed", err)
+                        }
+                      }}
+                      title="Download video"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 8,
+                        backgroundColor: "var(--coral)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        width: 38,
+                        height: 38,
+                        fontSize: 16,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ⬇
+                    </button>
+                  </>
                 )}
               </div>
             )}
