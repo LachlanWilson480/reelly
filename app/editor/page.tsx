@@ -55,6 +55,10 @@ export default function EditorPage() {
   const videoRefB = useRef<HTMLVideoElement>(null)
 
   const [userId, setUserId] = useState<string | null>(null)
+  const [userPlan, setUserPlan] = useState<'basic' | 'mid'>('mid')
+  const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
+  const [showOverageModal, setShowOverageModal] = useState(false)
+  const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [clips, setClips] = useState<ClipItem[]>([])
@@ -98,6 +102,23 @@ export default function EditorPage() {
         return
       }
       setUserId(user.id)
+
+      const { data: subRow } = await supabase
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (subRow?.plan) setUserPlan(subRow.plan as "basic" | "mid")
+
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      const { data: durationRows } = await supabase
+        .from("renders")
+        .select("duration_seconds")
+        .eq("user_id", user.id)
+        .gte("created_at", monthStart)
+        .not("duration_seconds", "is", null)
+      const summedSeconds = (durationRows || []).reduce((sum, row) => sum + (row.duration_seconds || 0), 0)
+      setTotalRenderSeconds(summedSeconds)
 
       const seeded = localStorage.getItem('reelly-editor-seed')
       if (seeded) {
@@ -325,7 +346,7 @@ export default function EditorPage() {
     window.removeEventListener('mouseup', handleDragEnd)
   }, [handleDragMove])
 
-  const handleRender = async () => {
+  const runRender = async () => {
     if (!userId || clips.length === 0) return
     setRendering(true)
     setError('')
@@ -391,12 +412,57 @@ export default function EditorPage() {
     }
   }
 
+  const BASIC_CAP_MIN = 10
+  const PRO_CAP_MIN = 60
+
+  const isOverRenderCap = () => {
+    const capMin = userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
+    return totalRenderSeconds / 60 >= capMin
+  }
+
+  const handleRender = () => {
+    if (isOverRenderCap()) {
+      setPendingRenderAction(() => runRender)
+      setShowOverageModal(true)
+    } else {
+      runRender()
+    }
+  }
+
   if (loading) {
     return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
   }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+      {showOverageModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", maxWidth: 420, width: "100%" }}>
+            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>You&apos;ve reached your monthly render limit</h3>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 24 }}>
+              You&apos;ve used all your included render minutes for this month. Press Continue to keep rendering on overage fees, or Exit to stop here.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setShowOverageModal(false); setPendingRenderAction(null) }}
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 8, border: "1px solid rgba(128,128,128,0.3)", background: "transparent", fontSize: 14, color: "var(--ink)", cursor: "pointer" }}
+              >
+                Exit
+              </button>
+              <button
+                onClick={() => {
+                  setShowOverageModal(false)
+                  if (pendingRenderAction) pendingRenderAction()
+                  setPendingRenderAction(null)
+                }}
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 8, border: "none", background: "var(--coral)", color: "#fff", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', display: 'flex', height: '100vh' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
