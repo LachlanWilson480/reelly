@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { moderateTexts } from '@/lib/moderateContent'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -60,6 +61,12 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
     const cleaned = rawText.replace(/```json|```/g, '').trim()
     const safeCleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
     const refined = JSON.parse(safeCleaned)
+
+    const flaggedIndices = await moderateTexts([`${refined.title}. ${refined.hook} ${refined.description}`])
+    if (flaggedIndices.size > 0) {
+      return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
+    }
+
     return NextResponse.json({ idea: refined })
   } catch (error) {
     console.error('refine-idea error:', error)

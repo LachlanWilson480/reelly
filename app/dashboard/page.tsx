@@ -9,6 +9,7 @@ type Profile = {
   business_name: string
   industry: string
   suburb: string
+  country: string | null
   tone: string | null
   target_audience: string | null
   core_services: string | null
@@ -130,7 +131,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem')
+        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem')
         .eq('user_id', user.id)
         .maybeSingle()
 

@@ -31,6 +31,7 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState('')
   const [industry, setIndustry] = useState('')
   const [suburb, setSuburb] = useState('')
+  const [country, setCountry] = useState('AU')
   const [tone, setTone] = useState('')
   const [customerDescription, setCustomerDescription] = useState('')
   const [coreServices, setCoreServices] = useState('')
@@ -84,6 +85,7 @@ export default function OnboardingPage() {
       business_name: businessName,
       industry,
       suburb,
+      country,
       tone,
       target_audience: customerDescription,
       core_services: coreServices,
@@ -153,7 +155,33 @@ export default function OnboardingPage() {
             <form onSubmit={handleSubmit}>
               <Field label="Business name" value={businessName} onChange={setBusinessName} />
               <Field label="Industry" value={industry} onChange={setIndustry} placeholder="e.g. hair salon, tattoo studio, wedding vendor" />
-              <Field label="Suburb" value={suburb} onChange={setSuburb} placeholder="e.g. Newtown, Bondi, Parramatta" />
+              <div style={{ marginBottom: 20, padding: 16, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.04)" }}>
+                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "#F1EFE8" }}>📍 Where is your business? *</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Country</label>
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="AU">Australia</option>
+                      <option value="UK">United Kingdom</option>
+                      <option value="US">United States</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Suburb / City</label>
+                    <input
+                      value={suburb}
+                      onChange={(e) => setSuburb(e.target.value)}
+                      placeholder="e.g. Newtown, Manchester, Austin"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: "rgba(241,239,232,0.6)", marginTop: 8 }}>This helps us generate hyperlocal ideas and recommend content around events relevant to your country.</p>
+              </div>
               <Field label="Tone of voice" value={tone} onChange={setTone} placeholder="e.g. playful, professional, edgy" />
               <Field label="Who is your ideal customer?" value={customerDescription} onChange={setCustomerDescription} placeholder="Age range, lifestyle, what they're looking for" textarea />
               <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />

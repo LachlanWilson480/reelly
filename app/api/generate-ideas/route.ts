@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { moderateTexts } from '@/lib/moderateContent'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -46,30 +47,111 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid'> {
   return data.plan === 'basic' ? 'basic' : 'mid'
 }
 
-type SeasonalEvent = { name: string; month: number; day: number; windowDays: number }
+type SeasonalEvent = { name: string; windowDays: number } & (
+  | { type: "fixed"; month: number; day: number }
+  | { type: "nthWeekday"; month: number; weekday: number; n: number }
+  | { type: "lastWeekday"; month: number; weekday: number }
+  | { type: "easterOffset"; offsetDays: number }
+)
 
-const SEASONAL_EVENTS: SeasonalEvent[] = [
-  { name: "Australia Day", month: 1, day: 26, windowDays: 21 },
-  { name: "Valentine's Day", month: 2, day: 14, windowDays: 21 },
-  { name: "Easter", month: 4, day: 10, windowDays: 28 },
-  { name: "Mother's Day", month: 5, day: 11, windowDays: 21 },
-  { name: "Winter school holidays", month: 7, day: 1, windowDays: 21 },
-  { name: "Father's Day", month: 9, day: 7, windowDays: 21 },
-  { name: "Halloween", month: 10, day: 31, windowDays: 21 },
-  { name: "Melbourne Cup", month: 11, day: 4, windowDays: 14 },
-  { name: "Christmas / EOFY holiday season", month: 12, day: 25, windowDays: 35 },
-  { name: "New Year", month: 1, day: 1, windowDays: 14 },
+// Computes the date of Easter Sunday for a given year (Meeus/Jones/Butcher Gregorian algorithm).
+function computeEaster(year: number): Date {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return new Date(year, month - 1, day)
+}
+
+// weekday: 0=Sunday...6=Saturday. n: 1=first, 2=second, etc.
+function nthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
+  const firstOfMonth = new Date(year, month - 1, 1)
+  const firstWeekday = firstOfMonth.getDay()
+  const day = 1 + ((weekday - firstWeekday + 7) % 7) + (n - 1) * 7
+  return new Date(year, month - 1, day)
+}
+
+function lastWeekdayOfMonth(year: number, month: number, weekday: number): Date {
+  const lastOfMonth = new Date(year, month, 0)
+  const diff = (lastOfMonth.getDay() - weekday + 7) % 7
+  return new Date(year, month - 1, lastOfMonth.getDate() - diff)
+}
+
+function getEventDate(e: SeasonalEvent, year: number): Date {
+  if (e.type === "fixed") return new Date(year, e.month - 1, e.day)
+  if (e.type === "nthWeekday") return nthWeekdayOfMonth(year, e.month, e.weekday, e.n)
+  if (e.type === "lastWeekday") return lastWeekdayOfMonth(year, e.month, e.weekday)
+  const easter = computeEaster(year)
+  const d = new Date(easter)
+  d.setDate(d.getDate() + e.offsetDays)
+  return d
+}
+
+const AU_EVENTS: SeasonalEvent[] = [
+  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
+  { name: "Australia Day", type: "fixed", month: 1, day: 26, windowDays: 21 },
+  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
+  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
+  { name: "ANZAC Day", type: "fixed", month: 4, day: 25, windowDays: 14 },
+  { name: "Mother's Day", type: "nthWeekday", month: 5, weekday: 0, n: 2, windowDays: 21 },
+  { name: "Winter school holidays", type: "fixed", month: 7, day: 1, windowDays: 21 },
+  { name: "Father's Day", type: "nthWeekday", month: 9, weekday: 0, n: 1, windowDays: 21 },
+  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
+  { name: "Melbourne Cup", type: "nthWeekday", month: 11, weekday: 2, n: 1, windowDays: 14 },
+  { name: "Christmas / EOFY holiday season", type: "fixed", month: 12, day: 25, windowDays: 35 },
 ]
 
+const UK_EVENTS: SeasonalEvent[] = [
+  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
+  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
+  { name: "Mother's Day (Mothering Sunday)", type: "easterOffset", offsetDays: -21, windowDays: 14 },
+  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
+  { name: "Father's Day", type: "nthWeekday", month: 6, weekday: 0, n: 3, windowDays: 21 },
+  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
+  { name: "Bonfire Night", type: "fixed", month: 11, day: 5, windowDays: 10 },
+  { name: "Christmas", type: "fixed", month: 12, day: 25, windowDays: 35 },
+]
+
+const US_EVENTS: SeasonalEvent[] = [
+  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
+  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
+  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
+  { name: "Mother's Day", type: "nthWeekday", month: 5, weekday: 0, n: 2, windowDays: 21 },
+  { name: "Memorial Day", type: "lastWeekday", month: 5, weekday: 1, windowDays: 14 },
+  { name: "Father's Day", type: "nthWeekday", month: 6, weekday: 0, n: 3, windowDays: 21 },
+  { name: "Independence Day", type: "fixed", month: 7, day: 4, windowDays: 14 },
+  { name: "Labor Day", type: "nthWeekday", month: 9, weekday: 1, n: 1, windowDays: 14 },
+  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
+  { name: "Thanksgiving", type: "nthWeekday", month: 11, weekday: 4, n: 4, windowDays: 21 },
+  { name: "Christmas", type: "fixed", month: 12, day: 25, windowDays: 35 },
+]
+
+function getEventsForCountry(country: string | null | undefined): SeasonalEvent[] {
+  if (country === "UK") return UK_EVENTS
+  if (country === "US") return US_EVENTS
+  return AU_EVENTS
+}
+
 function isEventInWindow(e: SeasonalEvent, now: Date): boolean {
-  const eventDate = new Date(now.getFullYear(), e.month - 1, e.day)
+  const eventDate = getEventDate(e, now.getFullYear())
   const diffDays = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   return diffDays >= -3 && diffDays <= e.windowDays
 }
 
-function getUpcomingSeasonalEvent(): string | null {
+function getUpcomingSeasonalEvent(country: string | null | undefined): string | null {
   const now = new Date()
-  for (const e of SEASONAL_EVENTS) {
+  const events = getEventsForCountry(country)
+  for (const e of events) {
     if (isEventInWindow(e, now)) return e.name
   }
   return null
@@ -79,13 +161,14 @@ function getUpcomingSeasonalEvent(): string | null {
 // name a specific known holiday that has already passed for the year. Generic text
 // ("summer is our busy season") always passes through unchanged. This stops a
 // one-off mention like "Halloween promotions" from being fed to the AI year-round.
-function filterSeasonalContext(text: string | null | undefined): string | null {
+function filterSeasonalContext(text: string | null | undefined, country: string | null | undefined): string | null {
   if (!text || !text.trim()) return null
   const now = new Date()
   const lowerText = text.toLowerCase()
-  for (const e of SEASONAL_EVENTS) {
+  const events = getEventsForCountry(country)
+  for (const e of events) {
     const nameLower = e.name.toLowerCase()
-    const mentioned = nameLower.split(/[\s/]+/).some((word) => word.length > 3 && lowerText.includes(word))
+    const mentioned = nameLower.split(/[\s/()]+/).some((word) => word.length > 3 && lowerText.includes(word))
     if (mentioned && !isEventInWindow(e, now)) {
       return null
     }
@@ -153,11 +236,12 @@ export async function POST(req: NextRequest) {
       ? "This business operates BOTH from a fixed location AND travels to customers. Ideas can reference their shop/studio space when relevant, but don't assume every idea needs to happen at a fixed premises  -  some should work anywhere (van, tools, expertise)."
       : "This business operates from a FIXED location that customers visit. Feel free to suggest ideas that show their shop/studio space, ambiance, and physical setup where relevant, alongside expertise-based ideas."
 
-    const upcomingEvent = getUpcomingSeasonalEvent()
-    const filteredSeasonalContext = filterSeasonalContext(profile.local_seasonal_context)
+    const upcomingEvent = getUpcomingSeasonalEvent(profile.country)
+    const filteredSeasonalContext = filterSeasonalContext(profile.local_seasonal_context, profile.country)
     const ownSeasonalNote = filteredSeasonalContext ? ` The business owner also says their own busy/relevant times are: ${filteredSeasonalContext}.` : ""
+    const countryLabel = profile.country === "UK" ? "the UK" : profile.country === "US" ? "the US" : "Australia"
     const seasonalGuidance = (upcomingEvent || ownSeasonalNote)
-      ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in Australia.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
+      ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in ${countryLabel}.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
       : ""
     const prompt = `You help busy small business owners in Sydney create short-form social media content by themselves, alone, on their phone, in a few spare minutes. They are NOT content creators, have NO crew, and NO time to spare.
 
@@ -218,7 +302,18 @@ Respond ONLY with valid JSON, no markdown formatting, no code fences, in this ex
     const cleaned = rawText.replace(/```json|```/g, '').trim()
     const safeCleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
     const ideas = JSON.parse(safeCleaned)
-    return NextResponse.json({ ideas, plan, usage: usageInfo })
+
+    const moderationTexts = ideas.map((idea: { title: string; hook: string; description: string }) =>
+      `${idea.title}. ${idea.hook} ${idea.description}`
+    )
+    const flaggedIndices = await moderateTexts(moderationTexts)
+    const safeIdeas = ideas.filter((_: unknown, i: number) => !flaggedIndices.has(i))
+
+    if (safeIdeas.length === 0 && ideas.length > 0) {
+      return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
+    }
+
+    return NextResponse.json({ ideas: safeIdeas, plan, usage: usageInfo })
   } catch (error) {
     console.error('generate-ideas error:', error)
     return NextResponse.json({ error: 'Failed to generate ideas' }, { status: 500 })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { moderateTexts } from '@/lib/moderateContent'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -108,6 +109,16 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
 
     if (!result) {
       return NextResponse.json({ error: 'The AI had trouble generating this checklist. Please try again.' }, { status: 500 })
+    }
+
+    const moderationTexts = [
+      ...(Array.isArray(result.checklist) ? result.checklist : []),
+      ...(Array.isArray(result.prep) ? result.prep : []),
+      ...(result.caption ? [result.caption] : []),
+    ]
+    const flaggedIndices = await moderateTexts(moderationTexts)
+    if (flaggedIndices.size > 0) {
+      return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
     return NextResponse.json(result)
