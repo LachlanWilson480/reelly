@@ -21,7 +21,7 @@ function buildDeletionWarningEmail(deletionDate: string) {
         <table width="480" cellpadding="0" cellspacing="0" style="background-color:#FAEEDA;border-radius:12px;padding:32px;">
           <tr>
             <td style="font-family:Arial,sans-serif;color:#2C2C2A;">
-              <h1 style="font-size:20px;margin:0 0 16px;color:#2C2C2A;">Your Reelly data is scheduled for deletion</h1>
+              <h1 style="font-size:20px;margin:0 0 16px;color:#2C2C2A;">Your Reelezy data is scheduled for deletion</h1>
               <p style="font-size:15px;line-height:1.5;margin:0 0 16px;">
                 Your subscription has ended and your account has been inactive.
                 To protect your privacy, we automatically delete account data
@@ -80,9 +80,9 @@ export async function GET(req: NextRequest) {
       if (email && process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY)
         await resend.emails.send({
-          from: 'Reelly <noreply@send.reelly.com.au>',
+          from: 'Reelezy <noreply@send.reelezy.com>',
           to: email,
-          subject: 'Your Reelly data will be deleted soon',
+          subject: 'Your Reelezy data will be deleted soon',
           html: buildDeletionWarningEmail(row.deletion_scheduled_at as string),
         })
       }

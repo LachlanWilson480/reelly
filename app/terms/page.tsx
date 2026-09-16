@@ -10,7 +10,7 @@ export default function TermsPage() {
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
-            Reelly
+            Reelezy
           </Link>
         </nav>
 
@@ -19,13 +19,13 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 32 }}>
-            Reelly · ABN 76 182 998 115 · Last updated: 6 September 2026
+            Reelezy · ABN 76 182 998 115 · Last updated: 6 September 2026
           </p>
 
           <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
             <p style={{ marginBottom: 24 }}>
-              These Terms of Service (&quot;Terms&quot;) govern your access to and use of the Reelly platform, website,
-              and related services (the &quot;Service&quot;), provided by Reelly (ABN 76 182 998 115) (&quot;Reelly&quot;,
+              These Terms of Service (&quot;Terms&quot;) govern your access to and use of the Reelezy platform, website,
+              and related services (the &quot;Service&quot;), provided by Reelezy (ABN 76 182 998 115) (&quot;Reelezy&quot;,
               &quot;we&quot;, &quot;us&quot;, &quot;our&quot;). By creating an account, ticking the acceptance box at signup, or
               using the Service, you (&quot;you&quot;, &quot;your&quot;) agree to be bound by these Terms. If you do not agree,
               do not use the Service.
@@ -33,7 +33,7 @@ export default function TermsPage() {
 
             <h2 style={sectionStyle}>1. The Service</h2>
             <p style={pStyle}>
-              Reelly is a subscription software product that helps small businesses and independent creators produce
+              Reelezy is a subscription software product that helps small businesses and independent creators produce
               short-form social media content. It generates AI-assisted content ideas and filming instructions,
               provides tools to upload and automatically edit video clips (stitching, captions, trimming, music), and
               offers basic scheduling and planning features. Features may be added, changed, or removed at our
@@ -50,7 +50,7 @@ export default function TermsPage() {
             </ul>
 
             <h2 style={sectionStyle}>3. Plans &amp; Fees</h2>
-            <p style={pStyle}>Reelly is offered on the following subscription plans:</p>
+            <p style={pStyle}>Reelezy is offered on the following subscription plans:</p>
             <ul style={ulStyle}>
               <li><strong>Basic</strong> — approximately 2 render minutes per week — AUD $20/month.</li>
               <li><strong>Pro</strong> — approximately 10 render minutes per week, plus content calendar, idea refinement, and custom generation guidance — AUD $69/month.</li>
@@ -83,7 +83,7 @@ export default function TermsPage() {
             <h2 style={sectionStyle}>6. Your Content &amp; Media Rights</h2>
             <p style={pStyle}>
               You retain ownership of the videos, images, audio, business information, and other material you upload
-              (&quot;Your Content&quot;). You grant Reelly a limited, non-exclusive licence to store, process, and
+              (&quot;Your Content&quot;). You grant Reelezy a limited, non-exclusive licence to store, process, and
               transmit Your Content solely to operate and provide the Service (including sending it to our rendering
               provider). You are responsible for ensuring you hold all necessary rights to Your Content, including any
               music, footage, logos, or people appearing in it, and for obtaining consent from anyone shown on camera.
@@ -91,8 +91,8 @@ export default function TermsPage() {
 
             <h2 style={sectionStyle}>7. Ownership of Output</h2>
             <p style={pStyle}>
-              As between you and Reelly, you own the final rendered videos and the Generated Content produced for your
-              account, subject to any rights held by third parties in material you supplied. Reelly retains all rights
+              As between you and Reelezy, you own the final rendered videos and the Generated Content produced for your
+              account, subject to any rights held by third parties in material you supplied. Reelezy retains all rights
               in the Service itself, including its software, design, and underlying prompts and systems. You must not
               copy, reverse-engineer, resell, or white-label the Service without our written consent.
             </p>
@@ -137,14 +137,14 @@ export default function TermsPage() {
             <h2 style={sectionStyle}>12. Limitation of Liability</h2>
             <p style={pStyle}>
               To the extent permitted by law, our total liability arising out of or in connection with the Service is
-              limited to the fees you paid to Reelly in the 3 months before the event giving rise to the claim. We are
+              limited to the fees you paid to Reelezy in the 3 months before the event giving rise to the claim. We are
               not liable for indirect, incidental, or consequential loss, or for loss of profits, revenue, data, or
               goodwill.
             </p>
 
             <h2 style={sectionStyle}>13. Indemnity</h2>
             <p style={pStyle}>
-              You agree to indemnify Reelly against claims, losses, and costs arising from Your Content, your use or
+              You agree to indemnify Reelezy against claims, losses, and costs arising from Your Content, your use or
               publication of Generated Content, or your breach of these Terms, except to the extent caused by our
               negligence or breach.
             </p>
@@ -166,13 +166,13 @@ export default function TermsPage() {
             <h2 style={sectionStyle}>16. General</h2>
             <p style={pStyle}>
               If any provision of these Terms is unenforceable, the rest continues in force. These Terms are the entire
-              agreement between you and Reelly about the Service. You may not assign your rights without our consent.
+              agreement between you and Reelezy about the Service. You may not assign your rights without our consent.
               Our failure to enforce a provision is not a waiver of it. These Terms are governed by the laws of New
               South Wales, Australia, and the courts of New South Wales have non-exclusive jurisdiction.
             </p>
 
             <h2 style={sectionStyle}>17. Contact</h2>
-            <p style={pStyle}>Reelly · Email: lachlanwilson480@gmail.com · ABN 76 182 998 115</p>
+            <p style={pStyle}>Reelezy · Email: lachlanwilson480@gmail.com · ABN 76 182 998 115</p>
 
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 32, fontStyle: 'italic' }}>
               This document is a general template and does not constitute legal advice.

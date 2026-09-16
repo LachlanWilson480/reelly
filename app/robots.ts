@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/dashboard', '/editor', '/settings', '/onboarding', '/history', '/customise'],
     },
-    sitemap: 'https://reelly.com.au/sitemap.xml',
+    sitemap: 'https://reelezy.com/sitemap.xml',
   }
 }

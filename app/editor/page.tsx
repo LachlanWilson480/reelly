@@ -120,7 +120,7 @@ export default function EditorPage() {
       const summedSeconds = (durationRows || []).reduce((sum, row) => sum + (row.duration_seconds || 0), 0)
       setTotalRenderSeconds(summedSeconds)
 
-      const seeded = localStorage.getItem('reelly-editor-seed')
+      const seeded = localStorage.getItem('reelezy-editor-seed')
       if (seeded) {
         try {
           const parsed = JSON.parse(seeded)
@@ -161,7 +161,7 @@ export default function EditorPage() {
         } catch {
           // ignore malformed seed
         }
-        localStorage.removeItem('reelly-editor-seed')
+        localStorage.removeItem('reelezy-editor-seed')
       }
 
       setLoading(false)
@@ -791,7 +791,7 @@ export default function EditorPage() {
                           const blobUrl = URL.createObjectURL(blob)
                           const a = document.createElement("a")
                           a.href = blobUrl
-                          a.download = "reelly-video.mp4"
+                          a.download = "reelezy-video.mp4"
                           document.body.appendChild(a)
                           a.click()
                           document.body.removeChild(a)

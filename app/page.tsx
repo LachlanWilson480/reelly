@@ -47,17 +47,17 @@ export default function HomePage() {
   }
 
   const faqs = [
-    { q: 'Does this replace my videographer?', a: "Not necessarily. Reelly helps you plan, film, and edit content yourself in minutes. Many businesses use it for everyday posts and still hire a videographer for bigger campaigns." },
-    { q: 'What if I don\u2019t post often?', a: 'That\u2019s exactly who Reelly is built for. Content ideas and filming steps are designed to take minutes, not hours, so posting consistently becomes realistic even with a busy schedule.' },
-    { q: 'Is my business data safe?', a: "Your business information is used to personalise your Reelly experience and generate relevant content. We don't use or sell any of your information. (More details in the ToS)" },
-    { q: 'Do I need filming or editing experience?', a: 'No. Reelly gives you step-by-step filming instructions, and handles editing, captions, and sound automatically.' },
-    { q: 'Can I use my own phone to film?', a: 'Yes. Reelly is built around you filming on your phone.' },
+    { q: 'Does this replace my videographer?', a: "Not necessarily. Reelezy helps you plan, film, and edit content yourself in minutes. Many businesses use it for everyday posts and still hire a videographer for bigger campaigns." },
+    { q: 'What if I don\u2019t post often?', a: 'That\u2019s exactly who Reelezy is built for. Content ideas and filming steps are designed to take minutes, not hours, so posting consistently becomes realistic even with a busy schedule.' },
+    { q: 'Is my business data safe?', a: "Your business information is used to personalise your Reelezy experience and generate relevant content. We don't use or sell any of your information. (More details in the ToS)" },
+    { q: 'Do I need filming or editing experience?', a: 'No. Reelezy gives you step-by-step filming instructions, and handles editing, captions, and sound automatically.' },
+    { q: 'Can I use my own phone to film?', a: 'Yes. Reelezy is built around you filming on your phone.' },
   ]
 
   const steps = [
     { title: 'Tell us about your business', desc: 'A quick onboarding covers:', points: ['Your services', 'Your location', 'Your brand voice', 'Preferred video styles'] },
-    { title: 'Get content ideas', desc: 'Reelly generates:', points: ['Video ideas and hooks', 'Titles and hashtags', 'Step-by-step filming guides', 'Tailored to your business and local audience'] },
-    { title: 'Post in minutes', desc: 'To finish a video:', points: ['Film clips on your phone', 'Upload them to Reelly', 'Let the platform edit automatically', 'Or fine-tune it yourself in the editor'] },
+    { title: 'Get content ideas', desc: 'Reelezy generates:', points: ['Video ideas and hooks', 'Titles and hashtags', 'Step-by-step filming guides', 'Tailored to your business and local audience'] },
+    { title: 'Post in minutes', desc: 'To finish a video:', points: ['Film clips on your phone', 'Upload them to Reelezy', 'Let the platform edit automatically', 'Or fine-tune it yourself in the editor'] },
   ]
 
   const pricing = [
@@ -80,7 +80,7 @@ export default function HomePage() {
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 64px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
-            Reelly
+            Reelezy
           </span>
           <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
             <Link href="/login" style={{ color: 'var(--ink)', fontSize: 14, textDecoration: 'none' }}>
@@ -98,7 +98,7 @@ export default function HomePage() {
               Content ideas, filmed and posted in minutes.
             </h1>
             <p style={{ fontSize: 17, color: '#D3D1C7', maxWidth: 440, lineHeight: 1.6 }}>
-              Reelly helps businesses turn everyday work into social media content. With AI-powered ideas, simple filming guides, automatic editing, and scheduling all in one place.
+              Reelezy helps businesses turn everyday work into social media content. With AI-powered ideas, simple filming guides, automatic editing, and scheduling all in one place.
             </p>
             <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 30px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
               Get started free
@@ -186,7 +186,7 @@ export default function HomePage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 28 }}>
               {[
                 { title: 'AI content ideas', desc: 'Get:', points: ['Hyperlocal video ideas', 'Titles and hashtags', 'Step-by-step filming checklists'] },
-                { title: 'Automatic editing', desc: 'Reelly handles:', points: ['Stitching your clips together', 'Captions', 'Pause removal', 'Sound'] },
+                { title: 'Automatic editing', desc: 'Reelezy handles:', points: ['Stitching your clips together', 'Captions', 'Pause removal', 'Sound'] },
                 { title: 'Scheduling built in', desc: 'Stay consistent by:', points: ['Planning content ahead of time', 'Keeping your accounts active', 'Never having to remember to post'] },
               ].map((f) => (
                 <div key={f.title} style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px 28px' }}>
@@ -294,7 +294,7 @@ export default function HomePage() {
         <footer style={{ padding: '64px', borderTop: '1px solid rgba(128,128,128,0.15)', marginTop: 64 }}>
           <div style={{ maxWidth: 1320, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32 }}>
             <div>
-              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600 }}>Reelly</span>
+              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600 }}>Reelezy</span>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10, maxWidth: 240, lineHeight: 1.6 }}>
                 AI-powered content for anyone creating on social media.
               </p>
@@ -318,7 +318,7 @@ export default function HomePage() {
             </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>
-            \u00a9 2026 Reelly. Built in Sydney.
+            \u00a9 2026 Reelezy. Built in Sydney.
           </p>
         </footer>
       </div>

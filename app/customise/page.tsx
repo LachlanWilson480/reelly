@@ -77,7 +77,7 @@ export default function CustomisePage() {
           Customise generation
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
-          Add pointers for how Reelly should generate your ideas and filming instructions  -  things you like, things to avoid, specific angles or phrases you prefer. This is applied on top of your business profile and Reelly's core safety and realism guidelines, which always stay in place.
+          Add pointers for how Reelezy should generate your ideas and filming instructions  -  things you like, things to avoid, specific angles or phrases you prefer. This is applied on top of your business profile and Reelezy's core safety and realism guidelines, which always stay in place.
         </p>
 
         {plan === 'basic' ? (
@@ -87,7 +87,7 @@ export default function CustomisePage() {
               Custom guidance is a Pro plan feature
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
-              Upgrade to Pro to give Reelly your own style pointers  -  preferred tone, filming preferences, and things to avoid  -  applied to every idea and checklist it generates for you.
+              Upgrade to Pro to give Reelezy your own style pointers  -  preferred tone, filming preferences, and things to avoid  -  applied to every idea and checklist it generates for you.
             </p>
             
             <a href="/plans"

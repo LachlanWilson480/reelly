@@ -250,7 +250,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'reelly-my-data.json'
+    a.download = 'reelezy-my-data.json'
     a.click()
     URL.revokeObjectURL(url)
   }

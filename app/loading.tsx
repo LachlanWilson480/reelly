@@ -19,7 +19,7 @@ export default function Loading() {
           fontWeight: 600,
         }}
       >
-        Reelly
+        Reelezy
       </div>
     </div>
   );

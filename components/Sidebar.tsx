@@ -22,7 +22,7 @@ export default function Sidebar() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    const saved = localStorage.getItem('reelly-theme')
+    const saved = localStorage.getItem('reelezy-theme')
 
     if (saved === 'dark' || saved === 'light') {
       applyTheme(saved === 'dark')
@@ -46,7 +46,7 @@ export default function Sidebar() {
   const toggleTheme = () => {
     const newValue = !isDark
     applyTheme(newValue)
-    localStorage.setItem('reelly-theme', newValue ? 'dark' : 'light')
+    localStorage.setItem('reelezy-theme', newValue ? 'dark' : 'light')
   }
 
   const navItems = [

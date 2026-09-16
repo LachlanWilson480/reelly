@@ -121,7 +121,7 @@ export default function DashboardPage() {
       const user = sessionData.user
 
       if (!user) {
-        const hasLoggedInBefore = localStorage.getItem('reelly-has-logged-in')
+        const hasLoggedInBefore = localStorage.getItem('reelezy-has-logged-in')
         router.push(hasLoggedInBefore ? '/login' : '/signup')
         return
       }
@@ -719,7 +719,7 @@ export default function DashboardPage() {
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
-            Reelly
+            Reelezy
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/plans" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
@@ -1151,7 +1151,7 @@ export default function DashboardPage() {
                   Upload your clips
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  Select the video clips you filmed. Reelly will stitch them together, add captions, trim pauses, and add music.
+                  Select the video clips you filmed. Reelezy will stitch them together, add captions, trim pauses, and add music.
                 </p>
 
                 <input
@@ -1374,7 +1374,7 @@ export default function DashboardPage() {
                     <div>
                       <p style={{ fontSize: 13, color: "var(--coral)" }}>
                         {renderError && renderError.includes("No spoken audio") 
-                          ? "One of your clips was marked as having speech, but Reelly could not detect any. Try unchecking \"Has speech\" for that clip and rendering again."
+                          ? "One of your clips was marked as having speech, but Reelezy could not detect any. Try unchecking \"Has speech\" for that clip and rendering again."
                           : renderError || "Something went wrong rendering your video. Please try again."}
                       </p>
                     </div>
@@ -1386,7 +1386,7 @@ export default function DashboardPage() {
                         style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }}
                       />
                       <button
-                        onClick={() => downloadVideo(outputUrl, "reelly-video.mp4")}
+                        onClick={() => downloadVideo(outputUrl, "reelezy-video.mp4")}
                         title="Download video"
                         style={{
                           display: "inline-flex",
@@ -1408,7 +1408,7 @@ export default function DashboardPage() {
                       </button>
                       <button
                         onClick={() => {
-                          localStorage.setItem("reelly-editor-seed", JSON.stringify({
+                          localStorage.setItem("reelezy-editor-seed", JSON.stringify({
                             clipPaths: lastRenderedPaths,
                             musicPath: lastMusicPath,
                             speechClipIndex,
@@ -1440,7 +1440,7 @@ export default function DashboardPage() {
               <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
-                  Pick one of your filmed ideas below, then upload a clip for each instruction step. Reelly will stitch them in order and edit automatically.
+                  Pick one of your filmed ideas below, then upload a clip for each instruction step. Reelezy will stitch them in order and edit automatically.
                 </p>
 
                 {filmingItems.length === 0 ? (
@@ -1608,7 +1608,7 @@ export default function DashboardPage() {
                     <>
                       <video controls src={aiOutputUrl} style={{ width: "100%", maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
                       <button
-                        onClick={() => downloadVideo(aiOutputUrl, "reelly-video.mp4")}
+                        onClick={() => downloadVideo(aiOutputUrl, "reelezy-video.mp4")}
                         title="Download video"
                         style={{
                           display: "inline-flex",

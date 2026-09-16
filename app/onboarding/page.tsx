@@ -37,7 +37,7 @@ export default function OnboardingPage() {
   const [filmingComfort, setFilmingComfort] = useState('')
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [locationType, setLocationType] = useState('fixed')
-  const [videosPerWeek, setVideosPerWeek] = useState(3)
+  const [videosPerWeek, setVideosPerWeek] = useState('3')
   const [website, setWebsite] = useState('')
   const [instagramHandle, setInstagramHandle] = useState('')
   const [tiktokHandle, setTiktokHandle] = useState('')
@@ -90,7 +90,7 @@ export default function OnboardingPage() {
       filming_comfort: filmingComfort,
       on_camera_people: onCameraPeople,
       location_type: locationType,
-      videos_per_week: videosPerWeek,
+      videos_per_week: Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3)),
       website,
       instagram_handle: instagramHandle,
       tiktok_handle: tiktokHandle,
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
 
     setLoading(false)
 
-    localStorage.setItem('reelly-has-logged-in', 'true')
+    localStorage.setItem('reelezy-has-logged-in', 'true')
 
     if (error) {
       setMessage(error.message)
@@ -137,7 +137,7 @@ export default function OnboardingPage() {
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
-            Reelly
+            Reelezy
           </Link>
         </nav>
 
@@ -183,7 +183,11 @@ export default function OnboardingPage() {
                   min={1}
                   max={7}
                   value={videosPerWeek}
-                  onChange={(e) => setVideosPerWeek(Math.max(1, Math.min(7, Number(e.target.value))))}
+                  onChange={(e) => setVideosPerWeek(e.target.value)}
+                  onBlur={() => {
+                    const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
+                    setVideosPerWeek(String(clamped))
+                  }}
                   style={{ width: 100, padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 14, color: "var(--ink)" }}
                 />
                 <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Note: Basic plan generates a fixed 3 ideas per batch regardless of this number. Mid plan uses this number exactly.</p>

@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reelly - Social Media Generator and Editor",
-  description: "Reelly generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses. Plan, film, and post consistently  -  built for Sydney and beyond.",
+  title: "Reelezy - Social Media Generator and Editor",
+  description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses. Plan, film, and post consistently  -  built for Sydney and beyond.",
 };
 
 const themeScript = `
 (function () {
   try {
-    var savedTheme = localStorage.getItem('reelly-theme');
+    var savedTheme = localStorage.getItem('reelezy-theme');
 
     if (savedTheme === 'dark') {
       document.documentElement.classList.add('dark');

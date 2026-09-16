@@ -87,7 +87,7 @@ export default function SignUpPage() {
               textDecoration: 'none',
             }}
           >
-            Reelly
+            Reelezy
           </Link>
 
           <div
@@ -137,7 +137,7 @@ export default function SignUpPage() {
                 marginBottom: 8,
               }}
             >
-              Sign up for Reelly
+              Sign up for Reelezy
             </h1>
 
             <p

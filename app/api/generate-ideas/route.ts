@@ -160,7 +160,7 @@ ${seasonalGuidance}
 Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above  -  not generic industry advice that could apply to any business in this trade):
 ${angleLines}
 
-Each video should be 15-30 seconds, filmable in one continuous take, alone, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelly automatically handles (captions, trimming, music).
+Each video should be 15-30 seconds, filmable in one continuous take, alone, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelezy automatically handles (captions, trimming, music).
 
 For each idea, provide:
 - A short, specific title referencing a real detail from this business (not a generic template title  -  avoid phrases like "Behind the scenes", "Day in the life", "3 quick tips" unless the content genuinely is a numbered list)
