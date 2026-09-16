@@ -46,26 +46,51 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid'> {
   return data.plan === 'basic' ? 'basic' : 'mid'
 }
 
+type SeasonalEvent = { name: string; month: number; day: number; windowDays: number }
+
+const SEASONAL_EVENTS: SeasonalEvent[] = [
+  { name: "Australia Day", month: 1, day: 26, windowDays: 21 },
+  { name: "Valentine's Day", month: 2, day: 14, windowDays: 21 },
+  { name: "Easter", month: 4, day: 10, windowDays: 28 },
+  { name: "Mother's Day", month: 5, day: 11, windowDays: 21 },
+  { name: "Winter school holidays", month: 7, day: 1, windowDays: 21 },
+  { name: "Father's Day", month: 9, day: 7, windowDays: 21 },
+  { name: "Halloween", month: 10, day: 31, windowDays: 21 },
+  { name: "Melbourne Cup", month: 11, day: 4, windowDays: 14 },
+  { name: "Christmas / EOFY holiday season", month: 12, day: 25, windowDays: 35 },
+  { name: "New Year", month: 1, day: 1, windowDays: 14 },
+]
+
+function isEventInWindow(e: SeasonalEvent, now: Date): boolean {
+  const eventDate = new Date(now.getFullYear(), e.month - 1, e.day)
+  const diffDays = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  return diffDays >= -3 && diffDays <= e.windowDays
+}
+
 function getUpcomingSeasonalEvent(): string | null {
   const now = new Date()
-  const events: { name: string; month: number; day: number; windowDays: number }[] = [
-    { name: "Australia Day", month: 1, day: 26, windowDays: 21 },
-    { name: "Valentine's Day", month: 2, day: 14, windowDays: 21 },
-    { name: "Easter", month: 4, day: 10, windowDays: 28 },
-    { name: "Mother's Day", month: 5, day: 11, windowDays: 21 },
-    { name: "Winter school holidays", month: 7, day: 1, windowDays: 21 },
-    { name: "Father's Day", month: 9, day: 7, windowDays: 21 },
-    { name: "Halloween", month: 10, day: 31, windowDays: 21 },
-    { name: "Melbourne Cup", month: 11, day: 4, windowDays: 14 },
-    { name: "Christmas / EOFY holiday season", month: 12, day: 25, windowDays: 35 },
-    { name: "New Year", month: 1, day: 1, windowDays: 14 },
-  ]
-  for (const e of events) {
-    const eventDate = new Date(now.getFullYear(), e.month - 1, e.day)
-    const diffDays = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    if (diffDays >= -3 && diffDays <= e.windowDays) return e.name
+  for (const e of SEASONAL_EVENTS) {
+    if (isEventInWindow(e, now)) return e.name
   }
   return null
+}
+
+// Only lets the business owner's own free-text seasonal note through if it doesn't
+// name a specific known holiday that has already passed for the year. Generic text
+// ("summer is our busy season") always passes through unchanged. This stops a
+// one-off mention like "Halloween promotions" from being fed to the AI year-round.
+function filterSeasonalContext(text: string | null | undefined): string | null {
+  if (!text || !text.trim()) return null
+  const now = new Date()
+  const lowerText = text.toLowerCase()
+  for (const e of SEASONAL_EVENTS) {
+    const nameLower = e.name.toLowerCase()
+    const mentioned = nameLower.split(/[\s/]+/).some((word) => word.length > 3 && lowerText.includes(word))
+    if (mentioned && !isEventInWindow(e, now)) {
+      return null
+    }
+  }
+  return text
 }
 function pickAngles(pool: string[], count: number): string[] {
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
@@ -129,7 +154,8 @@ export async function POST(req: NextRequest) {
       : "This business operates from a FIXED location that customers visit. Feel free to suggest ideas that show their shop/studio space, ambiance, and physical setup where relevant, alongside expertise-based ideas."
 
     const upcomingEvent = getUpcomingSeasonalEvent()
-    const ownSeasonalNote = profile.local_seasonal_context ? ` The business owner also says their own busy/relevant times are: ${profile.local_seasonal_context}.` : ""
+    const filteredSeasonalContext = filterSeasonalContext(profile.local_seasonal_context)
+    const ownSeasonalNote = filteredSeasonalContext ? ` The business owner also says their own busy/relevant times are: ${filteredSeasonalContext}.` : ""
     const seasonalGuidance = (upcomingEvent || ownSeasonalNote)
       ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in Australia.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
       : ""
