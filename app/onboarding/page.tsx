@@ -186,7 +186,7 @@ export default function OnboardingPage() {
               <Field label="Who is your ideal customer?" value={customerDescription} onChange={setCustomerDescription} placeholder="Age range, lifestyle, what they're looking for" textarea />
               <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>Do customers come to you, or do you travel to them? *</label>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block", color: "#F1EFE8" }}>Do customers come to you, or do you travel to them? *</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {[
                     { value: "fixed", label: "Fixed location (shop/studio)" },
@@ -197,7 +197,7 @@ export default function OnboardingPage() {
                       key={opt.value}
                       type="button"
                       onClick={() => setLocationType(opt.value)}
-                      style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(216,90,48,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                      style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(255,255,255,0.2)", background: locationType === opt.value ? "rgba(216,90,48,0.15)" : "rgba(255,255,255,0.08)", fontSize: 13, color: "#F1EFE8", cursor: "pointer" }}
                     >
                       {opt.label}
                     </button>
@@ -205,20 +205,39 @@ export default function OnboardingPage() {
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>How many videos do you want to make per week?</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={7}
-                  value={videosPerWeek}
-                  onChange={(e) => setVideosPerWeek(e.target.value)}
-                  onBlur={() => {
-                    const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
-                    setVideosPerWeek(String(clamped))
-                  }}
-                  style={{ width: 100, padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 14, color: "var(--ink)" }}
-                />
-                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Note: Basic plan generates a fixed 3 ideas per batch regardless of this number. Mid plan uses this number exactly.</p>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block", color: "#F1EFE8" }}>How many videos do you want to make per week?</label>
+                <div style={{ display: "flex", alignItems: "stretch", width: 120 }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={videosPerWeek}
+                    onChange={(e) => setVideosPerWeek(e.target.value)}
+                    onBlur={() => {
+                      const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
+                      setVideosPerWeek(String(clamped))
+                    }}
+                    className="no-native-spinner"
+                    style={{ flex: 1, width: 0, padding: "10px 12px", borderRadius: "8px 0 0 8px", border: "1px solid rgba(255,255,255,0.2)", borderRight: "none", background: "rgba(255,255,255,0.08)", fontSize: 14, color: "#F1EFE8" }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", width: 28 }}>
+                    <button
+                      type="button"
+                      onClick={() => setVideosPerWeek(String(Math.min(7, (parseInt(videosPerWeek, 10) || 3) + 1)))}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 8px 0 0", color: "#fff", cursor: "pointer", fontSize: 10 }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideosPerWeek(String(Math.max(1, (parseInt(videosPerWeek, 10) || 3) - 1)))}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 0 8px 0", color: "#fff", cursor: "pointer", fontSize: 10, marginTop: 1 }}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: "rgba(241,239,232,0.6)", marginTop: 6 }}>Note: Basic plan generates a fixed 3 ideas per batch regardless of this number. Mid plan uses this number exactly.</p>
               </div>
               <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. just my phone, hired videographer, studio setup" />
               <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names/roles" />

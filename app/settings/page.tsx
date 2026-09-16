@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 
+const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
+const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
+const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
+
+const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
+  <div>
+    <label style={labelStyle}>{label}</label>
+    {textarea ? (
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
+    ) : (
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+    )}
+  </div>
+)
+
 export default function SettingsPage() {
   const router = useRouter()
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -26,7 +41,7 @@ export default function SettingsPage() {
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
   const [locationType, setLocationType] = useState('fixed')
-  const [videosPerWeek, setVideosPerWeek] = useState(3)
+  const [videosPerWeek, setVideosPerWeek] = useState('3')
   const [onCameraPeople, setOnCameraPeople] = useState('')
 
   const [website, setWebsite] = useState('')
@@ -99,7 +114,7 @@ export default function SettingsPage() {
         setCoreServices(data.core_services || '')
         setFilmingComfort(data.filming_comfort || '')
         setLocationType(data.location_type || 'fixed')
-        setVideosPerWeek(data.videos_per_week || 3)
+        setVideosPerWeek(String(data.videos_per_week || 3))
         setOnCameraPeople(data.on_camera_people || '')
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
@@ -176,7 +191,7 @@ export default function SettingsPage() {
         core_services: coreServices,
         filming_comfort: filmingComfort,
         location_type: locationType,
-        videos_per_week: videosPerWeek,
+        videos_per_week: Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3)),
         on_camera_people: onCameraPeople,
         website,
         instagram_handle: instagramHandle,
@@ -282,21 +297,6 @@ export default function SettingsPage() {
     return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
   }
 
-  const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
-  const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
-  const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
-
-  const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      {textarea ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
-      ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
-      )}
-    </div>
-  )
-
   const Toggle = ({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
       <div style={{ paddingRight: 16 }}>
@@ -398,6 +398,41 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>How many videos do you want to make per week?</label>
+              <div style={{ display: "flex", alignItems: "stretch", width: 120 }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={videosPerWeek}
+                  onChange={(e) => setVideosPerWeek(e.target.value)}
+                  onBlur={() => {
+                    const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
+                    setVideosPerWeek(String(clamped))
+                  }}
+                  className="no-native-spinner"
+                  style={{ flex: 1, width: 0, padding: "10px 12px", borderRadius: "8px 0 0 8px", border: "1px solid rgba(128,128,128,0.25)", borderRight: "none", background: "var(--card-bg)", fontSize: 14, color: "var(--ink)" }}
+                />
+                <div style={{ display: "flex", flexDirection: "column", width: 28 }}>
+                  <button
+                    type="button"
+                    onClick={() => setVideosPerWeek(String(Math.min(7, (parseInt(videosPerWeek, 10) || 3) + 1)))}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 8px 0 0", color: "#fff", cursor: "pointer", fontSize: 10 }}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideosPerWeek(String(Math.max(1, (parseInt(videosPerWeek, 10) || 3) - 1)))}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 0 8px 0", color: "#fff", cursor: "pointer", fontSize: 10, marginTop: 1 }}
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>This directly controls how many ideas you get per batch on the Pro plan. Basic plan generates a fixed 3 regardless.</p>
             </div>
             <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
