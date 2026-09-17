@@ -316,15 +316,14 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(data.error || "Request failed")
 
       const nextBatch = currentBatch + 1
-      const shuffledDays = [0, 1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5)
-      const rowsToInsert = data.ideas.map((idea: Omit<Idea, "id">, i: number) => ({
+      const rowsToInsert = data.ideas.map((idea: Omit<Idea, "id">) => ({
         user_id: userId,
         title: idea.title,
         hook: idea.hook,
         description: idea.description,
         tags: idea.tags,
         batch_number: nextBatch,
-        day_of_week: shuffledDays[i % 7],
+        day_of_week: null,
         saved: false,
       }))
 
@@ -341,6 +340,7 @@ export default function DashboardPage() {
         hook: row.hook,
         description: row.description,
         tags: row.tags,
+        day_of_week: row.day_of_week,
       }))
 
       if (ideas.length > 0) {
@@ -948,7 +948,30 @@ export default function DashboardPage() {
               {userPlan === "mid" && dbSavedIdeas.length > 0 && (
                 <div style={{ marginBottom: 32 }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Weekly Calendar</h3>
-                  <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 16 }}>Drag an idea onto any day to schedule it.</p>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>Drag any idea below onto a day to schedule it.</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20, padding: "12px", background: "var(--sand)", borderRadius: 10, border: "1px dashed rgba(128,128,128,0.25)" }}>
+                    {dbSavedIdeas.filter((idea) => idea.day_of_week === undefined || idea.day_of_week === null).length === 0 && (
+                      <p style={{ fontSize: 11, color: "var(--text-muted)" }}>All ideas scheduled - drag a card between days below to reschedule.</p>
+                    )}
+                    {dbSavedIdeas.filter((idea) => idea.day_of_week === undefined || idea.day_of_week === null).map((idea) => (
+                      <div
+                        key={idea.id}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData("text/plain", idea.id)}
+                        style={{
+                          background: "var(--card-bg)",
+                          borderLeft: "3px solid var(--coral)",
+                          borderRadius: "4px 8px 8px 4px",
+                          padding: "8px 12px",
+                          cursor: "grab",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                          maxWidth: 220,
+                        }}
+                      >
+                        <p style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.35, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{idea.title}</p>
+                      </div>
+                    ))}
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, dayIndex) => {
                       const isToday = new Date().getDay() === dayIndex
