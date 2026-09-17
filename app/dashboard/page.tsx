@@ -775,22 +775,7 @@ export default function DashboardPage() {
                 {t.label}{t.id === 'myideas' && savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
               </button>
             ))}
-            <button
-              onClick={() => router.push("/editor")}
-              style={{
-                background: "none",
-                border: "none",
-                borderBottom: "2px solid transparent",
-                padding: "10px 16px",
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--coral)",
-                cursor: "pointer",
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              ✂ Editor
-            </button>          </div>
+          </div>
 
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
@@ -1429,30 +1414,6 @@ export default function DashboardPage() {
                         }}
                       >
                         ⬇
-                      </button>
-                      <button
-                        onClick={() => {
-                          localStorage.setItem("reelezy-editor-seed", JSON.stringify({
-                            clipPaths: lastRenderedPaths,
-                            musicPath: lastMusicPath,
-                            speechClipIndex,
-                            captionStyle: captionPreset,
-                          }))
-                          router.push("/editor")
-                        }}
-                        style={{
-                          display: "block",
-                          marginTop: 12,
-                          background: "none",
-                          border: "1px solid var(--coral)",
-                          borderRadius: 8,
-                          padding: "8px 16px",
-                          fontSize: 13,
-                          color: "var(--coral)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✂ Edit this video
                       </button>
                     </>
                   )}
