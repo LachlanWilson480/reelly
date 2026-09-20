@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTabState] = useState<Tab>('overview')
   const searchParams = useSearchParams()
@@ -141,6 +142,13 @@ export default function DashboardPage() {
       }
 
       setUserId(user.id)
+
+      const { data: subRow } = await supabase
+        .from('subscriptions')
+        .select('deletion_scheduled_at')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
 
       const { data } = await supabase
         .from('business_profiles')
@@ -836,6 +844,16 @@ export default function DashboardPage() {
         </nav>
 
         <div style={{ padding: '0 48px 100px' }}>
+          {deletionScheduledAt && (
+            <div style={{ background: 'rgba(216,90,48,0.1)', border: '1px solid var(--coral)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <p style={{ fontSize: 13, color: 'var(--ink)' }}>
+                Your account data is scheduled for deletion on <strong>{new Date(deletionScheduledAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Download a copy of your data or resubscribe before then to keep it.
+              </p>
+              <a href="/settings" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Go to Settings
+              </a>
+            </div>
+          )}
           <div style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, padding: '40px 36px', marginBottom: 28 }}>
             <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 26, fontWeight: 600, color: '#F1EFE8', marginBottom: 4 }}>
               Welcome back, {profile?.business_name}
