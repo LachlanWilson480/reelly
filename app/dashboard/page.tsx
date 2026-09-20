@@ -25,7 +25,7 @@ type Profile = {
   customer_problem: string | null
   key_selling_point: string | null}
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads' | 'aiuploads'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads'
 
 type Idea = {
   id: string
@@ -37,7 +37,7 @@ type Idea = {
   day_of_week?: number
 }
 
-type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string }
+type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
 
@@ -57,6 +57,10 @@ export default function DashboardPage() {
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
+  const [scriptGenIdeaId, setScriptGenIdeaId] = useState<string | null>(null)
+  const [generatedScript, setGeneratedScript] = useState<string | null>(null)
+  const [generatingScript, setGeneratingScript] = useState(false)
+  const [scriptGenError, setScriptGenError] = useState<string | null>(null)
   const [newKeyEvent, setNewKeyEvent] = useState('')
   const [savingKeyEvent, setSavingKeyEvent] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -235,7 +239,7 @@ export default function DashboardPage() {
 
         const filmingRows = savedRows.filter((r) => r.checklist && !r.filming_cleared)
         if (filmingRows.length > 0) {
-          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "" } }))
+          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "" } }))
         }
       }
       setProfile(data)
@@ -246,7 +250,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = searchParams.get("tab") as Tab | null
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "uploads", "aiuploads"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
@@ -461,11 +465,12 @@ export default function DashboardPage() {
             checklist: data.checklist || [],
             prep: data.prep || [],
             caption: data.caption || "",
+            script: data.script || "",
           }
           merged.push(item)
           await supabase
             .from("generated_ideas")
-            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption } })
+            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script } })
             .eq("id", item.id)
         } else {
           failCount++
@@ -482,6 +487,47 @@ export default function DashboardPage() {
       setGeneratingFilming(false)
     }
   }
+
+  const generateScriptForIdea = async (idea: Idea) => {
+    if (!profile) return
+    setGeneratingScript(true)
+    setScriptGenError(null)
+    setGeneratedScript(null)
+
+    try {
+      const res = await fetch("/api/generate-checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Request failed")
+
+      setGeneratedScript(data.script || "")
+
+      const item: FilmingItem = {
+        ...idea,
+        checklist: data.checklist || [],
+        prep: data.prep || [],
+        caption: data.caption || "",
+        script: data.script || "",
+      }
+      await supabase
+        .from("generated_ideas")
+        .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script } })
+        .eq("id", item.id)
+
+      setFilmingItems((prev) => {
+        const exists = prev.some((f) => f.id === item.id)
+        return exists ? prev.map((f) => (f.id === item.id ? item : f)) : [...prev, item]
+      })
+    } catch (err) {
+      setScriptGenError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setGeneratingScript(false)
+    }
+  }
+
   const downloadVideo = async (url: string, filename: string) => {
     try {
       const res = await fetch(url)
@@ -788,6 +834,7 @@ export default function DashboardPage() {
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
+    { id: 'script', label: 'Script Generator' },
     { id: 'aiuploads', label: 'AI Editor Uploads' },
     { id: 'uploads', label: 'Uploads For Any Video' },
   ]
@@ -1325,10 +1372,69 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{item.caption}</p>
                         </div>
                       )}
+                      {item.script && (
+                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginTop: 12 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>FULL SCRIPT</p>
+                          <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{item.script}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === 'script' && (
+            <div>
+              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                  Script Generator
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                  Pick a saved idea and generate a full word-for-word script straight away - no need to go through the filming checklist first. It's also saved to that idea's Filming instructions.
+                </p>
+
+                {savedIdeas.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Star an idea in Content Ideas first, then come back here.</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                    {savedIdeas.map((idea) => (
+                      <button
+                        key={idea.id}
+                        onClick={() => { setScriptGenIdeaId(idea.id); setGeneratedScript(idea.id === scriptGenIdeaId ? generatedScript : null) }}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: scriptGenIdeaId === idea.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                      >
+                        {idea.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {scriptGenIdeaId && (
+                  <button
+                    onClick={() => {
+                      const idea = savedIdeas.find((i) => i.id === scriptGenIdeaId)
+                      if (idea) generateScriptForIdea(idea)
+                    }}
+                    disabled={generatingScript}
+                    style={{ backgroundColor: "var(--coral)", color: "#fff", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: generatingScript ? "not-allowed" : "pointer", opacity: generatingScript ? 0.7 : 1, marginBottom: 20, display: "block" }}
+                  >
+                    {generatingScript ? "Generating script..." : "Generate script"}
+                  </button>
+                )}
+
+                {scriptGenError && (
+                  <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{scriptGenError}</p>
+                )}
+
+                {generatedScript && (
+                  <div style={{ background: "var(--card-bg)", borderRadius: 12, padding: "24px" }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, color: "var(--text-secondary)" }}>SCRIPT</p>
+                    <p style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.8 }}>{generatedScript}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -76,13 +76,14 @@ You must produce a real, non-empty checklist  -  never respond with an empty arr
 Also provide:
 - "prep": a short array of 2-4 plain-text items listing exactly what to grab/set up before filming (e.g. "Phone", "Your work van or a tool relevant to this video", "Good natural light  -  film facing a window or outdoors"). Always include the phone; add other items only if genuinely needed for this specific idea.
 - "caption": a ready-to-post social caption (2-4 sentences) in the business's tone, expanding on the video's point, ending with 2-4 relevant hashtags.
+- "script": the full word-for-word script as one flowing block of text the owner can read or memorize before filming - just the spoken words in order, with no timestamps, camera directions, or step numbers. Should read naturally out loud, exactly matching the dialogue used across the checklist steps.
 
 Respond ONLY with valid JSON, no markdown, no code fences, no other text before or after. Use this exact structure:
-{ "prep": ["item 1", "item 2"], "checklist": ["step 1", "step 2"], "caption": "..." }`
+{ "prep": ["item 1", "item 2"], "checklist": ["step 1", "step 2"], "caption": "...", "script": "..." }`
 
     const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
-    let result: { prep?: string[]; checklist?: string[]; caption?: string } | null = null
+    let result: { prep?: string[]; checklist?: string[]; caption?: string; script?: string } | null = null
     let attempts = 0
 
     while (attempts < 3 && !result) {
@@ -117,6 +118,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
       ...(Array.isArray(result.checklist) ? result.checklist : []),
       ...(Array.isArray(result.prep) ? result.prep : []),
       ...(result.caption ? [result.caption] : []),
+      ...(result.script ? [result.script] : []),
     ]
     const flaggedIndices = await moderateTexts(moderationTexts)
     if (flaggedIndices.size > 0) {
