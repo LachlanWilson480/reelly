@@ -74,6 +74,12 @@ export default function DashboardPage() {
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
+  const [uploadSlots, setUploadSlots] = useState<number[]>([0])
+  const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
+  const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
+  const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
+  const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
+  const [showUploadSpeechWarning, setShowUploadSpeechWarning] = useState(false)
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -595,7 +601,10 @@ export default function DashboardPage() {
     }
   }
   const runUploadAndRender = async () => {
-    if (!userId || selectedFiles.length === 0) return
+    if (!userId) return
+    const slotIds = uploadSlots.filter((id) => uploadSlotFiles[id])
+    if (slotIds.length === 0) return
+
     setUploading(true)
     setUploadError('')
     setRenderId(null)
@@ -605,15 +614,31 @@ export default function DashboardPage() {
     try {
       const clipPaths: string[] = []
       const clipTrims: { duration: number }[] = []
+      const clipSettings: { letterbox?: boolean }[] = []
+      const speechIndices: number[] = []
+      let anyLandscape = false
 
-      for (const file of selectedFiles) {
+      for (const slotId of slotIds) {
+        const file = uploadSlotFiles[slotId]
         const path = `${userId}/${Date.now()}-${file.name}`
         const { error } = await supabase.storage.from('video-uploads').upload(path, file)
         if (error) throw new Error(error.message)
         clipPaths.push(path)
+        if (uploadSpeechSlots.has(slotId)) speechIndices.push(clipPaths.length - 1)
+
         const duration = await getVideoDuration(file)
         clipTrims.push({ duration })
+
+        const isLandscape = uploadLandscapeSlots.has(slotId)
+        if (isLandscape) {
+          anyLandscape = true
+          clipSettings.push(landscapeHandling === "blur" ? { letterbox: true } : {})
+        } else {
+          clipSettings.push({})
+        }
       }
+
+      if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
       let musicPath: string | null = null
       if (musicFile) {
@@ -622,31 +647,24 @@ export default function DashboardPage() {
         if (!musicError) musicPath = mPath
       }
 
-      let clipSettings: { letterbox?: boolean }[] | undefined = undefined
-      let outputOrientation: string | undefined = undefined
-      const anyLandscape = (await Promise.all(selectedFiles.map((f) => isLandscapeVideo(f)))).some((v) => v)
-      if (anyLandscape) {
-        if (landscapeHandling === "landscape") {
-          outputOrientation = "landscape"
-        } else if (landscapeHandling === "blur") {
-          const orientationChecks = await Promise.all(selectedFiles.map((f) => isLandscapeVideo(f)))
-          clipSettings = orientationChecks.map((isLandscape) => (isLandscape ? { letterbox: true } : {}))
-        }
-      }
-      const captionStyle = showAdvancedCaptions
-        ? {
-            preset: captionPreset,
-            custom: {
-              font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
-              position: captionPosition,
-            },
-          }
-        : captionPreset
+      const outputOrientation = anyLandscape && landscapeHandling === "landscape" ? "landscape" : undefined
+
+      const captionStyle = uploadAddCaptions
+        ? (showAdvancedCaptions
+            ? {
+                preset: captionPreset,
+                custom: {
+                  font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
+                  position: captionPosition,
+                },
+              }
+            : captionPreset)
+        : null
 
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution }),
       })
 
       const data = await res.json()
@@ -656,9 +674,11 @@ export default function DashboardPage() {
       setRenderStatus('queued')
       setLastRenderedPaths(clipPaths)
       setLastMusicPath(musicPath)
-      setSelectedFiles([])
+      setUploadSlots([0])
+      setUploadSlotFiles({})
+      setUploadSpeechSlots(new Set())
+      setUploadLandscapeSlots(new Set())
       setMusicFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -1182,34 +1202,85 @@ export default function DashboardPage() {
                   Upload your clips
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  Select the video clips you filmed. Reelezy will stitch them together, add captions, trim pauses, and add music.
+                  Add as many clips as you like. Reelezy will stitch them together, add captions, trim pauses, and add music.
                 </p>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  style={{ display: "none" }}
-                />
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                  {uploadSlots.map((slotId) => (
+                    <div key={slotId} style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="step-upload-input"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
+                          }}
+                          style={{ fontSize: 11 }}
+                        />
+                        {uploadSlotFiles[slotId] && (
+                          <span style={{ fontSize: 11, color: "var(--coral)" }}>✓ {uploadSlotFiles[slotId].name}</span>
+                        )}
+                        {uploadSlots.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUploadSlots((prev) => prev.filter((id) => id !== slotId))
+                              setUploadSlotFiles((prev) => { const next = { ...prev }; delete next[slotId]; return next })
+                              setUploadSpeechSlots((prev) => { const next = new Set(prev); next.delete(slotId); return next })
+                              setUploadLandscapeSlots((prev) => { const next = new Set(prev); next.delete(slotId); return next })
+                            }}
+                            style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 14, cursor: "pointer", marginLeft: "auto" }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+                        <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <input
+                            type="checkbox"
+                            checked={uploadSpeechSlots.has(slotId)}
+                            onChange={(e) => {
+                              setUploadSpeechSlots((prev) => {
+                                const next = new Set(prev)
+                                if (e.target.checked) next.add(slotId)
+                                else next.delete(slotId)
+                                return next
+                              })
+                            }}
+                          />
+                          Has speech
+                        </label>
+                        <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <input
+                            type="checkbox"
+                            checked={uploadLandscapeSlots.has(slotId)}
+                            onChange={(e) => {
+                              setUploadLandscapeSlots((prev) => {
+                                const next = new Set(prev)
+                                if (e.target.checked) next.add(slotId)
+                                else next.delete(slotId)
+                                return next
+                              })
+                            }}
+                          />
+                          Landscape
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    backgroundColor: "var(--coral)",
-                    color: "#fff",
-                    padding: "10px 20px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    border: "none",
-                    cursor: "pointer",
-                    marginBottom: 24,
-                  }}
+                  onClick={() => setUploadSlots((prev) => [...prev, (prev[prev.length - 1] ?? -1) + 1])}
+                  style={{ background: "none", border: "1px dashed rgba(128,128,128,0.35)", borderRadius: 8, padding: "8px 16px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 24 }}
                 >
-                  Choose files
+                  + Add another video
                 </button>
+
                 <input
                   ref={musicInputRef}
                   type="file"
@@ -1238,179 +1309,165 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Caption style</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
-                  {CAPTION_PRESETS.map((preset) => (
+                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                  {[
+                    { id: "crop", label: "Crop & zoom" },
+                    { id: "blur", label: "Blurred bars" },
+                    { id: "landscape", label: "Keep landscape shape" },
+                  ].map((opt) => (
                     <button
-                      key={preset.id}
-                      onClick={() => { setCaptionPreset(preset.id); setCaptionTouched(true) }}
-                      style={{
-                        textAlign: 'left',
-                        padding: '14px',
-                        borderRadius: 10,
-                        border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
-                        background: 'var(--card-bg)',
-                        cursor: 'pointer',
-                      }}
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: landscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
                     >
-                      <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{preset.label}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{preset.desc}</p>
+                      {opt.label}
                     </button>
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)}
-                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: 20 }}
-                >
-                  {showAdvancedCaptions ? '− Hide advanced options' : '+ Advanced caption options'}
-                </button>
+                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
+                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                  {[
+                    { id: "high", label: "High (1080p)" },
+                    { id: "low", label: "Low (faster, smaller)" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setUploadResolution(opt.id as "high" | "low")}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: uploadResolution === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
 
-                {showAdvancedCaptions && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20, background: 'var(--card-bg)', padding: 16, borderRadius: 10 }}>
-                    <div>
-                      <label style={labelStyle}>Font</label>
-                      <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={inputStyle}>
-                        {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Font size</label>
-                      <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Text color</label>
-                      <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Background color</label>
-                      <input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Position</label>
-                      <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={inputStyle}>
-                        <option value="bottom">Bottom</option>
-                        <option value="center">Center</option>
-                        <option value="top">Top</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                <label style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={uploadAddCaptions}
+                    onChange={(e) => setUploadAddCaptions(e.target.checked)}
+                  />
+                  Add captions
+                </label>
 
-                {selectedFiles.length > 0 && (
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
-                  </p>
-                )}
-
-                {selectedFiles.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips  -  how should they be handled?</p>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {[
-                        { id: "crop", label: "Crop & zoom" },
-                        { id: "blur", label: "Blurred bars" },
-                        { id: "landscape", label: "Keep landscape shape" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => { setLandscapeHandling(opt.id as "crop" | "blur" | "landscape"); setLandscapeTouched(true) }}
-                          style={{ padding: "8px 14px", borderRadius: 8, border: landscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedFiles.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {[
-                        { id: "high", label: "High (1080p)" },
-                        { id: "low", label: "Low (faster, smaller)" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setUploadResolution(opt.id as "high" | "low")}
-                          style={{ padding: "8px 14px", borderRadius: 8, border: uploadResolution === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedFiles.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Which clip has the speech to caption?</p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {selectedFiles.map((file, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setSpeechClipIndex(i)}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 8,
-                            border: speechClipIndex === i ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)",
-                            background: "var(--card-bg)",
-                            fontSize: 12,
-                            color: "var(--ink)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {file.name.length > 20 ? file.name.slice(0, 20) + "..." : file.name}
-                        </button>
-                      ))}
+                {uploadAddCaptions && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
+                    {CAPTION_PRESETS.map((preset) => (
                       <button
-                        type="button"
-                        onClick={() => setSpeechClipIndex(null)}
+                        key={preset.id}
+                        onClick={() => setCaptionPreset(preset.id)}
                         style={{
-                          padding: "8px 12px",
-                          borderRadius: 8,
-                          border: speechClipIndex === null ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)",
-                          background: "var(--card-bg)",
-                          fontSize: 12,
-                          color: "var(--text-secondary)",
-                          cursor: "pointer",
+                          textAlign: 'left',
+                          padding: '14px',
+                          borderRadius: 10,
+                          border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
+                          background: 'var(--card-bg)',
+                          cursor: 'pointer',
                         }}
                       >
-                        No captions
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{preset.label}</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{preset.desc}</p>
                       </button>
-                    </div>
+                    ))}
                   </div>
                 )}
+
+                {uploadAddCaptions && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)}
+                      style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: 20 }}
+                    >
+                      {showAdvancedCaptions ? '\u2212 Hide advanced options' : '+ Advanced caption options'}
+                    </button>
+
+                    {showAdvancedCaptions && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20, background: 'var(--card-bg)', padding: 16, borderRadius: 10 }}>
+                        <div>
+                          <label style={labelStyle}>Font</label>
+                          <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={inputStyle}>
+                            {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Font size</label>
+                          <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Text color</label>
+                          <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Background color</label>
+                          <input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Position</label>
+                          <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={inputStyle}>
+                            <option value="bottom">Bottom</option>
+                            <option value="center">Center</option>
+                            <option value="top">Top</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {uploadError && (
                   <p style={{ fontSize: 13, color: 'var(--coral)', marginBottom: 16 }}>{uploadError}</p>
                 )}
 
+                {showUploadSpeechWarning && (
+                  <div style={{ marginBottom: 12, padding: "12px 16px", borderRadius: 8, border: "1px solid var(--coral)", background: "rgba(216,90,48,0.08)" }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--ink)" }}>
+                      Please check which clips have speech (text-to-speech captions) before continuing. Confirm your selections are correct.
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => setShowUploadSpeechWarning(false)}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(128,128,128,0.3)", background: "transparent", fontSize: 13, cursor: "pointer" }}
+                      >
+                        Go back and check
+                      </button>
+                      <button
+                        onClick={() => { setShowUploadSpeechWarning(false); startUploadAndRender() }}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--coral)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                      >
+                        Confirm & create video
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button
-                  onClick={startUploadAndRender}
-                  disabled={uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched}
+                  onClick={() => {
+                    const hasAnyFile = uploadSlots.some((id) => uploadSlotFiles[id])
+                    if (uploading || !hasAnyFile) return
+                    setShowUploadSpeechWarning(true)
+                  }}
+                  disabled={uploading || !uploadSlots.some((id) => uploadSlotFiles[id])}
                   style={{
-                    backgroundColor: 'var(--coral)',
-                    color: '#fff',
-                    padding: '12px 24px',
-                    marginTop: 24,
-                    display: 'block',
+                    display: "block",
+                    backgroundColor: "var(--coral)",
+                    color: "#fff",
+                    padding: "14px 28px",
                     borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched ? "not-allowed" : "pointer",
-                    opacity: uploading || selectedFiles.length === 0 || !landscapeTouched || !captionTouched ? 0.5 : 1,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    border: "none",
+                    boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? "none" : "0 4px 14px rgba(216,90,48,0.35)",
+                    cursor: uploading ? "not-allowed" : "pointer",
+                    opacity: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1,
                   }}
                 >
-                  {uploading ? 'Uploading...' : 'Upload & create video'}
+                  {uploading ? "Uploading..." : "Create video"}
                 </button>
-                {selectedFiles.length > 0 && (!landscapeTouched || !captionTouched) && (
-                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>Choose a caption style and landscape handling option above before rendering.</p>
-                )}              </div>
+              </div>
 
               {renderId && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px' }}>
@@ -1430,7 +1487,8 @@ export default function DashboardPage() {
                           : renderError || "Something went wrong rendering your video. Please try again."}
                       </p>
                     </div>
-                  )}                  {renderStatus === 'done' && outputUrl && (
+                  )}
+                  {renderStatus === 'done' && outputUrl && (
                     <>
                       <video
                         controls
@@ -1456,14 +1514,15 @@ export default function DashboardPage() {
                           cursor: "pointer",
                         }}
                       >
-                        ⬇
+                        \u2b07
                       </button>
                     </>
                   )}
                 </div>
               )}
             </div>
-          )}          {tab === "aiuploads" && (
+          )}
+          {tab === "aiuploads" && (
             <div>
               <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
