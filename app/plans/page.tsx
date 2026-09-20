@@ -27,6 +27,7 @@ export default function PlansPage() {
       period: '/mo',
       desc: '25 render minutes/month',
       features: ['Everything in Basic', 'More renders/month', 'Priority support', 'Content calendar', 'Idea refinement', 'Custom generation guidance', 'Overage renders available'],
+      highlight: true,
     },
     {
       id: 'top',
@@ -35,7 +36,6 @@ export default function PlansPage() {
       period: '/mo',
       desc: '60 render minutes/month',
       features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features', 'Overage renders available'],
-      highlight: true,
     },
   ]
   return (

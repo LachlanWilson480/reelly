@@ -70,8 +70,8 @@ export default function HomePage() {
 
   const pricing = [
     { name: 'Basic', price: '$20', period: '/mo', desc: '10 render minutes/month', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
-    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', 'Priority support', 'Content calendar', 'Idea refinement'] },
-    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features'], highlight: true },
+    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', 'Priority support', 'Content calendar', 'Idea refinement'], highlight: true },
+    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features'] },
   ]
 
   const mockIdeas = [
