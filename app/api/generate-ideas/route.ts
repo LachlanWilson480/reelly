@@ -190,6 +190,30 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
+    let keyEventsContext = ""
+    let pastIdeasContext = ""
+    if (userId) {
+      const { data: recentEvents } = await supabaseAdmin
+        .from('key_events')
+        .select('event_text, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (recentEvents && recentEvents.length > 0) {
+        keyEventsContext = recentEvents.map((e) => `- ${e.event_text}`).join('\n')
+      }
+
+      const { data: recentIdeas } = await supabaseAdmin
+        .from('generated_ideas')
+        .select('title, tags')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (recentIdeas && recentIdeas.length > 0) {
+        pastIdeasContext = recentIdeas.map((i) => `- ${i.title}`).join('\n')
+      }
+    }
+
     // Weekly usage limit enforcement for Basic plan only
     let usageInfo: { used: number; limit: number } | null = null
     if (plan === 'basic' && userId) {
@@ -266,6 +290,8 @@ ${profile.signature_service ? `Signature service they're known for: ${profile.si
 ${profile.common_objections ? `Common objections/hesitations customers have: ${profile.common_objections}` : ""}
 ${profile.current_promotions ? `Current promotions/offers: ${profile.current_promotions}` : ""}
 ${profile.customer_problem ? `The core problem customers come to them with: ${profile.customer_problem}` : ""}
+${keyEventsContext ? `RECENT BUSINESS EVENTS the owner has logged (weave at most one of these into an idea where it fits naturally - never force it, and never invent details beyond what's stated):\n${keyEventsContext}` : ""}
+${pastIdeasContext ? `IDEAS ALREADY GENERATED RECENTLY - do not repeat these titles or angles, generate genuinely different ideas this time:\n${pastIdeasContext}` : ""}
 LOCATION TYPE: ${locationGuidance}
 
 ${seasonalGuidance}

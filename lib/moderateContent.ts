@@ -32,7 +32,8 @@ ${numbered}`,
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'
     const cleaned = rawText.replace(/```json|```/g, '').trim()
-    const flagged = JSON.parse(cleaned)
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
+    const flagged = arrayMatch ? JSON.parse(arrayMatch[0]) : []
     if (!Array.isArray(flagged)) return new Set()
     return new Set(flagged.filter((i) => typeof i === 'number'))
   } catch (error) {
