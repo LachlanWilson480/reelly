@@ -58,7 +58,7 @@ type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation } = await req.json()
+    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -242,9 +242,14 @@ export async function POST(req: NextRequest) {
 
     const timeline = { tracks }
 
+    const isLow = resolution === 'low'
+    const outputSize = outputOrientation === 'landscape'
+      ? (isLow ? { width: 960, height: 540 } : { width: 1920, height: 1080 })
+      : (isLow ? { width: 540, height: 960 } : { width: 1080, height: 1920 })
+
     const edit = {
       timeline,
-      output: { format: 'mp4', size: outputOrientation === 'landscape' ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 } },
+      output: { format: 'mp4', size: outputSize },
     }
 
     const shotstackRes = await fetch('https://api.shotstack.io/edit/v1/render', {

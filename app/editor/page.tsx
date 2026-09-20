@@ -56,6 +56,7 @@ export default function EditorPage() {
 
   const [userId, setUserId] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<'basic' | 'mid'>('mid')
+  const [resolution, setResolution] = useState<'high' | 'low'>('high')
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
@@ -397,6 +398,7 @@ export default function EditorPage() {
           speechClipIndices: Array.from(speechClipIndices),
           clipTrims,
           clipSettings,
+          resolution,
         }),
       })
 
@@ -756,6 +758,26 @@ export default function EditorPage() {
                 >
                   {musicFile ? `♪ ${musicFile.name}` : musicPath ? '♪ Using existing music' : '+ Add background music'}
                 </button>
+              </div>
+            )}
+
+            {clips.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Resolution</h3>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { id: 'high', label: 'High (1080p)' },
+                    { id: 'low', label: 'Low (faster, smaller)' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setResolution(opt.id as 'high' | 'low')}
+                      style={{ padding: '8px 14px', borderRadius: 8, border: resolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

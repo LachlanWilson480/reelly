@@ -72,6 +72,8 @@ export default function DashboardPage() {
   const [aiLandscapeSteps, setAiLandscapeSteps] = useState<Set<number>>(new Set())
   const [showSpeechWarning, setShowSpeechWarning] = useState(false)
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
+  const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
+  const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -554,17 +556,30 @@ export default function DashboardPage() {
 
       const outputOrientation = anyLandscape && aiLandscapeHandling === "landscape" ? "landscape" : undefined
 
+      const aiCaptionStyle = aiAddCaptions
+        ? (showAdvancedCaptions
+            ? {
+                preset: aiCaptionPreset,
+                custom: {
+                  font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
+                  position: captionPosition,
+                },
+              }
+            : aiCaptionPreset)
+        : null
+
       const res = await fetch("/api/render-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
           clipPaths,
-          captionStyle: aiAddCaptions ? aiCaptionPreset : null,
+          captionStyle: aiCaptionStyle,
           speechClipIndices: speechIndices,
           clipTrims,
           clipSettings,
           outputOrientation,
+          resolution: aiResolution,
         }),
       })
 
@@ -631,7 +646,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation, clipTrims }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndex, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution }),
       })
 
       const data = await res.json()
@@ -1309,7 +1324,28 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   </div>
-                )}                {selectedFiles.length > 0 && (
+                )}
+                {selectedFiles.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {[
+                        { id: "high", label: "High (1080p)" },
+                        { id: "low", label: "Low (faster, smaller)" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setUploadResolution(opt.id as "high" | "low")}
+                          style={{ padding: "8px 14px", borderRadius: 8, border: uploadResolution === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedFiles.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
                     <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Which clip has the speech to caption?</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1527,6 +1563,23 @@ export default function DashboardPage() {
                         ))}
                       </div>
 
+                      <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                        {[
+                          { id: "high", label: "High (1080p)" },
+                          { id: "low", label: "Low (faster, smaller)" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setAiResolution(opt.id as "high" | "low")}
+                            style={{ padding: "8px 14px", borderRadius: 8, border: aiResolution === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+
                       <label style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}>
                         <input
                           type="checkbox"
@@ -1537,7 +1590,7 @@ export default function DashboardPage() {
                       </label>
 
                       {aiAddCaptions && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 12 }}>
                           {CAPTION_PRESETS.map((preset) => (
                             <button
                               key={preset.id}
@@ -1548,6 +1601,49 @@ export default function DashboardPage() {
                             </button>
                           ))}
                         </div>
+                      )}
+
+                      {aiAddCaptions && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)}
+                            style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "var(--ink)", cursor: "pointer", marginBottom: 20 }}
+                          >
+                            {showAdvancedCaptions ? "− Hide advanced options" : "+ Advanced caption options"}
+                          </button>
+
+                          {showAdvancedCaptions && (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 20, background: "var(--card-bg)", padding: 16, borderRadius: 10 }}>
+                              <div>
+                                <label style={labelStyle}>Font</label>
+                                <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={inputStyle}>
+                                  {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Font size</label>
+                                <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={inputStyle} />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Text color</label>
+                                <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Background color</label>
+                                <input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38 }} />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Position</label>
+                                <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as "bottom" | "top" | "center")} style={inputStyle}>
+                                  <option value="bottom">Bottom</option>
+                                  <option value="center">Center</option>
+                                  <option value="top">Top</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {showSpeechWarning && (
