@@ -178,3 +178,34 @@ input.no-native-spinner::-webkit-inner-spin-button {
 input.no-native-spinner {
   -moz-appearance: textfield;
 }
+
+@media (max-width: 640px) {
+  .site-nav {
+    padding: 16px 20px 16px 64px !important;
+  }
+  .auth-card {
+    padding: 32px 20px !important;
+    margin: 0 8px;
+  }
+}
+
+.dashboard-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+.dashboard-tabs-scroll {
+  scrollbar-width: none;
+}
+
+@media (max-width: 640px) {
+  .dashboard-tabs-arrow {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .weekly-calendar-grid {
+    grid-template-columns: repeat(7, minmax(120px, 1fr)) !important;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+}

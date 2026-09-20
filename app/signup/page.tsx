@@ -84,6 +84,7 @@ export default function SignUpPage() {
 
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav
+          className="site-nav"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -133,6 +134,7 @@ export default function SignUpPage() {
           }}
         >
           <div
+            className="auth-card"
             style={{
               background: 'linear-gradient(135deg, #26215C, #712B13)',
               borderRadius: 24,

@@ -47,7 +47,7 @@ export default function HomePage() {
   }
 
   const faqs = [
-    { q: 'Does this replace my videographer?', a: "Not necessarily. Reelezy helps you plan, film, and edit content yourself in minutes. Many businesses use it for everyday posts and still hire a videographer for bigger campaigns." },
+    { q: 'Do I need to edit my videos?', a: "No, Reelezy edits your videos for you, automatically following your filming script - captions, trimming, and music all handled. No editing skills or software required." },
     { q: 'What if I don\u2019t post often?', a: 'That\u2019s exactly who Reelezy is built for. Content ideas and filming steps are designed to take minutes, not hours, so posting consistently becomes realistic even with a busy schedule.' },
     { q: 'Is my business data safe?', a: "Your business information is used to personalise your Reelezy experience and generate relevant content. We don't use or sell any of your information. (More details in the ToS)" },
     { q: 'Do I need filming or editing experience?', a: 'No. Reelezy gives you step-by-step filming instructions, and handles editing, captions, and sound automatically.' },
@@ -78,7 +78,7 @@ export default function HomePage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 64px' }}>
+        <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px 64px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             Reelezy
           </span>

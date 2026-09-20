@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
       }
 
       if (subscription.status === 'active' || subscription.status === 'trialing') {
-        // still active (or resubscribed) — cancel any pending deletion
+        // still active (or resubscribed) - cancel any pending deletion
         updateData.deletion_scheduled_at = null
         updateData.deletion_warning_sent = false
       } else if (periodEndDate) {
-        // canceled / unpaid / expired — schedule deletion 60 days after period end
+        // canceled / unpaid / expired - schedule deletion 60 days after period end
         const deletionDate = new Date(periodEndDate.getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000)
         updateData.deletion_scheduled_at = deletionDate.toISOString()
       }

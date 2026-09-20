@@ -755,26 +755,33 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(128,128,128,0.15)', marginBottom: 28, flexWrap: 'wrap' }}>
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: tab === t.id ? '2px solid var(--coral)' : '2px solid transparent',
-                  padding: '10px 16px',
-                  fontSize: 14,
-                  fontWeight: tab === t.id ? 600 : 500,
-                  color: tab === t.id ? 'var(--ink)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontFamily: "'Inter', sans-serif",
-                }}
-              >
-                {t.label}{t.id === 'myideas' && savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
-              </button>
-            ))}
+          <div className="dashboard-tabs-wrapper" style={{ display: 'flex', alignItems: 'stretch', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
+            <div className="dashboard-tabs-scroll" style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: tab === t.id ? '2px solid var(--coral)' : '2px solid transparent',
+                    padding: '10px 16px',
+                    fontSize: 14,
+                    fontWeight: tab === t.id ? 600 : 500,
+                    color: tab === t.id ? 'var(--ink)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {t.label}{t.id === 'myideas' && savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
+                </button>
+              ))}
+            </div>
+            <div className="dashboard-tabs-arrow" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', width: 28, flexShrink: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
+              →
+            </div>
           </div>
 
           {tab === 'overview' && (
@@ -957,7 +964,7 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+                  <div className="weekly-calendar-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName, dayIndex) => {
                       const isToday = new Date().getDay() === dayIndex
                       const dayIdeas = dbSavedIdeas.filter((i) => i.day_of_week === dayIndex)

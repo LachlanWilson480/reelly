@@ -52,8 +52,8 @@ export default function TermsPage() {
             <h2 style={sectionStyle}>3. Plans &amp; Fees</h2>
             <p style={pStyle}>Reelezy is offered on the following subscription plans:</p>
             <ul style={ulStyle}>
-              <li><strong>Basic</strong> — approximately 2 render minutes per week — AUD $20/month.</li>
-              <li><strong>Pro</strong> — approximately 10 render minutes per week, plus content calendar, idea refinement, and custom generation guidance — AUD $69/month.</li>
+              <li><strong>Basic</strong> - approximately 2 render minutes per week - AUD $20/month.</li>
+              <li><strong>Pro</strong> - approximately 10 render minutes per week, plus content calendar, idea refinement, and custom generation guidance - AUD $69/month.</li>
             </ul>
             <p style={pStyle}>
               Current pricing is always shown at signup and in your account. Fees are billed monthly in advance through
@@ -70,7 +70,7 @@ export default function TermsPage() {
               before any overage render begins.
             </p>
 
-            <h2 style={sectionStyle}>5. AI-Generated Content — Important Disclaimers</h2>
+            <h2 style={sectionStyle}>5. AI-Generated Content - Important Disclaimers</h2>
             <p style={pStyle}>
               The Service uses third-party AI models (including Anthropic&apos;s Claude models) to generate content
               ideas, hooks, filming instructions, captions, and related material (&quot;Generated Content&quot;).

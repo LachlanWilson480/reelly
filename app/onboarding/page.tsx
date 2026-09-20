@@ -137,14 +137,14 @@ export default function OnboardingPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
+        <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelezy
           </Link>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 24px 48px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, padding: '48px 40px', maxWidth: 560, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+          <div className="auth-card" style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, padding: '48px 40px', maxWidth: 560, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
             <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 26, fontWeight: 600, color: '#F1EFE8', marginBottom: 8 }}>
               Tell us about your business
             </h1>
