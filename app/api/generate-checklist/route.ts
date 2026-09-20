@@ -12,15 +12,17 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function getPlan(userId: string | undefined): Promise<'basic' | 'mid'> {
-  if (!userId) return 'mid'
+async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
+  if (!userId) return 'top'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'mid'
-  return data.plan === 'basic' ? 'basic' : 'mid'
+  if (!data || data.status !== 'active') return 'top'
+  if (data.plan === 'basic') return 'basic'
+  if (data.plan === 'top') return 'top'
+  return 'mid'
 }
 
 export async function POST(req: NextRequest) {
@@ -33,11 +35,11 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
-    if (styleOverride && plan !== 'mid') {
+    if (styleOverride && plan === 'basic') {
       return NextResponse.json({ error: 'Regenerating in a different style is a Pro plan feature. Upgrade to unlock it.' }, { status: 403 })
     }
 
-    const effectiveCustomization = plan === 'mid' ? customization : null
+    const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
     const notesLine = idea.notes ? ` Owner's notes (priority if conflicting): ${idea.notes}` : ''
     const customNote = effectiveCustomization ? `\n\nOwner's style guidance: ${effectiveCustomization}` : ''
     const brandNote = profile.brand_personality ? `\n\nBrand personality: ${profile.brand_personality}` : ""
@@ -78,7 +80,7 @@ Also provide:
 Respond ONLY with valid JSON, no markdown, no code fences, no other text before or after. Use this exact structure:
 { "prep": ["item 1", "item 2"], "checklist": ["step 1", "step 2"], "caption": "..." }`
 
-    const model = plan === 'mid' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     let result: { prep?: string[]; checklist?: string[]; caption?: string } | null = null
     let attempts = 0

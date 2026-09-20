@@ -98,7 +98,7 @@ export default function DashboardPage() {
   const [generatingIdeas, setGeneratingIdeas] = useState(false)
   const [ideaError, setIdeaError] = useState('')
   const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number } | null>(null)
-  const [userPlan, setUserPlan] = useState<'basic' | 'mid'>('mid')
+  const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('top')
   const [refiningId, setRefiningId] = useState<string | null>(null)
   const [refineInstruction, setRefineInstruction] = useState('')
   const [refineLoading, setRefineLoading] = useState(false)
@@ -372,7 +372,7 @@ export default function DashboardPage() {
 
       setIdeas(newIdeas)
       setCurrentBatch(nextBatch)
-      setUserPlan(data.plan || "mid")
+      setUserPlan(data.plan || "top")
       if (data.usage) setUsageInfo(data.usage)
     } catch (err) {
       setIdeaError(err instanceof Error ? err.message : "Something went wrong generating ideas. Please try again.")
@@ -508,10 +508,11 @@ export default function DashboardPage() {
   }
 
   const BASIC_CAP_MIN = 10
-  const PRO_CAP_MIN = 60
+  const PRO_CAP_MIN = 25
+  const PREMIUM_CAP_MIN = 60
 
   const isOverRenderCap = () => {
-    const capMin = userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
+    const capMin = userPlan === "top" ? PREMIUM_CAP_MIN : userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
     return totalRenderSeconds / 60 >= capMin
   }
 
@@ -820,8 +821,8 @@ export default function DashboardPage() {
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/plans" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: userPlan === "mid" ? "var(--coral)" : "var(--text-muted)" }} />
-              {userPlan === "mid" ? "Pro Plan" : "Basic Plan"}
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: userPlan === "basic" ? "var(--text-muted)" : "var(--coral)" }} />
+              {userPlan === "top" ? "Premium Plan" : userPlan === "mid" ? "Pro Plan" : "Basic Plan"}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
             </a>
           <button
@@ -991,7 +992,7 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                       {idea.description}
                     </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
-                    {userPlan === "mid" && (
+                    {(userPlan === "mid" || userPlan === "top") && (
                       refiningId === idea.id ? (
                         <div style={{ marginTop: 12 }}>
                           <input
@@ -1033,7 +1034,7 @@ export default function DashboardPage() {
 
           {tab === 'myideas' && (
             <div>
-              {userPlan === "mid" && dbSavedIdeas.length > 0 && (
+              {(userPlan === "mid" || userPlan === "top") && dbSavedIdeas.length > 0 && (
                 <div style={{ marginBottom: 32 }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Weekly Calendar</h3>
                   <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>Drag any idea below onto a day to schedule it.</p>

@@ -11,7 +11,7 @@ export default function CustomisePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [plan, setPlan] = useState<'basic' | 'mid'>('mid')
+  const [plan, setPlan] = useState<'basic' | 'mid' | 'top'>('top')
 
   useEffect(() => {
     const load = async () => {

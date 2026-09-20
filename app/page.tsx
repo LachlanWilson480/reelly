@@ -11,6 +11,14 @@ export default function HomePage() {
   const searchParams = useSearchParams()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [checking, setChecking] = useState(true)
+  const [heroStep, setHeroStep] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroStep((prev) => (prev + 1) % 3)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const check = async () => {
@@ -61,8 +69,9 @@ export default function HomePage() {
   ]
 
   const pricing = [
-    { name: 'Basic', price: '$20', period: '/mo', desc: '~2 render minutes/week', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
-    { name: 'Pro', price: '$69', period: '/mo', desc: '~10 render minutes/week', features: ['Everything in Basic', 'More renders/week', 'Priority support', 'Highest render allowance'], highlight: true },
+    { name: 'Basic', price: '$20', period: '/mo', desc: '10 render minutes/month', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
+    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', 'Priority support', 'Content calendar', 'Idea refinement'] },
+    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features'], highlight: true },
   ]
 
   const mockIdeas = [
@@ -70,6 +79,20 @@ export default function HomePage() {
     { title: 'Before & after reveal', tag: '#transformation' },
     { title: 'Booking slots open this week', tag: '#comebookus' },
   ]
+
+  const mockFilmingSteps = [
+    '0:00-0:08 - Standing at the counter, introduce yourself',
+    '0:08-0:17 - Show the product up close, explain the benefit',
+    '0:17-0:25 - End with a smile, invite them to book',
+  ]
+
+  const heroSteps = [
+    { label: 'Generate ideas' },
+    { label: 'Get filming instructions' },
+    { label: 'Auto-edited video' },
+  ]
+
+
 
   const SECTION_PAD = '120px 64px'
   const CONTAINER_WIDTH = 1080
@@ -105,43 +128,85 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div style={{ position: "relative", width: 420, height: 300 }}>
-            <div style={{ position: "absolute", top: 0, right: 0, width: 340, height: 210, boxSizing: "border-box", background: "#16151c", borderRadius: "12px 12px 3px 3px", padding: "10px 10px 24px", boxShadow: "0 30px 60px rgba(0,0,0,0.4)", border: "4px solid #2a2833" }}>
-              <div style={{ background: "#0d0c11", borderRadius: 4, padding: 10, display: "flex", flexDirection: "column", gap: 6, height: "100%", justifyContent: "space-between" }}>
-                {mockIdeas.map((idea) => (
-                  <div key={"laptop-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "8px 10px" }}>
-                    <p style={{ fontSize: 9, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
-                    <p style={{ fontSize: 8, color: "var(--coral)" }}>{idea.tag}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ position: "absolute", top: 210, right: -18, width: 376, height: 14, background: "#2a2833", borderRadius: "0 0 8px 8px" }} />
-            <div style={{ position: "absolute", top: 223, right: 152, width: 52, height: 4, background: "#3a3743", borderRadius: 3 }} />
-
-            <div style={{ position: "absolute", top: 60, left: 30, width: 150, height: 230, overflow: "hidden", background: "#1c1a22", borderRadius: 16, padding: 12, boxShadow: "0 24px 48px rgba(0,0,0,0.4)", border: "5px solid #2a2833" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%", justifyContent: "space-between" }}>
-                {mockIdeas.map((idea) => (
-                  <div key={"tablet-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "9px 10px" }}>
-                    <p style={{ fontSize: 9, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
-                    <p style={{ fontSize: 8, color: "var(--coral)" }}>{idea.tag}</p>
-                  </div>
-                ))}
-              </div>
+          <div style={{ position: "relative", width: 420, height: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              {heroSteps.map((step, i) => (
+                <div
+                  key={step.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    background: i === heroStep ? "var(--coral)" : "rgba(255,255,255,0.08)",
+                    transition: "background 0.4s ease",
+                  }}
+                >
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#F1EFE8" }}>{i + 1}</span>
+                  <span style={{ fontSize: 10, color: "#F1EFE8", whiteSpace: "nowrap" }}>{step.label}</span>
+                </div>
+              ))}
             </div>
 
-            <div style={{ position: "absolute", bottom: 0, left: 0, width: 110, background: "#16151c", borderRadius: 20, padding: "12px 8px", boxShadow: "0 20px 40px rgba(0,0,0,0.45)", transform: "rotate(-4deg)", border: "5px solid #2a2833" }}>
-              <div style={{ width: 30, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 8px" }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {mockIdeas.map((idea) => (
-                  <div key={"phone-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "7px 8px" }}>
-                    <p style={{ fontSize: 8, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 2 }}>{idea.title}</p>
-                    <p style={{ fontSize: 7, color: "var(--coral)" }}>{idea.tag}</p>
+            <div
+              style={{
+                position: "relative",
+                width: 380,
+                height: 236,
+                boxSizing: "border-box",
+                background: "#16151c",
+                borderRadius: "12px 12px 3px 3px",
+                padding: "14px 14px 28px",
+                boxShadow: "0 30px 60px rgba(0,0,0,0.4)",
+                border: "4px solid #2a2833",
+                transform: "perspective(900px) rotateX(4deg)",
+              }}
+            >
+              <div style={{ background: "#0d0c11", borderRadius: 6, padding: 14, display: "flex", flexDirection: "column", gap: 8, height: "100%", justifyContent: "center", overflow: "hidden" }}>
+                {heroStep === 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "heroFadeIn 0.5s ease" }}>
+                    {mockIdeas.map((idea) => (
+                      <div key={"idea-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "9px 11px" }}>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
+                        <p style={{ fontSize: 9, color: "var(--coral)" }}>{idea.tag}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+                {heroStep === 1 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 9, animation: "heroFadeIn 0.5s ease" }}>
+                    {mockFilmingSteps.map((step) => (
+                      <div key={step} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                        <span style={{ color: "var(--coral)", fontSize: 11, flexShrink: 0 }}>&#10003;</span>
+                        <p style={{ fontSize: 10, color: "#F1EFE8", lineHeight: 1.4 }}>{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {heroStep === 2 && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, animation: "heroFadeIn 0.5s ease" }}>
+                    <div style={{ width: 90, height: 156, background: "#232129", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                      <div style={{ width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderLeft: "16px solid #F1EFE8" }} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#F1EFE8", marginBottom: 4 }}>Render complete</p>
+                      <p style={{ fontSize: 10, color: "var(--coral)" }}>Captions + music added</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            <div style={{ position: "relative", width: 416, height: 14, background: "#2a2833", borderRadius: "0 0 8px 8px", marginLeft: "auto", marginRight: "auto" }} />
+            <div style={{ position: "relative", width: 52, height: 4, background: "#3a3743", borderRadius: 3, marginTop: -9 }} />
           </div>
+
+          <style>{`
+            @keyframes heroFadeIn {
+              from { opacity: 0; transform: translateY(6px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
         </section>
 
         <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>

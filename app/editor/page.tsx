@@ -55,7 +55,7 @@ export default function EditorPage() {
   const videoRefB = useRef<HTMLVideoElement>(null)
 
   const [userId, setUserId] = useState<string | null>(null)
-  const [userPlan, setUserPlan] = useState<'basic' | 'mid'>('mid')
+  const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('top')
   const [resolution, setResolution] = useState<'high' | 'low'>('high')
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
@@ -109,7 +109,7 @@ export default function EditorPage() {
         .select("plan")
         .eq("user_id", user.id)
         .maybeSingle()
-      if (subRow?.plan) setUserPlan(subRow.plan as "basic" | "mid")
+      if (subRow?.plan) setUserPlan(subRow.plan as "basic" | "mid" | "top")
 
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
       const { data: durationRows } = await supabase
@@ -415,10 +415,11 @@ export default function EditorPage() {
   }
 
   const BASIC_CAP_MIN = 10
-  const PRO_CAP_MIN = 60
+  const PRO_CAP_MIN = 25
+  const PREMIUM_CAP_MIN = 60
 
   const isOverRenderCap = () => {
-    const capMin = userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
+    const capMin = userPlan === "top" ? PREMIUM_CAP_MIN : userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
     return totalRenderSeconds / 60 >= capMin
   }
 

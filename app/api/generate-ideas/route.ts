@@ -36,15 +36,17 @@ const MID_EXTRA_ANGLES = [
   'explain a term or piece of jargon from your industry that confuses customers',
 ]
 
-async function getPlan(userId: string | undefined): Promise<'basic' | 'mid'> {
-  if (!userId) return 'mid'
+async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
+  if (!userId) return 'top'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'mid' // no active subscription yet (pilot phase) -> full access
-  return data.plan === 'basic' ? 'basic' : 'mid'
+  if (!data || data.status !== 'active') return 'top' // no active subscription yet (pilot phase) -> full access
+  if (data.plan === 'basic') return 'basic'
+  if (data.plan === 'top') return 'top'
+  return 'mid'
 }
 
 type SeasonalEvent = { name: string; windowDays: number } & (
@@ -221,11 +223,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Basic plan: custom guidance is a Mid-only feature, ignore it if somehow present
-    const effectiveCustomization = plan === 'mid' ? customization : null
+    const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
     const customNote = effectiveCustomization ? `\n\nAdditional guidance from the business owner (follow this, but never at the expense of safety, realism, or the constraints above):\n${effectiveCustomization}` : ''
 
-    const ideaCount = plan === 'mid' ? Math.max(1, Math.min(7, profile.videos_per_week || 6)) : 3
-    const anglePool = plan === 'mid' ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
+    const ideaCount = (plan === 'mid' || plan === 'top') ? Math.max(1, Math.min(7, profile.videos_per_week || 6)) : 3
+    const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, ideaCount)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
@@ -289,7 +291,7 @@ Respond ONLY with valid JSON, no markdown formatting, no code fences, in this ex
   { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }
 ]`
 
-    const model = plan === 'mid' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     const message = await anthropic.messages.create({
       model,
