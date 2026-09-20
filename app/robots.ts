@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard', '/editor', '/settings', '/onboarding', '/history', '/customise'],
+      disallow: ['/dashboard', '/editor', '/settings', '/onboarding', '/history', '/customise', '/auth', '/api'],
     },
     sitemap: 'https://reelezy.com/sitemap.xml',
   }

@@ -13,8 +13,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://reelezy.com"),
   title: "Reelezy - Social Media Generator and Editor",
-  description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses. Plan, film, and post consistently  -  built for Sydney and beyond.",
+  description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
+  keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media scheduler"],
+  openGraph: {
+    title: "Reelezy - Social Media Generator and Editor",
+    description: "AI-powered content ideas, filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
+    url: "https://reelezy.com",
+    siteName: "Reelezy",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Reelezy - Social Media Generator and Editor",
+    description: "AI-powered content ideas, filming instructions, and automatic video editing for small businesses and creators.",
+  },
+  alternates: {
+    canonical: "https://reelezy.com",
+  },
 };
 
 const themeScript = `
