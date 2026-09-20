@@ -35,6 +35,7 @@ export default function OnboardingPage() {
   const [tone, setTone] = useState('')
   const [customerDescription, setCustomerDescription] = useState('')
   const [coreServices, setCoreServices] = useState('')
+  const [keySellingPoint, setKeySellingPoint] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [locationType, setLocationType] = useState('fixed')
@@ -89,6 +90,7 @@ export default function OnboardingPage() {
       tone,
       target_audience: customerDescription,
       core_services: coreServices,
+      key_selling_point: keySellingPoint,
       filming_comfort: filmingComfort,
       on_camera_people: onCameraPeople,
       location_type: locationType,
@@ -185,6 +187,7 @@ export default function OnboardingPage() {
               <Field label="Tone of voice" value={tone} onChange={setTone} placeholder="e.g. playful, professional, edgy" />
               <Field label="Who is your ideal customer?" value={customerDescription} onChange={setCustomerDescription} placeholder="Age range, lifestyle, what they're looking for" textarea />
               <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
+              <Field label="What sells your business best? *" value={keySellingPoint} onChange={setKeySellingPoint} placeholder="e.g. the harbour view, your award-winning chef, handmade pasta, friendly staff" textarea />
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block", color: "#F1EFE8" }}>Do customers come to you, or do you travel to them? *</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

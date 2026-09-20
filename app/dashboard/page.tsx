@@ -22,7 +22,8 @@ type Profile = {
   signature_service: string | null
   common_objections: string | null
   current_promotions: string | null
-  customer_problem: string | null}
+  customer_problem: string | null
+  key_selling_point: string | null}
 
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'uploads' | 'aiuploads'
 
@@ -143,7 +144,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem')
+        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point')
         .eq('user_id', user.id)
         .maybeSingle()
 

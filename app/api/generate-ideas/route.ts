@@ -259,6 +259,7 @@ Suburb: ${profile.suburb}
 Tone: ${profile.tone || 'not specified'}
 Ideal customer: ${profile.target_audience || 'not specified'}
 Core services: ${profile.core_services || 'not specified'}
+${profile.key_selling_point ? `Their single biggest selling point - what genuinely makes people choose them (lean into this across the ideas where it fits naturally): ${profile.key_selling_point}` : ""}
 ${profile.brand_personality ? `Brand personality: ${profile.brand_personality}` : ""}
 ${profile.words_to_avoid ? `Words/phrases to avoid: ${profile.words_to_avoid}` : ""}
 ${profile.signature_service ? `Signature service they're known for: ${profile.signature_service}` : ""}
