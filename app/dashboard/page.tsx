@@ -369,16 +369,6 @@ export default function DashboardPage() {
       }
       setRedoBatch(null)
 
-      // Clean up old unsaved batches beyond one level of undo history
-      if (currentBatch > 1) {
-        await supabase
-          .from("generated_ideas")
-          .delete()
-          .eq("user_id", userId)
-          .lt("batch_number", currentBatch)
-          .eq("saved", false)
-      }
-
       setIdeas(newIdeas)
       setCurrentBatch(nextBatch)
       setUserPlan(data.plan || "top")
