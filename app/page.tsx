@@ -383,7 +383,7 @@ export default function HomePage() {
             </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>
-            \u00a9 2026 Reelezy. Built in Sydney.
+            © 2026 Reelezy. Built in Sydney.
           </p>
         </footer>
       </div>
