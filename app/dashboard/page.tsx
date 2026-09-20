@@ -80,6 +80,8 @@ export default function DashboardPage() {
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
   const [showUploadSpeechWarning, setShowUploadSpeechWarning] = useState(false)
+  const [extractingAudio, setExtractingAudio] = useState(false)
+  const [extractAudioError, setExtractAudioError] = useState('')
   const [generatingFilming, setGeneratingFilming] = useState(false)
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
@@ -120,6 +122,8 @@ export default function DashboardPage() {
   const [lastRenderedPaths, setLastRenderedPaths] = useState<string[]>([])
   const [lastMusicPath, setLastMusicPath] = useState<string | null>(null)
   const musicInputRef = useRef<HTMLInputElement>(null)
+  const audioExtractInputRef = useRef<HTMLInputElement>(null)
+  const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
@@ -640,8 +644,8 @@ export default function DashboardPage() {
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
-      let musicPath: string | null = null
-      if (musicFile) {
+      let musicPath: string | null = extractedMusicPath
+      if (!musicPath && musicFile) {
         const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
         const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
         if (!musicError) musicPath = mPath
@@ -679,6 +683,7 @@ export default function DashboardPage() {
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
+      setExtractedMusicPath(null)
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -688,6 +693,52 @@ export default function DashboardPage() {
 
   const submitAiEditorUploads = () => gateRenderAction(() => { runAiEditorUploads() })
   const startUploadAndRender = () => gateRenderAction(() => { runUploadAndRender() })
+
+  const handleExtractAudio = async (file: File) => {
+    if (!userId) return
+    setExtractingAudio(true)
+    setExtractAudioError('')
+    setExtractedMusicPath(null)
+    setMusicFile(null)
+
+    try {
+      const path = `${userId}/${Date.now()}-extract-source-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('video-uploads').upload(path, file)
+      if (uploadError) throw new Error(uploadError.message)
+
+      const startRes = await fetch('/api/extract-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoPath: path }),
+      })
+      const startData = await startRes.json()
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start audio extraction')
+
+      const shotstackRenderId = startData.shotstackRenderId
+
+      let done = false
+      while (!done) {
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        const statusRes = await fetch('/api/extract-audio-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shotstackRenderId, userId }),
+        })
+        const statusData = await statusRes.json()
+
+        if (statusData.status === 'done') {
+          setExtractedMusicPath(statusData.musicPath)
+          done = true
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Audio extraction failed')
+        }
+      }
+    } catch (err) {
+      setExtractAudioError(err instanceof Error ? err.message : 'Something went wrong extracting audio')
+    } finally {
+      setExtractingAudio(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -1288,7 +1339,8 @@ export default function DashboardPage() {
                   onChange={(e) => setMusicFile(e.target.files?.[0] || null)}
                   style={{ display: "none" }}
                 />
-                <div style={{ marginBottom: 24 }}>
+                <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, border: "1px solid rgba(128,128,128,0.2)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Music</p>
                   <button
                     type="button"
                     onClick={() => musicInputRef.current?.click()}
@@ -1307,25 +1359,65 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
                     Upload your own audio file. You are responsible for ensuring you have the rights to use it.
                   </p>
+
+                  <input
+                    ref={audioExtractInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleExtractAudio(file)
+                    }}
+                    style={{ display: "none" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => audioExtractInputRef.current?.click()}
+                    disabled={extractingAudio}
+                    style={{
+                      background: "none",
+                      border: "1px solid rgba(128,128,128,0.3)",
+                      borderRadius: 8,
+                      padding: "9px 16px",
+                      fontSize: 13,
+                      color: "var(--ink)",
+                      cursor: extractingAudio ? "not-allowed" : "pointer",
+                      marginTop: 8,
+                      opacity: extractingAudio ? 0.6 : 1,
+                    }}
+                  >
+                    {extractingAudio
+                      ? "Extracting audio..."
+                      : extractedMusicPath
+                      ? "\u266a Extracted audio ready"
+                      : "+ Extract audio from a video"}
+                  </button>
+                  {extractAudioError && (
+                    <p style={{ fontSize: 11, color: "var(--coral)", marginTop: 6 }}>{extractAudioError}</p>
+                  )}
                 </div>
 
-                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-                  {[
-                    { id: "crop", label: "Crop & zoom" },
-                    { id: "blur", label: "Blurred bars" },
-                    { id: "landscape", label: "Keep landscape shape" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
-                      style={{ padding: "8px 14px", borderRadius: 8, border: landscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                {uploadLandscapeSlots.size > 0 && (
+                  <>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                      {[
+                        { id: "crop", label: "Crop & zoom" },
+                        { id: "blur", label: "Blurred bars" },
+                        { id: "landscape", label: "Keep landscape shape" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
+                          style={{ padding: "8px 14px", borderRadius: 8, border: landscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
                 <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
@@ -1447,10 +1539,10 @@ export default function DashboardPage() {
                 <button
                   onClick={() => {
                     const hasAnyFile = uploadSlots.some((id) => uploadSlotFiles[id])
-                    if (uploading || !hasAnyFile) return
+                    if (uploading || extractingAudio || !hasAnyFile) return
                     setShowUploadSpeechWarning(true)
                   }}
-                  disabled={uploading || !uploadSlots.some((id) => uploadSlotFiles[id])}
+                  disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
                   style={{
                     display: "block",
                     backgroundColor: "var(--coral)",
@@ -1460,12 +1552,12 @@ export default function DashboardPage() {
                     fontSize: 15,
                     fontWeight: 700,
                     border: "none",
-                    boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? "none" : "0 4px 14px rgba(216,90,48,0.35)",
-                    cursor: uploading ? "not-allowed" : "pointer",
-                    opacity: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1,
+                    boxShadow: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? "none" : "0 4px 14px rgba(216,90,48,0.35)",
+                    cursor: uploading || extractingAudio ? "not-allowed" : "pointer",
+                    opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1,
                   }}
                 >
-                  {uploading ? "Uploading..." : "Create video"}
+                  {uploading ? "Uploading..." : extractingAudio ? "Waiting for audio extraction..." : "Create video"}
                 </button>
               </div>
 
@@ -1604,23 +1696,27 @@ export default function DashboardPage() {
                         ))}
                       </div>
 
-                      <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-                        {[
-                          { id: "crop", label: "Crop & zoom" },
-                          { id: "blur", label: "Blurred bars" },
-                          { id: "landscape", label: "Keep landscape shape" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setAiLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
-                            style={{ padding: "8px 14px", borderRadius: 8, border: aiLandscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
+                      {aiLandscapeSteps.size > 0 && (
+                        <>
+                          <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips - how should they be handled?</p>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                            {[
+                              { id: "crop", label: "Crop & zoom" },
+                              { id: "blur", label: "Blurred bars" },
+                              { id: "landscape", label: "Keep landscape shape" },
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setAiLandscapeHandling(opt.id as "crop" | "blur" | "landscape")}
+                                style={{ padding: "8px 14px", borderRadius: 8, border: aiLandscapeHandling === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
 
                       <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resolution</p>
                       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
