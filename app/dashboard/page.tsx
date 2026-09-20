@@ -55,6 +55,10 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
+  const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
+  const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
+  const [newKeyEvent, setNewKeyEvent] = useState('')
+  const [savingKeyEvent, setSavingKeyEvent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTabState] = useState<Tab>('overview')
   const searchParams = useSearchParams()
@@ -149,6 +153,13 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .maybeSingle()
       if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
+
+      const { data: eventsData } = await supabase
+        .from('key_events')
+        .select('id, event_text, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      if (eventsData) setKeyEvents(eventsData)
 
       const { data } = await supabase
         .from('business_profiles')
@@ -379,6 +390,22 @@ export default function DashboardPage() {
       setGeneratingIdeas(false)
     }
   }
+
+  const addKeyEvent = async () => {
+    if (!userId || !newKeyEvent.trim()) return
+    setSavingKeyEvent(true)
+    const { data, error } = await supabase
+      .from('key_events')
+      .insert({ user_id: userId, event_text: newKeyEvent.trim() })
+      .select()
+      .single()
+    setSavingKeyEvent(false)
+    if (!error && data) {
+      setKeyEvents((prev) => [data, ...prev])
+      setNewKeyEvent('')
+    }
+  }
+
   const clearFilming = async () => {
     if (filmingItems.length === 0) return
     const ids = filmingItems.map((i) => i.id)
@@ -949,6 +976,13 @@ export default function DashboardPage() {
                   >
                     Redo ↷
                   </button>
+                  <button
+                    onClick={() => setShowKeyEventsPanel(!showKeyEventsPanel)}
+                    title="Log a key event (e.g. new staff member, new offer) to inform future ideas"
+                    style={{ background: showKeyEventsPanel ? "rgba(216,90,48,0.1)" : "none", border: showKeyEventsPanel ? "1px solid var(--coral)" : "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                  >
+                    📌 Key Events{keyEvents.length > 0 ? ` (${keyEvents.length})` : ""}
+                  </button>
                 </div>
               {userPlan === 'basic' && usageInfo && (
                 <div style={{ background: usageInfo.used >= usageInfo.limit ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: usageInfo.used >= usageInfo.limit ? '1px solid var(--coral)' : 'none', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -961,6 +995,38 @@ export default function DashboardPage() {
                 </div>
               )}
               </div>
+
+              {showKeyEventsPanel && (
+                <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Log a key event</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                    e.g. "New barista Jake started this week" - these get woven into future idea generations where relevant.
+                  </p>
+                  <textarea
+                    value={newKeyEvent}
+                    onChange={(e) => setNewKeyEvent(e.target.value)}
+                    rows={2}
+                    placeholder="What's happening in your business right now?"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 }}
+                  />
+                  <button
+                    onClick={addKeyEvent}
+                    disabled={savingKeyEvent || !newKeyEvent.trim()}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: savingKeyEvent || !newKeyEvent.trim() ? 'not-allowed' : 'pointer', opacity: savingKeyEvent || !newKeyEvent.trim() ? 0.5 : 1, marginBottom: 14 }}
+                  >
+                    {savingKeyEvent ? 'Saving...' : 'Add event'}
+                  </button>
+                  {keyEvents.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {keyEvents.slice(0, 5).map((ev) => (
+                        <div key={ev.id} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 6 }}>
+                          {ev.event_text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {ideaError && (
                 <p style={{ fontSize: 13, color: 'var(--coral)', marginBottom: 16 }}>{ideaError}</p>
