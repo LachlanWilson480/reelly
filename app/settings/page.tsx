@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSection] = useState<'profile' | 'account' | 'notifications' | 'billing' | 'danger'>('profile')
+  const [section, setSection] = useState<'profile' | 'account' | 'notifications' | 'billing'>('profile')
   const [email, setEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -74,6 +74,9 @@ export default function SettingsPage() {
   const [showOptional, setShowOptional] = useState(false)
 
   const [newPassword, setNewPassword] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [changingEmail, setChangingEmail] = useState(false)
+  const [emailMessage, setEmailMessage] = useState('')
   const [passwordMessage, setPasswordMessage] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
 
@@ -239,6 +242,18 @@ export default function SettingsPage() {
     if (!error) setNewPassword('')
   }
 
+  const handleChangeEmail = async () => {
+    if (!newEmail) return
+    setChangingEmail(true)
+    setEmailMessage('')
+
+    const { error } = await supabase.auth.updateUser({ email: newEmail })
+
+    setChangingEmail(false)
+    setEmailMessage(error ? error.message : 'Check both your old and new email inboxes to confirm the change.')
+    if (!error) setNewEmail('')
+  }
+
   const handleSaveNotifications = async () => {
     setSavingNotifications(true)
 
@@ -330,7 +345,7 @@ export default function SettingsPage() {
         </h1>
 
         <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(128,128,128,0.15)', marginBottom: 28, flexWrap: 'wrap' }}>
-          {(['profile', 'account', 'notifications', 'billing', 'danger'] as const).map((s) => (
+          {(['profile', 'account', 'notifications', 'billing'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSection(s)}
@@ -347,7 +362,7 @@ export default function SettingsPage() {
                 textTransform: 'capitalize',
               }}
             >
-              {s === 'danger' ? 'Danger zone' : s}
+              {s}
             </button>
           ))}
         </div>
@@ -509,10 +524,25 @@ export default function SettingsPage() {
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
                 Email
               </h3>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{email}</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 14 }}>{email}</p>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="New email address"
+                style={inputStyle}
+              />
+              <button
+                onClick={handleChangeEmail}
+                disabled={changingEmail || !newEmail}
+                style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: changingEmail || !newEmail ? 'not-allowed' : 'pointer', opacity: changingEmail || !newEmail ? 0.5 : 1 }}
+              >
+                {changingEmail ? 'Updating...' : 'Update email'}
+              </button>
+              {emailMessage && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10 }}>{emailMessage}</p>}
             </div>
 
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
@@ -532,45 +562,7 @@ export default function SettingsPage() {
               </button>
               {passwordMessage && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10 }}>{passwordMessage}</p>}
             </div>
-          </div>
-        )}
 
-        {section === 'notifications' && (
-          <div>
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
-              <Toggle
-                label="Render complete"
-                desc="Get an email when your video finishes rendering."
-                checked={notifyRenderComplete}
-                onChange={setNotifyRenderComplete}
-              />
-              <Toggle
-                label="Weekly content reminder"
-                desc="A gentle nudge if you haven't generated content in a while."
-                checked={notifyWeeklyReminder}
-                onChange={setNotifyWeeklyReminder}
-              />
-            </div>
-            <button
-              onClick={handleSaveNotifications}
-              disabled={savingNotifications}
-              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 16, opacity: savingNotifications ? 0.7 : 1 }}
-            >
-              {savingNotifications ? 'Saving...' : 'Save preferences'}
-            </button>
-          </div>
-        )}
-
-        {section === 'billing' && (
-          <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Billing management is coming soon.
-            </p>
-          </div>
-        )}
-
-        {section === 'danger' && (
-          <div>
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
                 Export your data
@@ -621,6 +613,41 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {section === 'notifications' && (
+          <div>
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
+              <Toggle
+                label="Render complete"
+                desc="Get an email when your video finishes rendering."
+                checked={notifyRenderComplete}
+                onChange={setNotifyRenderComplete}
+              />
+              <Toggle
+                label="Weekly content reminder"
+                desc="A gentle nudge if you haven't generated content in a while."
+                checked={notifyWeeklyReminder}
+                onChange={setNotifyWeeklyReminder}
+              />
+            </div>
+            <button
+              onClick={handleSaveNotifications}
+              disabled={savingNotifications}
+              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 16, opacity: savingNotifications ? 0.7 : 1 }}
+            >
+              {savingNotifications ? 'Saving...' : 'Save preferences'}
+            </button>
+          </div>
+        )}
+
+        {section === 'billing' && (
+          <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              Billing management is coming soon.
+            </p>
+          </div>
+        )}
+
       </div>
     </div>
   )
