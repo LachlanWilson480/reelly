@@ -57,7 +57,9 @@ export default function DashboardPage() {
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
-  const [scriptGenIdeaId, setScriptGenIdeaId] = useState<string | null>(null)
+  const [scriptTopic, setScriptTopic] = useState('')
+  const [scriptLength, setScriptLength] = useState<'short' | 'medium' | 'long'>('medium')
+  const [scriptStyle, setScriptStyle] = useState('')
   const [generatedScript, setGeneratedScript] = useState<string | null>(null)
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptGenError, setScriptGenError] = useState<string | null>(null)
@@ -488,39 +490,22 @@ export default function DashboardPage() {
     }
   }
 
-  const generateScriptForIdea = async (idea: Idea) => {
-    if (!profile) return
+  const generateFreeformScript = async () => {
+    if (!scriptTopic.trim()) return
     setGeneratingScript(true)
     setScriptGenError(null)
     setGeneratedScript(null)
 
     try {
-      const res = await fetch("/api/generate-checklist", {
+      const res = await fetch("/api/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId }),
+        body: JSON.stringify({ topic: scriptTopic, length: scriptLength, style: scriptStyle, profile, userId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Request failed")
 
       setGeneratedScript(data.script || "")
-
-      const item: FilmingItem = {
-        ...idea,
-        checklist: data.checklist || [],
-        prep: data.prep || [],
-        caption: data.caption || "",
-        script: data.script || "",
-      }
-      await supabase
-        .from("generated_ideas")
-        .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script } })
-        .eq("id", item.id)
-
-      setFilmingItems((prev) => {
-        const exists = prev.some((f) => f.id === item.id)
-        return exists ? prev.map((f) => (f.id === item.id ? item : f)) : [...prev, item]
-      })
     } catch (err) {
       setScriptGenError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -1392,37 +1377,51 @@ export default function DashboardPage() {
                   Script Generator
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  Pick a saved idea and generate a full word-for-word script straight away - no need to go through the filming checklist first. It's also saved to that idea's Filming instructions.
+                  Type in any idea or topic, pick a length and style, and generate a full word-for-word script - no saved idea required.
                 </p>
 
-                {savedIdeas.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Star an idea in Content Ideas first, then come back here.</p>
-                ) : (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-                    {savedIdeas.map((idea) => (
-                      <button
-                        key={idea.id}
-                        onClick={() => { setScriptGenIdeaId(idea.id); setGeneratedScript(idea.id === scriptGenIdeaId ? generatedScript : null) }}
-                        style={{ padding: "8px 14px", borderRadius: 8, border: scriptGenIdeaId === idea.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
-                      >
-                        {idea.title}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <label style={labelStyle}>What's the video about?</label>
+                <textarea
+                  value={scriptTopic}
+                  onChange={(e) => setScriptTopic(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Why our sourdough takes 3 days to make, and why it's worth the wait"
+                  style={{ ...inputStyle, resize: 'vertical', marginBottom: 20 }}
+                />
 
-                {scriptGenIdeaId && (
-                  <button
-                    onClick={() => {
-                      const idea = savedIdeas.find((i) => i.id === scriptGenIdeaId)
-                      if (idea) generateScriptForIdea(idea)
-                    }}
-                    disabled={generatingScript}
-                    style={{ backgroundColor: "var(--coral)", color: "#fff", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: generatingScript ? "not-allowed" : "pointer", opacity: generatingScript ? 0.7 : 1, marginBottom: 20, display: "block" }}
-                  >
-                    {generatingScript ? "Generating script..." : "Generate script"}
-                  </button>
-                )}
+                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Length</p>
+                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                  {[
+                    { id: "short", label: "Short (~15-20s)" },
+                    { id: "medium", label: "Medium (~30-45s)" },
+                    { id: "long", label: "Long (~60-90s)" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setScriptLength(opt.id as "short" | "medium" | "long")}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: scriptLength === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <label style={labelStyle}>Style (optional)</label>
+                <input
+                  value={scriptStyle}
+                  onChange={(e) => setScriptStyle(e.target.value)}
+                  placeholder="e.g. funny, professional, dramatic, warm and personal"
+                  style={{ ...inputStyle, marginBottom: 20 }}
+                />
+
+                <button
+                  onClick={generateFreeformScript}
+                  disabled={generatingScript || !scriptTopic.trim()}
+                  style={{ backgroundColor: "var(--coral)", color: "#fff", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: generatingScript || !scriptTopic.trim() ? "not-allowed" : "pointer", opacity: generatingScript || !scriptTopic.trim() ? 0.5 : 1, marginBottom: 20, display: "block" }}
+                >
+                  {generatingScript ? "Generating script..." : "Generate script"}
+                </button>
 
                 {scriptGenError && (
                   <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{scriptGenError}</p>
@@ -1437,7 +1436,6 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-
           {tab === 'uploads' && (
             <div>
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
