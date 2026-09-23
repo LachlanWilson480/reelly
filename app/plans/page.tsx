@@ -116,7 +116,7 @@ export default function PlansPage() {
               What happens if I go over my render minutes?
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Overage renders are billed monthly at a flat fee of $5/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
+              Overage renders are billed monthly at a flat fee of $0.50/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
             </p>
           </div>
         </div>

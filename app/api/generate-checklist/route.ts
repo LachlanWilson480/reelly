@@ -25,6 +25,10 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
   return 'mid'
 }
 
+const BASIC_WEEKLY_FILMING_LIMIT = 24
+const PRO_WEEKLY_FILMING_LIMIT = 50
+const PREMIUM_WEEKLY_FILMING_LIMIT = 98
+
 export async function POST(req: NextRequest) {
   try {
     const { idea, profile, customization, userId, styleOverride } = await req.json()
@@ -37,6 +41,41 @@ export async function POST(req: NextRequest) {
 
     if (styleOverride && plan === 'basic') {
       return NextResponse.json({ error: 'Regenerating in a different style is a Pro plan feature. Upgrade to unlock it.' }, { status: 403 })
+    }
+
+    if (userId) {
+      const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_FILMING_LIMIT : plan === 'mid' ? PRO_WEEKLY_FILMING_LIMIT : BASIC_WEEKLY_FILMING_LIMIT
+
+      const { data: usageRow } = await supabaseAdmin
+        .from('business_profiles')
+        .select('filming_generated_this_week, usage_reset_at')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const daysSinceMonday = (dayOfWeek + 6) % 7
+      const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
+
+      const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : null
+      const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
+      const currentCount = needsReset ? 0 : (usageRow?.filming_generated_this_week || 0)
+
+      if (currentCount >= weeklyLimit) {
+        const planLabel = plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'
+        return NextResponse.json(
+          { error: `You've reached your limit of ${weeklyLimit} filming instructions generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
+          { status: 403 }
+        )
+      }
+
+      await supabaseAdmin
+        .from('business_profiles')
+        .update({
+          filming_generated_this_week: currentCount + 1,
+          usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
+        })
+        .eq('user_id', userId)
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
