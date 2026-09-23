@@ -155,10 +155,15 @@ export default function DashboardPage() {
 
       const { data: subRow } = await supabase
         .from('subscriptions')
-        .select('deletion_scheduled_at')
+        .select('deletion_scheduled_at, plan, status')
         .eq('user_id', user.id)
         .maybeSingle()
       if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
+      if (subRow && subRow.status === 'active' && subRow.plan) {
+        setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
+      } else {
+        setUserPlan('top') // no active subscription (pilot phase) -> full access, matches backend getPlan()
+      }
 
       const { data: eventsData } = await supabase
         .from('key_events')
