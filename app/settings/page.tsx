@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 
@@ -22,9 +22,17 @@ const Field = ({ label, value, onChange, placeholder, textarea }: { label: strin
 
 export default function SettingsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState<'profile' | 'account' | 'notifications' | 'billing'>('profile')
+
+  useEffect(() => {
+    const sectionParam = searchParams.get('section')
+    if (sectionParam === 'profile' || sectionParam === 'account' || sectionParam === 'notifications' || sectionParam === 'billing') {
+      setSection(sectionParam)
+    }
+  }, [searchParams])
   const [subPlan, setSubPlan] = useState<'basic' | 'mid' | 'top' | null>(null)
   const [subStatus, setSubStatus] = useState<string | null>(null)
   const [subPeriodEnd, setSubPeriodEnd] = useState<string | null>(null)

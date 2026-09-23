@@ -893,7 +893,7 @@ export default function DashboardPage() {
             Reelezy
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="/plans" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
+            <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: userPlan === "basic" ? "var(--text-muted)" : "var(--coral)" }} />
               {userPlan === "top" ? "Premium Plan" : userPlan === "mid" ? "Pro Plan" : "Basic Plan"}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
