@@ -31,6 +31,8 @@ const LENGTH_GUIDANCE: Record<string, string> = {
   long: 'about 60-90 seconds when read aloud at a natural pace (roughly 140-220 words)',
 }
 
+const PRO_WEEKLY_SCRIPT_LIMIT = 10
+
 export async function POST(req: NextRequest) {
   try {
     const { topic, length, style, profile, userId } = await req.json()
@@ -40,6 +42,46 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = await getPlan(userId)
+
+    if (plan === 'basic') {
+      return NextResponse.json(
+        { error: 'The Script Generator is available on the Pro and Premium plans. Upgrade to unlock it.' },
+        { status: 403 }
+      )
+    }
+
+    if (plan === 'mid' && userId) {
+      const { data: usageRow } = await supabaseAdmin
+        .from('business_profiles')
+        .select('scripts_generated_this_week, usage_reset_at')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const daysSinceMonday = (dayOfWeek + 6) % 7
+      const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
+
+      const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : null
+      const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
+      const currentCount = needsReset ? 0 : (usageRow?.scripts_generated_this_week || 0)
+
+      if (currentCount >= PRO_WEEKLY_SCRIPT_LIMIT) {
+        return NextResponse.json(
+          { error: `You've reached your limit of ${PRO_WEEKLY_SCRIPT_LIMIT} scripts generated this week on the Pro plan. Upgrade to Premium for unlimited scripts.` },
+          { status: 403 }
+        )
+      }
+
+      await supabaseAdmin
+        .from('business_profiles')
+        .update({
+          scripts_generated_this_week: currentCount + 1,
+          usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
+        })
+        .eq('user_id', userId)
+    }
+
     const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     const lengthKey = typeof length === 'string' && LENGTH_GUIDANCE[length] ? length : 'medium'

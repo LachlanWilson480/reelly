@@ -1402,7 +1402,21 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'script' && (
+          {tab === 'script' && userPlan === 'basic' && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                Script Generator
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                The Script Generator is available on the Pro and Premium plans.
+              </p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
+                Upgrade to Pro →
+              </a>
+            </div>
+          )}
+
+          {tab === 'script' && userPlan !== 'basic' && (
             <div>
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
