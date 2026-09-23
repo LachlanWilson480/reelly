@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const [extractingAudio, setExtractingAudio] = useState(false)
   const [extractAudioError, setExtractAudioError] = useState('')
   const [generatingFilming, setGeneratingFilming] = useState(false)
+  const [selectedIdeaIdsForFilming, setSelectedIdeaIdsForFilming] = useState<string[]>([])
   const [filmingError, setFilmingError] = useState<string | null>(null)
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [dbSavedIdeas, setDbSavedIdeas] = useState<Idea[]>([])
@@ -1276,7 +1277,7 @@ export default function DashboardPage() {
               ) : (
                 <div>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                    Review your selected ideas, then proceed to generate filming instructions.
+                    Review your selected ideas. Head to the Filming tab to generate instructions.
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {savedIdeas.map((idea) => (
@@ -1331,12 +1332,6 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={() => proceedToFilming(savedIdeas)}
-                    style={{ display: 'block', marginTop: 24, backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}
-                  >
-                    Proceed to filming →
-                  </button>
                 </div>
               )}
             </div>
@@ -1344,6 +1339,40 @@ export default function DashboardPage() {
 
           {tab === 'filming' && (
             <div>
+              {savedIdeas.length > 0 && (
+                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '22px', marginBottom: 24 }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    Select ideas to film
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {savedIdeas.map((idea) => (
+                      <label
+                        key={idea.id}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--card-bg)', cursor: 'pointer' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIdeaIdsForFilming.includes(idea.id)}
+                          onChange={(e) => {
+                            setSelectedIdeaIdsForFilming((prev) =>
+                              e.target.checked ? [...prev, idea.id] : prev.filter((id) => id !== idea.id)
+                            )
+                          }}
+                          style={{ marginTop: 3, cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => proceedToFilming(savedIdeas.filter((idea) => selectedIdeaIdsForFilming.includes(idea.id)))}
+                    disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
+                  >
+                    {generatingFilming ? 'Generating...' : 'Generate instructions'}
+                  </button>
+                </div>
+              )}
               {filmingError && (
                 <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
               )}              {filmingItems.length > 0 && (
@@ -1358,10 +1387,10 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions...</p>
                 </div>
               )}
-              {!generatingFilming && filmingItems.length === 0 && (
+              {!generatingFilming && filmingItems.length === 0 && savedIdeas.length === 0 && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                    Select ideas in My Ideas and proceed to generate filming instructions here.
+                    Star an idea in Content Ideas to see it here for filming.
                   </p>
                 </div>
               )}
@@ -1867,7 +1896,7 @@ export default function DashboardPage() {
                 </p>
 
                 {filmingItems.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generate filming instructions for an idea first (My Ideas → Proceed to filming).</p>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Generate filming instructions for an idea first, using the checklist at the top of this tab.</p>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
                     {filmingItems.map((item) => (
