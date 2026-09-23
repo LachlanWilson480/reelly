@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/dashboard', '/editor', '/settings', '/onboarding', '/history', '/customise', '/auth', '/api'],
     },
-    sitemap: 'https://reelezy.com/sitemap.xml',
+    sitemap: 'https://www.reelezy.com/sitemap.xml',
   }
 }

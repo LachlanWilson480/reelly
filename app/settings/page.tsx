@@ -25,6 +25,12 @@ export default function SettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState<'profile' | 'account' | 'notifications' | 'billing'>('profile')
+  const [subPlan, setSubPlan] = useState<'basic' | 'mid' | 'top' | null>(null)
+  const [subStatus, setSubStatus] = useState<string | null>(null)
+  const [subPeriodEnd, setSubPeriodEnd] = useState<string | null>(null)
+  const [subCancelling, setSubCancelling] = useState(false)
+  const [subChanging, setSubChanging] = useState<string | null>(null)
+  const [subMessage, setSubMessage] = useState('')
   const [email, setEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -148,10 +154,69 @@ export default function SettingsPage() {
         setNotifyWeeklyReminder(data.notify_weekly_reminder ?? true)
       }
 
+      const { data: subRow } = await supabase
+        .from('subscriptions')
+        .select('plan, status, current_period_end')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (subRow) {
+        setSubPlan(subRow.plan)
+        setSubStatus(subRow.status)
+        setSubPeriodEnd(subRow.current_period_end)
+      }
+
       setLoading(false)
     }
     load()
   }, [router])
+
+  const handleChangePlan = async (newPlan: string) => {
+    if (!userId) return
+    setSubChanging(newPlan)
+    setSubMessage('')
+    try {
+      const res = await fetch('/api/change-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newPlan }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSubMessage(data.error || 'Failed to change plan.')
+      } else {
+        setSubPlan(data.plan)
+        setSubStatus(data.status)
+        setSubMessage('Plan updated successfully.')
+      }
+    } catch {
+      setSubMessage('Failed to change plan. Please try again.')
+    }
+    setSubChanging(null)
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!userId) return
+    if (!confirm('Are you sure you want to cancel your subscription? You will keep access until the end of your current billing period.')) return
+    setSubCancelling(true)
+    setSubMessage('')
+    try {
+      const res = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSubMessage(data.error || 'Failed to cancel subscription.')
+      } else {
+        setSubMessage('Your subscription will end at the close of your current billing period.')
+      }
+    } catch {
+      setSubMessage('Failed to cancel subscription. Please try again.')
+    }
+    setSubCancelling(false)
+  }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -603,10 +668,75 @@ export default function SettingsPage() {
         )}
 
         {section === 'billing' && (
-          <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Billing management is coming soon.
-            </p>
+          <div>
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px', marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+                Current Plan
+              </h3>
+              {subPlan ? (
+                <>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                    {subPlan === 'top' ? 'Premium' : subPlan === 'mid' ? 'Pro' : 'Basic'}
+                  </p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    Status: {subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
+                  </p>
+                  {subPeriodEnd && (
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      Next billing date: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>
+                  You don't have an active subscription. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View plans →</a>
+                </p>
+              )}
+            </div>
+
+            {subPlan && subStatus === 'active' && (
+              <>
+                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px', marginBottom: 20 }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+                    Change Plan
+                  </h3>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {(['basic', 'mid', 'top'] as const).filter((p) => p !== subPlan).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => handleChangePlan(p)}
+                        disabled={subChanging !== null}
+                        style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--coral)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subChanging ? 'not-allowed' : 'pointer', opacity: subChanging ? 0.6 : 1 }}
+                      >
+                        {subChanging === p ? 'Switching...' : `Switch to ${p === 'top' ? 'Premium' : p === 'mid' ? 'Pro' : 'Basic'}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    Cancel Subscription
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                    You'll keep access until the end of your current billing period.
+                  </p>
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={subCancelling}
+                    style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(216,90,48,0.4)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subCancelling ? 'not-allowed' : 'pointer', opacity: subCancelling ? 0.6 : 1 }}
+                  >
+                    {subCancelling ? 'Cancelling...' : 'Cancel subscription'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {subMessage && (
+              <p style={{ fontSize: 13, color: 'var(--ink)', marginTop: 16, padding: '12px 16px', background: 'var(--card-bg)', borderRadius: 8 }}>
+                {subMessage}
+              </p>
+            )}
           </div>
         )}
 

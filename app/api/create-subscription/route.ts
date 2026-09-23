@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
     const { userId, email, plan } = await req.json()
+    console.log('create-subscription received:', { userId, email, plan })
 
     const priceId = PRICE_MAP[plan]
     if (!priceId) {

@@ -51,6 +51,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not find subscription item to update.' }, { status: 500 })
     }
 
+    if (stripeSub.status !== 'active' && stripeSub.status !== 'trialing') {
+      // Supabase and Stripe are out of sync - the real subscription was never confirmed with payment.
+      await supabaseAdmin
+        .from('subscriptions')
+        .update({ status: stripeSub.status })
+        .eq('user_id', userId)
+      return NextResponse.json(
+        { error: 'Your subscription was never fully confirmed with a payment method. Please subscribe again from the Plans page.' },
+        { status: 400 }
+      )
+    }
+
     const updatedSub = await stripe.subscriptions.update(subRow.stripe_subscription_id, {
       items: [{ id: currentItemId, price: newPriceId }],
       proration_behavior: 'create_prorations',

@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
           html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
             <h2 style="color: #2C2C2A;">Your video is ready, ${profile?.business_name || 'there'}!</h2>
             <p style="color: #555;">Your latest render just finished. Log in to Reelezy to view and download it.</p>
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://reelezy.com'}/dashboard" style="display: inline-block; background: #D85A30; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">View your video</a>
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reelezy.com'}/dashboard" style="display: inline-block; background: #D85A30; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">View your video</a>
           </div>`,
         })
       }
