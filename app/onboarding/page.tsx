@@ -39,7 +39,6 @@ export default function OnboardingPage() {
   const [filmingComfort, setFilmingComfort] = useState('')
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [locationType, setLocationType] = useState('fixed')
-  const [videosPerWeek, setVideosPerWeek] = useState('3')
   const [website, setWebsite] = useState('')
   const [instagramHandle, setInstagramHandle] = useState('')
   const [tiktokHandle, setTiktokHandle] = useState('')
@@ -94,7 +93,6 @@ export default function OnboardingPage() {
       filming_comfort: filmingComfort,
       on_camera_people: onCameraPeople,
       location_type: locationType,
-      videos_per_week: Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3)),
       website,
       instagram_handle: instagramHandle,
       tiktok_handle: tiktokHandle,
@@ -206,41 +204,6 @@ export default function OnboardingPage() {
                     </button>
                   ))}
                 </div>
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block", color: "#F1EFE8" }}>How many videos do you want to make per week?</label>
-                <div style={{ display: "flex", alignItems: "stretch", width: 120 }}>
-                  <input
-                    type="number"
-                    min={1}
-                    max={7}
-                    value={videosPerWeek}
-                    onChange={(e) => setVideosPerWeek(e.target.value)}
-                    onBlur={() => {
-                      const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
-                      setVideosPerWeek(String(clamped))
-                    }}
-                    className="no-native-spinner"
-                    style={{ flex: 1, width: 0, padding: "10px 12px", borderRadius: "8px 0 0 8px", border: "1px solid rgba(255,255,255,0.2)", borderRight: "none", background: "rgba(255,255,255,0.08)", fontSize: 14, color: "#F1EFE8" }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", width: 28 }}>
-                    <button
-                      type="button"
-                      onClick={() => setVideosPerWeek(String(Math.min(7, (parseInt(videosPerWeek, 10) || 3) + 1)))}
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 8px 0 0", color: "#fff", cursor: "pointer", fontSize: 10 }}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVideosPerWeek(String(Math.max(1, (parseInt(videosPerWeek, 10) || 3) - 1)))}
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 0 8px 0", color: "#fff", cursor: "pointer", fontSize: 10, marginTop: 1 }}
-                    >
-                      ▼
-                    </button>
-                  </div>
-                </div>
-                <p style={{ fontSize: 11, color: "rgba(241,239,232,0.6)", marginTop: 6 }}>Note: Basic plan generates a fixed 3 ideas per batch regardless of this number. Mid plan uses this number exactly.</p>
               </div>
               <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. just my phone, hired videographer, studio setup" />
               <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names/roles" />

@@ -41,7 +41,6 @@ export default function SettingsPage() {
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
   const [locationType, setLocationType] = useState('fixed')
-  const [videosPerWeek, setVideosPerWeek] = useState('3')
   const [onCameraPeople, setOnCameraPeople] = useState('')
 
   const [website, setWebsite] = useState('')
@@ -117,7 +116,6 @@ export default function SettingsPage() {
         setCoreServices(data.core_services || '')
         setFilmingComfort(data.filming_comfort || '')
         setLocationType(data.location_type || 'fixed')
-        setVideosPerWeek(String(data.videos_per_week || 3))
         setOnCameraPeople(data.on_camera_people || '')
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
@@ -194,7 +192,6 @@ export default function SettingsPage() {
         core_services: coreServices,
         filming_comfort: filmingComfort,
         location_type: locationType,
-        videos_per_week: Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3)),
         on_camera_people: onCameraPeople,
         website,
         instagram_handle: instagramHandle,
@@ -413,41 +410,6 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>How many videos do you want to make per week?</label>
-              <div style={{ display: "flex", alignItems: "stretch", width: 120 }}>
-                <input
-                  type="number"
-                  min={1}
-                  max={7}
-                  value={videosPerWeek}
-                  onChange={(e) => setVideosPerWeek(e.target.value)}
-                  onBlur={() => {
-                    const clamped = Math.max(1, Math.min(7, parseInt(videosPerWeek, 10) || 3))
-                    setVideosPerWeek(String(clamped))
-                  }}
-                  className="no-native-spinner"
-                  style={{ flex: 1, width: 0, padding: "10px 12px", borderRadius: "8px 0 0 8px", border: "1px solid rgba(128,128,128,0.25)", borderRight: "none", background: "var(--card-bg)", fontSize: 14, color: "var(--ink)" }}
-                />
-                <div style={{ display: "flex", flexDirection: "column", width: 28 }}>
-                  <button
-                    type="button"
-                    onClick={() => setVideosPerWeek(String(Math.min(7, (parseInt(videosPerWeek, 10) || 3) + 1)))}
-                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 8px 0 0", color: "#fff", cursor: "pointer", fontSize: 10 }}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVideosPerWeek(String(Math.max(1, (parseInt(videosPerWeek, 10) || 3) - 1)))}
-                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--coral)", border: "none", borderRadius: "0 0 8px 0", color: "#fff", cursor: "pointer", fontSize: 10, marginTop: 1 }}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>This directly controls how many ideas you get per batch on the Pro plan. Basic plan generates a fixed 3 regardless.</p>
             </div>
             <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />

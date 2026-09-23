@@ -232,9 +232,13 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       const now = new Date()
-      const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : now
-      const weekMs = 7 * 24 * 60 * 60 * 1000
-      const needsReset = now.getTime() - resetAt.getTime() > weekMs
+      // Compute the most recent Monday 12:00am (local server time) as the weekly reset boundary.
+      const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, ...
+      const daysSinceMonday = (dayOfWeek + 6) % 7 // Monday -> 0, Sunday -> 6
+      const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
+
+      const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : null
+      const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
       const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
 
       if (currentCount + batchSize > weeklyLimit) {

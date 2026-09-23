@@ -15,7 +15,6 @@ type Profile = {
   core_services: string | null
   custom_guidance: string | null
   location_type: string | null
-  videos_per_week: number | null
   local_seasonal_context: string | null
   brand_personality: string | null
   words_to_avoid: string | null
@@ -174,7 +173,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, videos_per_week, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point')
+        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -1032,17 +1031,27 @@ export default function DashboardPage() {
                     📌 Key Events{keyEvents.length > 0 ? ` (${keyEvents.length})` : ""}
                   </button>
                 </div>
-              {userPlan === 'basic' && usageInfo && (
+              </div>
+
+              {usageInfo && (
                 <div style={{ background: usageInfo.used >= usageInfo.limit ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: usageInfo.used >= usageInfo.limit ? '1px solid var(--coral)' : 'none', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    {usageInfo.used} of {usageInfo.limit} idea generations used this week (Basic plan)
+                    {usageInfo.used} of {usageInfo.limit} ideas generated this week ({userPlan === 'top' ? 'Premium' : userPlan === 'mid' ? 'Pro' : 'Basic'} plan)
+                    {' · '}
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      Resets {(() => {
+                        const now = new Date()
+                        const daysUntilMonday = (8 - now.getDay()) % 7 || 7
+                        const nextMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday)
+                        return nextMonday.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+                      })()}
+                    </span>
                   </p>
-                  {usageInfo.used >= usageInfo.limit && (
-                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>Upgrade to Pro →</a>
+                  {usageInfo.used >= usageInfo.limit && userPlan !== 'top' && (
+                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>{userPlan === 'basic' ? 'Upgrade to Pro →' : 'Upgrade to Premium →'}</a>
                   )}
                 </div>
               )}
-              </div>
 
               {showKeyEventsPanel && (
                 <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
