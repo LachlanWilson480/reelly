@@ -14,6 +14,8 @@ type IdeaRow = {
   notes: string | null
   saved: boolean
   checklist: string[] | null
+  script: string | null
+  caption: string | null
   created_at: string
 }
 
@@ -52,7 +54,17 @@ export default function HistoryPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      setIdeas(ideaRows || [])
+      const parsedIdeas: IdeaRow[] = (ideaRows || []).map((row) => {
+        const rawChecklist = row.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string } | null
+        return {
+          ...row,
+          checklist: rawChecklist?.steps || null,
+          script: rawChecklist?.script || null,
+          caption: rawChecklist?.caption || null,
+        }
+      })
+
+      setIdeas(parsedIdeas)
       setRenders(renderRows || [])
       setLoading(false)
     }
