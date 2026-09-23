@@ -85,6 +85,8 @@ export default function DashboardPage() {
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
+  const [aiTransition, setAiTransition] = useState<string>('none')
+  const [uploadTransition, setUploadTransition] = useState<string>('none')
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
@@ -678,6 +680,7 @@ export default function DashboardPage() {
           clipSettings,
           outputOrientation,
           resolution: aiResolution,
+          transition: aiTransition,
         }),
       })
 
@@ -758,7 +761,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition }),
       })
 
       const data = await res.json()
@@ -841,9 +844,9 @@ export default function DashboardPage() {
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
-    { id: 'script', label: 'Script Generator' },
     { id: 'aiuploads', label: 'AI Editor Uploads' },
     { id: 'uploads', label: 'Uploads For Any Video' },
+    { id: 'script', label: 'Script Generator' },
   ]
 
   const stats = [
@@ -1605,6 +1608,19 @@ export default function DashboardPage() {
                   + Add another video
                 </button>
 
+                <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, border: "1px solid rgba(128,128,128,0.2)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Transition between clips</p>
+                  <select value={uploadTransition} onChange={(e) => setUploadTransition(e.target.value)} style={inputStyle}>
+                    <option value="fade">Fade</option>
+                    <option value="none">Cut (no transition)</option>
+                    <option value="wipeLeft">Wipe left</option>
+                    <option value="wipeRight">Wipe right</option>
+                    <option value="slideLeft">Slide left</option>
+                    <option value="slideRight">Slide right</option>
+                    <option value="zoom">Zoom</option>
+                  </select>
+                </div>
+
                 <input
                   ref={musicInputRef}
                   type="file"
@@ -1967,6 +1983,19 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+
+                      <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, border: "1px solid rgba(128,128,128,0.2)" }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Transition between clips</p>
+                        <select value={aiTransition} onChange={(e) => setAiTransition(e.target.value)} style={inputStyle}>
+                          <option value="fade">Fade</option>
+                          <option value="none">Cut (no transition)</option>
+                          <option value="wipeLeft">Wipe left</option>
+                          <option value="wipeRight">Wipe right</option>
+                          <option value="slideLeft">Slide left</option>
+                          <option value="slideRight">Slide right</option>
+                          <option value="zoom">Zoom</option>
+                        </select>
                       </div>
 
                       <input

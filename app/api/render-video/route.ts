@@ -75,7 +75,7 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution } = await req.json()
+    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
         alias,
         start: clipStartTimes[i],
         length: effectiveLengths[i],
-        transition: i > 0 ? { in: 'fade' } : undefined,
+        transition: i > 0 && transition && transition !== 'none' ? { in: transition } : undefined,
       }
 
       if (setting.letterbox) {
