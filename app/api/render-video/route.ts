@@ -56,12 +56,51 @@ const PRESETS: Record<string, CaptionPreset> = {
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
 type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
+const BASIC_CAP_MIN = 10
+const PRO_CAP_MIN = 25
+const PREMIUM_CAP_MIN = 60
+
+async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
+  if (!userId) return 'top'
+  const { data } = await supabaseAdmin
+    .from('subscriptions')
+    .select('plan, status')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!data || data.status !== 'active') return 'top'
+  if (data.plan === 'basic') return 'basic'
+  if (data.plan === 'top') return 'top'
+  return 'mid'
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
+    }
+
+    if (userId) {
+      const plan = await getPlan(userId)
+      const capMin = plan === 'top' ? PREMIUM_CAP_MIN : plan === 'mid' ? PRO_CAP_MIN : BASIC_CAP_MIN
+
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      const { data: monthRenders } = await supabaseAdmin
+        .from('renders')
+        .select('duration_seconds')
+        .eq('user_id', userId)
+        .gte('created_at', monthStart)
+
+      const usedSeconds = (monthRenders || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0)
+      const usedMinutes = usedSeconds / 60
+
+      if (usedMinutes >= capMin) {
+        return NextResponse.json(
+          { error: `You've used your ${capMin} minutes of render time for this month on the ${plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'} plan. Upgrade for more render time.` },
+          { status: 403 }
+        )
+      }
     }
 
     const signedUrls: string[] = []
