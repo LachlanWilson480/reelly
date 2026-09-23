@@ -69,9 +69,9 @@ export default function HomePage() {
   ]
 
   const pricing = [
-    { name: 'Basic', price: '$20', period: '/mo', desc: '10 render minutes/month', features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Long-form video support'] },
-    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', 'Priority support', 'Content calendar', 'Idea refinement'], highlight: true },
-    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features'] },
+    { name: 'Basic', price: '$20', period: '/mo', desc: '10 render minutes/month', features: ['3 ideas per batch, 24/week', 'AI Editor & Any Video uploads', 'Limited video scheduler', '1 GB storage (app only)'] },
+    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', '5 ideas per batch, 50/week', 'Full video scheduler', 'Sound library & video analytics'], highlight: true },
+    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', '7 ideas per batch, 98/week', 'Full Script Generator access', 'Competitor analytics & dual accounts'] },
   ]
 
   const mockIdeas = [
@@ -143,8 +143,8 @@ export default function HomePage() {
                     transition: "background 0.4s ease",
                   }}
                 >
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#F1EFE8" }}>{i + 1}</span>
-                  <span style={{ fontSize: 10, color: "#F1EFE8", whiteSpace: "nowrap" }}>{step.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#F1EFE8" }}>{i + 1}</span>
+                  <span style={{ fontSize: 14, color: "#F1EFE8", whiteSpace: "nowrap" }}>{step.label}</span>
                 </div>
               ))}
             </div>
@@ -168,8 +168,8 @@ export default function HomePage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "heroFadeIn 0.5s ease" }}>
                     {mockIdeas.map((idea) => (
                       <div key={"idea-" + idea.title} style={{ background: "#232129", borderRadius: 8, padding: "9px 11px" }}>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
-                        <p style={{ fontSize: 9, color: "var(--coral)" }}>{idea.tag}</p>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "#F1EFE8", lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
+                        <p style={{ fontSize: 13, color: "var(--coral)" }}>{idea.tag}</p>
                       </div>
                     ))}
                   </div>
@@ -178,8 +178,8 @@ export default function HomePage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 9, animation: "heroFadeIn 0.5s ease" }}>
                     {mockFilmingSteps.map((step) => (
                       <div key={step} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                        <span style={{ color: "var(--coral)", fontSize: 11, flexShrink: 0 }}>&#10003;</span>
-                        <p style={{ fontSize: 10, color: "#F1EFE8", lineHeight: 1.4 }}>{step}</p>
+                        <span style={{ color: "var(--coral)", fontSize: 15, flexShrink: 0 }}>&#10003;</span>
+                        <p style={{ fontSize: 14, color: "#F1EFE8", lineHeight: 1.4 }}>{step}</p>
                       </div>
                     ))}
                   </div>
@@ -190,8 +190,8 @@ export default function HomePage() {
                       <div style={{ width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderLeft: "16px solid #F1EFE8" }} />
                     </div>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: "#F1EFE8", marginBottom: 4 }}>Render complete</p>
-                      <p style={{ fontSize: 10, color: "var(--coral)" }}>Captions + music added</p>
+                      <p style={{ fontSize: 16, fontWeight: 700, color: "#F1EFE8", marginBottom: 4 }}>Render complete</p>
+                      <p style={{ fontSize: 14, color: "var(--coral)" }}>Captions + music added</p>
                     </div>
                   </div>
                 )}
@@ -210,7 +210,7 @@ export default function HomePage() {
         </section>
 
         <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 500 }}>
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 500 }}>
             Built for creators, freelancers, and small businesses  -  anywhere
           </p>
         </section>
@@ -229,10 +229,10 @@ export default function HomePage() {
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
                     {s.title}
                   </h3>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{s.desc}</p>
+                  <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{s.desc}</p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {s.points.map((pt) => (
-                      <li key={pt} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
+                      <li key={pt} style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
                         <span style={{ position: 'absolute', left: 0, color: 'var(--coral)' }}>•</span>{pt}
                       </li>
                     ))}
@@ -258,10 +258,10 @@ export default function HomePage() {
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 10 }}>
                     {f.title}
                   </h3>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{f.desc}</p>
+                  <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{f.desc}</p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {f.points.map((pt) => (
-                      <li key={pt} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
+                      <li key={pt} style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5, paddingLeft: 14, position: 'relative' }}>
                         <span style={{ position: 'absolute', left: 0, color: 'var(--coral)' }}>•</span>{pt}
                       </li>
                     ))}
@@ -297,12 +297,12 @@ export default function HomePage() {
                   <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
                     {tier.price}<span style={{ fontSize: 14, fontWeight: 400 }}>{tier.period}</span>
                   </p>
-                  <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 22 }}>
+                  <p style={{ fontSize: 16, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 22 }}>
                     {tier.desc}
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
                     {tier.features.map((f) => (
-                      <li key={f} style={{ fontSize: 13, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
+                      <li key={f} style={{ fontSize: 16, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
                         • {f}
                       </li>
                     ))}
@@ -382,7 +382,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>
+          <p style={{ fontSize: 16, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>
             © 2026 Reelezy. Built in Sydney.
           </p>
         </footer>

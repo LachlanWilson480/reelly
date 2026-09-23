@@ -110,6 +110,8 @@ export default function DashboardPage() {
   const [ideaError, setIdeaError] = useState('')
   const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number } | null>(null)
   const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('top')
+  const [realSubPlan, setRealSubPlan] = useState<'basic' | 'mid' | 'top' | null>(null)
+  const [realSubStatus, setRealSubStatus] = useState<string | null>(null)
   const [refiningId, setRefiningId] = useState<string | null>(null)
   const [refineInstruction, setRefineInstruction] = useState('')
   const [refineLoading, setRefineLoading] = useState(false)
@@ -162,6 +164,10 @@ export default function DashboardPage() {
         setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
       } else {
         setUserPlan('top') // no active subscription (pilot phase) -> full access, matches backend getPlan()
+      }
+      if (subRow?.plan) {
+        setRealSubPlan(subRow.plan as 'basic' | 'mid' | 'top')
+        setRealSubStatus(subRow.status)
       }
 
       const { data: eventsData } = await supabase
@@ -894,8 +900,10 @@ export default function DashboardPage() {
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: userPlan === "basic" ? "var(--text-muted)" : "var(--coral)" }} />
-              {userPlan === "top" ? "Premium Plan" : userPlan === "mid" ? "Pro Plan" : "Basic Plan"}
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: realSubPlan && realSubStatus !== 'active' ? "var(--text-muted)" : userPlan === "basic" ? "var(--text-muted)" : "var(--coral)" }} />
+              {realSubPlan && realSubStatus !== 'active'
+                ? `${realSubPlan === "top" ? "Premium" : realSubPlan === "mid" ? "Pro" : "Basic"} Plan (${realSubStatus})`
+                : `${userPlan === "top" ? "Premium" : userPlan === "mid" ? "Pro" : "Basic"} Plan`}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
             </a>
           <button
