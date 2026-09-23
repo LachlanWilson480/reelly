@@ -182,13 +182,21 @@ function pickAngles(pool: string[], count: number): string[] {
   return shuffled.slice(0, count)
 }
 
-const WEEKLY_BASIC_LIMIT = 3
+const BASIC_BATCH_SIZE = 3
+const PRO_BATCH_SIZE = 5
+const PREMIUM_BATCH_SIZE = 7
+
+const BASIC_WEEKLY_LIMIT = 24
+const PRO_WEEKLY_LIMIT = 50
+const PREMIUM_WEEKLY_LIMIT = 98
 
 export async function POST(req: NextRequest) {
   try {
     const { profile, customization, userId } = await req.json()
 
     const plan = await getPlan(userId)
+    const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'mid' ? PRO_BATCH_SIZE : BASIC_BATCH_SIZE
+    const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'mid' ? PRO_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
 
     let keyEventsContext = ""
     let pastIdeasContext = ""
@@ -214,9 +222,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Weekly usage limit enforcement for Basic plan only
+    // Weekly usage limit enforcement for all plans, based on batchSize/weeklyLimit for the user's tier
     let usageInfo: { used: number; limit: number } | null = null
-    if (plan === 'basic' && userId) {
+    if (userId) {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
         .select('ideas_generated_this_week, usage_reset_at')
@@ -229,9 +237,10 @@ export async function POST(req: NextRequest) {
       const needsReset = now.getTime() - resetAt.getTime() > weekMs
       const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
 
-      if (currentCount >= WEEKLY_BASIC_LIMIT) {
+      if (currentCount + batchSize > weeklyLimit) {
+        const planLabel = plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'
         return NextResponse.json(
-          { error: `You've used all ${WEEKLY_BASIC_LIMIT} idea generations for this week on the Basic plan. Upgrade to Mid for unlimited generations.` },
+          { error: `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
           { status: 403 }
         )
       }
@@ -239,18 +248,18 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin
         .from('business_profiles')
         .update({
-          ideas_generated_this_week: currentCount + 1,
+          ideas_generated_this_week: currentCount + batchSize,
           usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
         })
         .eq('user_id', userId)
-      usageInfo = { used: currentCount + 1, limit: WEEKLY_BASIC_LIMIT }
+      usageInfo = { used: currentCount + batchSize, limit: weeklyLimit }
     }
 
     // Basic plan: custom guidance is a Mid-only feature, ignore it if somehow present
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
     const customNote = effectiveCustomization ? `\n\nAdditional guidance from the business owner (follow this, but never at the expense of safety, realism, or the constraints above):\n${effectiveCustomization}` : ''
 
-    const ideaCount = (plan === 'mid' || plan === 'top') ? Math.max(1, Math.min(7, profile.videos_per_week || 6)) : 3
+    const ideaCount = batchSize
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, ideaCount)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
