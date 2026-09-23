@@ -494,7 +494,7 @@ export default function DashboardPage() {
           merged.push(item)
           await supabase
             .from("generated_ideas")
-            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script } })
+            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false })
             .eq("id", item.id)
         } else {
           failCount++
