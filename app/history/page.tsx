@@ -81,11 +81,11 @@ export default function HistoryPage() {
         <div style={{ padding: '0 48px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'flex-start' }}>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Ideas Generated ({ideas.length})
             </h2>
             {ideas.length === 0 && (
-              <p style={{ fontSize: 17, color: 'var(--text-secondary)' }}>No ideas generated yet.</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No ideas generated yet.</p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {ideas.map((idea) => (
@@ -95,21 +95,21 @@ export default function HistoryPage() {
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <p style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>
                         {idea.saved && '★ '}{idea.title}
                       </p>
-                      <span style={{ fontSize: 15, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {formatDate(idea.created_at)}
                       </span>
                     </div>
                   </button>
                   {expandedId === idea.id && (
                     <div style={{ padding: '0 16px 16px' }}>
-                      <p style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{idea.hook}</p>
-                      <p style={{ fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>{idea.description}</p>
-                      <p style={{ fontSize: 15, color: 'var(--coral)' }}>{idea.tags}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{idea.hook}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>{idea.description}</p>
+                      <p style={{ fontSize: 11, color: 'var(--coral)' }}>{idea.tags}</p>
                       {idea.notes && (
-                        <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>Notes: {idea.notes}</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>Notes: {idea.notes}</p>
                       )}
                     </div>
                   )}
@@ -119,11 +119,11 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Filming Instructions ({filmingItems.length})
             </h2>
             {filmingItems.length === 0 && (
-              <p style={{ fontSize: 17, color: 'var(--text-secondary)' }}>No filming instructions generated yet.</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No filming instructions generated yet.</p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filmingItems.map((idea) => (
@@ -133,8 +133,8 @@ export default function HistoryPage() {
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <p style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4 }}>{idea.title}</p>
-                      <span style={{ fontSize: 15, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{idea.title}</p>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {formatDate(idea.created_at)}
                       </span>
                     </div>
@@ -143,7 +143,7 @@ export default function HistoryPage() {
                     <div style={{ padding: '0 16px 16px' }}>
                       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {idea.checklist?.map((step, i) => (
-                          <li key={i} style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', gap: 6 }}>
+                          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', gap: 6 }}>
                             <span style={{ color: 'var(--coral)', flexShrink: 0 }}>•</span>
                             <span>{step}</span>
                           </li>
@@ -157,11 +157,11 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Renders ({renders.length})
             </h2>
             {renders.length === 0 && (
-              <p style={{ fontSize: 17, color: 'var(--text-secondary)' }}>No videos rendered yet.</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No videos rendered yet.</p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {renders.map((render) => (
@@ -171,10 +171,10 @@ export default function HistoryPage() {
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                      <p style={{ fontSize: 17, fontWeight: 600 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600 }}>
                         {render.status === 'done' ? '✓ Completed' : render.status === 'failed' ? '✕ Failed' : '⋯ ' + render.status}
                       </p>
-                      <span style={{ fontSize: 15, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {formatDate(render.created_at)}
                       </span>
                     </div>
