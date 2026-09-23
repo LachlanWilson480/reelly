@@ -18,7 +18,7 @@ export default function PlansPage() {
       price: '$20',
       period: '/mo',
       desc: '10 render minutes/month',
-      features: ['AI content ideas', 'Filming checklists', 'Basic scheduling', 'Instagram & Facebook posting', 'Email support', 'Long-form video support'],
+      features: ['10 render minutes/month', '3 ideas generated per batch (24/week max)', '24 filming instructions/week max', 'Access to AI Editor Upload', 'Access to Upload For Any Video', 'Limited access to video scheduler (10 posts/month)', 'Overage fee of $0.50/minute after limit', '1 GB of storage (app only)'],
     },
     {
       id: 'mid',
@@ -26,7 +26,7 @@ export default function PlansPage() {
       price: '$35',
       period: '/mo',
       desc: '25 render minutes/month',
-      features: ['Everything in Basic', 'More renders/month', 'Priority support', 'Content calendar', 'Idea refinement', 'Custom generation guidance', 'Overage renders available'],
+      features: ['25 render minutes/month', '5 ideas generated per batch (50/week max)', '50 filming instructions/week max', 'Access to Sound library', 'Limited access to Script Generator (10/week)', 'Full access to video scheduler', 'Access to in-depth video analytics', '5 GB of storage (app only)', 'Access to cloud library (stock videos etc)'],
       highlight: true,
     },
     {
@@ -35,7 +35,7 @@ export default function PlansPage() {
       price: '$69',
       period: '/mo',
       desc: '60 render minutes/month',
-      features: ['Everything in Pro', 'Highest render allowance', 'Early access to new features', 'Overage renders available'],
+      features: ['60 render minutes/month', '7 ideas generated per batch (98/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', '10 GB of storage (app only)'],
     },
   ]
   return (
