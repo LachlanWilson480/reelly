@@ -412,6 +412,17 @@ export default function DashboardPage() {
     }
   }
 
+  const deleteKeyEvent = async (id: string) => {
+    setKeyEvents((prev) => prev.filter((ev) => ev.id !== id))
+    const { error } = await supabase
+      .from('key_events')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to delete key event:', error)
+    }
+  }
+
   const clearFilming = async () => {
     if (filmingItems.length === 0) return
     const ids = filmingItems.map((i) => i.id)
@@ -1051,8 +1062,15 @@ export default function DashboardPage() {
                   {keyEvents.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {keyEvents.slice(0, 5).map((ev) => (
-                        <div key={ev.id} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 6 }}>
-                          {ev.event_text}
+                        <div key={ev.id} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <span>{ev.event_text}</span>
+                          <button
+                            onClick={() => deleteKeyEvent(ev.id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}
+                            aria-label="Delete event"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
                     </div>
