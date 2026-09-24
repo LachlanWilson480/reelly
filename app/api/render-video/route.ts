@@ -60,14 +60,14 @@ const BASIC_CAP_MIN = 10
 const PRO_CAP_MIN = 25
 const PREMIUM_CAP_MIN = 60
 
-async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
-  if (!userId) return 'basic'
+async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | 'mid' | 'top'> {
+  if (!userId) return 'free'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'basic'
+  if (!data || data.status !== 'active') return 'free'
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'
@@ -83,6 +83,14 @@ export async function POST(req: NextRequest) {
 
     if (userId) {
       const plan = await getPlan(userId)
+
+      if (plan === 'free') {
+        return NextResponse.json(
+          { error: 'Video rendering is not available on the Free plan. Upgrade to Basic, Pro, or Premium to render videos.' },
+          { status: 403 }
+        )
+      }
+
       const capMin = plan === 'top' ? PREMIUM_CAP_MIN : plan === 'mid' ? PRO_CAP_MIN : BASIC_CAP_MIN
 
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()

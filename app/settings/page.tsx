@@ -696,9 +696,14 @@ export default function SettingsPage() {
                   )}
                 </>
               ) : (
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>
-                  You don't have an active subscription. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View plans →</a>
-                </p>
+                <>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                    Free
+                  </p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    You're on the Free plan (video rendering not included). <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View paid plans →</a>
+                  </p>
+                </>
               )}
             </div>
 

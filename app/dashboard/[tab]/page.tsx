@@ -67,7 +67,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTabState] = useState<Tab>('overview')
   const params = useParams()
-  const setTab = (t: Tab) => { setTabState(t); router.replace(`/dashboard/${t}`, { scroll: false }) }
+  const setTab = (t: Tab) => {
+    setTabState(t)
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/dashboard/${t}`)
+    }
+  }
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
@@ -269,7 +274,8 @@ export default function DashboardPage() {
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
-  }, [params])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
 
@@ -904,10 +910,12 @@ export default function DashboardPage() {
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: realSubPlan && realSubStatus !== 'active' ? "var(--text-muted)" : userPlan === "basic" ? "var(--text-muted)" : "var(--coral)" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
               {realSubPlan && realSubStatus !== 'active'
                 ? `${realSubPlan === "top" ? "Premium" : realSubPlan === "mid" ? "Pro" : "Basic"} Plan (${realSubStatus})`
-                : `${userPlan === "top" ? "Premium" : userPlan === "mid" ? "Pro" : "Basic"} Plan`}
+                : realSubPlan
+                ? `${userPlan === "top" ? "Premium" : userPlan === "mid" ? "Pro" : "Basic"} Plan`
+                : "Free Plan"}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
             </a>
           <button
@@ -1522,7 +1530,21 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-          {tab === 'uploads' && (
+          {tab === 'uploads' && (!realSubPlan || realSubStatus !== 'active') && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                Upload your clips
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                Video rendering is not available on the Free plan.
+              </p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
+                View paid plans →
+              </a>
+            </div>
+          )}
+
+          {tab === 'uploads' && realSubPlan && realSubStatus === 'active' && (
             <div>
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
@@ -1903,7 +1925,19 @@ export default function DashboardPage() {
               )}
             </div>
           )}
-          {tab === "aiuploads" && (
+          {tab === "aiuploads" && (!realSubPlan || realSubStatus !== 'active') && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                Video rendering is not available on the Free plan.
+              </p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
+                View paid plans →
+              </a>
+            </div>
+          )}
+
+          {tab === "aiuploads" && realSubPlan && realSubStatus === 'active' && (
             <div>
               <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
