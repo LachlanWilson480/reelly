@@ -112,7 +112,7 @@ export default function DashboardPage() {
   const [generatingIdeas, setGeneratingIdeas] = useState(false)
   const [ideaError, setIdeaError] = useState('')
   const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number } | null>(null)
-  const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('top')
+  const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('basic')
   const [realSubPlan, setRealSubPlan] = useState<'basic' | 'mid' | 'top' | null>(null)
   const [realSubStatus, setRealSubStatus] = useState<string | null>(null)
   const [refiningId, setRefiningId] = useState<string | null>(null)
@@ -166,7 +166,7 @@ export default function DashboardPage() {
       if (subRow && subRow.status === 'active' && subRow.plan) {
         setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
       } else {
-        setUserPlan('top') // no active subscription (pilot phase) -> full access, matches backend getPlan()
+        setUserPlan('basic') // no active subscription -> default to Basic, matches backend getPlan()
       }
       if (subRow?.plan) {
         setRealSubPlan(subRow.plan as 'basic' | 'mid' | 'top')

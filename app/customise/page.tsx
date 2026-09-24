@@ -11,7 +11,7 @@ export default function CustomisePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [plan, setPlan] = useState<'basic' | 'mid' | 'top'>('top')
+  const [plan, setPlan] = useState<'basic' | 'mid' | 'top'>('basic')
 
   useEffect(() => {
     const load = async () => {
@@ -37,10 +37,10 @@ export default function CustomisePage() {
         .eq('user_id', user.id)
         .maybeSingle()
 
-      if (subData && subData.status === 'active' && subData.plan === 'basic') {
-        setPlan('basic')
+      if (subData && subData.status === 'active' && subData.plan) {
+        setPlan(subData.plan as 'basic' | 'mid' | 'top')
       } else {
-        setPlan('mid')
+        setPlan('basic')
       }
 
       setLoading(false)

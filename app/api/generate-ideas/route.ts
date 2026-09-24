@@ -37,13 +37,13 @@ const MID_EXTRA_ANGLES = [
 ]
 
 async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
-  if (!userId) return 'top'
+  if (!userId) return 'basic'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'top' // no active subscription yet (pilot phase) -> full access
+  if (!data || data.status !== 'active') return 'basic' // no active subscription -> default to Basic
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'
