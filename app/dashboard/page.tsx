@@ -1022,18 +1022,18 @@ export default function DashboardPage() {
                   <button
                     onClick={undoIdeas}
                     disabled={!previousBatch}
-                    title="Undo: load previous set of ideas"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: previousBatch ? "var(--ink)" : "var(--text-muted)", cursor: previousBatch ? "pointer" : "not-allowed", opacity: previousBatch ? 1 : 0.5 }}
+                    title="Go to previous batch"
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: previousBatch ? "var(--ink)" : "var(--text-muted)", cursor: previousBatch ? "pointer" : "not-allowed", opacity: previousBatch ? 1 : 0.5, lineHeight: 1 }}
                   >
-                    ↶ Undo
+                    ←
                   </button>
                   <button
                     onClick={redoIdeas}
                     disabled={!redoBatch}
-                    title="Redo"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: redoBatch ? "var(--ink)" : "var(--text-muted)", cursor: redoBatch ? "pointer" : "not-allowed", opacity: redoBatch ? 1 : 0.5 }}
+                    title="Go to next batch"
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: redoBatch ? "var(--ink)" : "var(--text-muted)", cursor: redoBatch ? "pointer" : "not-allowed", opacity: redoBatch ? 1 : 0.5, lineHeight: 1 }}
                   >
-                    Redo ↷
+                    →
                   </button>
                   <button
                     onClick={() => setShowKeyEventsPanel(!showKeyEventsPanel)}

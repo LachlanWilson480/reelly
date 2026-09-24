@@ -194,6 +194,13 @@ export async function POST(req: NextRequest) {
   try {
     const { profile, customization, userId } = await req.json()
 
+    if (!profile || !profile.business_name || !profile.business_name.trim() || !profile.industry || !profile.industry.trim()) {
+      return NextResponse.json(
+        { error: 'Please complete your business profile before generating ideas.' },
+        { status: 400 }
+      )
+    }
+
     const plan = await getPlan(userId)
     const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'mid' ? PRO_BATCH_SIZE : BASIC_BATCH_SIZE
     const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'mid' ? PRO_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
