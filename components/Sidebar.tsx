@@ -14,7 +14,6 @@ const DASHBOARD_TABS = [
 ]
 
 export default function Sidebar() {
-  const [isDark, setIsDark] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileShowFullMenu, setMobileShowFullMenu] = useState(false)
@@ -22,32 +21,8 @@ export default function Sidebar() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    const saved = localStorage.getItem('reelezy-theme')
-
-    if (saved === 'dark' || saved === 'light') {
-      applyTheme(saved === 'dark')
-      return
-    }
-
-    const hour = new Date().getHours()
-    const shouldBeDark = hour >= 18 || hour < 6
-    applyTheme(shouldBeDark)
-  }, [])
-
-  useEffect(() => {
     setMobileShowFullMenu(false)
   }, [pathname])
-
-  const applyTheme = (dark: boolean) => {
-    setIsDark(dark)
-    document.documentElement.classList.toggle('dark', dark)
-  }
-
-  const toggleTheme = () => {
-    const newValue = !isDark
-    applyTheme(newValue)
-    localStorage.setItem('reelezy-theme', newValue ? 'dark' : 'light')
-  }
 
   const navItems = [
     { href: "/?stay=1", label: "Home", icon: "⌂" },
@@ -184,23 +159,6 @@ export default function Sidebar() {
             {(expanded || isMobileDrawer) && <span>{item.label}</span>}
           </Link>
         ))}
-        <button
-          onClick={toggleTheme}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: 15,
-            cursor: 'pointer',
-            color: 'var(--ink)',
-            padding: '10px 4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <span style={{ width: 20, textAlign: 'center' }}>{isDark ? '☀️' : '🌙'}</span>
-          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif" }}>{isDark ? 'Light mode' : 'Dark mode'}</span>}
-        </button>
       </>
     )
   }

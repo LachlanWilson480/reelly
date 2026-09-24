@@ -36,25 +36,7 @@ export const metadata: Metadata = {
 
 const themeScript = `
 (function () {
-  try {
-    var savedTheme = localStorage.getItem('reelezy-theme');
-
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (savedTheme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      var hour = new Date().getHours();
-      var isDark = hour >= 18 || hour < 6;
-
-      document.documentElement.classList.toggle('dark', isDark);
-    }
-  } catch (e) {
-    var hour = new Date().getHours();
-    var isDark = hour >= 18 || hour < 6;
-
-    document.documentElement.classList.toggle('dark', isDark);
-  }
+  document.documentElement.classList.add('dark');
 })();
 `;
 
