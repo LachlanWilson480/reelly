@@ -45,6 +45,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You are already on this plan.' }, { status: 400 })
     }
 
+    if (subRow.plan === 'top' || newPlan === 'top') {
+      return NextResponse.json(
+        { error: 'Unable to change plan directly. Please visit the Plans page.' },
+        { status: 400 }
+      )
+    }
+
     const stripeSub = await stripe.subscriptions.retrieve(subRow.stripe_subscription_id)
     const currentItemId = stripeSub.items.data[0]?.id
     if (!currentItemId) {
@@ -63,10 +70,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Swap the price with no proration credit/charge, and reset the billing cycle to start now,
+    // then separately invoice the customer immediately for the new plan's full flat price -
+    // so an upgrade or downgrade always costs the new plan's full rate, never a prorated amount.
     const updatedSub = await stripe.subscriptions.update(subRow.stripe_subscription_id, {
       items: [{ id: currentItemId, price: newPriceId }],
-      proration_behavior: 'create_prorations',
+      proration_behavior: 'none',
+      billing_cycle_anchor: 'now',
     })
+
+    const newPriceObj = await stripe.prices.retrieve(newPriceId)
+    const customerId = typeof updatedSub.customer === 'string' ? updatedSub.customer : updatedSub.customer.id
+
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      amount: newPriceObj.unit_amount || 0,
+      currency: newPriceObj.currency,
+      description: `Plan change to ${newPlan}`,
+    })
+
+    const invoice = await stripe.invoices.create({
+      customer: customerId,
+      auto_advance: true,
+      collection_method: 'charge_automatically',
+    })
+
+    if (invoice.id) {
+      await stripe.invoices.finalizeInvoice(invoice.id)
+      await stripe.invoices.pay(invoice.id)
+    }
 
     await supabaseAdmin
       .from('subscriptions')
