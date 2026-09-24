@@ -708,30 +708,17 @@ export default function SettingsPage() {
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
                     Change Plan
                   </h3>
-                  {subPlan === 'top' ? (
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                      Unable to change plan directly from Premium. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>Visit the Plans page →</a>
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      {(['basic', 'mid'] as const).filter((p) => p !== subPlan).map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => handleChangePlan(p)}
-                          disabled={subChanging !== null}
-                          style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--coral)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subChanging ? 'not-allowed' : 'pointer', opacity: subChanging ? 0.6 : 1 }}
-                        >
-                          {subChanging === p ? 'Switching...' : `Switch to ${p === 'mid' ? 'Pro' : 'Basic'} (charged at full rate)`}
-                        </button>
-                      ))}
-                      
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {(['basic', 'mid', 'top'] as const).filter((p) => p !== subPlan).map((p) => (
+                      <a
+                        key={p}
                         href="/plans"
-                        style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                        style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--coral)', color: 'var(--coral)', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
                       >
-                        Upgrade to Premium →
+                        {`Switch to ${p === 'top' ? 'Premium' : p === 'mid' ? 'Pro' : 'Basic'}`}
                       </a>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
