@@ -58,6 +58,18 @@ export async function POST(req: NextRequest) {
         status: subscription.status,
       }, { onConflict: 'user_id' })
 
+    // Reset weekly usage counters so the new plan's limits start fresh, rather than
+    // carrying over usage from before the user subscribed.
+    await supabaseAdmin
+      .from('business_profiles')
+      .update({
+        ideas_generated_this_week: 0,
+        filming_generated_this_week: 0,
+        scripts_generated_this_week: 0,
+        usage_reset_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+
     const subData = subscription as unknown as {
       pending_setup_intent?: { client_secret: string } | null
       latest_invoice?: { confirmation_secret?: { client_secret: string } } | null

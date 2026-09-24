@@ -73,6 +73,17 @@ export async function POST(req: NextRequest) {
       .update({ plan: newPlan, status: updatedSub.status })
       .eq('user_id', userId)
 
+    // Reset weekly usage counters so the new plan's limits start fresh.
+    await supabaseAdmin
+      .from('business_profiles')
+      .update({
+        ideas_generated_this_week: 0,
+        filming_generated_this_week: 0,
+        scripts_generated_this_week: 0,
+        usage_reset_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+
     return NextResponse.json({ success: true, plan: newPlan, status: updatedSub.status })
   } catch (error) {
     console.error('change-subscription error:', error)
