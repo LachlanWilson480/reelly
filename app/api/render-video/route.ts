@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
 
       if (usedMinutes >= capMin) {
         return NextResponse.json(
-          { error: `You've used your ${capMin} minutes of render time for this month on the ${plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'} plan. Upgrade for more render time.` },
+          { error: `You've used your ${capMin} minutes of render time for this month on the ${plan === 'top' ? 'Pro' : plan === 'mid' ? 'Basic' : 'Basic'} plan. Upgrade for more render time.` },
           { status: 403 }
         )
       }

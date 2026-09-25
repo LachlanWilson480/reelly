@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     if (plan === 'basic') {
       return NextResponse.json(
-        { error: 'The Script Generator is available on the Pro and Premium plans. Upgrade to unlock it.' },
+        { error: 'The Script Generator is available on the Basic and Pro plans. Upgrade to unlock it.' },
         { status: 403 }
       )
     }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
       if (currentCount >= PRO_WEEKLY_SCRIPT_LIMIT) {
         return NextResponse.json(
-          { error: `You've reached your limit of ${PRO_WEEKLY_SCRIPT_LIMIT} scripts generated this week on the Pro plan. Upgrade to Premium for unlimited scripts.` },
+          { error: `You've reached your limit of ${PRO_WEEKLY_SCRIPT_LIMIT} scripts generated this week on the Basic plan. Upgrade to Pro for unlimited scripts.` },
           { status: 403 }
         )
       }

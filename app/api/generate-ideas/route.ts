@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
       const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
 
       if (currentCount + batchSize > weeklyLimit) {
-        const planLabel = plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'
+        const planLabel = plan === 'top' ? 'Pro' : plan === 'mid' ? 'Basic' : 'Basic'
         return NextResponse.json(
           { error: `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
           { status: 403 }

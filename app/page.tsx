@@ -69,9 +69,8 @@ export default function HomePage() {
   ]
 
   const pricing = [
-    { name: 'Basic', price: '$20', period: '/mo', desc: '10 render minutes/month', features: ['3 ideas per batch, 24/week', 'AI Editor & Any Video uploads', 'Limited video scheduler', '1 GB storage (app only)'] },
-    { name: 'Pro', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['Everything in Basic', '5 ideas per batch, 50/week', 'Full video scheduler', 'Sound library & video analytics'], highlight: true },
-    { name: 'Premium', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Pro', '7 ideas per batch, 98/week', 'Full Script Generator access', 'Competitor analytics & dual accounts'] },
+    { name: 'Basic', price: '$35', period: '/mo', desc: '25 render minutes/month', features: ['5 ideas per batch, 50/week', 'Full video scheduler', 'Sound library & video analytics', 'Limited Script Generator access'] },
+    { name: 'Pro', price: '$69', period: '/mo', desc: '60 render minutes/month', features: ['Everything in Basic', '7 ideas per batch, 98/week', 'Full Script Generator access', 'Competitor analytics & dual accounts'], highlight: true },
   ]
 
   const mockIdeas = [

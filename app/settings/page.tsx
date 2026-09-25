@@ -684,7 +684,7 @@ export default function SettingsPage() {
               {subPlan ? (
                 <>
                   <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginTop: 8, marginBottom: 4 }}>
-                    {subPlan === 'top' ? 'Premium' : subPlan === 'mid' ? 'Pro' : 'Basic'}
+                    {subPlan === 'top' ? 'Pro' : subPlan === 'mid' ? 'Basic' : 'Basic'}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
                     Status: {subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
@@ -720,7 +720,7 @@ export default function SettingsPage() {
                         href="/plans"
                         style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--coral)', color: 'var(--coral)', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
                       >
-                        {`Switch to ${p === 'top' ? 'Premium' : p === 'mid' ? 'Pro' : 'Basic'}`}
+                        {`Switch to ${p === 'top' ? 'Pro' : p === 'mid' ? 'Basic' : 'Basic'}`}
                       </a>
                     ))}
                   </div>

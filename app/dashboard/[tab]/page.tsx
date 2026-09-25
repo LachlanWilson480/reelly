@@ -912,9 +912,9 @@ export default function DashboardPage() {
             <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
               {realSubPlan && realSubStatus !== 'active'
-                ? `${realSubPlan === "top" ? "Premium" : realSubPlan === "mid" ? "Pro" : "Basic"} Plan (${realSubStatus})`
+                ? `${realSubPlan === "top" ? "Pro" : realSubPlan === "mid" ? "Basic" : "Basic"} Plan (${realSubStatus})`
                 : realSubPlan
-                ? `${userPlan === "top" ? "Premium" : userPlan === "mid" ? "Pro" : "Basic"} Plan`
+                ? `${userPlan === "top" ? "Pro" : userPlan === "mid" ? "Basic" : "Basic"} Plan`
                 : "Free Plan"}
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
             </a>
@@ -1056,7 +1056,7 @@ export default function DashboardPage() {
               {usageInfo && (
                 <div style={{ background: usageInfo.used >= usageInfo.limit ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: usageInfo.used >= usageInfo.limit ? '1px solid var(--coral)' : 'none', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    {usageInfo.used} of {usageInfo.limit} ideas generated this week ({userPlan === 'top' ? 'Premium' : userPlan === 'mid' ? 'Pro' : 'Basic'} plan)
+                    {usageInfo.used} of {usageInfo.limit} ideas generated this week ({userPlan === 'top' ? 'Pro' : userPlan === 'mid' ? 'Basic' : 'Basic'} plan)
                     {' · '}
                     <span style={{ color: 'var(--text-muted)' }}>
                       Resets {(() => {
@@ -1068,7 +1068,7 @@ export default function DashboardPage() {
                     </span>
                   </p>
                   {usageInfo.used >= usageInfo.limit && userPlan !== 'top' && (
-                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>{userPlan === 'basic' ? 'Upgrade to Pro →' : 'Upgrade to Premium →'}</a>
+                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>{userPlan === 'mid' ? 'Upgrade to Pro →' : 'Upgrade to Basic →'}</a>
                   )}
                 </div>
               )}
@@ -1456,10 +1456,10 @@ export default function DashboardPage() {
                 Script Generator
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                The Script Generator is available on the Pro and Premium plans.
+                The Script Generator is available on the Basic and Pro plans.
               </p>
               <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
-                Upgrade to Pro →
+                Upgrade to Basic →
               </a>
             </div>
           )}
