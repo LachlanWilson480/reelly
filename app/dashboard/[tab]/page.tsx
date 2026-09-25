@@ -850,21 +850,25 @@ export default function DashboardPage() {
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
-    { id: 'aiuploads', label: 'AI Editor Uploads' },
-    { id: 'uploads', label: 'Uploads For Any Video' },
+    { id: 'aiuploads', label: 'AI Editor' },
+    { id: 'uploads', label: 'Editor For Any Video' },
     { id: 'script', label: 'Script Generator' },
   ]
+
+  const isFreeTier = !realSubPlan || realSubStatus !== 'active'
+
+  const renderCapMin = userPlan === 'top' ? 60 : userPlan === 'mid' ? 25 : 0
 
   const stats = [
     { label: 'Ideas generated', value: String(totalIdeasGenerated) },
     { label: 'Filming instructions generated', value: String(totalFilmingGenerated) },
-    { label: 'Renders', value: String(totalRenders) },
+    { label: 'Renders', value: isFreeTier ? 'N/A' : String(totalRenders), locked: isFreeTier },
     { label: 'Posts this week', value: '0' },
-    { label: 'Render minutes used', value: (() => {
+    { label: 'Render minutes used', value: isFreeTier ? 'N/A' : (() => {
       const usedMin = Math.floor(totalRenderSeconds / 60)
       const usedSec = totalRenderSeconds % 60
-      return `${usedMin}:${String(usedSec).padStart(2, '0')} / 10:00`
-    })() },
+      return `${usedMin}:${String(usedSec).padStart(2, '0')} / ${renderCapMin}:00`
+    })(), locked: isFreeTier },
   ]
 
   const savedIdeas = dbSavedIdeas
@@ -947,8 +951,12 @@ export default function DashboardPage() {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
               {stats.map((s) => (
-                <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }}>
-                  <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8' }}>{s.value}</p>
+                <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', opacity: s.locked ? 0.5 : 1 }}>
+                  {s.locked ? (
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#F1EFE8', lineHeight: 1.4 }}>Upgrade to get access to our editor</p>
+                  ) : (
+                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8' }}>{s.value}</p>
+                  )}
                   <p style={{ fontSize: 12, color: '#D3D1C7' }}>{s.label}</p>
                 </div>
               ))}
