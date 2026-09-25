@@ -10,21 +10,22 @@ export default function PlansPage() {
   const router = useRouter()
   const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
   const [success, setSuccess] = useState(false)
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
 
   const pricing = [
     {
       id: 'basic',
       name: 'Basic',
-      price: '$20',
-      period: '/mo',
+      monthlyPrice: '$20',
+      yearlyPrice: '$216',
       desc: '10 render minutes/month',
       features: ['10 render minutes/month', '3 ideas generated per batch (24/week max)', '24 filming instructions/week max', 'Access to AI Editor Upload', 'Access to Upload For Any Video', 'Limited access to video scheduler (10 posts/month)', 'Overage fee of $0.50/minute after limit', '1 GB of storage (app only)'],
     },
     {
       id: 'mid',
       name: 'Pro',
-      price: '$35',
-      period: '/mo',
+      monthlyPrice: '$35',
+      yearlyPrice: '$378',
       desc: '25 render minutes/month',
       features: ['25 render minutes/month', '5 ideas generated per batch (50/week max)', '50 filming instructions/week max', 'Access to Sound library', 'Limited access to Script Generator (10/week)', 'Full access to video scheduler', 'Access to in-depth video analytics', '5 GB of storage (app only)', 'Access to cloud library (stock videos etc)'],
       highlight: true,
@@ -32,8 +33,8 @@ export default function PlansPage() {
     {
       id: 'top',
       name: 'Premium',
-      price: '$69',
-      period: '/mo',
+      monthlyPrice: '$69',
+      yearlyPrice: '$745.20',
       desc: '60 render minutes/month',
       features: ['60 render minutes/month', '7 ideas generated per batch (98/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', '10 GB of storage (app only)'],
     },
@@ -52,9 +53,42 @@ export default function PlansPage() {
           <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
             Plans built for how often you post
           </h1>
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 500, margin: '0 auto 48px' }}>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
             Every plan includes AI content ideas and filming checklists. Pricing scales with how many render minutes you need each week.
           </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 48 }}>
+            <span style={{ fontSize: 14, fontWeight: billingInterval === 'monthly' ? 600 : 400, color: billingInterval === 'monthly' ? 'var(--ink)' : 'var(--text-secondary)' }}>Monthly</span>
+            <button
+              onClick={() => setBillingInterval(billingInterval === 'monthly' ? 'yearly' : 'monthly')}
+              style={{
+                position: 'relative',
+                width: 48,
+                height: 26,
+                borderRadius: 999,
+                border: 'none',
+                background: 'var(--coral)',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 3,
+                  left: billingInterval === 'yearly' ? 25 : 3,
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  transition: 'left 0.15s ease',
+                }}
+              />
+            </button>
+            <span style={{ fontSize: 14, fontWeight: billingInterval === 'yearly' ? 600 : 400, color: billingInterval === 'yearly' ? 'var(--ink)' : 'var(--text-secondary)' }}>
+              Yearly <span style={{ color: 'var(--coral)', fontWeight: 600 }}>(save 10%)</span>
+            </span>
+          </div>
 
           {success && (
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'center' }}>
@@ -77,7 +111,7 @@ export default function PlansPage() {
                   {tier.name}
                 </h3>
                 <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {tier.price}<span style={{ fontSize: 15, fontWeight: 400 }}>{tier.period}</span>
+                  {billingInterval === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice}<span style={{ fontSize: 15, fontWeight: 400 }}>{billingInterval === 'yearly' ? '/yr' : '/mo'}</span>
                 </p>
                 <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 24 }}>
                   {tier.desc}
@@ -126,6 +160,7 @@ export default function PlansPage() {
         <CheckoutModal
           plan={checkoutPlan.id}
           planLabel={checkoutPlan.label}
+          billingInterval={billingInterval}
           onClose={() => setCheckoutPlan(null)}
           onSuccess={() => {
             setCheckoutPlan(null)

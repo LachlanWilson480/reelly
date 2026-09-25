@@ -7,10 +7,16 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const PRICE_MAP: Record<string, string | undefined> = {
+const MONTHLY_PRICE_MAP: Record<string, string | undefined> = {
   basic: process.env.STRIPE_PRICE_BASIC,
   mid: process.env.STRIPE_PRICE_MID,
   top: process.env.STRIPE_PRICE_TOP,
+}
+
+const YEARLY_PRICE_MAP: Record<string, string | undefined> = {
+  basic: process.env.STRIPE_PRICE_BASIC_YEARLY,
+  mid: process.env.STRIPE_PRICE_MID_YEARLY,
+  top: process.env.STRIPE_PRICE_TOP_YEARLY,
 }
 
 export async function POST(req: NextRequest) {
@@ -20,9 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-    const { userId, email, plan } = await req.json()
+    const { userId, email, plan, billingInterval } = await req.json()
+    const interval = billingInterval === 'yearly' ? 'yearly' : 'monthly'
 
-    const priceId = PRICE_MAP[plan]
+    const priceId = interval === 'yearly' ? YEARLY_PRICE_MAP[plan] : MONTHLY_PRICE_MAP[plan]
     if (!priceId) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
@@ -56,6 +63,7 @@ export async function POST(req: NextRequest) {
         stripe_subscription_id: subscription.id,
         plan,
         status: subscription.status,
+        billing_interval: interval,
       }, { onConflict: 'user_id' })
 
     // Reset weekly usage counters so the new plan's limits start fresh, rather than
