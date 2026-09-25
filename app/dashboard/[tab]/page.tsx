@@ -890,6 +890,8 @@ export default function DashboardPage() {
 
   const savedIdeas = dbSavedIdeas
 
+
+
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
   const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
 
@@ -1078,7 +1080,7 @@ export default function DashboardPage() {
                     title="Log a key event (e.g. new staff member, new offer) to inform future ideas"
                     style={{ background: showKeyEventsPanel ? "rgba(216,90,48,0.1)" : "none", border: showKeyEventsPanel ? "1px solid var(--coral)" : "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
                   >
-                    📌 Key Events{keyEvents.length > 0 ? ` (${keyEvents.length})` : ""}
+                    📌 Business Insights{keyEvents.length > 0 ? ` (${keyEvents.length})` : ""}
                   </button>
                 </div>
               </div>
@@ -1139,6 +1141,12 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   )}
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.15)' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Weekly performance suggestions</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 6 }}>
+                      Coming soon: once scheduling and posting analytics are live, Reelezy will analyse last week's video performance and tailor this week's ideas and editing style to improve on it.
+                    </p>
+                  </div>
                 </div>
               )}
 
