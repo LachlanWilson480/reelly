@@ -74,7 +74,17 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('renders').update({ notified: true }).eq('id', renderId)
     }
 
-    return NextResponse.json({ status, outputUrl, error: status === "failed" ? shotstackData.response.error : undefined })
+    const progressMap: Record<string, number> = {
+      queued: 10,
+      fetching: 30,
+      rendering: 60,
+      saving: 90,
+      done: 100,
+      failed: 0,
+    }
+    const progress = progressMap[status] ?? 10
+
+    return NextResponse.json({ status, outputUrl, progress, error: status === "failed" ? shotstackData.response.error : undefined })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })

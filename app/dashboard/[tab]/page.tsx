@@ -80,6 +80,7 @@ export default function DashboardPage() {
   const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
   const [aiUploading, setAiUploading] = useState(false)
   const [aiRenderId, setAiRenderId] = useState<string | null>(null)
+  const [aiRenderProgress, setAiRenderProgress] = useState<number>(0)
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
   const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
   const [aiCaptionPreset, setAiCaptionPreset] = useState('bold_center')
@@ -126,6 +127,7 @@ export default function DashboardPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [renderId, setRenderId] = useState<string | null>(null)
+  const [renderProgress, setRenderProgress] = useState<number>(0)
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
@@ -287,6 +289,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setRenderStatus(data.status)
+      if (typeof data.progress === 'number') setRenderProgress(data.progress)
       if (data.error) setRenderError(data.error)
       if (data.outputUrl) setOutputUrl(data.outputUrl)
     }, 4000)
@@ -305,6 +308,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setAiRenderStatus(data.status)
+      if (typeof data.progress === 'number') setAiRenderProgress(data.progress)
       if (data.outputUrl) setAiOutputUrl(data.outputUrl)
     }, 4000)
 
@@ -1886,9 +1890,14 @@ export default function DashboardPage() {
                     Your video
                   </h3>
                   {renderStatus !== 'done' && renderStatus !== 'failed' && (
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                      Status: {renderStatus || 'starting'}... this usually takes a minute or two.
-                    </p>
+                    <>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                        Status: {renderStatus || 'starting'}... this usually takes a minute or two.
+                      </p>
+                      <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'rgba(128,128,128,0.2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${renderProgress}%`, height: '100%', background: 'var(--coral)', borderRadius: 999, transition: 'width 0.4s ease' }} />
+                      </div>
+                    </>
                   )}
                   {renderStatus === "failed" && (
                     <div>
@@ -2251,7 +2260,12 @@ export default function DashboardPage() {
                 <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px" }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
                   {aiRenderStatus !== "done" && aiRenderStatus !== "failed" && (
-                    <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Status: {aiRenderStatus || "starting"}...</p>
+                    <>
+                      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>Status: {aiRenderStatus || "starting"}...</p>
+                      <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'rgba(128,128,128,0.2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${aiRenderProgress}%`, height: '100%', background: 'var(--coral)', borderRadius: 999, transition: 'width 0.4s ease' }} />
+                      </div>
+                    </>
                   )}
                   {aiRenderStatus === "failed" && (
                     <p style={{ fontSize: 13, color: "var(--coral)" }}>Something went wrong rendering your video.</p>
