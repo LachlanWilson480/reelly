@@ -18,6 +18,7 @@ export default function PlansPage() {
       name: 'Basic',
       monthlyPrice: '$35',
       yearlyPrice: '$378',
+      yearlyPerMonth: '$31.50',
       desc: '25 render minutes/month',
       features: ['25 render minutes/month', '5 ideas generated per batch (98/week max)', '50 filming instructions/week max', 'Access to Sound library', 'Limited access to Script Generator (10/week)', 'Full access to video scheduler', 'Access to in-depth video analytics', '5 GB of storage (app only)', 'Access to cloud library (stock videos etc)'],
     },
@@ -26,6 +27,7 @@ export default function PlansPage() {
       name: 'Pro',
       monthlyPrice: '$69',
       yearlyPrice: '$745.20',
+      yearlyPerMonth: '$62.10',
       desc: '60 render minutes/month',
       features: ['60 render minutes/month', '7 ideas generated per batch (210/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', '10 GB of storage (app only)'],
       highlight: true,
@@ -103,8 +105,13 @@ export default function PlansPage() {
                   {tier.name}
                 </h3>
                 <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {billingInterval === 'yearly' ? tier.yearlyPrice : tier.monthlyPrice}<span style={{ fontSize: 15, fontWeight: 400 }}>{billingInterval === 'yearly' ? '/yr' : '/mo'}</span>
+                  {billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}<span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
                 </p>
+                {billingInterval === 'yearly' && (
+                  <p style={{ fontSize: 12, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)', marginBottom: 8 }}>
+                    Billed {tier.yearlyPrice} annually
+                  </p>
+                )}
                 <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 24 }}>
                   {tier.desc}
                 </p>
