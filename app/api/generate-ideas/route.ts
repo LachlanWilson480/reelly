@@ -187,8 +187,8 @@ const PRO_BATCH_SIZE = 5
 const PREMIUM_BATCH_SIZE = 7
 
 const BASIC_WEEKLY_LIMIT = 24
-const PRO_WEEKLY_LIMIT = 50
-const PREMIUM_WEEKLY_LIMIT = 98
+const PRO_WEEKLY_LIMIT = 98
+const PREMIUM_WEEKLY_LIMIT = 210
 
 export async function POST(req: NextRequest) {
   try {
