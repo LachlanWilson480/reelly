@@ -24,7 +24,7 @@ type Profile = {
   customer_problem: string | null
   key_selling_point: string | null}
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel'
 
 type Idea = {
   id: string
@@ -51,6 +51,7 @@ const CAPTION_PRESETS = [
 export default function DashboardPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const carouselInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
@@ -92,6 +93,11 @@ export default function DashboardPage() {
   const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
   const [aiTransition, setAiTransition] = useState<string>('none')
+  const [carouselFiles, setCarouselFiles] = useState<File[]>([])
+  const [carouselCaption, setCarouselCaption] = useState('')
+  const [savingCarousel, setSavingCarousel] = useState(false)
+  const [carouselError, setCarouselError] = useState('')
+  const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
   const [uploadTransition, setUploadTransition] = useState<string>('none')
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -276,6 +282,14 @@ export default function DashboardPage() {
           setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "" } }))
         }
       }
+
+      const { data: carouselRows } = await supabase
+        .from("carousels")
+        .select("id, image_paths, caption, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+      if (carouselRows) setSavedCarousels(carouselRows)
+
       setProfile(data)
       setLoading(false)
     }
@@ -284,7 +298,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = params.tab as Tab | undefined
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads", "carousel"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
@@ -457,6 +471,65 @@ export default function DashboardPage() {
     if (error) {
       console.error('Failed to delete key event:', error)
     }
+  }
+
+  const handleCarouselFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setCarouselFiles((prev) => [...prev, ...Array.from(e.target.files!)])
+    }
+  }
+
+  const removeCarouselFile = (index: number) => {
+    setCarouselFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const moveCarouselFile = (index: number, direction: -1 | 1) => {
+    setCarouselFiles((prev) => {
+      const newIndex = index + direction
+      if (newIndex < 0 || newIndex >= prev.length) return prev
+      const updated = [...prev]
+      const temp = updated[index]
+      updated[index] = updated[newIndex]
+      updated[newIndex] = temp
+      return updated
+    })
+  }
+
+  const saveCarousel = async () => {
+    if (!userId || carouselFiles.length === 0) return
+    setSavingCarousel(true)
+    setCarouselError('')
+
+    try {
+      const paths: string[] = []
+      for (const file of carouselFiles) {
+        const path = `${userId}/carousels/${Date.now()}-${file.name}`
+        const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+        if (error) throw new Error(error.message)
+        paths.push(path)
+      }
+
+      const { data, error: insertError } = await supabase
+        .from('carousels')
+        .insert({ user_id: userId, image_paths: paths, caption: carouselCaption || null })
+        .select()
+        .single()
+
+      if (insertError || !data) throw new Error('Failed to save carousel')
+
+      setSavedCarousels((prev) => [data, ...prev])
+      setCarouselFiles([])
+      setCarouselCaption('')
+    } catch (err) {
+      setCarouselError(err instanceof Error ? err.message : 'Failed to save carousel. Please try again.')
+    } finally {
+      setSavingCarousel(false)
+    }
+  }
+
+  const deleteCarousel = async (id: string) => {
+    setSavedCarousels((prev) => prev.filter((c) => c.id !== id))
+    await supabase.from('carousels').delete().eq('id', id)
   }
 
   const clearFilming = async () => {
@@ -869,6 +942,7 @@ export default function DashboardPage() {
     { id: 'filming', label: 'Filming' },
     { id: 'aiuploads', label: 'AI Editor' },
     { id: 'uploads', label: 'Editor For Any Video' },
+    { id: 'carousel', label: 'Carousel Reels' },
     { id: 'script', label: 'Script Generator' },
   ]
 
@@ -1483,6 +1557,124 @@ export default function DashboardPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'carousel' && (
+            <div>
+              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                  Create a carousel
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                  Upload multiple images and arrange their order. No video rendering involved - this creates a static carousel post.
+                </p>
+
+                <input
+                  ref={carouselInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleCarouselFileSelect}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => carouselInputRef.current?.click()}
+                  style={{
+                    background: "var(--coral)",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "9px 16px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#fff",
+                    cursor: "pointer",
+                    marginBottom: 16,
+                  }}
+                >
+                  + Add images
+                </button>
+
+                {carouselFiles.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {carouselFiles.map((file, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--card-bg)', borderRadius: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{i + 1}</span>
+                        <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => moveCarouselFile(i, -1)}
+                          disabled={i === 0}
+                          style={{ background: 'none', border: 'none', cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1, fontSize: 13 }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveCarouselFile(i, 1)}
+                          disabled={i === carouselFiles.length - 1}
+                          style={{ background: 'none', border: 'none', cursor: i === carouselFiles.length - 1 ? 'not-allowed' : 'pointer', opacity: i === carouselFiles.length - 1 ? 0.3 : 1, fontSize: 13 }}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeCarouselFile(i)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>Caption (optional)</label>
+                <textarea
+                  value={carouselCaption}
+                  onChange={(e) => setCarouselCaption(e.target.value)}
+                  rows={2}
+                  placeholder="Write a caption for this carousel..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
+                />
+
+                {carouselError && (
+                  <p style={{ fontSize: 13, color: 'var(--coral)', marginBottom: 12 }}>{carouselError}</p>
+                )}
+
+                <button
+                  onClick={saveCarousel}
+                  disabled={savingCarousel || carouselFiles.length === 0}
+                  style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: savingCarousel || carouselFiles.length === 0 ? 'not-allowed' : 'pointer', opacity: savingCarousel || carouselFiles.length === 0 ? 0.6 : 1 }}
+                >
+                  {savingCarousel ? 'Saving...' : 'Save carousel'}
+                </button>
+              </div>
+
+              {savedCarousels.length > 0 && (
+                <div>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+                    Saved carousels
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {savedCarousels.map((c) => (
+                      <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{c.image_paths.length} images</p>
+                          {c.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.caption}</p>}
+                        </div>
+                        <button
+                          onClick={() => deleteCarousel(c.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
