@@ -115,7 +115,19 @@ export default function CheckoutModal({ plan, planLabel, onClose, onSuccess }: {
           Enter your payment details to start your subscription.
         </p>
 
-        {error && <p style={{ fontSize: 13, color: 'var(--coral)' }}>{error}</p>}
+        {error && (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--coral)', marginBottom: error === 'You must be logged in.' ? 12 : 0 }}>{error}</p>
+            {error === 'You must be logged in.' && (
+              <a
+                href="/login"
+                style={{ display: 'inline-block', fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}
+              >
+                Go to login →
+              </a>
+            )}
+          </>
+        )}
 
         {!error && !clientSecret && (
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading payment form...</p>
