@@ -495,6 +495,16 @@ export default function DashboardPage() {
     })
   }
 
+  const reorderCarouselFiles = (fromIndex: number, toIndex: number) => {
+    setCarouselFiles((prev) => {
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length) return prev
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
   const saveCarousel = async () => {
     if (!userId || carouselFiles.length === 0) return
     setSavingCarousel(true)
@@ -530,6 +540,22 @@ export default function DashboardPage() {
   const deleteCarousel = async (id: string) => {
     setSavedCarousels((prev) => prev.filter((c) => c.id !== id))
     await supabase.from('carousels').delete().eq('id', id)
+  }
+
+  const downloadCarouselImages = async (imagePaths: string[]) => {
+    for (let i = 0; i < imagePaths.length; i++) {
+      const path = imagePaths[i]
+      const { data, error } = await supabase.storage.from('video-uploads').createSignedUrl(path, 3600)
+      if (error || !data) continue
+      const filename = `carousel-image-${i + 1}${path.slice(path.lastIndexOf('.'))}`
+      await downloadVideo(data.signedUrl, filename)
+    }
+  }
+
+  const downloadAllCarousels = async () => {
+    for (const c of savedCarousels) {
+      await downloadCarouselImages(c.image_paths)
+    }
   }
 
   const clearFilming = async () => {
@@ -1600,26 +1626,23 @@ export default function DashboardPage() {
 
                 {carouselFiles.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Drag to reorder</p>
                     {carouselFiles.map((file, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--card-bg)', borderRadius: 8 }}>
+                      <div
+                        key={i}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10)
+                          reorderCarouselFiles(fromIndex, i)
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--card-bg)', borderRadius: 8, cursor: 'grab' }}
+                      >
+                        <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>⠿</span>
                         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{i + 1}</span>
                         <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => moveCarouselFile(i, -1)}
-                          disabled={i === 0}
-                          style={{ background: 'none', border: 'none', cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1, fontSize: 13 }}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveCarouselFile(i, 1)}
-                          disabled={i === carouselFiles.length - 1}
-                          style={{ background: 'none', border: 'none', cursor: i === carouselFiles.length - 1 ? 'not-allowed' : 'pointer', opacity: i === carouselFiles.length - 1 ? 0.3 : 1, fontSize: 13 }}
-                        >
-                          ↓
-                        </button>
                         <button
                           type="button"
                           onClick={() => removeCarouselFile(i)}
@@ -1656,9 +1679,17 @@ export default function DashboardPage() {
 
               {savedCarousels.length > 0 && (
                 <div>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
-                    Saved carousels
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600 }}>
+                      Saved carousels
+                    </h3>
+                    <button
+                      onClick={downloadAllCarousels}
+                      style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
+                    >
+                      Download all
+                    </button>
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {savedCarousels.map((c) => (
                       <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1666,12 +1697,20 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{c.image_paths.length} images</p>
                           {c.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.caption}</p>}
                         </div>
-                        <button
-                          onClick={() => deleteCarousel(c.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
-                        >
-                          Delete
-                        </button>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <button
+                            onClick={() => downloadCarouselImages(c.image_paths)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--coral)', fontSize: 13, fontWeight: 600 }}
+                          >
+                            Download
+                          </button>
+                          <button
+                            onClick={() => deleteCarousel(c.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
