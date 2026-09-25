@@ -113,8 +113,8 @@ export default function DashboardPage() {
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
   const [currentBatch, setCurrentBatch] = useState(0)
-  const [previousBatch, setPreviousBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
-  const [redoBatch, setRedoBatch] = useState<{ ideas: Idea[]; batchNumber: number } | null>(null)
+  const [weeklyBatches, setWeeklyBatches] = useState<{ batchNumber: number; ideas: Idea[] }[]>([])
+  const [batchIndex, setBatchIndex] = useState<number>(-1)
   const [generatingIdeas, setGeneratingIdeas] = useState(false)
   const [ideaError, setIdeaError] = useState('')
   const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number } | null>(null)
@@ -248,14 +248,26 @@ export default function DashboardPage() {
         })
 
         const maxBatch = Math.max(...allIdeas.map((r) => r.batch_number as number))
-        const currentRows = allIdeas.filter((r) => r.batch_number === maxBatch)
-        const prevBatchNum = Math.max(...allIdeas.filter((r) => r.batch_number < maxBatch).map((r) => r.batch_number as number), -1)
-        const prevRows = prevBatchNum >= 0 ? allIdeas.filter((r) => r.batch_number === prevBatchNum) : []
         const savedRows = allIdeas.filter((r) => r.saved)
 
-        setIdeas(currentRows.map(toIdea))
+        // Only ideas generated since the most recent Monday 12am are navigable via the page arrows,
+        // matching the same weekly-reset boundary used for the ideas usage cap.
+        const now = new Date()
+        const dayOfWeek = now.getDay()
+        const daysSinceMonday = (dayOfWeek + 6) % 7
+        const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
+
+        const thisWeekRows = allIdeas.filter((r) => new Date(r.created_at as string).getTime() >= mostRecentMonday.getTime())
+        const batchNumbersThisWeek = Array.from(new Set(thisWeekRows.map((r) => r.batch_number as number))).sort((a, b) => a - b)
+        const groups = batchNumbersThisWeek.map((bn) => ({
+          batchNumber: bn,
+          ideas: thisWeekRows.filter((r) => r.batch_number === bn).map(toIdea),
+        }))
+
+        setWeeklyBatches(groups)
+        setBatchIndex(groups.length - 1)
+        setIdeas(groups.length > 0 ? groups[groups.length - 1].ideas : [])
         setCurrentBatch(maxBatch)
-        if (prevRows.length > 0) setPreviousBatch({ ideas: prevRows.map(toIdea), batchNumber: prevBatchNum })
         setDbSavedIdeas(savedRows.map(toIdea))
         setSavedIds(new Set(savedRows.map((r) => r.id as string)))
 
@@ -404,10 +416,11 @@ export default function DashboardPage() {
         day_of_week: row.day_of_week,
       }))
 
-      if (ideas.length > 0) {
-        setPreviousBatch({ ideas, batchNumber: currentBatch })
-      }
-      setRedoBatch(null)
+      setWeeklyBatches((prev) => {
+        const updated = [...prev, { batchNumber: nextBatch, ideas: newIdeas }]
+        setBatchIndex(updated.length - 1)
+        return updated
+      })
 
       setIdeas(newIdeas)
       setCurrentBatch(nextBatch)
@@ -454,19 +467,19 @@ export default function DashboardPage() {
   }
 
   const undoIdeas = () => {
-    if (!previousBatch) return
-    setRedoBatch({ ideas, batchNumber: currentBatch })
-    setIdeas(previousBatch.ideas)
-    setCurrentBatch(previousBatch.batchNumber)
-    setPreviousBatch(null)
+    if (batchIndex <= 0) return
+    const newIndex = batchIndex - 1
+    setBatchIndex(newIndex)
+    setIdeas(weeklyBatches[newIndex].ideas)
+    setCurrentBatch(weeklyBatches[newIndex].batchNumber)
   }
 
   const redoIdeas = () => {
-    if (!redoBatch) return
-    setPreviousBatch({ ideas, batchNumber: currentBatch })
-    setIdeas(redoBatch.ideas)
-    setCurrentBatch(redoBatch.batchNumber)
-    setRedoBatch(null)
+    if (batchIndex >= weeklyBatches.length - 1) return
+    const newIndex = batchIndex + 1
+    setBatchIndex(newIndex)
+    setIdeas(weeklyBatches[newIndex].ideas)
+    setCurrentBatch(weeklyBatches[newIndex].batchNumber)
   }
 
   const proceedToFilming = async (ideasToGenerate: Idea[]) => {
@@ -1041,17 +1054,22 @@ export default function DashboardPage() {
                 </button>
                   <button
                     onClick={undoIdeas}
-                    disabled={!previousBatch}
+                    disabled={batchIndex <= 0}
                     title="Go to previous batch"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: previousBatch ? "var(--ink)" : "var(--text-muted)", cursor: previousBatch ? "pointer" : "not-allowed", opacity: previousBatch ? 1 : 0.5, lineHeight: 1 }}
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: batchIndex > 0 ? "var(--ink)" : "var(--text-muted)", cursor: batchIndex > 0 ? "pointer" : "not-allowed", opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}
                   >
                     ←
                   </button>
+                  {weeklyBatches.length > 0 && (
+                    <span style={{ fontSize: 12, color: "var(--text-secondary)", padding: "0 4px", display: "flex", alignItems: "center" }}>
+                      {batchIndex + 1} of {weeklyBatches.length}
+                    </span>
+                  )}
                   <button
                     onClick={redoIdeas}
-                    disabled={!redoBatch}
+                    disabled={batchIndex >= weeklyBatches.length - 1}
                     title="Go to next batch"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: redoBatch ? "var(--ink)" : "var(--text-muted)", cursor: redoBatch ? "pointer" : "not-allowed", opacity: redoBatch ? 1 : 0.5, lineHeight: 1 }}
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? "var(--ink)" : "var(--text-muted)", cursor: batchIndex < weeklyBatches.length - 1 ? "pointer" : "not-allowed", opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}
                   >
                     →
                   </button>
