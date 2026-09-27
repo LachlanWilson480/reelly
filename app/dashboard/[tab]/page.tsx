@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { useParams } from 'next/navigation'
+import JSZip from 'jszip'
 type Profile = {
   business_name: string
   industry: string
@@ -98,6 +99,7 @@ export default function DashboardPage() {
   const [savingCarousel, setSavingCarousel] = useState(false)
   const [carouselError, setCarouselError] = useState('')
   const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
+  const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadTransition, setUploadTransition] = useState<string>('none')
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -340,6 +342,23 @@ export default function DashboardPage() {
 
     return () => clearInterval(interval)
   }, [aiRenderId, aiRenderStatus])
+
+  useEffect(() => {
+    const loadThumbnails = async () => {
+      const missing = savedCarousels.filter((c) => c.image_paths.length > 0 && !carouselThumbnails[c.id])
+      if (missing.length === 0) return
+      const updates: Record<string, string> = {}
+      for (const c of missing) {
+        const { data, error } = await supabase.storage.from('video-uploads').createSignedUrl(c.image_paths[0], 3600)
+        if (!error && data) updates[c.id] = data.signedUrl
+      }
+      if (Object.keys(updates).length > 0) {
+        setCarouselThumbnails((prev) => ({ ...prev, ...updates }))
+      }
+    }
+    loadThumbnails()
+  }, [savedCarousels])
+
   const updateIdeaNotes = (id: string, notes: string) => {
     setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, notes } : idea)))
     supabase.from("generated_ideas").update({ notes }).eq("id", id).then(() => {})
@@ -542,20 +561,52 @@ export default function DashboardPage() {
     await supabase.from('carousels').delete().eq('id', id)
   }
 
-  const downloadCarouselImages = async (imagePaths: string[]) => {
+  const fetchCarouselImageBlobs = async (imagePaths: string[]): Promise<{ filename: string; blob: Blob }[]> => {
+    const results: { filename: string; blob: Blob }[] = []
     for (let i = 0; i < imagePaths.length; i++) {
       const path = imagePaths[i]
       const { data, error } = await supabase.storage.from('video-uploads').createSignedUrl(path, 3600)
       if (error || !data) continue
-      const filename = `carousel-image-${i + 1}${path.slice(path.lastIndexOf('.'))}`
-      await downloadVideo(data.signedUrl, filename)
+      const res = await fetch(data.signedUrl)
+      const blob = await res.blob()
+      const filename = `image-${i + 1}${path.slice(path.lastIndexOf('.'))}`
+      results.push({ filename, blob })
     }
+    return results
+  }
+
+  const downloadZip = async (files: { filename: string; blob: Blob }[], zipName: string) => {
+    const zip = new JSZip()
+    for (const f of files) {
+      zip.file(f.filename, f.blob)
+    }
+    const content = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(content)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = zipName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadCarouselImages = async (imagePaths: string[], index?: number) => {
+    const files = await fetchCarouselImageBlobs(imagePaths)
+    if (files.length === 0) return
+    await downloadZip(files, `carousel${typeof index === 'number' ? `-${index + 1}` : ''}.zip`)
   }
 
   const downloadAllCarousels = async () => {
-    for (const c of savedCarousels) {
-      await downloadCarouselImages(c.image_paths)
+    const allFiles: { filename: string; blob: Blob }[] = []
+    for (let c = 0; c < savedCarousels.length; c++) {
+      const files = await fetchCarouselImageBlobs(savedCarousels[c].image_paths)
+      files.forEach((f, i) => {
+        allFiles.push({ filename: `carousel-${c + 1}/image-${i + 1}${f.filename.slice(f.filename.lastIndexOf('.'))}`, blob: f.blob })
+      })
     }
+    if (allFiles.length === 0) return
+    await downloadZip(allFiles, 'all-carousels.zip')
   }
 
   const clearFilming = async () => {
@@ -1691,15 +1742,23 @@ export default function DashboardPage() {
                     </button>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {savedCarousels.map((c) => (
-                      <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{c.image_paths.length} images</p>
-                          {c.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.caption}</p>}
+                    {savedCarousels.map((c, ci) => (
+                      <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 96, gap: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 0 }}>
+                          <div style={{ width: 72, height: 72, borderRadius: 8, overflow: 'hidden', background: 'var(--card-bg)', flexShrink: 0 }}>
+                            {carouselThumbnails[c.id] && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={carouselThumbnails[c.id]} alt="Carousel preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{c.image_paths.length} images</p>
+                            {c.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.caption}</p>}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
                           <button
-                            onClick={() => downloadCarouselImages(c.image_paths)}
+                            onClick={() => downloadCarouselImages(c.image_paths, ci)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--coral)', fontSize: 13, fontWeight: 600 }}
                           >
                             Download
