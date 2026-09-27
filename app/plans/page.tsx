@@ -17,8 +17,8 @@ export default function PlansPage() {
       id: 'mid',
       name: 'Basic',
       monthlyPrice: '$35',
-      yearlyPrice: '$378',
-      yearlyPerMonth: '$31.50',
+      yearlyPrice: '$350',
+      yearlyPerMonth: '$29.17',
       desc: '25 render minutes/month',
       features: ['25 render minutes/month', '5 ideas generated per batch (98/week max)', '50 filming instructions/week max', 'Access to Sound library', 'Limited access to Script Generator (10/week)', 'Full access to video scheduler', 'Access to in-depth video analytics', '5 GB of storage (app only)', 'Access to cloud library (stock videos etc)'],
     },
@@ -26,8 +26,8 @@ export default function PlansPage() {
       id: 'top',
       name: 'Pro',
       monthlyPrice: '$69',
-      yearlyPrice: '$745.20',
-      yearlyPerMonth: '$62.10',
+      yearlyPrice: '$690',
+      yearlyPerMonth: '$57.50',
       desc: '60 render minutes/month',
       features: ['60 render minutes/month', '7 ideas generated per batch (210/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', '10 GB of storage (app only)'],
       highlight: true,
@@ -80,7 +80,7 @@ export default function PlansPage() {
               />
             </button>
             <span style={{ fontSize: 14, fontWeight: billingInterval === 'yearly' ? 600 : 400, color: billingInterval === 'yearly' ? 'var(--ink)' : 'var(--text-secondary)' }}>
-              Yearly <span style={{ color: 'var(--coral)', fontWeight: 600 }}>(save 10%)</span>
+              Yearly <span style={{ color: 'var(--coral)', fontWeight: 600 }}>(2 months free)</span>
             </span>
           </div>
 
