@@ -192,7 +192,7 @@ const PREMIUM_WEEKLY_LIMIT = 210
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, customization, userId } = await req.json()
+    const { profile, customization, userId, peopleCountOverride } = await req.json()
 
     if (!profile || !profile.business_name || !profile.business_name.trim() || !profile.industry || !profile.industry.trim()) {
       return NextResponse.json(
@@ -289,7 +289,22 @@ export async function POST(req: NextRequest) {
     const seasonalGuidance = (upcomingEvent || ownSeasonalNote)
       ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in ${countryLabel}.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
       : ""
-    const prompt = `You help busy small business owners in Sydney create short-form social media content by themselves, alone, on their phone, in a few spare minutes. They are NOT content creators, have NO crew, and NO time to spare.
+    const onCameraPeopleIdeas = (profile.on_camera_people || '').trim()
+    const peopleListIdeas = onCameraPeopleIdeas ? onCameraPeopleIdeas.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
+    const effectivePeopleCountIdeas = typeof peopleCountOverride === 'number' && peopleCountOverride > 0
+      ? peopleCountOverride
+      : peopleListIdeas.length
+    const isMultiPersonIdeas = effectivePeopleCountIdeas > 1
+
+    const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleListIdeas.length !== effectivePeopleCountIdeas
+      ? '' // override count doesn't match the named people on file - don't force a name mismatch, just use the number
+      : onCameraPeopleIdeas
+
+    const soloOrCrewLine = isMultiPersonIdeas
+      ? `This business can film with up to ${effectivePeopleCountIdeas} people on camera${namesForPrompt ? ` (${namesForPrompt})` : ''} - where it genuinely fits, some ideas can involve two or more people interacting or taking turns (if you don't have a specific name for an extra person, just refer to them generically, e.g. "a team member" or "a colleague"), still simple enough to shoot on a phone with no outside crew. Most ideas can still be one person alone if that suits the angle better.`
+      : `They are NOT content creators, have NO crew, and NO time to spare, and film by themselves, alone, on their phone.`
+
+    const prompt = `You help busy small business owners in Sydney create short-form social media content in a few spare minutes. ${soloOrCrewLine}
 
 CRITICAL CONSTRAINT  -  read this carefully: this business owner CANNOT control or predict what job, customer, or scenario will show up on any given day. Never invent or narrate a SPECIFIC fictional customer, address, or live job as if it is happening right now (e.g. never write something like "I just arrived at a place in Coogee where the customer..." or "we're at a house right now where..."). That is dishonest content and impossible to guarantee they can film that day.
 
@@ -319,7 +334,7 @@ ${seasonalGuidance}
 Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above  -  not generic industry advice that could apply to any business in this trade):
 ${angleLines}
 
-Each video should be 15-30 seconds, filmable in one continuous take, alone, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelezy automatically handles (captions, trimming, music).
+Each video should be 15-30 seconds, filmable in one continuous take, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelezy automatically handles (captions, trimming, music).
 
 For each idea, provide:
 - A short, specific title referencing a real detail from this business (not a generic template title  -  avoid phrases like "Behind the scenes", "Day in the life", "3 quick tips" unless the content genuinely is a numbered list)
@@ -351,6 +366,11 @@ Respond ONLY with valid JSON, no markdown formatting, no code fences, in this ex
     const cleaned = rawText.replace(/```json|```/g, '').trim()
     const safeCleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
     const ideas = JSON.parse(safeCleaned)
+
+    if (!Array.isArray(ideas) || ideas.length === 0) {
+      console.error('generate-ideas: model returned no ideas. Raw text:', rawText)
+      return NextResponse.json({ error: 'The AI had trouble generating ideas this time. Please try again.' }, { status: 500 })
+    }
 
     const moderationTexts = ideas.map((idea: { title: string; hook: string; description: string }) =>
       `${idea.title}. ${idea.hook} ${idea.description}`

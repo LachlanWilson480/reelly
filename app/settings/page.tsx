@@ -56,6 +56,7 @@ export default function SettingsPage() {
   const [filmingComfort, setFilmingComfort] = useState('')
   const [locationType, setLocationType] = useState('fixed')
   const [onCameraPeople, setOnCameraPeople] = useState('')
+  const [videoPeopleCount, setVideoPeopleCount] = useState(1)
 
   const [website, setWebsite] = useState('')
   const [instagramHandle, setInstagramHandle] = useState('')
@@ -131,6 +132,7 @@ export default function SettingsPage() {
         setFilmingComfort(data.filming_comfort || '')
         setLocationType(data.location_type || 'fixed')
         setOnCameraPeople(data.on_camera_people || '')
+        setVideoPeopleCount(data.video_people_count || 1)
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
         setTiktokHandle(data.tiktok_handle || '')
@@ -266,6 +268,7 @@ export default function SettingsPage() {
         filming_comfort: filmingComfort,
         location_type: locationType,
         on_camera_people: onCameraPeople,
+        video_people_count: videoPeopleCount,
         website,
         instagram_handle: instagramHandle,
         tiktok_handle: tiktokHandle,
@@ -486,6 +489,22 @@ export default function SettingsPage() {
             </div>
             <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>People in video: {videoPeopleCount}</label>
+              <input
+                type="range"
+                min={1}
+                max={4}
+                step={1}
+                value={videoPeopleCount}
+                onChange={(e) => setVideoPeopleCount(Number(e.target.value))}
+                style={{ width: 200, accentColor: 'var(--coral)' }}
+              />
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                How many people can appear in your videos. AI-generated ideas and filming instructions will use this as a guide.
+              </p>
+            </div>
 
             <button
               type="button"
