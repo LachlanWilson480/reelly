@@ -319,6 +319,18 @@ Tone: ${profile.tone || 'not specified'}
 Ideal customer: ${profile.target_audience || 'not specified'}
 Core services: ${profile.core_services || 'not specified'}
 ${profile.key_selling_point ? `Their single biggest selling point - what genuinely makes people choose them (lean into this across the ideas where it fits naturally): ${profile.key_selling_point}` : ""}
+${profile.years_in_business ? `Years in business: ${profile.years_in_business}` : ""}
+${profile.team_size ? `Team size: ${profile.team_size}` : ""}
+${profile.price_positioning ? `Price positioning (budget/mid-range/premium): ${profile.price_positioning}` : ""}
+${profile.customer_source ? `How customers usually find them: ${profile.customer_source}` : ""}
+${profile.upcoming_launches ? `Upcoming launches or new offerings (only mention if genuinely close/confirmed, never invent specifics beyond what's stated): ${profile.upcoming_launches}` : ""}
+${profile.preferred_formats ? `Video formats/styles they prefer or feel comfortable with: ${profile.preferred_formats}` : ""}
+${profile.equipment ? `Filming equipment they have access to (don't suggest anything beyond this): ${profile.equipment}` : ""}
+${profile.community_ties ? `Local community ties/involvement (useful for local-flavour ideas where it fits naturally): ${profile.community_ties}` : ""}
+${profile.past_content ? `Content types they've already posted before (avoid just repeating the same format/angle): ${profile.past_content}` : ""}
+${profile.worst_content ? `Content that flopped or they didn't like - avoid similar angles: ${profile.worst_content}` : ""}
+${profile.competitor_content ? `What competitors are doing (use only to help differentiate this business, never suggest copying it): ${profile.competitor_content}` : ""}
+${profile.notes ? `Other notes from the business owner: ${profile.notes}` : ""}
 ${profile.brand_personality ? `Brand personality: ${profile.brand_personality}` : ""}
 ${profile.words_to_avoid ? `Words/phrases to avoid: ${profile.words_to_avoid}` : ""}
 ${profile.signature_service ? `Signature service they're known for: ${profile.signature_service}` : ""}
@@ -356,8 +368,9 @@ Respond ONLY with valid JSON, no markdown formatting, no code fences, in this ex
     const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     const message = await anthropic.messages.create({
+      thinking: { type: 'disabled' },
       model,
-      max_tokens: 3000,
+      max_tokens: 4500,
       messages: [{ role: 'user', content: prompt }],
     })
 

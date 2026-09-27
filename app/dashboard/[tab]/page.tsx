@@ -25,7 +25,20 @@ type Profile = {
   customer_problem: string | null
   key_selling_point: string | null
   on_camera_people: string | null
-  video_people_count: number | null}
+  video_people_count: number | null
+  years_in_business: string | null
+  team_size: string | null
+  upcoming_launches: string | null
+  past_content: string | null
+  worst_content: string | null
+  preferred_formats: string | null
+  competitor_content: string | null
+  equipment: string | null
+  community_ties: string | null
+  notes: string | null
+  price_positioning: string | null
+  customer_source: string | null
+  filming_comfort: string | null}
 
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel'
 
@@ -212,7 +225,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point, on_camera_people, video_people_count')
+        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point, on_camera_people, video_people_count, years_in_business, team_size, upcoming_launches, past_content, worst_content, preferred_formats, competitor_content, equipment, community_ties, notes, price_positioning, customer_source, filming_comfort')
         .eq('user_id', user.id)
         .maybeSingle()
 
