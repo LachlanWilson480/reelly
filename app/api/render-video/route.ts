@@ -75,7 +75,7 @@ async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | '
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, clipPaths, captionStyle, musicPath, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition } = await req.json()
+    const { userId, clipPaths, captionStyle, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -123,8 +123,8 @@ export async function POST(req: NextRequest) {
       signedUrls.push(data.signedUrl)
     }
 
-    let musicUrl: string | null = null
-    if (musicPath) {
+    let musicUrl: string | null = directMusicUrl || null
+    if (!musicUrl && musicPath) {
       const { data, error } = await supabaseAdmin.storage
         .from('video-uploads')
         .createSignedUrl(musicPath, 3600)

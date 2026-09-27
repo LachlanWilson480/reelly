@@ -94,6 +94,19 @@ export default function DashboardPage() {
   const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
   const [aiTransition, setAiTransition] = useState<string>('none')
+  const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
+  const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
+  const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
+  const [previewingTrackId, setPreviewingTrackId] = useState<string | null>(null)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  const MUSIC_LIBRARY_TRACKS = [
+    { id: 'placeholder-1', name: 'Upbeat Corporate', mood: 'Energetic', url: '' },
+    { id: 'placeholder-2', name: 'Chill Lo-fi', mood: 'Relaxed', url: '' },
+    { id: 'placeholder-3', name: 'Cinematic Build', mood: 'Dramatic', url: '' },
+    { id: 'placeholder-4', name: 'Acoustic Warmth', mood: 'Cozy', url: '' },
+    { id: 'placeholder-5', name: 'Trending Pop', mood: 'Fun', url: '' },
+  ]
   const [carouselFiles, setCarouselFiles] = useState<File[]>([])
   const [carouselCaption, setCarouselCaption] = useState('')
   const [savingCarousel, setSavingCarousel] = useState(false)
@@ -609,6 +622,30 @@ export default function DashboardPage() {
     await downloadZip(allFiles, 'all-carousels.zip')
   }
 
+  const togglePreviewTrack = (trackId: string, url: string) => {
+    if (previewingTrackId === trackId) {
+      previewAudioRef.current?.pause()
+      setPreviewingTrackId(null)
+      return
+    }
+    if (!url) return
+    previewAudioRef.current?.pause()
+    const audio = new Audio(url)
+    audio.play()
+    audio.onended = () => setPreviewingTrackId(null)
+    previewAudioRef.current = audio
+    setPreviewingTrackId(trackId)
+  }
+
+  const selectLibraryTrack = (trackId: string, name: string, url: string, target: 'ai' | 'upload') => {
+    previewAudioRef.current?.pause()
+    setPreviewingTrackId(null)
+    setLibraryMusicUrl(url)
+    setLibraryMusicName(name)
+    setMusicFile(null)
+    setShowMusicLibrary(null)
+  }
+
   const clearFilming = async () => {
     if (filmingItems.length === 0) return
     const ids = filmingItems.map((i) => i.id)
@@ -848,6 +885,7 @@ export default function DashboardPage() {
           clipPaths,
           captionStyle: aiCaptionStyle,
           musicPath,
+          musicUrl: libraryMusicUrl,
           speechClipIndices: speechIndices,
           clipTrims,
           clipSettings,
@@ -934,7 +972,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition }),
       })
 
       const data = await res.json()
@@ -1980,21 +2018,39 @@ export default function DashboardPage() {
                 />
                 <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, border: "1px solid rgba(128,128,128,0.2)" }}>
                   <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Music</p>
-                  <button
-                    type="button"
-                    onClick={() => musicInputRef.current?.click()}
-                    style={{
-                      background: "none",
-                      border: "1px solid rgba(128,128,128,0.3)",
-                      borderRadius: 8,
-                      padding: "9px 16px",
-                      fontSize: 13,
-                      color: "var(--ink)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {musicFile ? `\u266a ${musicFile.name}` : "+ Add background music (optional)"}
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => musicInputRef.current?.click()}
+                      style={{
+                        background: "none",
+                        border: "1px solid rgba(128,128,128,0.3)",
+                        borderRadius: 8,
+                        padding: "9px 16px",
+                        fontSize: 13,
+                        color: "var(--ink)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {musicFile ? `\u266a ${musicFile.name}` : "+ Upload your own"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMusicLibrary('upload')}
+                      style={{
+                        background: "var(--coral)",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "9px 16px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {libraryMusicName ? `\u266a ${libraryMusicName}` : "Browse music library"}
+                    </button>
+                  </div>
                   <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
                     Upload your own audio file. You are responsible for ensuring you have the rights to use it.
                   </p>
@@ -2374,21 +2430,39 @@ export default function DashboardPage() {
                       />
                       <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, border: "1px solid rgba(128,128,128,0.2)" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Music</p>
-                        <button
-                          type="button"
-                          onClick={() => musicInputRef.current?.click()}
-                          style={{
-                            background: "none",
-                            border: "1px solid rgba(128,128,128,0.3)",
-                            borderRadius: 8,
-                            padding: "9px 16px",
-                            fontSize: 13,
-                            color: "var(--ink)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {musicFile ? `\u266a ${musicFile.name}` : "+ Add background music (optional)"}
-                        </button>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => musicInputRef.current?.click()}
+                            style={{
+                              background: "none",
+                              border: "1px solid rgba(128,128,128,0.3)",
+                              borderRadius: 8,
+                              padding: "9px 16px",
+                              fontSize: 13,
+                              color: "var(--ink)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {musicFile ? `\u266a ${musicFile.name}` : "+ Upload your own"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowMusicLibrary('ai')}
+                            style={{
+                              background: "var(--coral)",
+                              border: "none",
+                              borderRadius: 8,
+                              padding: "9px 16px",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#fff",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {libraryMusicName ? `\u266a ${libraryMusicName}` : "Browse music library"}
+                          </button>
+                        </div>
                         <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
                           Upload your own audio file. You are responsible for ensuring you have the rights to use it.
                         </p>
@@ -2617,6 +2691,49 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {showMusicLibrary && (
+        <div
+          onClick={() => { previewAudioRef.current?.pause(); setPreviewingTrackId(null); setShowMusicLibrary(null) }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "var(--card-bg)", borderRadius: 20, padding: "32px", maxWidth: 480, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
+          >
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
+              Music library
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+              Browse licensed tracks and preview before adding them to your video.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {MUSIC_LIBRARY_TRACKS.map((track) => (
+                <div key={track.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--sand)", borderRadius: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => togglePreviewTrack(track.id, track.url)}
+                    style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "var(--coral)", color: "#fff", fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                  >
+                    {previewingTrackId === track.id ? "⏸" : "▶"}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</p>
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>{track.mood}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => selectLibraryTrack(track.id, track.name, track.url, showMusicLibrary)}
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "var(--ink)", cursor: "pointer" }}
+                  >
+                    Use this track
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
