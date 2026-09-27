@@ -23,7 +23,8 @@ type Profile = {
   common_objections: string | null
   current_promotions: string | null
   customer_problem: string | null
-  key_selling_point: string | null}
+  key_selling_point: string | null
+  on_camera_people: string | null}
 
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel'
 
@@ -95,6 +96,8 @@ export default function DashboardPage() {
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
   const [aiTransition, setAiTransition] = useState<string>('none')
   const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
+  const [peopleCountOverride, setPeopleCountOverride] = useState<number>(1)
+  const [peopleCountTouched, setPeopleCountTouched] = useState(false)
   const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
   const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
   const [previewingTrackId, setPreviewingTrackId] = useState<string | null>(null)
@@ -210,7 +213,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('business_profiles')
-        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point')
+        .select('business_name, industry, suburb, country, tone, target_audience, core_services, custom_guidance, location_type, local_seasonal_context, brand_personality, words_to_avoid, signature_service, common_objections, current_promotions, customer_problem, key_selling_point, on_camera_people')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -681,7 +684,7 @@ export default function DashboardPage() {
           fetch("/api/generate-checklist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId }),
+            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: peopleCountTouched ? peopleCountOverride : undefined }),
           }).then(async (res) => {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || "Request failed")
@@ -1231,6 +1234,29 @@ export default function DashboardPage() {
 
           {tab === 'ideas' && (
             <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  People in video: {peopleCountOverride}
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={4}
+                  step={1}
+                  value={peopleCountOverride}
+                  onChange={(e) => { setPeopleCountOverride(Number(e.target.value)); setPeopleCountTouched(true) }}
+                  style={{ width: 160 }}
+                />
+                {peopleCountTouched && (
+                  <button
+                    onClick={() => { setPeopleCountTouched(false); setPeopleCountOverride(1) }}
+                    style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Reset to profile setting
+                  </button>
+                )}
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   Tap the star to save an idea for filming.

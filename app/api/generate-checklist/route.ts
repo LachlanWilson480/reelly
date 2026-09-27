@@ -31,7 +31,7 @@ const PREMIUM_WEEKLY_FILMING_LIMIT = 98
 
 export async function POST(req: NextRequest) {
   try {
-    const { idea, profile, customization, userId, styleOverride } = await req.json()
+    const { idea, profile, customization, userId, styleOverride, peopleCountOverride } = await req.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'No idea provided' }, { status: 400 })
@@ -92,7 +92,20 @@ export async function POST(req: NextRequest) {
       ? "This business sometimes works from a fixed location and sometimes travels  -  shop/studio setting is fine if it fits this specific idea, but don't assume it."
       : "This business works from a fixed shop/studio location  -  filming there is fine and encouraged where it fits the idea."
 
-    const prompt = `You are a filming coach turning a chosen video idea into a precise filming checklist for ${profile.business_name}, a ${profile.industry} in ${profile.suburb}, Sydney. They film ALONE on a phone, no crew, under 10 minutes total including setup. ${locationGuidance}
+    const onCameraPeople = (profile.on_camera_people || '').trim()
+    const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
+
+    const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0
+      ? peopleCountOverride
+      : peopleList.length
+
+    const isMultiPerson = effectivePeopleCount > 1
+
+    const crewGuidance = isMultiPerson
+      ? `This video can involve more than one person${onCameraPeople && typeof peopleCountOverride !== 'number' ? `: ${onCameraPeople}` : ` (${effectivePeopleCount} people)`}. Where it fits the idea naturally, choreograph steps so one person acts/speaks, then hands off to the next (e.g. one person finishes a task and speaks, then the next person continues or responds) - filmed as one continuous take or a couple of clips, still simple enough to shoot on a phone with no external crew or camera operator. Only involve multiple people if the idea genuinely calls for it; many ideas will still be one person alone, which is fine.`
+      : `They film ALONE on a phone, no crew.`
+
+    const prompt = `You are a filming coach turning a chosen video idea into a precise filming checklist for ${profile.business_name}, a ${profile.industry} in ${profile.suburb}, Sydney. ${crewGuidance} Under 10 minutes total including setup. ${locationGuidance}
 
 Rules for every checklist step:
 - Continue the idea's existing opening line naturally  -  don't invent a new opening.
