@@ -193,7 +193,24 @@ export default function HistoryPage() {
                   </button>
                   {expandedId === `render-${render.id}` && render.output_url && (
                     <div style={{ padding: '0 16px 16px' }}>
-                      <video controls src={render.output_url} style={{ width: '100%', borderRadius: 8 }} />
+                      <video controls src={render.output_url} style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(render.output_url!)
+                          const blob = await res.blob()
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = 'reelezy-video.mp4'
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          URL.revokeObjectURL(url)
+                        }}
+                        style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Download
+                      </button>
                     </div>
                   )}
                 </div>

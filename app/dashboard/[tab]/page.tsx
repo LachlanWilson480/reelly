@@ -2306,7 +2306,7 @@ export default function DashboardPage() {
                           cursor: "pointer",
                         }}
                       >
-                        \u2b07
+                        {'\u2b07'}
                       </button>
                     </>
                   )}
