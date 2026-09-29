@@ -1720,15 +1720,18 @@ export default function DashboardPage() {
                                 .split(/(?<=[.!?])\s+/)
                                 .map((s: string) => s.trim())
                                 .filter((s: string) => s.length > 0)
-                              // Extract stage direction (everything before " - " or " and say:") from each checklist step
+                              // Extract stage direction (camera/movement before "and say:") from each checklist step
                               const directions = item.checklist.map((step: string) => {
-                                const sayIdx = step.toLowerCase().indexOf(' and say:')
                                 const dashIdx = step.indexOf(' - ')
-                                if (sayIdx !== -1) {
-                                  // grab just the camera/movement part after the time range
-                                  const afterTime = dashIdx !== -1 ? step.slice(dashIdx + 3) : step
-                                  const sayPos = afterTime.toLowerCase().indexOf(' and say:')
-                                  return sayPos !== -1 ? afterTime.slice(0, sayPos).trim() : null
+                                const afterTime = dashIdx !== -1 ? step.slice(dashIdx + 3) : step
+                                const sayPos = afterTime.toLowerCase().indexOf(' and say:')
+                                if (sayPos !== -1) {
+                                  return afterTime.slice(0, sayPos).trim().replace(/,\s*$/, '')
+                                }
+                                // fallback: try splitting on ", and " for steps without "say:"
+                                const andPos = afterTime.toLowerCase().indexOf(', and ')
+                                if (andPos !== -1) {
+                                  return afterTime.slice(0, andPos).trim().replace(/,\s*$/, '')
                                 }
                                 return null
                               })
