@@ -52,7 +52,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
 
     const message = await anthropic.messages.create({
       thinking: { type: 'disabled' },
-      thinking: { type: "disabled" },      model: 'claude-sonnet-5',
+      model: 'claude-sonnet-5',
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     })
