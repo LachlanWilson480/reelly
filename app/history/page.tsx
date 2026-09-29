@@ -19,6 +19,15 @@ type IdeaRow = {
   created_at: string
 }
 
+type ScriptRow = {
+  id: string
+  topic: string
+  script: string
+  length: string | null
+  style: string | null
+  created_at: string
+}
+
 type RenderRow = {
   id: string
   status: string
@@ -32,6 +41,7 @@ export default function HistoryPage() {
   const [ideas, setIdeas] = useState<IdeaRow[]>([])
   const [renders, setRenders] = useState<RenderRow[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [scripts, setScripts] = useState<ScriptRow[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -64,8 +74,15 @@ export default function HistoryPage() {
         }
       })
 
+      const { data: scriptRows } = await supabase
+        .from('generated_scripts')
+        .select('id, topic, script, length, style, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
       setIdeas(parsedIdeas)
       setRenders(renderRows || [])
+      setScripts(scriptRows || [])
       setLoading(false)
     }
     load()
@@ -211,6 +228,49 @@ export default function HistoryPage() {
                       >
                         Download
                       </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+              Scripts ({scripts.length})
+            </h2>
+            {scripts.length === 0 && (
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No scripts generated yet.</p>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {scripts.map((s) => (
+                <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                  <button
+                    onClick={() => setExpandedId(expandedId === `script-${s.id}` ? null : `script-${s.id}`)}
+                    style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {formatDate(s.created_at)}
+                      </span>
+                    </div>
+                    {(s.length || s.style) && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {[s.length, s.style].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </button>
+                  {expandedId === `script-${s.id}` && (
+                    <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {s.script
+                        .split(/(?<=[.!?])\s+/)
+                        .map((sentence, i, arr) => (
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 10, paddingBottom: 10, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
+                          </div>
+                        ))
+                      }
                     </div>
                   )}
                 </div>
