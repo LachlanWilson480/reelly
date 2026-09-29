@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Aws } from '@remotion/lambda'
-import { buildCompositionProps, getOutputDimensions } from '@/lib/remotion-lambda'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +36,7 @@ export async function POST(req: NextRequest) {
 
       if (plan === 'free') {
         return NextResponse.json(
-          { error: 'Video rendering is not available on the Free plan. Upgrade to Basic, Pro, or Premium to render videos.' },
+          { error: 'Video rendering is not available on the Free plan.' },
           { status: 403 }
         )
       }
@@ -57,7 +55,7 @@ export async function POST(req: NextRequest) {
 
       if (usedMinutes >= capMin) {
         return NextResponse.json(
-          { error: `You've used your ${capMin} minutes of render time for this month on the ${plan === 'top' ? 'Pro' : plan === 'mid' ? 'Basic' : 'Basic'} plan. Upgrade for more render time.` },
+          { error: `You've used your ${capMin} minutes this month.` },
           { status: 403 }
         )
       }
@@ -86,89 +84,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const rawIndices: number[] = Array.isArray(speechClipIndices)
-      ? speechClipIndices
-      : typeof speechClipIndex === 'number'
-      ? [speechClipIndex]
-      : []
-    const speechIndexSet = new Set(rawIndices.filter((i) => i >= 0 && i < signedUrls.length))
-
-    const trims = Array.isArray(clipTrims) ? clipTrims : []
-    const settings = Array.isArray(clipSettings) ? clipSettings : []
-
-    const effectiveLengths = signedUrls.map((_, i) => {
-      const trim = trims[i] || {}
-      if (typeof trim.trimLength === 'number' && trim.trimLength > 0) {
-        return trim.trimLength
-      }
-      if (typeof trim.duration === 'number' && trim.duration > 0) {
-        return Math.max(0.1, trim.duration - (trim.trimStart || 0))
-      }
-      return 5
-    })
-
-    const compositionProps = buildCompositionProps({
-      clipPaths,
-      signedUrls,
-      clipTrims: trims,
-      clipSettings: settings,
-      transition: transition || 'fade',
-      musicUrl,
-      captionStyle,
-      speechClipIndices: Array.from(speechIndexSet),
-      resolution: resolution || 'high',
-      outputOrientation: outputOrientation || 'landscape',
-    })
-
-    const dims = getOutputDimensions(resolution || 'high', outputOrientation || 'landscape')
-
-    const region = process.env.AWS_REGION || 'us-east-1'
-    Aws.setRegion(region)
-    Aws.setPublicBucket(process.env.REMOTION_BUCKET_NAME || 'reelezy-remotion-renders')
-
-    let remotionRender
-    try {
-      remotionRender = await Aws.renderMediaOnLambda({
-        region,
-        functionName: process.env.REMOTION_LAMBDA_FUNCTION || 'remotion-prod',
-        composition: 'ReelezyVideo',
-        inputProps: compositionProps,
-        serveUrl: process.env.REMOTION_SERVE_URL || 'https://lambda.remotion.dev/prod',
-        codec: 'h264',
-        audioCodec: 'aac',
-        imageFormat: 'png',
-        width: dims.width,
-        height: dims.height,
-        fps: dims.fps,
-        maxRetries: 2,
-        privacy: 'public',
-      })
-    } catch (error) {
-      console.error('Remotion Lambda error:', error)
-      return NextResponse.json({ error: 'Failed to start render with Remotion' }, { status: 500 })
-    }
-
-    const renderId = remotionRender.renderId
-
     const { data: renderRow, error: dbError } = await supabaseAdmin
       .from('renders')
       .insert({
         user_id: userId,
-        remotion_render_id: renderId,
         status: 'queued',
         clip_paths: clipPaths,
         caption_style: captionStyle || null,
-        composition_props: compositionProps,
       })
       .select()
       .single()
 
     if (dbError) {
-      console.error('DB insert error:', dbError)
       return NextResponse.json({ error: 'Failed to save render record' }, { status: 500 })
     }
 
-    return NextResponse.json({ renderId: renderRow.id, remotionRenderId: renderId })
+    return NextResponse.json({ renderId: renderRow.id })
   } catch (error) {
     console.error('render-video error:', error)
     return NextResponse.json({ error: 'Failed to start render' }, { status: 500 })
