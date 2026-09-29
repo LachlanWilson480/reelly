@@ -40,7 +40,7 @@ type Profile = {
   customer_source: string | null
   filming_comfort: string | null}
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler'
 
 type Idea = {
   id: string
@@ -341,7 +341,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = params.tab as Tab | undefined
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads", "carousel"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads", "carousel", "scheduler"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
@@ -1096,6 +1096,7 @@ export default function DashboardPage() {
     { id: 'uploads', label: 'Editor For Any Video' },
     { id: 'carousel', label: 'Carousel Reels' },
     { id: 'script', label: 'Script Generator' },
+    { id: 'scheduler', label: 'Scheduler 🔜' },
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
@@ -2909,6 +2910,14 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+        {tab === 'scheduler' && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Scheduler coming soon</h3>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 400, margin: '0 auto' }}>
+                Plan and schedule your videos across Instagram, TikTok and Facebook — all from one place. We're building it now.
+              </p>
             </div>
           )}
         </div>
