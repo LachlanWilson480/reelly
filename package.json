@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
-    "@remotion/lambda": "^4.0.529",
     "@stripe/react-stripe-js": "^6.8.1",
     "@stripe/stripe-js": "^9.13.0",
     "@supabase/supabase-js": "^2.112.3",
