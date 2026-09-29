@@ -164,8 +164,6 @@ function pickAngles(pool: string[], count: number): string[] {
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count)
 }
 
-// Compresses the onboarding profile into a compact brief — no AI tokens spent.
-// Empty/null fields are skipped entirely. Long labels are shortened to keys.
 function compressProfile(profile: Record<string, string | null | undefined>): string {
   const map: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
@@ -208,6 +206,10 @@ const BASIC_WEEKLY_LIMIT = 24
 const PRO_WEEKLY_LIMIT = 98
 const PREMIUM_WEEKLY_LIMIT = 210
 
+// ~220 output tokens per card (title + hook + description + tags), rounded up with headroom
+const TOKENS_PER_CARD = 250
+const TOKEN_BUFFER = 200
+
 export async function POST(req: NextRequest) {
   try {
     const { profile, customization, userId, peopleCountOverride } = await req.json()
@@ -222,6 +224,7 @@ export async function POST(req: NextRequest) {
     const plan = await getPlan(userId)
     const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'mid' ? PRO_BATCH_SIZE : BASIC_BATCH_SIZE
     const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'mid' ? PRO_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
+    const maxTokens = batchSize * TOKENS_PER_CARD + TOKEN_BUFFER
 
     let keyEventsContext = ''
     let pastIdeasContext = ''
@@ -247,7 +250,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Weekly usage enforcement
     let usageInfo: { used: number; limit: number } | null = null
     if (userId) {
       const { data: usageRow } = await supabaseAdmin
@@ -286,7 +288,6 @@ export async function POST(req: NextRequest) {
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
-    // Location guidance — compressed
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
       locationType === 'mobile'
@@ -295,7 +296,6 @@ export async function POST(req: NextRequest) {
         ? 'BOTH fixed + mobile — shop setting ok but not assumed'
         : 'FIXED location customers visit — shop/studio setting fine'
 
-    // Seasonal — single line
     const upcomingEvent = getUpcomingSeasonalEvent(profile.country)
     const filteredSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
     const countryLabel = profile.country === 'UK' ? 'UK' : profile.country === 'US' ? 'US' : 'AU'
@@ -304,46 +304,38 @@ export async function POST(req: NextRequest) {
       filteredSeasonal ? `Owner busy season: ${filteredSeasonal}` : '',
     ].filter(Boolean).join(' | ')
 
-    // People on camera
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
     const isMultiPerson = effectivePeopleCount > 1
     const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
-
     const crewLine = isMultiPerson
       ? `Up to ${effectivePeopleCount} people on camera${namesForPrompt ? ` (${namesForPrompt})` : ''} — multi-person ideas ok where it fits naturally`
       : 'Films ALONE on phone, no crew'
 
-    // Compressed profile brief
     const profileBrief = compressProfile(profile)
 
-    const prompt = `Generate exactly ${batchSize} short-form social video ideas for a small business owner. One call — all ${batchSize} ideas in one JSON array.
+    const prompt = `Generate exactly ${batchSize} short-form social video ideas for a small business owner. Return all ${batchSize} in one JSON array — keep each card concise.
 
 BUSINESS BRIEF:
 ${profileBrief}
 ${crewLine}
 Location: ${locationBrief}
 ${seasonalLine ? `Seasonal: ${seasonalLine} — use for AT MOST 1 idea where it fits naturally; rest stay evergreen` : ''}
-${keyEventsContext ? `Recent biz events (weave in at most 1): \n${keyEventsContext}` : ''}
+${keyEventsContext ? `Recent biz events (weave in at most 1):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `Already generated — do NOT repeat these angles:\n${pastIdeasContext}` : ''}
 ${effectiveCustomization ? `Owner guidance: ${effectiveCustomization}` : ''}
 
 HARD RULES:
-- Never invent a specific fictional customer/address/live job as if happening now. General problems only ("One thing I get called out for constantly is..." not "I just arrived at a house in Coogee where...")
-- Never state specific technical facts/causes/diagnoses yourself — set up the topic and let the owner explain the technical answer in their own words
-- Each video: 15-30 sec, one continuous take, filmed on phone, no setup beyond normal workspace
-- Titles must reference a real detail from this business — no generic templates like "Behind the scenes" or "3 quick tips" unless content genuinely is a list
-- Use single quotes ' ' inside strings, never double quotes "
+- Never invent a specific fictional customer/address/live job. General problems only.
+- Never state specific technical facts/causes yourself — set up the topic, let owner explain.
+- Each video: 15-30 sec, one take, phone, no extra setup.
+- Titles must reference a real business detail — no generic templates.
+- Use single quotes inside strings, never double quotes.
+- Keep each field brief: title <10 words, hook <20 words, description <25 words, tags 3-4 hashtags.
 
-ANGLES — assign one per idea in this order:
+ANGLES — one per idea in order:
 ${angleLines}
-
-For each idea output:
-- title: short, specific, references a real business detail
-- hook: exactly what to say/do in first 3 seconds
-- description: the actual payoff/opinion/tip — not camera direction
-- tags: 3-4 hashtags including suburb where natural
 
 Respond ONLY with a valid JSON array, no markdown, no code fences:
 [
@@ -352,10 +344,9 @@ Respond ONLY with a valid JSON array, no markdown, no code fences:
 
     const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
-    // Single API call for all cards
     const message = await anthropic.messages.create({
       model,
-      max_tokens: 1800,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     })
 
