@@ -1264,9 +1264,9 @@ export default function DashboardPage() {
                   />
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     {([
-                      { id: 'seasonal', label: '🎃 Seasonal only', desc: 'Ideas tied to upcoming dates' },
-                      { id: 'mix', label: '✨ Mix', desc: 'Blend of seasonal + evergreen' },
-                      { id: 'evergreen', label: '🌿 Evergreen only', desc: 'Works any time of year' },
+                      { id: 'seasonal', label: '◈ Seasonal', desc: 'Ideas tied to upcoming dates & events' },
+                      { id: 'mix', label: '◎ Mix', desc: 'Blend of seasonal and timeless ideas' },
+                      { id: 'evergreen', label: '○ Timeless', desc: 'Works any time of year' },
                     ] as const).map((opt) => (
                       <button
                         key={opt.id}
