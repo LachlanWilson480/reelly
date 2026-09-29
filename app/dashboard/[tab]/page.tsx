@@ -2380,6 +2380,215 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {tab === 'aiuploads' && (!realSubPlan || realSubStatus !== 'active') && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Video rendering is not available on the Free plan.</p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>View paid plans →</a>
+            </div>
+          )}
+
+          {tab === 'aiuploads' && realSubPlan && realSubStatus === 'active' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+              {/* ── Select idea ── */}
+              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Select an idea to film</p>
+                {filmingItems.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Generate filming instructions first in the Filming tab, then come back here to upload your clips.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {filmingItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()) }}
+                        style={{ padding: '8px 14px', borderRadius: 8, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
+                      >
+                        {item.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedFilmingId && (() => {
+                const item = filmingItems.find((f) => f.id === selectedFilmingId)
+                if (!item) return null
+                return (
+                  <>
+                    {/* ── STEP 1: Clips per step ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>1 · Upload a clip for each step</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {item.checklist.map((step, i) => {
+                          const dashIdx = step.indexOf(' - ')
+                          const timeRange = dashIdx !== -1 ? step.slice(0, dashIdx).trim() : null
+                          const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
+                          return (
+                            <div key={i} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
+                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                                <div>
+                                  {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
+                                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{instruction}</p>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) setStepUploads((prev) => ({ ...prev, [i]: file })) }} style={{ display: 'none' }} />
+                                {stepUploads[i] ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[i].name}</p>
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                                  </div>
+                                ) : (
+                                  <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                    + Choose clip
+                                  </button>
+                                )}
+                                <div style={{ display: 'flex', gap: 12, marginLeft: 'auto' }}>
+                                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={aiSpeechSteps.has(i)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
+                                    Speech
+                                  </label>
+                                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
+                                    Landscape
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {aiLandscapeSteps.size > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips — how should they appear?</p>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep landscape' }].map((opt) => (
+                              <button key={opt.id} type="button" onClick={() => setAiLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 8, border: aiLandscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>{opt.label}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── STEP 2: Transitions ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>2 · Transition</p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                          <button key={opt.id} type="button" onClick={() => setAiTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: aiTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: aiTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: aiTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>{opt.label}</button>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Applied between every clip. <span style={{ textDecoration: 'underline', cursor: 'not-allowed', opacity: 0.5 }}>Custom per-clip transitions coming soon</span></p>
+                    </div>
+
+                    {/* ── STEP 3: Music ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Music</p>
+                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                        <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>{musicFile ? `♪ ${musicFile.name}` : '+ Upload audio'}</button>
+                        <button type="button" onClick={() => setShowMusicLibrary('ai')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>{libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse library'}</button>
+                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}</button>
+                      </div>
+                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>You are responsible for ensuring you have the rights to use any audio you upload.</p>
+                    </div>
+
+                    {/* ── STEP 4: Captions ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>4 · Captions</p>
+                      <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={aiAddCaptions} onChange={(e) => setAiAddCaptions(e.target.checked)} />
+                        Add captions to my video
+                      </label>
+                      {aiAddCaptions && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+                            {CAPTION_PRESETS.map((preset) => (
+                              <button key={preset.id} onClick={() => setAiCaptionPreset(preset.id)} style={{ textAlign: 'left', padding: '12px', borderRadius: 10, border: aiCaptionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiCaptionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: aiCaptionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{preset.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                          <button type="button" onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: showAdvancedCaptions ? 16 : 0 }}>
+                            {showAdvancedCaptions ? '− Hide advanced' : '+ Advanced options'}
+                          </button>
+                          {showAdvancedCaptions && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, background: 'var(--card-bg)', padding: 16, borderRadius: 10, marginTop: 12 }}>
+                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Text colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>BG colour</label><input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* ── STEP 5: Resolution ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>5 · Resolution</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[{ id: 'high', label: 'High (1080p)', desc: 'Best quality' }, { id: 'low', label: 'Low', desc: 'Faster, smaller file' }].map((opt) => (
+                          <button key={opt.id} type="button" onClick={() => setAiResolution(opt.id as 'high' | 'low')} style={{ flex: 1, padding: '12px', borderRadius: 10, border: aiResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: aiResolution === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{opt.label}</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Render ── */}
+                    {showSpeechWarning && (
+                      <div style={{ padding: '16px 20px', borderRadius: 10, border: '1px solid var(--coral)', background: 'rgba(216,90,48,0.08)' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Confirm speech clips before rendering</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>Make sure you've ticked "Speech" on every clip where someone is talking.</p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setShowSpeechWarning(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }}>Go back</button>
+                          <button onClick={() => { setShowSpeechWarning(false); submitAiEditorUploads() }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--coral)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Confirm & render</button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => { if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; setShowSpeechWarning(true) }}
+                      disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
+                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '16px', borderRadius: 10, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
+                    >
+                      {aiUploading ? 'Uploading...' : extractingAudio ? 'Waiting for audio...' : 'Render video'}
+                    </button>
+
+                    {aiRenderId && (
+                      <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
+                        {aiRenderStatus !== 'done' && aiRenderStatus !== 'failed' && (
+                          <>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>Status: {aiRenderStatus || 'starting'}... usually takes a minute or two.</p>
+                            <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'rgba(128,128,128,0.2)', overflow: 'hidden' }}>
+                              <div style={{ width: `${aiRenderProgress}%`, height: '100%', background: 'var(--coral)', borderRadius: 999, transition: 'width 0.4s ease' }} />
+                            </div>
+                          </>
+                        )}
+                        {aiRenderStatus === 'failed' && <p style={{ fontSize: 13, color: 'var(--coral)' }}>Something went wrong rendering your video. Please try again.</p>}
+                        {aiRenderStatus === 'done' && aiOutputUrl && (
+                          <>
+                            <video controls src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
+                            <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>⬇</button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
         {tab === 'scheduler' && (
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Scheduler coming soon</h3>
