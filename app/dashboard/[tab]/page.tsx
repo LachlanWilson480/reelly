@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
   const [weeklyObjectives, setWeeklyObjectives] = useState('')
+  const [showProfileNudge, setShowProfileNudge] = useState(false)
   const [seasonalMode, setSeasonalMode] = useState<'seasonal' | 'evergreen' | 'mix'>('mix')
   const [toneOverride, setToneOverride] = useState<string | null>(null)
   const [scriptTopic, setScriptTopic] = useState('')
@@ -500,6 +501,11 @@ export default function DashboardPage() {
       setCurrentBatch(nextBatch)
       setUserPlan(data.plan || "top")
       if (data.usage) setUsageInfo(data.usage)
+
+      // Show profile nudge after first ever generation if profile is sparse
+      if (profile && !profile.tone && !profile.target_audience && !profile.key_selling_point) {
+        setShowProfileNudge(true)
+      }
     } catch (err) {
       setIdeaError(err instanceof Error ? err.message : "Something went wrong generating ideas. Please try again.")
     } finally {
@@ -2922,6 +2928,34 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {showProfileNudge && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 20, padding: '36px 32px', maxWidth: 420, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(241,239,232,0.5)', marginBottom: 12 }}>Quick tip</p>
+            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 700, color: '#F1EFE8', marginBottom: 12 }}>
+              Your ideas will get a lot better
+            </h3>
+            <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 24 }}>
+              You&apos;ve got the basics set up. Adding your tone, ideal customer, selling points and a few more details takes 2 minutes and makes your content ideas dramatically more specific and useful.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowProfileNudge(false)}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'none', color: '#F1EFE8', fontSize: 14, cursor: 'pointer' }}
+              >
+                Maybe later
+              </button>
+              <button
+                onClick={() => { setShowProfileNudge(false); window.location.href = '/settings' }}
+                style={{ flex: 2, padding: '11px', borderRadius: 8, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Fill out my profile →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showMusicLibrary && (
         <div
