@@ -502,8 +502,10 @@ export default function DashboardPage() {
       setUserPlan(data.plan || "top")
       if (data.usage) setUsageInfo(data.usage)
 
-      // Show profile nudge after first ever generation if profile is sparse
-      if (profile && !profile.tone && !profile.target_audience && !profile.key_selling_point) {
+      // Show profile nudge only on first ever generation and only if profile is still sparse
+      const isFirstGeneration = (data.usage?.used ?? 0) <= (data.usage ? (data.plan === 'top' ? 7 : data.plan === 'mid' ? 5 : 3) : 3)
+      const profileIsSparse = profile && !profile.tone && !profile.target_audience && !profile.key_selling_point && !profile.brand_personality && !profile.customer_problem
+      if (isFirstGeneration && profileIsSparse) {
         setTimeout(() => setShowProfileNudge(true), 5000)
       }
     } catch (err) {
