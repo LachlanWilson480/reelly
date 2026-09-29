@@ -29,22 +29,30 @@ export default function SignUpPage() {
     setMessage('')
     setIsSigningUp(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`,
-      },
     })
 
-    setIsSigningUp(false)
-
-    if (error) {
-      setMessage(error.message)
+    if (signUpError) {
+      setIsSigningUp(false)
+      setMessage(signUpError.message)
       return
     }
 
-    setMessage('Check your email. We’ve sent you a confirmation link.')
+    // Sign in immediately after signup so session is available on onboarding
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+    setIsSigningUp(false)
+
+    if (signInError) {
+      setMessage('Account created — please log in.')
+      router.push('/login')
+      return
+    }
+
+    localStorage.setItem('reelezy-has-logged-in', 'true')
+    router.push('/onboarding')
   }
 
   const googleButtonRef = useRef<HTMLDivElement>(null)
