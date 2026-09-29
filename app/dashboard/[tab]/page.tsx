@@ -1667,7 +1667,7 @@ export default function DashboardPage() {
                                   await supabase.from('generated_scripts').delete().eq('id', s.id)
                                   setSavedScripts((prev) => prev.filter((sc) => sc.id !== s.id))
                                 }}
-                                style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}
+                                style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}
                               >
                                 Remove
                               </button>
