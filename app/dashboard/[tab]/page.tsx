@@ -1562,9 +1562,17 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                    Review your selected ideas. Head to the Filming tab to generate instructions.
-                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      Review your selected ideas, then film them.
+                    </p>
+                    <button
+                      onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
+                      style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      🎬 Film these
+                    </button>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {savedIdeas.map((idea) => (
                       <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 16, padding: '22px', position: 'relative' }}>
