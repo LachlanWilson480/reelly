@@ -1649,41 +1649,71 @@ export default function DashboardPage() {
                 </div>
               )}
               {!generatingFilming && filmingItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   {filmingItems.map((item) => (
-                    <div key={item.id} style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
-                      <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-                        {item.title}
-                      </h3>
-                      <p style={{ fontSize: 12, color: 'var(--coral)', marginBottom: 16 }}>{item.tags}</p>
+                    <div key={item.id} style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
+                      {/* Header */}
+                      <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
+                        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+                          {item.title}
+                        </h3>
+                        <p style={{ fontSize: 12, color: 'var(--coral)' }}>{item.tags}</p>
+                      </div>
+
+                      {/* What you'll need */}
                       {item.prep && item.prep.length > 0 && (
-                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
-                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>WHAT YOU'LL NEED</p>
-                          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(128,128,128,0.12)', background: 'rgba(128,128,128,0.04)' }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>📦 What you'll need</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {item.prep.map((p, i) => (
-                              <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)" }}>✓ {p}</li>
+                              <span key={i} style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.18)', borderRadius: 20, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ color: 'var(--coral)', fontSize: 10 }}>✓</span> {p}
+                              </span>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
-                      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                        {item.checklist.map((step, i) => (
-                          <li key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, display: 'flex', gap: 8 }}>
-                            <span style={{ color: 'var(--coral)', flexShrink: 0 }}>•</span>
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ul>
+
+                      {/* Filming steps */}
+                      <div style={{ padding: '16px 24px', borderBottom: item.caption || item.script ? '1px solid rgba(128,128,128,0.12)' : 'none' }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎬 Filming steps</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {item.checklist.map((step, i) => {
+                            const dashIdx = step.indexOf(' - ')
+                            const timeRange = dashIdx !== -1 ? step.slice(0, dashIdx).trim() : null
+                            const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
+                            return (
+                              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                                  {i + 1}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  {timeRange && (
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>
+                                      {timeRange}
+                                    </span>
+                                  )}
+                                  <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{instruction}</p>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Caption */}
                       {item.caption && (
-                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginTop: 16 }}>
-                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>SUGGESTED CAPTION</p>
-                          <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{item.caption}</p>
+                        <div style={{ padding: '16px 24px', borderBottom: item.script ? '1px solid rgba(128,128,128,0.12)' : 'none', background: 'rgba(128,128,128,0.04)' }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>💬 Suggested caption</p>
+                          <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{item.caption}</p>
                         </div>
                       )}
+
+                      {/* Script */}
                       {item.script && (
-                        <div style={{ background: "var(--card-bg)", borderRadius: 10, padding: "12px 14px", marginTop: 12 }}>
-                          <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>FULL SCRIPT</p>
-                          <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{item.script}</p>
+                        <div style={{ padding: '16px 24px' }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>🎙 Full script</p>
+                          <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.75, fontStyle: 'italic' }}>{item.script}</p>
                         </div>
                       )}
                     </div>
