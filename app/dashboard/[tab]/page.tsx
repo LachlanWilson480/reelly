@@ -1068,7 +1068,6 @@ export default function DashboardPage() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
     { id: 'ideas', label: 'Content Ideas' },
     { id: 'myideas', label: 'My Ideas' },
     { id: 'filming', label: 'Filming' },
