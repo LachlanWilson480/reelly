@@ -75,6 +75,7 @@ export default function DashboardPage() {
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
   const [weeklyObjectives, setWeeklyObjectives] = useState('')
   const [seasonalMode, setSeasonalMode] = useState<'seasonal' | 'evergreen' | 'mix'>('mix')
+  const [toneOverride, setToneOverride] = useState<string | null>(null)
   const [scriptTopic, setScriptTopic] = useState('')
   const [scriptLength, setScriptLength] = useState<'short' | 'medium' | 'long'>('medium')
   const [scriptStyle, setScriptStyle] = useState('')
