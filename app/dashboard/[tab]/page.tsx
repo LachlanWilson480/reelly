@@ -80,6 +80,7 @@ export default function DashboardPage() {
   const [scriptLength, setScriptLength] = useState<'short' | 'medium' | 'long'>('medium')
   const [scriptStyle, setScriptStyle] = useState('')
   const [generatedScript, setGeneratedScript] = useState<string | null>(null)
+  const [savedScripts, setSavedScripts] = useState<{ id: string; topic: string; script: string; length: string | null; style: string | null; created_at: string }[]>([])
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptGenError, setScriptGenError] = useState<string | null>(null)
   const [newKeyEvent, setNewKeyEvent] = useState('')
@@ -322,6 +323,14 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
       if (carouselRows) setSavedCarousels(carouselRows)
+
+      const { data: scriptRows } = await supabase
+        .from('generated_scripts')
+        .select('id, topic, script, length, style, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      if (scriptRows) setSavedScripts(scriptRows)
 
       setProfile(data)
       setLoading(false)
@@ -757,7 +766,16 @@ export default function DashboardPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Request failed")
 
-      setGeneratedScript(data.script || "")
+      const newScript = data.script || ""
+      setGeneratedScript(newScript)
+      if (newScript && userId) {
+        const { data: inserted } = await supabase
+          .from('generated_scripts')
+          .insert({ user_id: userId, topic: scriptTopic, script: newScript, length: scriptLength, style: scriptStyle || null })
+          .select()
+          .single()
+        if (inserted) setSavedScripts((prev) => [inserted, ...prev])
+      }
     } catch (err) {
       setScriptGenError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -2014,9 +2032,42 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{scriptGenError}</p>
                 )}
 
+                {savedScripts.length > 0 && !generatedScript && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Previous scripts</p>
+                      <button
+                        onClick={async () => {
+                          if (!userId) return
+                          await supabase.from('generated_scripts').delete().eq('user_id', userId)
+                          setSavedScripts([])
+                        }}
+                        style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {savedScripts.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => { setGeneratedScript(s.script); setScriptTopic(s.topic) }}
+                          style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', cursor: 'pointer', width: '100%' }}
+                        >
+                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{s.topic}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.length ? `${s.length}` : ''}{s.style ? ` · ${s.style}` : ''} · {new Date(s.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {generatedScript && (
                   <div style={{ background: "var(--card-bg)", borderRadius: 12, padding: "24px" }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎙 Full script</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>🎙 Full script</p>
+                      <button onClick={() => setGeneratedScript(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>← Back to history</button>
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                       {generatedScript
                         .split(/(?<=[.!?])\s+/)
