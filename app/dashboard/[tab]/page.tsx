@@ -504,7 +504,7 @@ export default function DashboardPage() {
 
       // Show profile nudge after first ever generation if profile is sparse
       if (profile && !profile.tone && !profile.target_audience && !profile.key_selling_point) {
-        setShowProfileNudge(true)
+        setTimeout(() => setShowProfileNudge(true), 5000)
       }
     } catch (err) {
       setIdeaError(err instanceof Error ? err.message : "Something went wrong generating ideas. Please try again.")
