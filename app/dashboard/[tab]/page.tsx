@@ -2020,6 +2020,18 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.8 }}>{generatedScript}</p>
                   </div>
                 )}
+                {generatedScript && (
+                  <button
+                    onClick={async () => {
+                      if (!profile) return
+                      const idea = { id: 'script-gen', title: scriptTopic, hook: generatedScript.split(/[.!?]/)[0] || scriptTopic, description: scriptTopic, tags: '', script: generatedScript }
+                      await proceedToFilming([idea])
+                    }}
+                    style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', padding: '11px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                  >
+                    🎬 Make filming instructions for this
+                  </button>
+                )}
               </div>
             </div>
           )}
