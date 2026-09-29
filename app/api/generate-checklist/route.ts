@@ -165,7 +165,7 @@ RULES:
 - Camera must move or change in most steps — not a static talking head throughout
 - Common-sense observations fine to state directly. Specific technical/regulatory facts — hand off to owner to say in their own words
 - Never use double quotes inside strings — use single quotes instead
-${existingScript ? '- Generate exactly one filming step per sentence of the pre-written script above — do not combine sentences into one step or skip any. Each step covers exactly one sentence.' : '- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say'}
+${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above — do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
 - Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 
 Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say: G'day, it's Jake from Jake's Plumbing, and mate, if your hot water system is making a weird banging noise, you're not going crazy."
