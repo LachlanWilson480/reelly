@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
       // mix (default)
       if (seasonalParts.length === 0) return ''
       return `SEASONAL (mix — use for AT MOST 1-2 ideas where it fits naturally, rest stay evergreen):\n${seasonalParts.join('\n')}`
-    })()''
+    })()
 
     // People on camera
     const onCameraPeople = (profile.on_camera_people || '').trim()
