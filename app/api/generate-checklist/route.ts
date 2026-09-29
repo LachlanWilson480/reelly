@@ -119,6 +119,11 @@ export async function POST(req: NextRequest) {
 
     const profileBrief = compressProfileForChecklist(profile)
 
+    // Only pass seasonal context if the idea itself references a seasonal event
+    const ideaText = `${idea.title} ${idea.description} ${idea.hook}`.toLowerCase()
+    const seasonalKeywords = ['halloween', 'christmas', 'easter', 'anzac', 'valentine', 'mother', 'father', 'thanksgiving', 'pancake', 'women', 'melbourne cup', 'new year', 'australia day', 'bonfire', 'memorial', 'independence', 'labor day', 'spooky', 'festive', 'seasonal', 'holiday']
+    const ideaIsSeasonal = seasonalKeywords.some((kw) => ideaText.includes(kw))
+
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
       locationType === 'mobile' ? 'MOBILE — travels to customers; no shop/storefront steps; use van/tools/surroundings'
@@ -137,6 +142,8 @@ export async function POST(req: NextRequest) {
     const styleNote = styleOverride ? `\nDelivery style: ${styleOverride}` : ''
     const customNote = effectiveCustomization ? `\nOwner guidance: ${effectiveCustomization}` : ''
 
+    const seasonalNote = ideaIsSeasonal && profile.local_seasonal_context ? `\nSeasonal context (only use if directly relevant to this idea): ${profile.local_seasonal_context}` : ''
+
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.
 
 BUSINESS:
@@ -151,6 +158,7 @@ Opening line: "${idea.hook}"
 Payoff: ${idea.description}${notesLine}
 
 RULES:
+- IMPORTANT: Do NOT reference any seasonal events, holidays or dates (Halloween, Christmas, etc.) unless the idea itself explicitly mentions them. Keep all dialogue and directions evergreen and specific to this business only.
 - Continue the opening line naturally — don't invent a new one
 - Dialogue sounds like a real person talking (contractions, casual, short sentences) — never like an ad
 - Pace generously: ~2 words/sec + 1-2 sec buffer per movement. 12-word line = 7-8 sec minimum. Total: 20-45 sec
