@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
       ? `Up to ${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — choreograph handoffs where it fits; many steps can still be one person`
       : 'Films ALONE on phone, no crew'
 
+    const existingScript = idea.script ? idea.script.trim() : null
     const notesLine = idea.notes ? ` Owner notes: ${idea.notes}` : ''
     const styleNote = styleOverride ? `\nDelivery style: ${styleOverride}` : ''
     const customNote = effectiveCustomization ? `\nOwner guidance: ${effectiveCustomization}` : ''
