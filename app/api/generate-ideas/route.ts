@@ -285,7 +285,7 @@ const TOKEN_BUFFER = 200
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, customization, userId, peopleCountOverride } = await req.json()
+    const { profile, customization, userId, peopleCountOverride, weeklyObjectives } = await req.json()
 
     if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(
@@ -358,6 +358,7 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
+    const objectivesBlock = weeklyObjectives?.trim() ? `\nTHIS WEEK'S OBJECTIVES (prioritise these in your ideas — try to serve as many as possible across the ${batchSize} cards, naturally):\n${weeklyObjectives.trim()}` : ''
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
@@ -403,7 +404,7 @@ Location: ${locationBrief}
 ${seasonalBlock ? `\n${seasonalBlock}` : ''}
 ${keyEventsContext ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
-${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
+${objectivesBlock}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
 HOW TO USE THE BRIEF:
 - Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea

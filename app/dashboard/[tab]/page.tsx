@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
+  const [weeklyObjectives, setWeeklyObjectives] = useState('')
   const [scriptTopic, setScriptTopic] = useState('')
   const [scriptLength, setScriptLength] = useState<'short' | 'medium' | 'long'>('medium')
   const [scriptStyle, setScriptStyle] = useState('')
@@ -443,7 +444,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count }),
+        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null }),
       })
 
       const data = await res.json()
@@ -1247,28 +1248,39 @@ export default function DashboardPage() {
           {tab === 'ideas' && (
             <div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  Tap the star to save an idea for filming.
-                </p>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button
-                  onClick={generateIdeas}
-                  disabled={generatingIdeas}
-                  style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1 }}
-                >
-                  {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
-                </button>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
+                {/* Weekly objectives textarea */}
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                    This week&apos;s objectives (optional)
+                  </label>
+                  <textarea
+                    value={weeklyObjectives}
+                    onChange={(e) => setWeeklyObjectives(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Promote our new triple chocolate croissant for 2 videos, show behind-the-scenes baking, introduce Jacob our new apprentice baker"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
+                  />
+                </div>
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
+                  <button
+                    onClick={generateIdeas}
+                    disabled={generatingIdeas}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                  >
+                    {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
+                  </button>
                   <button
                     onClick={undoIdeas}
                     disabled={batchIndex <= 0}
                     title="Go to previous batch"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: batchIndex > 0 ? "var(--ink)" : "var(--text-muted)", cursor: batchIndex > 0 ? "pointer" : "not-allowed", opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}
+                    style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}
                   >
                     ←
                   </button>
                   {weeklyBatches.length > 0 && (
-                    <span style={{ fontSize: 12, color: "var(--text-secondary)", padding: "0 4px", display: "flex", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '0 4px', display: 'flex', alignItems: 'center' }}>
                       {batchIndex + 1} of {weeklyBatches.length}
                     </span>
                   )}
@@ -1276,16 +1288,9 @@ export default function DashboardPage() {
                     onClick={redoIdeas}
                     disabled={batchIndex >= weeklyBatches.length - 1}
                     title="Go to next batch"
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? "var(--ink)" : "var(--text-muted)", cursor: batchIndex < weeklyBatches.length - 1 ? "pointer" : "not-allowed", opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}
+                    style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex < weeklyBatches.length - 1 ? 'pointer' : 'not-allowed', opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}
                   >
                     →
-                  </button>
-                  <button
-                    onClick={() => setShowKeyEventsPanel(!showKeyEventsPanel)}
-                    title="Log a key event (e.g. new staff member, new offer) to inform future ideas"
-                    style={{ background: showKeyEventsPanel ? "rgba(216,90,48,0.1)" : "none", border: showKeyEventsPanel ? "1px solid var(--coral)" : "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
-                  >
-                    📌 Business Insights{keyEvents.length > 0 ? ` (${keyEvents.length})` : ""}
                   </button>
                 </div>
               </div>
