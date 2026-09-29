@@ -1291,12 +1291,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 {/* Action buttons + tone selector */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 22, flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 22, flexShrink: 0, minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button
                     onClick={generateIdeas}
                     disabled={generatingIdeas}
-                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap', flex: 1 }}
                   >
                     {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
                   </button>
