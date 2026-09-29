@@ -285,7 +285,7 @@ const TOKEN_BUFFER = 200
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, customization, userId, peopleCountOverride, weeklyObjectives, seasonalMode } = await req.json()
+    const { profile, customization, userId, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = await req.json()
 
     if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(
@@ -415,7 +415,7 @@ Location: ${locationBrief}
 ${seasonalBlock ? `\n${seasonalBlock}` : ''}
 ${keyEventsContext ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
-${objectivesBlock}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
+${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch — let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${objectivesBlock}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
 HOW TO USE THE BRIEF:
 - Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea

@@ -445,7 +445,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode }),
+        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode, toneOverride }),
       })
 
       const data = await res.json()
@@ -1289,8 +1289,9 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
-                {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
+                {/* Action buttons + tone selector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 22, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button
                     onClick={generateIdeas}
                     disabled={generatingIdeas}
@@ -1319,6 +1320,40 @@ export default function DashboardPage() {
                   >
                     →
                   </button>
+                  </div>
+                  {/* Tone selector */}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 5 }}>Tone</p>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {([
+                        { id: null, label: 'Default' },
+                        { id: 'casual', label: 'Casual' },
+                        { id: 'professional', label: 'Professional' },
+                        { id: 'humorous', label: 'Humorous' },
+                        { id: 'heartfelt', label: 'Heartfelt' },
+                      ] as { id: string | null; label: string }[]).map((t) => (
+                        <button
+                          key={t.id ?? 'default'}
+                          type="button"
+                          onClick={() => setToneOverride(t.id)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 20,
+                            border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
+                            background: toneOverride === t.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
+                            color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)',
+                            fontSize: 11,
+                            fontWeight: toneOverride === t.id ? 600 : 400,
+                            cursor: 'pointer',
+                            fontFamily: "'Inter', sans-serif",
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
