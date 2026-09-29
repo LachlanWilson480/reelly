@@ -740,10 +740,33 @@ export default function DashboardPage() {
             script: data.script || "",
           }
           merged.push(item)
-          await supabase
-            .from("generated_ideas")
-            .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false })
-            .eq("id", item.id)
+          if (item.id.startsWith('script-')) {
+            // Script-based ideas don't exist in generated_ideas — insert a new row
+            const { data: inserted } = await supabase
+              .from("generated_ideas")
+              .insert({
+                user_id: userId,
+                title: item.title,
+                hook: item.hook,
+                description: item.description,
+                tags: item.tags,
+                saved: true,
+                batch_number: 0,
+                checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script },
+                filming_cleared: false,
+              })
+              .select()
+              .single()
+            if (inserted) {
+              // Update the item id to the real DB id so future operations work
+              merged[merged.length - 1] = { ...item, id: inserted.id }
+            }
+          } else {
+            await supabase
+              .from("generated_ideas")
+              .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false })
+              .eq("id", item.id)
+          }
         } else {
           failCount++
         }
