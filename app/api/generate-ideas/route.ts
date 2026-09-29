@@ -3,9 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,43 +41,33 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'basic' // no active subscription -> default to Basic
+  if (!data || data.status !== 'active') return 'basic'
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'
 }
 
 type SeasonalEvent = { name: string; windowDays: number } & (
-  | { type: "fixed"; month: number; day: number }
-  | { type: "nthWeekday"; month: number; weekday: number; n: number }
-  | { type: "lastWeekday"; month: number; weekday: number }
-  | { type: "easterOffset"; offsetDays: number }
+  | { type: 'fixed'; month: number; day: number }
+  | { type: 'nthWeekday'; month: number; weekday: number; n: number }
+  | { type: 'lastWeekday'; month: number; weekday: number }
+  | { type: 'easterOffset'; offsetDays: number }
 )
 
-// Computes the date of Easter Sunday for a given year (Meeus/Jones/Butcher Gregorian algorithm).
 function computeEaster(year: number): Date {
-  const a = year % 19
-  const b = Math.floor(year / 100)
-  const c = year % 100
-  const d = Math.floor(b / 4)
-  const e = b % 4
-  const f = Math.floor((b + 8) / 25)
-  const g = Math.floor((b - f + 1) / 3)
-  const h = (19 * a + b - d - g + 15) % 30
-  const i = Math.floor(c / 4)
-  const k = c % 4
-  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7
   const m = Math.floor((a + 11 * h + 22 * l) / 451)
   const month = Math.floor((h + l - 7 * m + 114) / 31)
   const day = ((h + l - 7 * m + 114) % 31) + 1
   return new Date(year, month - 1, day)
 }
 
-// weekday: 0=Sunday...6=Saturday. n: 1=first, 2=second, etc.
 function nthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
   const firstOfMonth = new Date(year, month - 1, 1)
-  const firstWeekday = firstOfMonth.getDay()
-  const day = 1 + ((weekday - firstWeekday + 7) % 7) + (n - 1) * 7
+  const day = 1 + ((weekday - firstOfMonth.getDay() + 7) % 7) + (n - 1) * 7
   return new Date(year, month - 1, day)
 }
 
@@ -90,9 +78,9 @@ function lastWeekdayOfMonth(year: number, month: number, weekday: number): Date 
 }
 
 function getEventDate(e: SeasonalEvent, year: number): Date {
-  if (e.type === "fixed") return new Date(year, e.month - 1, e.day)
-  if (e.type === "nthWeekday") return nthWeekdayOfMonth(year, e.month, e.weekday, e.n)
-  if (e.type === "lastWeekday") return lastWeekdayOfMonth(year, e.month, e.weekday)
+  if (e.type === 'fixed') return new Date(year, e.month - 1, e.day)
+  if (e.type === 'nthWeekday') return nthWeekdayOfMonth(year, e.month, e.weekday, e.n)
+  if (e.type === 'lastWeekday') return lastWeekdayOfMonth(year, e.month, e.weekday)
   const easter = computeEaster(year)
   const d = new Date(easter)
   d.setDate(d.getDate() + e.offsetDays)
@@ -100,47 +88,47 @@ function getEventDate(e: SeasonalEvent, year: number): Date {
 }
 
 const AU_EVENTS: SeasonalEvent[] = [
-  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
-  { name: "Australia Day", type: "fixed", month: 1, day: 26, windowDays: 21 },
-  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
-  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
-  { name: "ANZAC Day", type: "fixed", month: 4, day: 25, windowDays: 14 },
-  { name: "Mother's Day", type: "nthWeekday", month: 5, weekday: 0, n: 2, windowDays: 21 },
-  { name: "Winter school holidays", type: "fixed", month: 7, day: 1, windowDays: 21 },
-  { name: "Father's Day", type: "nthWeekday", month: 9, weekday: 0, n: 1, windowDays: 21 },
-  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
-  { name: "Melbourne Cup", type: "nthWeekday", month: 11, weekday: 2, n: 1, windowDays: 14 },
-  { name: "Christmas / EOFY holiday season", type: "fixed", month: 12, day: 25, windowDays: 35 },
+  { name: 'New Year', type: 'fixed', month: 1, day: 1, windowDays: 14 },
+  { name: 'Australia Day', type: 'fixed', month: 1, day: 26, windowDays: 21 },
+  { name: "Valentine's Day", type: 'fixed', month: 2, day: 14, windowDays: 21 },
+  { name: 'Easter', type: 'easterOffset', offsetDays: 0, windowDays: 28 },
+  { name: 'ANZAC Day', type: 'fixed', month: 4, day: 25, windowDays: 14 },
+  { name: "Mother's Day", type: 'nthWeekday', month: 5, weekday: 0, n: 2, windowDays: 21 },
+  { name: 'Winter school holidays', type: 'fixed', month: 7, day: 1, windowDays: 21 },
+  { name: "Father's Day", type: 'nthWeekday', month: 9, weekday: 0, n: 1, windowDays: 21 },
+  { name: 'Halloween', type: 'fixed', month: 10, day: 31, windowDays: 21 },
+  { name: 'Melbourne Cup', type: 'nthWeekday', month: 11, weekday: 2, n: 1, windowDays: 14 },
+  { name: 'Christmas / EOFY holiday season', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
 const UK_EVENTS: SeasonalEvent[] = [
-  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
-  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
-  { name: "Mother's Day (Mothering Sunday)", type: "easterOffset", offsetDays: -21, windowDays: 14 },
-  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
-  { name: "Father's Day", type: "nthWeekday", month: 6, weekday: 0, n: 3, windowDays: 21 },
-  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
-  { name: "Bonfire Night", type: "fixed", month: 11, day: 5, windowDays: 10 },
-  { name: "Christmas", type: "fixed", month: 12, day: 25, windowDays: 35 },
+  { name: 'New Year', type: 'fixed', month: 1, day: 1, windowDays: 14 },
+  { name: "Valentine's Day", type: 'fixed', month: 2, day: 14, windowDays: 21 },
+  { name: "Mother's Day (Mothering Sunday)", type: 'easterOffset', offsetDays: -21, windowDays: 14 },
+  { name: 'Easter', type: 'easterOffset', offsetDays: 0, windowDays: 28 },
+  { name: "Father's Day", type: 'nthWeekday', month: 6, weekday: 0, n: 3, windowDays: 21 },
+  { name: 'Halloween', type: 'fixed', month: 10, day: 31, windowDays: 21 },
+  { name: 'Bonfire Night', type: 'fixed', month: 11, day: 5, windowDays: 10 },
+  { name: 'Christmas', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
 const US_EVENTS: SeasonalEvent[] = [
-  { name: "New Year", type: "fixed", month: 1, day: 1, windowDays: 14 },
-  { name: "Valentine's Day", type: "fixed", month: 2, day: 14, windowDays: 21 },
-  { name: "Easter", type: "easterOffset", offsetDays: 0, windowDays: 28 },
-  { name: "Mother's Day", type: "nthWeekday", month: 5, weekday: 0, n: 2, windowDays: 21 },
-  { name: "Memorial Day", type: "lastWeekday", month: 5, weekday: 1, windowDays: 14 },
-  { name: "Father's Day", type: "nthWeekday", month: 6, weekday: 0, n: 3, windowDays: 21 },
-  { name: "Independence Day", type: "fixed", month: 7, day: 4, windowDays: 14 },
-  { name: "Labor Day", type: "nthWeekday", month: 9, weekday: 1, n: 1, windowDays: 14 },
-  { name: "Halloween", type: "fixed", month: 10, day: 31, windowDays: 21 },
-  { name: "Thanksgiving", type: "nthWeekday", month: 11, weekday: 4, n: 4, windowDays: 21 },
-  { name: "Christmas", type: "fixed", month: 12, day: 25, windowDays: 35 },
+  { name: 'New Year', type: 'fixed', month: 1, day: 1, windowDays: 14 },
+  { name: "Valentine's Day", type: 'fixed', month: 2, day: 14, windowDays: 21 },
+  { name: 'Easter', type: 'easterOffset', offsetDays: 0, windowDays: 28 },
+  { name: "Mother's Day", type: 'nthWeekday', month: 5, weekday: 0, n: 2, windowDays: 21 },
+  { name: 'Memorial Day', type: 'lastWeekday', month: 5, weekday: 1, windowDays: 14 },
+  { name: "Father's Day", type: 'nthWeekday', month: 6, weekday: 0, n: 3, windowDays: 21 },
+  { name: 'Independence Day', type: 'fixed', month: 7, day: 4, windowDays: 14 },
+  { name: 'Labor Day', type: 'nthWeekday', month: 9, weekday: 1, n: 1, windowDays: 14 },
+  { name: 'Halloween', type: 'fixed', month: 10, day: 31, windowDays: 21 },
+  { name: 'Thanksgiving', type: 'nthWeekday', month: 11, weekday: 4, n: 4, windowDays: 21 },
+  { name: 'Christmas', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
 function getEventsForCountry(country: string | null | undefined): SeasonalEvent[] {
-  if (country === "UK") return UK_EVENTS
-  if (country === "US") return US_EVENTS
+  if (country === 'UK') return UK_EVENTS
+  if (country === 'US') return US_EVENTS
   return AU_EVENTS
 }
 
@@ -159,10 +147,6 @@ function getUpcomingSeasonalEvent(country: string | null | undefined): string | 
   return null
 }
 
-// Only lets the business owner's own free-text seasonal note through if it doesn't
-// name a specific known holiday that has already passed for the year. Generic text
-// ("summer is our busy season") always passes through unchanged. This stops a
-// one-off mention like "Halloween promotions" from being fed to the AI year-round.
 function filterSeasonalContext(text: string | null | undefined, country: string | null | undefined): string | null {
   if (!text || !text.trim()) return null
   const now = new Date()
@@ -171,15 +155,49 @@ function filterSeasonalContext(text: string | null | undefined, country: string 
   for (const e of events) {
     const nameLower = e.name.toLowerCase()
     const mentioned = nameLower.split(/[\s/()]+/).some((word) => word.length > 3 && lowerText.includes(word))
-    if (mentioned && !isEventInWindow(e, now)) {
-      return null
-    }
+    if (mentioned && !isEventInWindow(e, now)) return null
   }
   return text
 }
+
 function pickAngles(pool: string[], count: number): string[] {
-  const shuffled = [...pool].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
+  return [...pool].sort(() => Math.random() - 0.5).slice(0, count)
+}
+
+// Compresses the onboarding profile into a compact brief — no AI tokens spent.
+// Empty/null fields are skipped entirely. Long labels are shortened to keys.
+function compressProfile(profile: Record<string, string | null | undefined>): string {
+  const map: Array<[string, string | null | undefined]> = [
+    ['Biz', profile.business_name],
+    ['Industry', profile.industry],
+    ['Suburb', profile.suburb],
+    ['Tone', profile.tone],
+    ['Audience', profile.target_audience],
+    ['Services', profile.core_services],
+    ['USP', profile.key_selling_point],
+    ['Yrs', profile.years_in_business],
+    ['Team', profile.team_size],
+    ['Price', profile.price_positioning],
+    ['Source', profile.customer_source],
+    ['Launches', profile.upcoming_launches],
+    ['Formats', profile.preferred_formats],
+    ['Gear', profile.equipment],
+    ['Community', profile.community_ties],
+    ['PastContent', profile.past_content],
+    ['Flopped', profile.worst_content],
+    ['Competitors', profile.competitor_content],
+    ['Notes', profile.notes],
+    ['Brand', profile.brand_personality],
+    ['Avoid', profile.words_to_avoid],
+    ['Signature', profile.signature_service],
+    ['Objections', profile.common_objections],
+    ['Promos', profile.current_promotions],
+    ['Problem', profile.customer_problem],
+  ]
+  return map
+    .filter(([, v]) => v && String(v).trim())
+    .map(([k, v]) => `${k}: ${String(v).trim()}`)
+    .join('\n')
 }
 
 const BASIC_BATCH_SIZE = 3
@@ -194,7 +212,7 @@ export async function POST(req: NextRequest) {
   try {
     const { profile, customization, userId, peopleCountOverride } = await req.json()
 
-    if (!profile || !profile.business_name || !profile.business_name.trim() || !profile.industry || !profile.industry.trim()) {
+    if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(
         { error: 'Please complete your business profile before generating ideas.' },
         { status: 400 }
@@ -205,31 +223,31 @@ export async function POST(req: NextRequest) {
     const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'mid' ? PRO_BATCH_SIZE : BASIC_BATCH_SIZE
     const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'mid' ? PRO_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
 
-    let keyEventsContext = ""
-    let pastIdeasContext = ""
+    let keyEventsContext = ''
+    let pastIdeasContext = ''
     if (userId) {
       const { data: recentEvents } = await supabaseAdmin
         .from('key_events')
-        .select('event_text, created_at')
+        .select('event_text')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(5)
-      if (recentEvents && recentEvents.length > 0) {
+      if (recentEvents?.length) {
         keyEventsContext = recentEvents.map((e) => `- ${e.event_text}`).join('\n')
       }
 
       const { data: recentIdeas } = await supabaseAdmin
         .from('generated_ideas')
-        .select('title, tags')
+        .select('title')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30)
-      if (recentIdeas && recentIdeas.length > 0) {
+      if (recentIdeas?.length) {
         pastIdeasContext = recentIdeas.map((i) => `- ${i.title}`).join('\n')
       }
     }
 
-    // Weekly usage limit enforcement for all plans, based on batchSize/weeklyLimit for the user's tier
+    // Weekly usage enforcement
     let usageInfo: { used: number; limit: number } | null = null
     if (userId) {
       const { data: usageRow } = await supabaseAdmin
@@ -239,17 +257,14 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       const now = new Date()
-      // Compute the most recent Monday 12:00am (local server time) as the weekly reset boundary.
-      const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, ...
-      const daysSinceMonday = (dayOfWeek + 6) % 7 // Monday -> 0, Sunday -> 6
+      const daysSinceMonday = (now.getDay() + 6) % 7
       const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
-
       const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : null
       const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
       const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
 
       if (currentCount + batchSize > weeklyLimit) {
-        const planLabel = plan === 'top' ? 'Pro' : plan === 'mid' ? 'Basic' : 'Basic'
+        const planLabel = plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'
         return NextResponse.json(
           { error: `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
           { status: 403 }
@@ -266,122 +281,92 @@ export async function POST(req: NextRequest) {
       usageInfo = { used: currentCount + batchSize, limit: weeklyLimit }
     }
 
-    // Basic plan: custom guidance is a Mid-only feature, ignore it if somehow present
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
-    const customNote = effectiveCustomization ? `\n\nAdditional guidance from the business owner (follow this, but never at the expense of safety, realism, or the constraints above):\n${effectiveCustomization}` : ''
-
-    const ideaCount = batchSize
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
-    const angles = pickAngles(anglePool, ideaCount)
+    const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
+    // Location guidance — compressed
     const locationType = profile.location_type || 'fixed'
-    const locationGuidance = locationType === 'mobile'
-      ? "This business is MOBILE  -  they travel to customers rather than customers visiting a shop. Do NOT suggest ideas that rely on a physical storefront, shop interior, or 'come visit us at our location' framing. Instead lean into what's always with them: their van/vehicle, tools, uniform, expertise, and opinions. Local suburb mentions should reference their general service area, not a specific address customers can visit."
-      : locationType === 'both'
-      ? "This business operates BOTH from a fixed location AND travels to customers. Ideas can reference their shop/studio space when relevant, but don't assume every idea needs to happen at a fixed premises  -  some should work anywhere (van, tools, expertise)."
-      : "This business operates from a FIXED location that customers visit. Feel free to suggest ideas that show their shop/studio space, ambiance, and physical setup where relevant, alongside expertise-based ideas."
+    const locationBrief =
+      locationType === 'mobile'
+        ? 'MOBILE biz (travels to customers) — no storefront ideas; use van/tools/expertise'
+        : locationType === 'both'
+        ? 'BOTH fixed + mobile — shop setting ok but not assumed'
+        : 'FIXED location customers visit — shop/studio setting fine'
 
+    // Seasonal — single line
     const upcomingEvent = getUpcomingSeasonalEvent(profile.country)
-    const filteredSeasonalContext = filterSeasonalContext(profile.local_seasonal_context, profile.country)
-    const ownSeasonalNote = filteredSeasonalContext ? ` The business owner also says their own busy/relevant times are: ${filteredSeasonalContext}.` : ""
-    const countryLabel = profile.country === "UK" ? "the UK" : profile.country === "US" ? "the US" : "Australia"
-    const seasonalGuidance = (upcomingEvent || ownSeasonalNote)
-      ? `SEASONAL AWARENESS (optional, use only where it genuinely fits  -  do not force every idea to be seasonal): ${upcomingEvent ? `${upcomingEvent} is coming up soon in ${countryLabel}.` : ""}${ownSeasonalNote} If one of the ${ideaCount} ideas can naturally tie into this without feeling forced or gimmicky, do so for at most one idea  -  the rest should stay on the evergreen angles listed below.`
-      : ""
-    const onCameraPeopleIdeas = (profile.on_camera_people || '').trim()
-    const peopleListIdeas = onCameraPeopleIdeas ? onCameraPeopleIdeas.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
-    const effectivePeopleCountIdeas = typeof peopleCountOverride === 'number' && peopleCountOverride > 0
-      ? peopleCountOverride
-      : peopleListIdeas.length
-    const isMultiPersonIdeas = effectivePeopleCountIdeas > 1
+    const filteredSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
+    const countryLabel = profile.country === 'UK' ? 'UK' : profile.country === 'US' ? 'US' : 'AU'
+    const seasonalLine = [
+      upcomingEvent ? `Upcoming: ${upcomingEvent} (${countryLabel})` : '',
+      filteredSeasonal ? `Owner busy season: ${filteredSeasonal}` : '',
+    ].filter(Boolean).join(' | ')
 
-    const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleListIdeas.length !== effectivePeopleCountIdeas
-      ? '' // override count doesn't match the named people on file - don't force a name mismatch, just use the number
-      : onCameraPeopleIdeas
+    // People on camera
+    const onCameraPeople = (profile.on_camera_people || '').trim()
+    const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
+    const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
+    const isMultiPerson = effectivePeopleCount > 1
+    const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
 
-    const soloOrCrewLine = isMultiPersonIdeas
-      ? `This business can film with up to ${effectivePeopleCountIdeas} people on camera${namesForPrompt ? ` (${namesForPrompt})` : ''} - where it genuinely fits, some ideas can involve two or more people interacting or taking turns (if you don't have a specific name for an extra person, just refer to them generically, e.g. "a team member" or "a colleague"), still simple enough to shoot on a phone with no outside crew. Most ideas can still be one person alone if that suits the angle better.`
-      : `They are NOT content creators, have NO crew, and NO time to spare, and film by themselves, alone, on their phone.`
+    const crewLine = isMultiPerson
+      ? `Up to ${effectivePeopleCount} people on camera${namesForPrompt ? ` (${namesForPrompt})` : ''} — multi-person ideas ok where it fits naturally`
+      : 'Films ALONE on phone, no crew'
 
-    const prompt = `You help busy small business owners in Sydney create short-form social media content in a few spare minutes. ${soloOrCrewLine}
+    // Compressed profile brief
+    const profileBrief = compressProfile(profile)
 
-CRITICAL CONSTRAINT  -  read this carefully: this business owner CANNOT control or predict what job, customer, or scenario will show up on any given day. Never invent or narrate a SPECIFIC fictional customer, address, or live job as if it is happening right now (e.g. never write something like "I just arrived at a place in Coogee where the customer..." or "we're at a house right now where..."). That is dishonest content and impossible to guarantee they can film that day.
+    const prompt = `Generate exactly ${batchSize} short-form social video ideas for a small business owner. One call — all ${batchSize} ideas in one JSON array.
 
-If the business owner's style guidance below asks for a "problem → solution" format, that is fine and encouraged  -  but the problem must be framed as a COMMON, GENERAL problem this business sees all the time (e.g. "One thing I get called out for constantly is...", "If your power keeps tripping, here's usually why...", "Say your switchboard does this  -  here's what's going on"), never as a specific customer or job happening at this exact moment. This way it's honest, always true, and filmable today regardless of what's actually on the schedule.
+BUSINESS BRIEF:
+${profileBrief}
+${crewLine}
+Location: ${locationBrief}
+${seasonalLine ? `Seasonal: ${seasonalLine} — use for AT MOST 1 idea where it fits naturally; rest stay evergreen` : ''}
+${keyEventsContext ? `Recent biz events (weave in at most 1): \n${keyEventsContext}` : ''}
+${pastIdeasContext ? `Already generated — do NOT repeat these angles:\n${pastIdeasContext}` : ''}
+${effectiveCustomization ? `Owner guidance: ${effectiveCustomization}` : ''}
 
-IMPORTANT  -  factual accuracy: you are not a domain expert in this business's trade, so NEVER state a specific technical fact, cause, diagnosis, safety claim, or "why" answer yourself (e.g. never assert a specific electrical fault cause, a specific health/legal claim, or any specific technical explanation). If an idea involves explaining a cause, reason, or technical detail, write the hook so it sets up the topic and then hands off to the business owner to explain the specific technical answer themselves, in their own words, since they are the actual expert  -  for example "explain what usually causes this in your own words" rather than stating a cause yourself. This keeps every video factually safe regardless of the industry.
+HARD RULES:
+- Never invent a specific fictional customer/address/live job as if happening now. General problems only ("One thing I get called out for constantly is..." not "I just arrived at a house in Coogee where...")
+- Never state specific technical facts/causes/diagnoses yourself — set up the topic and let the owner explain the technical answer in their own words
+- Each video: 15-30 sec, one continuous take, filmed on phone, no setup beyond normal workspace
+- Titles must reference a real detail from this business — no generic templates like "Behind the scenes" or "3 quick tips" unless content genuinely is a list
+- Use single quotes ' ' inside strings, never double quotes "
 
-Business: ${profile.business_name}
-Industry: ${profile.industry}
-Suburb: ${profile.suburb}
-Tone: ${profile.tone || 'not specified'}
-Ideal customer: ${profile.target_audience || 'not specified'}
-Core services: ${profile.core_services || 'not specified'}
-${profile.key_selling_point ? `Their single biggest selling point - what genuinely makes people choose them (lean into this across the ideas where it fits naturally): ${profile.key_selling_point}` : ""}
-${profile.years_in_business ? `Years in business: ${profile.years_in_business}` : ""}
-${profile.team_size ? `Team size: ${profile.team_size}` : ""}
-${profile.price_positioning ? `Price positioning (budget/mid-range/premium): ${profile.price_positioning}` : ""}
-${profile.customer_source ? `How customers usually find them: ${profile.customer_source}` : ""}
-${profile.upcoming_launches ? `Upcoming launches or new offerings (only mention if genuinely close/confirmed, never invent specifics beyond what's stated): ${profile.upcoming_launches}` : ""}
-${profile.preferred_formats ? `Video formats/styles they prefer or feel comfortable with: ${profile.preferred_formats}` : ""}
-${profile.equipment ? `Filming equipment they have access to (don't suggest anything beyond this): ${profile.equipment}` : ""}
-${profile.community_ties ? `Local community ties/involvement (useful for local-flavour ideas where it fits naturally): ${profile.community_ties}` : ""}
-${profile.past_content ? `Content types they've already posted before (avoid just repeating the same format/angle): ${profile.past_content}` : ""}
-${profile.worst_content ? `Content that flopped or they didn't like - avoid similar angles: ${profile.worst_content}` : ""}
-${profile.competitor_content ? `What competitors are doing (use only to help differentiate this business, never suggest copying it): ${profile.competitor_content}` : ""}
-${profile.notes ? `Other notes from the business owner: ${profile.notes}` : ""}
-${profile.brand_personality ? `Brand personality: ${profile.brand_personality}` : ""}
-${profile.words_to_avoid ? `Words/phrases to avoid: ${profile.words_to_avoid}` : ""}
-${profile.signature_service ? `Signature service they're known for: ${profile.signature_service}` : ""}
-${profile.common_objections ? `Common objections/hesitations customers have: ${profile.common_objections}` : ""}
-${profile.current_promotions ? `Current promotions/offers: ${profile.current_promotions}` : ""}
-${profile.customer_problem ? `The core problem customers come to them with: ${profile.customer_problem}` : ""}
-${keyEventsContext ? `RECENT BUSINESS EVENTS the owner has logged (weave at most one of these into an idea where it fits naturally - never force it, and never invent details beyond what's stated):\n${keyEventsContext}` : ""}
-${pastIdeasContext ? `IDEAS ALREADY GENERATED RECENTLY - do not repeat these titles or angles, generate genuinely different ideas this time:\n${pastIdeasContext}` : ""}
-LOCATION TYPE: ${locationGuidance}
-
-${seasonalGuidance}
-
-Generate exactly ${ideaCount} ideas. Each of the ${ideaCount} ideas must be built around one of these specific angles (use exactly one angle per idea, in this order, and make each idea concretely and specifically about THIS business's actual services and customers listed above  -  not generic industry advice that could apply to any business in this trade):
+ANGLES — assign one per idea in this order:
 ${angleLines}
 
-Each video should be 15-30 seconds, filmable in one continuous take, on a phone, with zero setup beyond what's already in their normal workspace. Zero editing skill required beyond what Reelezy automatically handles (captions, trimming, music).
+For each idea output:
+- title: short, specific, references a real business detail
+- hook: exactly what to say/do in first 3 seconds
+- description: the actual payoff/opinion/tip — not camera direction
+- tags: 3-4 hashtags including suburb where natural
 
-For each idea, provide:
-- A short, specific title referencing a real detail from this business (not a generic template title  -  avoid phrases like "Behind the scenes", "Day in the life", "3 quick tips" unless the content genuinely is a numbered list)
-- A one-sentence hook: literally what to say or do in the first 3 seconds, in plain words, specific to this business, following the CRITICAL CONSTRAINT above
-- A one-sentence description of the actual point or payoff of the video  -  what it communicates or the actual answer/opinion/tip being shared. This is NOT staging or camera direction (never write things like 'start at the van' or 'walk toward X' here  -  that belongs in filming instructions elsewhere). If the angle is a personal opinion, preference, or general tip (not a technical diagnosis), state the actual specific answer or opinion here, don't leave it vague  -  only technical/diagnostic causes should be left for the business owner to explain themselves.
-- 3-4 relevant hashtags, including the suburb where natural
-
-${customNote}
-
-
-If the business has listed words/phrases to avoid, current promotions, a signature service, common customer objections, brand personality, or a core customer problem above, weave these in naturally where relevant - they should meaningfully shape the ideas, not just sit unused.
-
-IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere inside any string value (e.g. if quoting what someone says or a phrase, use single quotes ' ' instead). This is critical for valid JSON output.
-Respond ONLY with valid JSON, no markdown formatting, no code fences, in this exact structure:
+Respond ONLY with a valid JSON array, no markdown, no code fences:
 [
   { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }
 ]`
 
     const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
+    // Single API call for all cards
     const message = await anthropic.messages.create({
-      thinking: { type: 'disabled' },
       model,
-      max_tokens: 4500,
+      max_tokens: 1800,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const textBlock = message.content.find((block) => block.type === 'text')
+    const textBlock = message.content.find((b) => b.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'
     const cleaned = rawText.replace(/```json|```/g, '').trim()
     const safeCleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
     const ideas = JSON.parse(safeCleaned)
 
     if (!Array.isArray(ideas) || ideas.length === 0) {
-      console.error('generate-ideas: model returned no ideas. Raw text:', rawText)
+      console.error('generate-ideas: model returned no ideas. Raw:', rawText)
       return NextResponse.json({ error: 'The AI had trouble generating ideas this time. Please try again.' }, { status: 500 })
     }
 
