@@ -105,6 +105,7 @@ export default function HistoryPage() {
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
             History
           </span>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Scripts generated are shown at the bottom of the page.</p>
         </nav>
 
         <div style={{ padding: '0 48px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'flex-start' }}>
