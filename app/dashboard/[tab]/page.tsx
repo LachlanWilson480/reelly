@@ -1712,8 +1712,36 @@ export default function DashboardPage() {
                       {/* Script */}
                       {item.script && (
                         <div style={{ padding: '16px 24px' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>🎙 Full script</p>
-                          <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.75, fontStyle: 'italic' }}>{item.script}</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎙 Full script</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            {(() => {
+                              // Split script into sentences
+                              const sentences = item.script
+                                .split(/(?<=[.!?])\s+/)
+                                .map((s: string) => s.trim())
+                                .filter((s: string) => s.length > 0)
+                              // Extract stage direction (everything before " - " or " and say:") from each checklist step
+                              const directions = item.checklist.map((step: string) => {
+                                const sayIdx = step.toLowerCase().indexOf(' and say:')
+                                const dashIdx = step.indexOf(' - ')
+                                if (sayIdx !== -1) {
+                                  // grab just the camera/movement part after the time range
+                                  const afterTime = dashIdx !== -1 ? step.slice(dashIdx + 3) : step
+                                  const sayPos = afterTime.toLowerCase().indexOf(' and say:')
+                                  return sayPos !== -1 ? afterTime.slice(0, sayPos).trim() : null
+                                }
+                                return null
+                              })
+                              return sentences.map((sentence: string, i: number) => (
+                                <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                                  <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, marginBottom: directions[i] ? 5 : 0 }}>{sentence}</p>
+                                  {directions[i] && (
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>📷 {directions[i]}</p>
+                                  )}
+                                </div>
+                              ))
+                            })()}
+                          </div>
                         </div>
                       )}
                     </div>
