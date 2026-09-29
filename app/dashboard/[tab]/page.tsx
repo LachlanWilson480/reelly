@@ -1601,10 +1601,12 @@ export default function DashboardPage() {
                             top: 16,
                             right: 16,
                             background: 'none',
-                            border: 'none',
+                            border: '1px solid rgba(200,50,50,0.4)',
+                            borderRadius: 6,
+                            padding: '3px 10px',
                             cursor: 'pointer',
-                            fontSize: 13,
-                            color: 'var(--text-muted)',
+                            fontSize: 12,
+                            color: 'rgba(200,50,50,0.8)',
                           }}
                         >
                           Remove
