@@ -1250,81 +1250,60 @@ export default function DashboardPage() {
           {tab === 'ideas' && (
             <div>
 
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
-                {/* Weekly objectives textarea */}
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-                    This week&apos;s objectives (optional)
-                  </label>
-                  <textarea
-                    value={weeklyObjectives}
-                    onChange={(e) => setWeeklyObjectives(e.target.value)}
-                    rows={2}
-                    placeholder="e.g. Promote our new triple chocolate croissant for 2 videos, show behind-the-scenes baking, introduce Jacob our new apprentice baker"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
-                  />
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    {([
-                      { id: 'seasonal', label: 'Seasonal', desc: 'Ideas tied to upcoming dates & events', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg> },
-                      { id: 'mix', label: 'Mix', desc: 'Blend of seasonal and timeless ideas', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5" fill="currentColor" fillOpacity="0.15"/><line x1="7" y1="1.5" x2="7" y2="12.5"/></svg> },
-                      { id: 'evergreen', label: 'Timeless', desc: 'Works any time of year', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg> },
-                    ] as { id: 'seasonal' | 'mix' | 'evergreen'; label: string; desc: string; icon: React.ReactNode }[]).map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setSeasonalMode(opt.id)}
-                        style={{
-                          padding: '7px 13px',
-                          borderRadius: 10,
-                          border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
-                          background: seasonalMode === opt.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
-                          cursor: 'pointer',
-                          fontFamily: "'Inter', sans-serif",
-                          textAlign: 'left' as const,
-                          flex: 1,
-                        }}
-                      >
-                        <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>{opt.icon}{opt.label}</p>
-                        <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
-                      </button>
-                    ))}
+              {/* ── Generation controls ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+
+                {/* Row 1: objectives + generate button + arrows */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      This week&apos;s objectives (optional)
+                    </label>
+                    <textarea
+                      value={weeklyObjectives}
+                      onChange={(e) => setWeeklyObjectives(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Promote our new triple chocolate croissant for 2 videos, show behind-the-scenes baking, introduce Jacob our new apprentice baker"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
+                    <button
+                      onClick={generateIdeas}
+                      disabled={generatingIdeas}
+                      style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                    >
+                      {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
+                    </button>
+                    <button onClick={undoIdeas} disabled={batchIndex <= 0} title="Previous batch" style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}>←</button>
+                    {weeklyBatches.length > 0 && (
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{batchIndex + 1} of {weeklyBatches.length}</span>
+                    )}
+                    <button onClick={redoIdeas} disabled={batchIndex >= weeklyBatches.length - 1} title="Next batch" style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex < weeklyBatches.length - 1 ? 'pointer' : 'not-allowed', opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}>→</button>
                   </div>
                 </div>
-                {/* Action buttons + tone selector */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 22, flexShrink: 0, minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    onClick={generateIdeas}
-                    disabled={generatingIdeas}
-                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap', flex: 1 }}
-                  >
-                    {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
-                  </button>
-                  <button
-                    onClick={undoIdeas}
-                    disabled={batchIndex <= 0}
-                    title="Go to previous batch"
-                    style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}
-                  >
-                    ←
-                  </button>
-                  {weeklyBatches.length > 0 && (
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '0 4px', display: 'flex', alignItems: 'center' }}>
-                      {batchIndex + 1} of {weeklyBatches.length}
-                    </span>
-                  )}
-                  <button
-                    onClick={redoIdeas}
-                    disabled={batchIndex >= weeklyBatches.length - 1}
-                    title="Go to next batch"
-                    style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex < weeklyBatches.length - 1 ? 'pointer' : 'not-allowed', opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}
-                  >
-                    →
-                  </button>
+
+                {/* Row 2: seasonal mode + tone — full width */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  {/* Seasonal */}
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Content style</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {([
+                        { id: 'seasonal', label: 'Seasonal', desc: 'Tied to upcoming dates & events', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg> },
+                        { id: 'mix', label: 'Mix', desc: 'Seasonal + timeless blend', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5" fill="currentColor" fillOpacity="0.15"/><line x1="7" y1="1.5" x2="7" y2="12.5"/></svg> },
+                        { id: 'evergreen', label: 'Timeless', desc: 'Works any time of year', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg> },
+                      ] as { id: 'seasonal' | 'mix' | 'evergreen'; label: string; desc: string; icon: React.ReactNode }[]).map((opt) => (
+                        <button key={opt.id} type="button" onClick={() => setSeasonalMode(opt.id)} style={{ flex: 1, padding: '7px 10px', borderRadius: 10, border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: seasonalMode === opt.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", textAlign: 'left' as const }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>{opt.icon}{opt.label}</p>
+                          <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  {/* Tone selector */}
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 5 }}>Tone</p>
+                  {/* Tone */}
+                  <div style={{ flexShrink: 0 }}>
+                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Tone</p>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {([
                         { id: null, label: 'Default' },
@@ -1333,29 +1312,14 @@ export default function DashboardPage() {
                         { id: 'humorous', label: 'Humorous' },
                         { id: 'heartfelt', label: 'Heartfelt' },
                       ] as { id: string | null; label: string }[]).map((t) => (
-                        <button
-                          key={t.id ?? 'default'}
-                          type="button"
-                          onClick={() => setToneOverride(t.id)}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 20,
-                            border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
-                            background: toneOverride === t.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
-                            color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)',
-                            fontSize: 11,
-                            fontWeight: toneOverride === t.id ? 600 : 400,
-                            cursor: 'pointer',
-                            fontFamily: "'Inter', sans-serif",
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
+                        <button key={t.id ?? 'default'} type="button" onClick={() => setToneOverride(t.id)} style={{ padding: '4px 10px', borderRadius: 20, border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: toneOverride === t.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)', fontSize: 11, fontWeight: toneOverride === t.id ? 600 : 400, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
                           {t.label}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
+
               </div>
 
               {usageInfo && (
