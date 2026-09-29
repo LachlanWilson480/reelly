@@ -222,6 +222,7 @@ export default function PlansPage() {
           planLabel={checkoutPlan.label}
           billingInterval={billingInterval}
           discountCode={discountCode || undefined}
+          discountPercent={discountPercent}
           onClose={() => setCheckoutPlan(null)}
           onSuccess={() => {
             setCheckoutPlan(null)

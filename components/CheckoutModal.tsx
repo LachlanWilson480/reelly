@@ -65,7 +65,7 @@ function PaymentForm({ onSuccess, onClose }: { onSuccess: () => void; onClose: (
   )
 }
 
-export default function CheckoutModal({ plan, planLabel, billingInterval, discountCode, onClose, onSuccess }: { plan: string; planLabel: string; billingInterval?: 'monthly' | 'yearly'; discountCode?: string; onClose: () => void; onSuccess: () => void }) {
+export default function CheckoutModal({ plan, planLabel, billingInterval, discountCode, discountPercent, onClose, onSuccess }: { plan: string; planLabel: string; billingInterval?: 'monthly' | 'yearly'; discountCode?: string; discountPercent?: number | null; onClose: () => void; onSuccess: () => void }) {
   const [clientSecret, setClientSecret] = useState('')
   const [error, setError] = useState('')
   const hasStarted = useRef(false)
@@ -111,9 +111,24 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
         <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
           Subscribe to {planLabel}
         </h2>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
           Enter your payment details to start your subscription.
         </p>
+        <div style={{ background: 'var(--sand)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{planLabel} plan · {billingInterval === 'yearly' ? 'billed annually' : 'billed monthly'}</p>
+            {discountCode && <p style={{ fontSize: 11, color: 'var(--coral)' }}>Discount applied</p>}
+          </div>
+          <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
+            {(() => {
+              const base = planLabel === 'Pro'
+                ? (billingInterval === 'yearly' ? 57.50 : 69)
+                : (billingInterval === 'yearly' ? 29.17 : 35)
+              const final = discountPercent ? base * (1 - discountPercent / 100) : base
+              return `$${final.toFixed(2)}`
+            })()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>/mo</span>
+          </p>
+        </div>
 
         {error && (
           <>
