@@ -1570,7 +1570,7 @@ export default function DashboardPage() {
                       onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                     >
-                      🎬 Film these
+                      🎬 Get filming instructions
                     </button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
@@ -1663,7 +1663,7 @@ export default function DashboardPage() {
                     disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
                     style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
                   >
-                    {generatingFilming ? 'Generating...' : 'Generate instructions'}
+                    {generatingFilming ? 'Generating...' : '🎬 Get filming instructions'}
                   </button>
                 </div>
               )}
@@ -1789,6 +1789,16 @@ export default function DashboardPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+              {!generatingFilming && filmingItems.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+                  <button
+                    onClick={() => setTab('aiuploads')}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '14px 32px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(216,90,48,0.35)' }}
+                  >
+                    🎞️ Film &amp; edit these
+                  </button>
                 </div>
               )}
             </div>
