@@ -1288,18 +1288,18 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to AI Editor →</p>
               </button>
               <button
-                onClick={() => setTab('script')}
+                onClick={() => setTab('scheduler')}
                 style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
-                  Script generator
+                  Scheduler
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Type any topic and get a word-for-word script ready to film.
+                  Plan and schedule your videos across Instagram, TikTok and Facebook. Coming soon.
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Script Generator →</p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12, fontWeight: 600 }}>Coming soon →</p>
               </button>
             </div>
           )}
