@@ -2177,16 +2177,24 @@ export default function DashboardPage() {
                       {/* File input */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <input
+                          id={`upload-slot-${slotId}`}
                           type="file"
                           accept="video/*"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
                             if (file) setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
                           }}
-                          style={{ fontSize: 12, color: 'var(--text-secondary)', width: '100%' }}
+                          style={{ display: 'none' }}
                         />
-                        {uploadSlotFiles[slotId] && (
-                          <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4 }}>✓ {uploadSlotFiles[slotId].name}</p>
+                        {uploadSlotFiles[slotId] ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId].name}</p>
+                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            + Choose clip
+                          </button>
                         )}
                       </div>
                       {/* Toggles */}
