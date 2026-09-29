@@ -441,7 +441,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
   { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }
 ]`
 
-    const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = plan === 'top' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     const message = await anthropic.messages.create({
       model,

@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         .eq('user_id', userId)
     }
 
-    const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = plan === 'top' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
 
     const lengthKey = typeof length === 'string' && LENGTH_GUIDANCE[length] ? length : 'medium'
     const lengthInstruction = LENGTH_GUIDANCE[lengthKey]

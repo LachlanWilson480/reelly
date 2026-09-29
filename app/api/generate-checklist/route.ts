@@ -179,7 +179,7 @@ Also provide:
 Respond ONLY with valid JSON, no markdown, no code fences:
 { "prep": ["..."], "checklist": ["..."], "caption": "...", "script": "..." }`
 
-    const model = (plan === 'mid' || plan === 'top') ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = 'claude-haiku-4-5'
 
     let result: { prep?: string[]; checklist?: string[]; caption?: string; script?: string } | null = null
     let attempts = 0
