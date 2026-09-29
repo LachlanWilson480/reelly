@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
   const [weeklyObjectives, setWeeklyObjectives] = useState('')
+  const [seasonalMode, setSeasonalMode] = useState<'seasonal' | 'evergreen' | 'mix'>('mix')
   const [scriptTopic, setScriptTopic] = useState('')
   const [scriptLength, setScriptLength] = useState<'short' | 'medium' | 'long'>('medium')
   const [scriptStyle, setScriptStyle] = useState('')
@@ -444,7 +445,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null }),
+        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode }),
       })
 
       const data = await res.json()
@@ -1261,6 +1262,34 @@ export default function DashboardPage() {
                     placeholder="e.g. Promote our new triple chocolate croissant for 2 videos, show behind-the-scenes baking, introduce Jacob our new apprentice baker"
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
                   />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    {([
+                      { id: 'seasonal', label: '🎃 Seasonal only', desc: 'Ideas tied to upcoming dates' },
+                      { id: 'mix', label: '✨ Mix', desc: 'Blend of seasonal + evergreen' },
+                      { id: 'evergreen', label: '🌿 Evergreen only', desc: 'Works any time of year' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSeasonalMode(opt.id)}
+                        title={opt.desc}
+                        style={{
+                          padding: '5px 11px',
+                          borderRadius: 20,
+                          border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
+                          background: seasonalMode === opt.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
+                          color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--text-secondary)',
+                          fontSize: 11,
+                          fontWeight: seasonalMode === opt.id ? 600 : 400,
+                          cursor: 'pointer',
+                          fontFamily: "'Inter', sans-serif",
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>

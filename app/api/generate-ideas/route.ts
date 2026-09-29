@@ -285,7 +285,7 @@ const TOKEN_BUFFER = 200
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, customization, userId, peopleCountOverride, weeklyObjectives } = await req.json()
+    const { profile, customization, userId, peopleCountOverride, weeklyObjectives, seasonalMode } = await req.json()
 
     if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(
@@ -376,12 +376,23 @@ export async function POST(req: NextRequest) {
     const countryLabel = profile.country === 'UK' ? 'UK' : profile.country === 'US' ? 'US' : 'AU'
 
     const seasonalParts: string[] = []
-    if (majorEvent) seasonalParts.push(`Major: ${majorEvent} (${countryLabel}) — use for at most 1 idea if it genuinely fits`)
-    if (microEvent && microEvent !== majorEvent) seasonalParts.push(`Social day: ${microEvent} — use only if naturally relevant to this business`)
-    if (filteredOwnerSeasonal) seasonalParts.push(`Owner's busy season note: ${filteredOwnerSeasonal}`)
-    const seasonalBlock = seasonalParts.length
-      ? `SEASONAL (all others stay evergreen):\n${seasonalParts.join('\n')}`
-      : ''
+    if (majorEvent) seasonalParts.push(`Major: ${majorEvent} (${countryLabel})`)
+    if (microEvent && microEvent !== majorEvent) seasonalParts.push(`Social day: ${microEvent}`)
+    if (filteredOwnerSeasonal) seasonalParts.push(`Owner busy season: ${filteredOwnerSeasonal}`)
+
+    const effectiveSeasonalMode = seasonalMode || 'mix'
+    const seasonalBlock = (() => {
+      if (effectiveSeasonalMode === 'evergreen') {
+        return 'SEASONAL: User wants EVERGREEN ideas only — do NOT reference any seasonal events or dates in any idea. All ideas must work year-round.'
+      }
+      if (effectiveSeasonalMode === 'seasonal') {
+        if (seasonalParts.length === 0) return 'SEASONAL: User wants seasonal ideas but no major events are currently upcoming — do your best to tie ideas to the current time of year (season, weather, back-to-school, end of financial year etc) where it feels natural.'
+        return `SEASONAL: User wants ideas tied to upcoming dates — actively use these in as many ideas as naturally fits:\n${seasonalParts.join('\n')}`
+      }
+      // mix (default)
+      if (seasonalParts.length === 0) return ''
+      return `SEASONAL (mix — use for AT MOST 1-2 ideas where it fits naturally, rest stay evergreen):\n${seasonalParts.join('\n')}`
+    })()''
 
     // People on camera
     const onCameraPeople = (profile.on_camera_people || '').trim()
