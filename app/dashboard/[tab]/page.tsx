@@ -1258,30 +1258,48 @@ export default function DashboardPage() {
 
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              <button
+                onClick={() => setTab('ideas')}
+                style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
                   Content ideas
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {ideas.length > 0 ? `You have ${ideas.length} ideas ready to review.` : `Head to Content Ideas to generate ideas for ${profile?.suburb}.`}
+                  {ideas.length > 0 ? `You have ${ideas.length} ideas ready to review.` : `Generate ideas tailored for ${profile?.suburb}.`}
                 </p>
-              </div>
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Content Ideas →</p>
+              </button>
+              <button
+                onClick={() => setTab('aiuploads')}
+                style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
                   Upload & edit
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Upload clips and get them stitched with captions and sound in the Uploads tab.
+                  Upload clips and get them stitched with captions and sound automatically.
                 </p>
-              </div>
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                  Schedule
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to AI Editor →</p>
+              </button>
+              <button
+                onClick={() => setTab('script')}
+                style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
+                  Script generator
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Plan and post across Instagram and Facebook. Coming soon.
+                  Type any topic and get a word-for-word script ready to film.
                 </p>
-              </div>
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Script Generator →</p>
+              </button>
             </div>
           )}
 
