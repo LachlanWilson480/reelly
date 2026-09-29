@@ -435,6 +435,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
     const message = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
+      thinking: { type: 'disabled' },
       messages: [{ role: 'user', content: prompt }],
     })
 
