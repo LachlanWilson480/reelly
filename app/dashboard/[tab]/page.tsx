@@ -1658,9 +1658,20 @@ export default function DashboardPage() {
                         <div style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                             <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
-                            {(s.length || s.style) && (
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
-                            )}
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                              {(s.length || s.style) && (
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  await supabase.from('generated_scripts').delete().eq('id', s.id)
+                                  setSavedScripts((prev) => prev.filter((sc) => sc.id !== s.id))
+                                }}
+                                style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             {s.script.split(/(?<=[.!?])\s+/).map((sentence: string, i: number, arr: string[]) => (
