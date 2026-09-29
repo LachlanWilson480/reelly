@@ -1646,6 +1646,35 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+
+              {/* Scripts subsection */}
+              {savedScripts.length > 0 && (
+                <div style={{ marginTop: 32 }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Scripts generated</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {savedScripts.map((s) => (
+                      <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
+                            {(s.length || s.style) && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            {s.script.split(/(?<=[.!?])\s+/).map((sentence: string, i: number, arr: string[]) => (
+                              <div key={i} style={{ paddingTop: i === 0 ? 0 : 8, paddingBottom: 8, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1819,6 +1848,35 @@ export default function DashboardPage() {
                 </div>
               )}
 
+
+              {/* Scripts subsection */}
+              {savedScripts.length > 0 && (
+                <div style={{ marginTop: 32 }}>
+                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Scripts generated</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {savedScripts.map((s) => (
+                      <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
+                            {(s.length || s.style) && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            {s.script.split(/(?<=[.!?])\s+/).map((sentence: string, i: number, arr: string[]) => (
+                              <div key={i} style={{ paddingTop: i === 0 ? 0 : 8, paddingBottom: 8, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
