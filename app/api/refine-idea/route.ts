@@ -3,32 +3,33 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function isMidPlan(userId: string | undefined): Promise<boolean> {
-  if (!userId) return true
+async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
+  if (!userId) return 'basic'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return true
-  return data.plan !== 'basic'
+  if (!data || data.status !== 'active') return 'basic'
+  if (data.plan === 'top') return 'top'
+  if (data.plan === 'mid') return 'mid'
+  return 'basic'
 }
 
 export async function POST(req: NextRequest) {
   try {
     const { idea, instruction, profile, userId } = await req.json()
 
-    const allowed = await isMidPlan(userId)
-    if (!allowed) {
+    const plan = await getPlan(userId)
+
+    if (plan === 'basic') {
       return NextResponse.json({ error: 'Refining ideas is a Pro plan feature. Upgrade to unlock it.' }, { status: 403 })
     }
 
@@ -50,9 +51,11 @@ IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere 
 Respond ONLY with valid JSON, no markdown, no code fences, in this exact structure:
 { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }`
 
+    const model = plan === 'top' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+
     const message = await anthropic.messages.create({
       thinking: { type: 'disabled' },
-      model: 'claude-sonnet-5',
+      model,
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     })
