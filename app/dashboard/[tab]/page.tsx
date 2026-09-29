@@ -1264,10 +1264,10 @@ export default function DashboardPage() {
                   />
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     {([
-                      { id: 'seasonal', label: '◈ Seasonal', desc: 'Ideas tied to upcoming dates & events' },
-                      { id: 'mix', label: '◎ Mix', desc: 'Blend of seasonal and timeless ideas' },
-                      { id: 'evergreen', label: '○ Timeless', desc: 'Works any time of year' },
-                    ] as const).map((opt) => (
+                      { id: 'seasonal', label: 'Seasonal', desc: 'Ideas tied to upcoming dates & events', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg> },
+                      { id: 'mix', label: 'Mix', desc: 'Blend of seasonal and timeless ideas', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5" fill="currentColor" fillOpacity="0.15"/><line x1="7" y1="1.5" x2="7" y2="12.5"/></svg> },
+                      { id: 'evergreen', label: 'Timeless', desc: 'Works any time of year', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg> },
+                    ] as { id: 'seasonal' | 'mix' | 'evergreen'; label: string; desc: string; icon: React.ReactNode }[]).map((opt) => (
                       <button
                         key={opt.id}
                         type="button"
@@ -1283,7 +1283,7 @@ export default function DashboardPage() {
                           flex: 1,
                         }}
                       >
-                        <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{opt.label}</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>{opt.icon}{opt.label}</p>
                         <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
                       </button>
                     ))}
