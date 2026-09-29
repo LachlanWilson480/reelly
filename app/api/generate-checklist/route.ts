@@ -23,22 +23,45 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
   return 'mid'
 }
 
-// Compresses onboarding profile into a compact brief — no AI tokens spent.
-function compressProfile(profile: Record<string, string | null | undefined>): string {
-  const map: Array<[string, string | null | undefined]> = [
+// Only the fields relevant to HOW to film — not business strategy or content history.
+// Keeps the checklist prompt lean while retaining everything that affects delivery.
+function compressProfileForChecklist(profile: Record<string, string | null | undefined>): string {
+  const lines: string[] = []
+
+  // Identity — sets tone and context for the filming coach
+  const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
     ['Suburb', profile.suburb],
     ['Tone', profile.tone],
-    ['Brand', profile.brand_personality],
+  ]
+  for (const [k, v] of core) {
+    if (v?.trim()) lines.push(`${k}: ${v.trim()}`)
+  }
+
+  // Voice & brand — shapes how dialogue is written
+  const brand: Array<[string, string | null | undefined]> = [
+    ['Brand personality', profile.brand_personality],
     ['Avoid', profile.words_to_avoid],
+    ['Taglines', profile.taglines],
+  ]
+  const brandLines = brand.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (brandLines.length) lines.push('BRAND: ' + brandLines.join(' | '))
+
+  // Filming logistics — directly affects step instructions
+  const film: Array<[string, string | null | undefined]> = [
     ['Gear', profile.equipment],
     ['Comfort', profile.filming_comfort],
+    ['BestTimes', profile.best_filming_times],
   ]
-  return map
-    .filter(([, v]) => v && String(v).trim())
-    .map(([k, v]) => `${k}: ${String(v).trim()}`)
-    .join('\n')
+  const filmLines = film.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (filmLines.length) lines.push('FILMING: ' + filmLines.join(' | '))
+
+  // Signature service — useful for closing CTAs
+  if (profile.signature_service?.trim()) lines.push(`Signature: ${profile.signature_service.trim()}`)
+  if (profile.current_promotions?.trim()) lines.push(`Promos: ${profile.current_promotions.trim()}`)
+
+  return lines.join('\n')
 }
 
 const BASIC_WEEKLY_FILMING_LIMIT = 24
@@ -94,22 +117,20 @@ export async function POST(req: NextRequest) {
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
 
-    const profileBrief = compressProfile(profile)
+    const profileBrief = compressProfileForChecklist(profile)
 
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
-      locationType === 'mobile'
-        ? 'MOBILE (travels to customers) — no shop/storefront steps; use van/tools/surroundings'
-        : locationType === 'both'
-        ? 'BOTH fixed + mobile — shop ok if it fits, but not assumed'
-        : 'FIXED shop/studio — filming there is fine'
+      locationType === 'mobile' ? 'MOBILE — travels to customers; no shop/storefront steps; use van/tools/surroundings'
+      : locationType === 'both' ? 'BOTH fixed + mobile — shop ok if it fits, not assumed'
+      : 'FIXED shop/studio — filming there is fine'
 
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
     const isMultiPerson = effectivePeopleCount > 1
     const crewGuidance = isMultiPerson
-      ? `Up to ${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — choreograph handoffs where it fits naturally; many steps can still be one person`
+      ? `Up to ${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — choreograph handoffs where it fits; many steps can still be one person`
       : 'Films ALONE on phone, no crew'
 
     const notesLine = idea.notes ? ` Owner notes: ${idea.notes}` : ''
@@ -133,16 +154,17 @@ RULES:
 - Continue the opening line naturally — don't invent a new one
 - Dialogue sounds like a real person talking (contractions, casual, short sentences) — never like an ad
 - Pace generously: ~2 words/sec + 1-2 sec buffer per movement. 12-word line = 7-8 sec minimum. Total: 20-45 sec
-- Camera must move/change in most steps — not static talking head throughout
-- Common-sense observations fine to state. Specific technical/regulatory facts — hand off to owner to say in their own words
-- Never double-quote inside strings — use single quotes ' ' instead
+- Camera must move or change in most steps — not a static talking head throughout
+- Common-sense observations fine to state directly. Specific technical/regulatory facts — hand off to owner to say in their own words
+- Never use double quotes inside strings — use single quotes instead
 - Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say
+- Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 
 Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say: G'day, it's Jake from Jake's Plumbing, and mate, if your hot water system is making a weird banging noise, you're not going crazy."
 
 Also provide:
-- prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed)
-- caption: ready-to-post social caption, 2-4 sentences in business tone, ending with 2-4 hashtags
+- prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed for this specific idea)
+- caption: ready-to-post social caption, 2-4 sentences in the business's tone, ending with 2-4 hashtags
 - script: full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud
 
 Respond ONLY with valid JSON, no markdown, no code fences:
