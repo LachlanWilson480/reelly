@@ -11,27 +11,27 @@ const supabaseAdmin = createClient(
 )
 
 const BASIC_ANGLES = [
-  'answer a question customers ask you all the time, on camera, in your own words',
-  'explain one thing most customers get wrong or don\'t know about your industry',
-  'show and narrate one specific tool, product, or part of your setup and why you use it',
-  'give one genuinely useful tip anyone could use, related to your work',
-  'talk through how you decide pricing or what affects cost for a typical job',
-  'share one opinion or preference you have in your trade and why (e.g. a method, brand, or approach you favour)',
-  'explain what a first-time customer should expect when they come to you',
-  'bust a common myth or misconception about your industry',
-  'talk about something you wish more customers knew before booking',
-  'give a 3-step breakdown of part of your process, explained simply',
+  "answer a question customers ask you all the time, on camera, in your own words",
+  "explain one thing most customers get wrong or don't know about your industry",
+  "show and narrate one specific tool, product, or part of your setup and why you use it",
+  "give one genuinely useful tip anyone could use, related to your work",
+  "talk through how you decide pricing or what affects cost for a typical job",
+  "share one opinion or preference you have in your trade and why (e.g. a method, brand, or approach you favour)",
+  "explain what a first-time customer should expect when they come to you",
+  "bust a common myth or misconception about your industry",
+  "talk about something you wish more customers knew before booking",
+  "give a 3-step breakdown of part of your process, explained simply",
 ]
 
 const MID_EXTRA_ANGLES = [
-  'compare two options/approaches customers often choose between, and explain how you\'d help them decide',
-  'tell a quick, honest story about a mistake or lesson learned early in your career',
-  'explain the difference between a cheap/DIY approach and a professional one for something in your trade',
-  'share a "what I look for" checklist when assessing a new job or project',
-  'explain what makes your approach or business different from others in the same trade',
-  'answer a question you wish customers asked, but usually don\'t',
-  'give a seasonal tip relevant to the time of year for your trade',
-  'explain a term or piece of jargon from your industry that confuses customers',
+  "compare two options/approaches customers often choose between, and explain how you'd help them decide",
+  "tell a quick, honest story about a mistake or lesson learned early in your career",
+  "explain the difference between a cheap/DIY approach and a professional one for something in your trade",
+  "share a 'what I look for' checklist when assessing a new job or project",
+  "explain what makes your approach or business different from others in the same trade",
+  "answer a question you wish customers asked, but usually don't",
+  "give a seasonal tip relevant to the time of year for your trade",
+  "explain a term or piece of jargon from your industry that confuses customers",
 ]
 
 async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
@@ -47,7 +47,7 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
   return 'mid'
 }
 
-type SeasonalEvent = { name: string; windowDays: number } & (
+type SeasonalEvent = { name: string; windowDays: number; micro?: boolean } & (
   | { type: 'fixed'; month: number; day: number }
   | { type: 'nthWeekday'; month: number; weekday: number; n: number }
   | { type: 'lastWeekday'; month: number; weekday: number }
@@ -66,15 +66,15 @@ function computeEaster(year: number): Date {
 }
 
 function nthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
-  const firstOfMonth = new Date(year, month - 1, 1)
-  const day = 1 + ((weekday - firstOfMonth.getDay() + 7) % 7) + (n - 1) * 7
+  const first = new Date(year, month - 1, 1)
+  const day = 1 + ((weekday - first.getDay() + 7) % 7) + (n - 1) * 7
   return new Date(year, month - 1, day)
 }
 
 function lastWeekdayOfMonth(year: number, month: number, weekday: number): Date {
-  const lastOfMonth = new Date(year, month, 0)
-  const diff = (lastOfMonth.getDay() - weekday + 7) % 7
-  return new Date(year, month - 1, lastOfMonth.getDate() - diff)
+  const last = new Date(year, month, 0)
+  const diff = (last.getDay() - weekday + 7) % 7
+  return new Date(year, month - 1, last.getDate() - diff)
 }
 
 function getEventDate(e: SeasonalEvent, year: number): Date {
@@ -87,6 +87,7 @@ function getEventDate(e: SeasonalEvent, year: number): Date {
   return d
 }
 
+// Major civic/retail events per country
 const AU_EVENTS: SeasonalEvent[] = [
   { name: 'New Year', type: 'fixed', month: 1, day: 1, windowDays: 14 },
   { name: 'Australia Day', type: 'fixed', month: 1, day: 26, windowDays: 21 },
@@ -98,7 +99,7 @@ const AU_EVENTS: SeasonalEvent[] = [
   { name: "Father's Day", type: 'nthWeekday', month: 9, weekday: 0, n: 1, windowDays: 21 },
   { name: 'Halloween', type: 'fixed', month: 10, day: 31, windowDays: 21 },
   { name: 'Melbourne Cup', type: 'nthWeekday', month: 11, weekday: 2, n: 1, windowDays: 14 },
-  { name: 'Christmas / EOFY holiday season', type: 'fixed', month: 12, day: 25, windowDays: 35 },
+  { name: 'Christmas / end-of-year holiday season', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
 const UK_EVENTS: SeasonalEvent[] = [
@@ -126,10 +127,25 @@ const US_EVENTS: SeasonalEvent[] = [
   { name: 'Christmas', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
+// Micro/social days — global, relevant across all countries
+// micro: true means tighter window and lower priority (only surface if no major event active)
+const MICRO_EVENTS: SeasonalEvent[] = [
+  { name: 'Pancake Day (Shrove Tuesday)', type: 'easterOffset', offsetDays: -47, windowDays: 7, micro: true },
+  { name: 'International Women\'s Day', type: 'fixed', month: 3, day: 8, windowDays: 7, micro: true },
+  { name: 'World Sleep Day', type: 'fixed', month: 3, day: 15, windowDays: 5, micro: true },
+  { name: 'Earth Day', type: 'fixed', month: 4, day: 22, windowDays: 7, micro: true },
+  { name: 'Mental Health Awareness Week', type: 'fixed', month: 5, day: 13, windowDays: 7, micro: true },
+  { name: 'World Environment Day', type: 'fixed', month: 6, day: 5, windowDays: 5, micro: true },
+  { name: 'International Friendship Day', type: 'fixed', month: 7, day: 30, windowDays: 5, micro: true },
+  { name: 'World Mental Health Day', type: 'fixed', month: 10, day: 10, windowDays: 7, micro: true },
+  { name: 'Small Business Saturday', type: 'fixed', month: 11, day: 30, windowDays: 7, micro: true },
+  { name: 'Black Friday / Cyber Monday', type: 'nthWeekday', month: 11, weekday: 5, n: 4, windowDays: 7, micro: true },
+  { name: "New Year's Eve", type: 'fixed', month: 12, day: 31, windowDays: 5, micro: true },
+]
+
 function getEventsForCountry(country: string | null | undefined): SeasonalEvent[] {
-  if (country === 'UK') return UK_EVENTS
-  if (country === 'US') return US_EVENTS
-  return AU_EVENTS
+  const major = country === 'UK' ? UK_EVENTS : country === 'US' ? US_EVENTS : AU_EVENTS
+  return [...major, ...MICRO_EVENTS]
 }
 
 function isEventInWindow(e: SeasonalEvent, now: Date): boolean {
@@ -138,23 +154,29 @@ function isEventInWindow(e: SeasonalEvent, now: Date): boolean {
   return diffDays >= -3 && diffDays <= e.windowDays
 }
 
-function getUpcomingSeasonalEvent(country: string | null | undefined): string | null {
+// Returns up to 2 upcoming events: first available major, then first available micro (if different)
+function getUpcomingEvents(country: string | null | undefined): { major: string | null; micro: string | null } {
   const now = new Date()
-  const events = getEventsForCountry(country)
-  for (const e of events) {
-    if (isEventInWindow(e, now)) return e.name
+  const all = getEventsForCountry(country)
+  let major: string | null = null
+  let micro: string | null = null
+  for (const e of all) {
+    if (!isEventInWindow(e, now)) continue
+    if (e.micro && !micro) micro = e.name
+    if (!e.micro && !major) major = e.name
+    if (major && micro) break
   }
-  return null
+  return { major, micro }
 }
 
 function filterSeasonalContext(text: string | null | undefined, country: string | null | undefined): string | null {
-  if (!text || !text.trim()) return null
+  if (!text?.trim()) return null
   const now = new Date()
   const lowerText = text.toLowerCase()
   const events = getEventsForCountry(country)
   for (const e of events) {
     const nameLower = e.name.toLowerCase()
-    const mentioned = nameLower.split(/[\s/()]+/).some((word) => word.length > 3 && lowerText.includes(word))
+    const mentioned = nameLower.split(/[\s/()]+/).some((w) => w.length > 3 && lowerText.includes(w))
     if (mentioned && !isEventInWindow(e, now)) return null
   }
   return text
@@ -164,38 +186,90 @@ function pickAngles(pool: string[], count: number): string[] {
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count)
 }
 
+// Compresses all 30+ profile fields into a tight brief.
+// Skips empty/null fields entirely. Shortens labels to save tokens.
+// Groups fields so Claude understands which are high-signal vs context.
 function compressProfile(profile: Record<string, string | null | undefined>): string {
-  const map: Array<[string, string | null | undefined]> = [
+  const lines: string[] = []
+
+  // Core identity — always present
+  const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
     ['Suburb', profile.suburb],
     ['Tone', profile.tone],
     ['Audience', profile.target_audience],
     ['Services', profile.core_services],
-    ['USP', profile.key_selling_point],
+  ]
+  for (const [k, v] of core) {
+    if (v?.trim()) lines.push(`${k}: ${v.trim()}`)
+  }
+
+  // Brand & voice
+  const brand: Array<[string, string | null | undefined]> = [
+    ['Brand personality', profile.brand_personality],
+    ['Avoid', profile.words_to_avoid],
+    ['Taglines', profile.taglines],
+    ['Ref brand', profile.reference_brand],
+    ['Aesthetic', profile.brand_colors],
+  ]
+  const brandLines = brand.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (brandLines.length) lines.push('BRAND: ' + brandLines.join(' | '))
+
+  // Business context
+  const biz: Array<[string, string | null | undefined]> = [
     ['Yrs', profile.years_in_business],
     ['Team', profile.team_size],
     ['Price', profile.price_positioning],
     ['Source', profile.customer_source],
-    ['Launches', profile.upcoming_launches],
-    ['Formats', profile.preferred_formats],
-    ['Gear', profile.equipment],
-    ['Community', profile.community_ties],
-    ['PastContent', profile.past_content],
-    ['Flopped', profile.worst_content],
-    ['Competitors', profile.competitor_content],
-    ['Notes', profile.notes],
-    ['Brand', profile.brand_personality],
-    ['Avoid', profile.words_to_avoid],
-    ['Signature', profile.signature_service],
-    ['Objections', profile.common_objections],
-    ['Promos', profile.current_promotions],
-    ['Problem', profile.customer_problem],
+    ['Website', profile.website],
   ]
-  return map
-    .filter(([, v]) => v && String(v).trim())
-    .map(([k, v]) => `${k}: ${String(v).trim()}`)
-    .join('\n')
+  const bizLines = biz.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (bizLines.length) lines.push('BIZ: ' + bizLines.join(' | '))
+
+  // Audience & selling
+  const sell: Array<[string, string | null | undefined]> = [
+    ['Problem', profile.customer_problem],
+    ['Objections', profile.common_objections],
+    ['Signature', profile.signature_service],
+    ['USP', profile.key_selling_point],
+    ['Promos', profile.current_promotions],
+    ['Launches', profile.upcoming_launches],
+  ]
+  for (const [k, v] of sell) {
+    if (v?.trim()) lines.push(`${k}: ${v.trim()}`)
+  }
+
+  // Content history
+  const content: Array<[string, string | null | undefined]> = [
+    ['BestContent', profile.past_content],
+    ['AvoidContent', profile.worst_content],
+    ['Formats', profile.preferred_formats],
+    ['PostFreq', profile.posting_frequency],
+    ['CompetitorAdmire', profile.competitor_content],
+  ]
+  const contentLines = content.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (contentLines.length) lines.push('CONTENT HISTORY: ' + contentLines.join(' | '))
+
+  // Filming logistics
+  const film: Array<[string, string | null | undefined]> = [
+    ['Gear', profile.equipment],
+    ['BestTimes', profile.best_filming_times],
+    ['Comfort', profile.filming_comfort],
+  ]
+  const filmLines = film.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  if (filmLines.length) lines.push('FILMING: ' + filmLines.join(' | '))
+
+  // Local & extra
+  const local: Array<[string, string | null | undefined]> = [
+    ['Community', profile.community_ties],
+    ['Notes', profile.notes],
+  ]
+  for (const [k, v] of local) {
+    if (v?.trim()) lines.push(`${k}: ${v.trim()}`)
+  }
+
+  return lines.join('\n')
 }
 
 const BASIC_BATCH_SIZE = 3
@@ -206,7 +280,6 @@ const BASIC_WEEKLY_LIMIT = 24
 const PRO_WEEKLY_LIMIT = 98
 const PREMIUM_WEEKLY_LIMIT = 210
 
-// ~220 output tokens per card (title + hook + description + tags), rounded up with headroom
 const TOKENS_PER_CARD = 250
 const TOKEN_BUFFER = 200
 
@@ -250,6 +323,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Weekly usage enforcement
     let usageInfo: { used: number; limit: number } | null = null
     if (userId) {
       const { data: usageRow } = await supabaseAdmin
@@ -288,56 +362,69 @@ export async function POST(req: NextRequest) {
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
+    // Location
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
-      locationType === 'mobile'
-        ? 'MOBILE biz (travels to customers) — no storefront ideas; use van/tools/expertise'
-        : locationType === 'both'
-        ? 'BOTH fixed + mobile — shop setting ok but not assumed'
-        : 'FIXED location customers visit — shop/studio setting fine'
+      locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
+      : locationType === 'both' ? 'BOTH fixed + mobile — shop ok but not assumed'
+      : 'FIXED shop/studio — customers visit; showing space is fine'
 
-    const upcomingEvent = getUpcomingSeasonalEvent(profile.country)
-    const filteredSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
+    // Seasonal — major + micro, only what's actually upcoming
+    const { major: majorEvent, micro: microEvent } = getUpcomingEvents(profile.country)
+    const filteredOwnerSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
     const countryLabel = profile.country === 'UK' ? 'UK' : profile.country === 'US' ? 'US' : 'AU'
-    const seasonalLine = [
-      upcomingEvent ? `Upcoming: ${upcomingEvent} (${countryLabel})` : '',
-      filteredSeasonal ? `Owner busy season: ${filteredSeasonal}` : '',
-    ].filter(Boolean).join(' | ')
 
+    const seasonalParts: string[] = []
+    if (majorEvent) seasonalParts.push(`Major: ${majorEvent} (${countryLabel}) — use for at most 1 idea if it genuinely fits`)
+    if (microEvent && microEvent !== majorEvent) seasonalParts.push(`Social day: ${microEvent} — use only if naturally relevant to this business`)
+    if (filteredOwnerSeasonal) seasonalParts.push(`Owner's busy season note: ${filteredOwnerSeasonal}`)
+    const seasonalBlock = seasonalParts.length
+      ? `SEASONAL (all others stay evergreen):\n${seasonalParts.join('\n')}`
+      : ''
+
+    // People on camera
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
     const isMultiPerson = effectivePeopleCount > 1
     const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
     const crewLine = isMultiPerson
-      ? `Up to ${effectivePeopleCount} people on camera${namesForPrompt ? ` (${namesForPrompt})` : ''} — multi-person ideas ok where it fits naturally`
-      : 'Films ALONE on phone, no crew'
+      ? `Camera: up to ${effectivePeopleCount} people${namesForPrompt ? ` (${namesForPrompt})` : ''} — multi-person ideas ok where natural`
+      : 'Camera: films ALONE on phone'
 
     const profileBrief = compressProfile(profile)
 
-    const prompt = `Generate exactly ${batchSize} short-form social video ideas for a small business owner. Return all ${batchSize} in one JSON array — keep each card concise.
+    const prompt = `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
 
-BUSINESS BRIEF:
+BUSINESS:
 ${profileBrief}
 ${crewLine}
 Location: ${locationBrief}
-${seasonalLine ? `Seasonal: ${seasonalLine} — use for AT MOST 1 idea where it fits naturally; rest stay evergreen` : ''}
-${keyEventsContext ? `Recent biz events (weave in at most 1):\n${keyEventsContext}` : ''}
-${pastIdeasContext ? `Already generated — do NOT repeat these angles:\n${pastIdeasContext}` : ''}
-${effectiveCustomization ? `Owner guidance: ${effectiveCustomization}` : ''}
+${seasonalBlock ? `\n${seasonalBlock}` : ''}
+${keyEventsContext ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
+${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
+${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
+
+HOW TO USE THE BRIEF:
+- Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea
+- Signature, USP, Problem, Objections, Promos → lean into these as the content subject where the angle fits
+- BestContent/Formats → match what has worked; AvoidContent → don't repeat those angles
+- Gear/Comfort → never suggest anything beyond what they have or can do
+- Community, Suburb → add local flavour where natural, not forced
+- Website/Instagram/TikTok → ignore for idea generation (not relevant)
 
 HARD RULES:
-- Never invent a specific fictional customer/address/live job. General problems only.
-- Never state specific technical facts/causes yourself — set up the topic, let owner explain.
-- Each video: 15-30 sec, one take, phone, no extra setup.
-- Titles must reference a real business detail — no generic templates.
-- Use single quotes inside strings, never double quotes.
-- Keep each field brief: title <10 words, hook <20 words, description <25 words, tags 3-4 hashtags.
+- Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
+- Never state specific technical facts or diagnoses yourself — set up the topic and let the owner explain in their own words
+- 15-30 sec per video, one take, phone, no extra setup beyond normal workspace
+- Title must reference a real business detail — no generic templates ("Behind the scenes", "Day in the life" unless content genuinely is that)
+- Keep each field brief: title <10 words, hook <20 words, description <25 words
+- Use single quotes inside strings, never double quotes
 
-ANGLES — one per idea in order:
+ANGLES — assign exactly one per idea, in this order:
 ${angleLines}
 
-Respond ONLY with a valid JSON array, no markdown, no code fences:
+Output ONLY a valid JSON array, no markdown, no code fences:
 [
   { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }
 ]`
@@ -357,7 +444,7 @@ Respond ONLY with a valid JSON array, no markdown, no code fences:
     const ideas = JSON.parse(safeCleaned)
 
     if (!Array.isArray(ideas) || ideas.length === 0) {
-      console.error('generate-ideas: model returned no ideas. Raw:', rawText)
+      console.error('generate-ideas: no ideas returned. Raw:', rawText)
       return NextResponse.json({ error: 'The AI had trouble generating ideas this time. Please try again.' }, { status: 500 })
     }
 
