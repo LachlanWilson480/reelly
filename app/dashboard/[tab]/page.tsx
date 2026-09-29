@@ -81,6 +81,7 @@ export default function DashboardPage() {
   const [scriptStyle, setScriptStyle] = useState('')
   const [generatedScript, setGeneratedScript] = useState<string | null>(null)
   const [savedScripts, setSavedScripts] = useState<{ id: string; topic: string; script: string; length: string | null; style: string | null; created_at: string }[]>([])
+  const [dismissedScriptIds, setDismissedScriptIds] = useState<Set<string>>(new Set())
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptGenError, setScriptGenError] = useState<string | null>(null)
   const [newKeyEvent, setNewKeyEvent] = useState('')
@@ -1655,7 +1656,7 @@ export default function DashboardPage() {
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Scripts generated</h3>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {savedScripts.map((s) => (
+                    {savedScripts.filter((s) => !dismissedScriptIds.has(s.id)).map((s) => (
                       <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
                         <div style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
@@ -1665,10 +1666,7 @@ export default function DashboardPage() {
                                 <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
                               )}
                               <button
-                                onClick={async () => {
-                                  await supabase.from('generated_scripts').delete().eq('id', s.id)
-                                  setSavedScripts((prev) => prev.filter((sc) => sc.id !== s.id))
-                                }}
+                                onClick={() => setDismissedScriptIds((prev) => new Set([...prev, s.id]))}
                                 style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}
                               >
                                 Remove
@@ -1720,7 +1718,7 @@ export default function DashboardPage() {
                     {savedScripts.length > 0 && (
                       <>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px' }}>Custom scripts</p>
-                        {savedScripts.map((s) => (
+                        {savedScripts.filter((s) => !dismissedScriptIds.has(s.id)).map((s) => (
                           <label
                             key={s.id}
                             style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--card-bg)', cursor: 'pointer' }}
