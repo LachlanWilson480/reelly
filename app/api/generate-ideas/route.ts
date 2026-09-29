@@ -452,8 +452,6 @@ Output ONLY a valid JSON array, no markdown, no code fences:
 
     const textBlock = message.content.find((b) => b.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'
-    console.log("generate-ideas debug — stop_reason:", message.stop_reason, "| usage:", JSON.stringify(message.usage), "| maxTokens:", maxTokens, "| batchSize:", batchSize)
-    console.log("generate-ideas raw:", rawText.slice(0, 600))
     const cleaned = rawText.replace(/```json|```/g, '').trim()
     const safeCleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
     const ideas = JSON.parse(safeCleaned)
