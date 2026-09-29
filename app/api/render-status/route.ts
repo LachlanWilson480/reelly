@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { Aws } from 'remotion/lambda'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
-      .select('shotstack_render_id, user_id, notified, status')
+      .select('remotion_render_id, user_id, notified, status')
       .eq('id', renderId)
       .single()
 
@@ -21,18 +22,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Render not found' }, { status: 404 })
     }
 
-    const shotstackRes = await fetch(
-      `https://api.shotstack.io/edit/v1/render/${renderRow.shotstack_render_id}`,
-      { headers: { 'x-api-key': process.env.SHOTSTACK_API_KEY! } }
-    )
+    const region = process.env.AWS_REGION || 'us-east-1'
+    Aws.setRegion(region)
+    Aws.setPublicBucket(process.env.REMOTION_BUCKET_NAME || 'reelezy-remotion-renders')
 
-    const shotstackData = await shotstackRes.json()
-    if (shotstackData.response.status === 'failed') console.log('RENDER FAILED:', JSON.stringify(shotstackData.response, null, 2))
-    const status = shotstackData.response.status
-    const outputUrl = shotstackData.response.url || null
+    let remotionStatus
+    try {
+      remotionStatus = await Aws.getRenderProgress({
+        region,
+        functionName: process.env.REMOTION_LAMBDA_FUNCTION || 'remotion-prod',
+        renderId: renderRow.remotion_render_id,
+      })
+    } catch (error) {
+      console.error('Remotion status check error:', error)
+      return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
+    }
 
-    const durationSeconds = status === 'done' && typeof shotstackData.response.duration === 'number'
-      ? Math.round(shotstackData.response.duration)
+    const status = remotionStatus.currentFrame >= remotionStatus.totalFrames ? 'done' : 'rendering'
+    const outputUrl = remotionStatus.outputFile || null
+    const durationSeconds = remotionStatus.currentFrame && remotionStatus.fps
+      ? Math.round(remotionStatus.currentFrame / remotionStatus.fps)
       : null
 
     const updateData: Record<string, unknown> = { status, output_url: outputUrl }
@@ -84,7 +93,7 @@ export async function POST(req: NextRequest) {
     }
     const progress = progressMap[status] ?? 10
 
-    return NextResponse.json({ status, outputUrl, progress, error: status === "failed" ? shotstackData.response.error : undefined })
+    return NextResponse.json({ status, outputUrl, progress, error: status === "failed" ? "Render failed" : undefined })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
