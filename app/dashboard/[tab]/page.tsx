@@ -1787,6 +1787,15 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       )}
+                      {/* Film & edit CTA */}
+                      <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()); setTab('aiuploads'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                        >
+                          🎞️ Film &amp; edit this
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
