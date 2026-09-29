@@ -313,7 +313,7 @@ export default function DashboardPage() {
         setDbSavedIdeas(savedRows.map(toIdea))
         setSavedIds(new Set(savedRows.map((r) => r.id as string)))
 
-        const filmingRows = savedRows.filter((r) => r.checklist && !r.filming_cleared)
+        const filmingRows = (allIdeas || []).filter((r) => r.checklist && !r.filming_cleared)
         if (filmingRows.length > 0) {
           setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "" } }))
         }
