@@ -1723,9 +1723,11 @@ export default function DashboardPage() {
                 >
                   Clear
                 </button>
-              )}              {generatingFilming && (
-                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 14, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}><span className='rly-spinner rly-spinner-coral' />Generating filming instructions...</p>
+              )}
+              {generatingFilming && (
+                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <span className='rly-spinner rly-spinner-coral' />
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions — your existing cards are still below...</p>
                 </div>
               )}
               {!generatingFilming && filmingItems.length === 0 && savedIdeas.length === 0 && (
@@ -1735,7 +1737,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
               )}
-              {!generatingFilming && filmingItems.length > 0 && (
+              {filmingItems.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   {filmingItems.map((item) => (
                     <div key={item.id} style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
