@@ -109,6 +109,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
 { "script": "..." }`
 
     const message = await anthropic.messages.create({
+      thinking: { type: 'disabled' },
       model,
       max_tokens: 800,
       messages: [{ role: 'user', content: prompt }],

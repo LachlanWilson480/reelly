@@ -51,6 +51,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
 { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }`
 
     const message = await anthropic.messages.create({
+      thinking: { type: 'disabled' },
       thinking: { type: "disabled" },      model: 'claude-sonnet-5',
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
