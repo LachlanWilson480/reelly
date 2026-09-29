@@ -1704,9 +1704,38 @@ export default function DashboardPage() {
                         <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                       </label>
                     ))}
+                    {savedScripts.length > 0 && (
+                      <>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px' }}>Custom scripts</p>
+                        {savedScripts.map((s) => (
+                          <label
+                            key={s.id}
+                            style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--card-bg)', cursor: 'pointer' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedIdeaIdsForFilming.includes(`script-${s.id}`)}
+                              onChange={(e) => {
+                                setSelectedIdeaIdsForFilming((prev) =>
+                                  e.target.checked ? [...prev, `script-${s.id}`] : prev.filter((id) => id !== `script-${s.id}`)
+                                )
+                              }}
+                              style={{ marginTop: 3, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 13, lineHeight: 1.4 }}>📝 {s.topic}</span>
+                          </label>
+                        ))}
+                      </>
+                    )}
                   </div>
                   <button
-                    onClick={() => proceedToFilming(savedIdeas.filter((idea) => selectedIdeaIdsForFilming.includes(idea.id)))}
+                    onClick={() => {
+                      const ideaItems = savedIdeas.filter((idea) => selectedIdeaIdsForFilming.includes(idea.id))
+                      const scriptItems = savedScripts
+                        .filter((s) => selectedIdeaIdsForFilming.includes(`script-${s.id}`))
+                        .map((s) => ({ id: `script-${s.id}`, title: s.topic, hook: s.script.split(/[.!?]/)[0] || s.topic, description: s.topic, tags: '', script: s.script }))
+                      proceedToFilming([...ideaItems, ...scriptItems])
+                    }}
                     disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
                     style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
                   >
