@@ -11,6 +11,11 @@ export default function PlansPage() {
   const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
   const [success, setSuccess] = useState(false)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
+  const [discountCode, setDiscountCode] = useState('')
+  const [discountInput, setDiscountInput] = useState('')
+  const [discountError, setDiscountError] = useState('')
+  const [discountLoading, setDiscountLoading] = useState(false)
+  const [discountPercent, setDiscountPercent] = useState<number | null>(null)
 
   const pricing = [
     {
@@ -33,6 +38,33 @@ export default function PlansPage() {
       highlight: true,
     },
   ]
+  const applyDiscount = async () => {
+    if (!discountInput.trim()) return
+    setDiscountLoading(true)
+    setDiscountError('')
+    setDiscountPercent(null)
+    setDiscountCode('')
+    const res = await fetch('/api/validate-discount', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: discountInput.trim() }),
+    })
+    const data = await res.json()
+    setDiscountLoading(false)
+    if (!res.ok) {
+      setDiscountError(data.error || 'Invalid code')
+    } else {
+      setDiscountCode(data.code)
+      setDiscountPercent(data.percentOff)
+    }
+  }
+
+  const discountedPrice = (price: string) => {
+    if (!discountPercent) return null
+    const num = parseFloat(price.replace('$', ''))
+    return `$${(num * (1 - discountPercent / 100)).toFixed(2)}`
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
@@ -84,6 +116,28 @@ export default function PlansPage() {
             </span>
           </div>
 
+          {/* Discount code */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
+                placeholder="Discount code"
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+              />
+              <button
+                onClick={applyDiscount}
+                disabled={discountLoading || !discountInput.trim()}
+                style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
+              >
+                {discountLoading ? 'Checking...' : 'Apply'}
+              </button>
+            </div>
+            {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
+            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>✓ {discountPercent}% off applied!</p>}
+          </div>
+
           {success && (
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'center' }}>
               <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Subscription active! You're all set.</p>
@@ -105,7 +159,14 @@ export default function PlansPage() {
                   {tier.name}
                 </h3>
                 <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}<span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
+                  {discountPercent ? (
+                    <>
+                      <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 24 }}>{billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}</span>
+                      {' '}
+                      {discountedPrice(billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
+                    </>
+                  ) : (billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
+                  <span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
                 </p>
                 {billingInterval === 'yearly' && (
                   <p style={{ fontSize: 12, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)', marginBottom: 8 }}>
@@ -160,6 +221,7 @@ export default function PlansPage() {
           plan={checkoutPlan.id}
           planLabel={checkoutPlan.label}
           billingInterval={billingInterval}
+          discountCode={discountCode || undefined}
           onClose={() => setCheckoutPlan(null)}
           onSuccess={() => {
             setCheckoutPlan(null)

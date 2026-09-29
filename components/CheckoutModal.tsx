@@ -65,7 +65,7 @@ function PaymentForm({ onSuccess, onClose }: { onSuccess: () => void; onClose: (
   )
 }
 
-export default function CheckoutModal({ plan, planLabel, billingInterval, onClose, onSuccess }: { plan: string; planLabel: string; billingInterval?: 'monthly' | 'yearly'; onClose: () => void; onSuccess: () => void }) {
+export default function CheckoutModal({ plan, planLabel, billingInterval, discountCode, onClose, onSuccess }: { plan: string; planLabel: string; billingInterval?: 'monthly' | 'yearly'; discountCode?: string; onClose: () => void; onSuccess: () => void }) {
   const [clientSecret, setClientSecret] = useState('')
   const [error, setError] = useState('')
   const hasStarted = useRef(false)
@@ -85,7 +85,7 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, onClos
       const res = await fetch('/api/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email, plan, billingInterval: billingInterval || 'monthly' }),
+        body: JSON.stringify({ userId: user.id, email: user.email, plan, billingInterval: billingInterval || 'monthly', discountCode: discountCode || null }),
       })
 
       const data = await res.json()

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-    const { userId, email, plan, billingInterval } = await req.json()
+    const { userId, email, plan, billingInterval, discountCode } = await req.json()
     const interval = billingInterval === 'yearly' ? 'yearly' : 'monthly'
 
     const priceId = interval === 'yearly' ? YEARLY_PRICE_MAP[plan] : MONTHLY_PRICE_MAP[plan]
@@ -47,12 +47,39 @@ export async function POST(req: NextRequest) {
       customerId = customer.id
     }
 
+    // Apply discount code if provided
+    let couponId: string | undefined
+    if (discountCode) {
+      const { data: discountRow } = await supabaseAdmin
+        .from('discount_codes')
+        .select('*')
+        .eq('code', discountCode.trim().toUpperCase())
+        .eq('active', true)
+        .maybeSingle()
+
+      if (discountRow && (discountRow.max_uses === null || discountRow.uses < discountRow.max_uses)) {
+        // Find or create a Stripe coupon for this percentage
+        const couponName = `${discountRow.percent_off}OFF`
+        const existingCoupons = await stripe.coupons.list({ limit: 100 })
+        const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === discountRow.percent_off)
+        if (existing) {
+          couponId = existing.id
+        } else {
+          const newCoupon = await stripe.coupons.create({ percent_off: discountRow.percent_off, duration: 'once', name: couponName })
+          couponId = newCoupon.id
+        }
+        // Increment uses
+        await supabaseAdmin.from('discount_codes').update({ uses: discountRow.uses + 1 }).eq('id', discountRow.id)
+      }
+    }
+
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
       expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent'],
+      ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
     })
 
     await supabaseAdmin
