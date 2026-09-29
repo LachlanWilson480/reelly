@@ -1123,6 +1123,25 @@ export default function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .rly-spinner {
+          display: inline-block;
+          width: 13px;
+          height: 13px;
+          border: 1.5px solid rgba(255,255,255,0.35);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          vertical-align: middle;
+          margin-right: 7px;
+          flex-shrink: 0;
+        }
+        .rly-spinner-coral {
+          border-color: rgba(216,90,48,0.3);
+          border-top-color: var(--coral);
+        }
+      `}</style>
       {showOverageModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ background: "var(--sand)", borderRadius: 16, padding: "32px", maxWidth: 420, width: "100%" }}>
@@ -1292,7 +1311,7 @@ export default function DashboardPage() {
                       disabled={generatingIdeas}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
                     >
-                      {generatingIdeas ? 'Generating...' : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
+                      {generatingIdeas ? <><span className='rly-spinner' />Generating...</> : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
                     </button>
                     <button onClick={undoIdeas} disabled={batchIndex <= 0} title="Previous batch" style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 12px', fontSize: 15, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}>←</button>
                     {weeklyBatches.length > 0 && (
@@ -1664,7 +1683,7 @@ export default function DashboardPage() {
                     disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
                     style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
                   >
-                    {generatingFilming ? 'Generating...' : '🎬 Get filming instructions'}
+                    {generatingFilming ? <><span className='rly-spinner' />Generating...</> : '🎬 Get filming instructions'}
                   </button>
                 </div>
               )}
@@ -1679,7 +1698,7 @@ export default function DashboardPage() {
                 </button>
               )}              {generatingFilming && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions...</p>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}><span className='rly-spinner rly-spinner-coral' />Generating filming instructions...</p>
                 </div>
               )}
               {!generatingFilming && filmingItems.length === 0 && savedIdeas.length === 0 && (
