@@ -1,4 +1,4 @@
-import { Aws } from 'remotion/lambda'
+import { Aws } from '@remotion/lambda'
 
 export const initializeRemotionLambda = async () => {
   const region = process.env.AWS_REGION || 'us-east-1'

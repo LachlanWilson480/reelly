@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Aws } from 'remotion/lambda'
+import { Aws } from '@remotion/lambda'
 import { buildCompositionProps, getOutputDimensions } from '@/lib/remotion-lambda'
 
 const supabaseAdmin = createClient(
