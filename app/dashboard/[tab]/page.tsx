@@ -1272,21 +1272,19 @@ export default function DashboardPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => setSeasonalMode(opt.id)}
-                        title={opt.desc}
                         style={{
-                          padding: '5px 11px',
-                          borderRadius: 20,
+                          padding: '7px 13px',
+                          borderRadius: 10,
                           border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)',
                           background: seasonalMode === opt.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
-                          color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--text-secondary)',
-                          fontSize: 11,
-                          fontWeight: seasonalMode === opt.id ? 600 : 400,
                           cursor: 'pointer',
                           fontFamily: "'Inter', sans-serif",
-                          whiteSpace: 'nowrap',
+                          textAlign: 'left' as const,
+                          flex: 1,
                         }}
                       >
-                        {opt.label}
+                        <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{opt.label}</p>
+                        <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
                       </button>
                     ))}
                   </div>
