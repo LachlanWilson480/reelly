@@ -1749,6 +1749,16 @@ export default function DashboardPage() {
                         </div>
                       )}
 
+                      {/* Film & edit CTA */}
+                      <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()); setTab('aiuploads') }}
+                          style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                        >
+                          🎞️ Film &amp; edit this
+                        </button>
+                      </div>
+
                       {/* Script */}
                       {item.script && (
                         <div style={{ padding: '16px 24px' }}>
@@ -1791,16 +1801,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
-              {!generatingFilming && filmingItems.length > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-                  <button
-                    onClick={() => setTab('aiuploads')}
-                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '14px 32px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(216,90,48,0.35)' }}
-                  >
-                    🎞️ Film &amp; edit these
-                  </button>
-                </div>
-              )}
+
             </div>
           )}
 
