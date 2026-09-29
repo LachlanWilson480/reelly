@@ -2016,8 +2016,19 @@ export default function DashboardPage() {
 
                 {generatedScript && (
                   <div style={{ background: "var(--card-bg)", borderRadius: 12, padding: "24px" }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, color: "var(--text-secondary)" }}>SCRIPT</p>
-                    <p style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.8 }}>{generatedScript}</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎙 Full script</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {generatedScript
+                        .split(/(?<=[.!?])\s+/)
+                        .map((s: string) => s.trim())
+                        .filter((s: string) => s.length > 0)
+                        .map((sentence: string, i: number, arr: string[]) => (
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                            <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65 }}>{sentence}</p>
+                          </div>
+                        ))
+                      }
+                    </div>
                   </div>
                 )}
                 {generatedScript && (
