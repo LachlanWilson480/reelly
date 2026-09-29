@@ -180,6 +180,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
       const message = await anthropic.messages.create({
         model,
         max_tokens: 1200,
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }],
       })
 
