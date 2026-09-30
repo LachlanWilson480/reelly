@@ -1647,6 +1647,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Saved ideas</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                       Review your selected ideas, then film them.
@@ -1718,8 +1719,9 @@ export default function DashboardPage() {
 
               {/* Scripts subsection */}
               {savedScripts.length > 0 && (
-                <div style={{ marginTop: 32 }}>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Scripts generated</h3>
+                <div style={{ marginTop: 40 }}>
+                  <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginBottom: 24 }} />
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Scripts generated</p>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {savedScripts.filter((s) => !dismissedScriptIds.has(s.id)).map((s) => (
