@@ -3,365 +3,220 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type ScheduledPost = {
+type Render = {
+  id: string
+  output_url: string | null
+  status: string
+  created_at: string
+  idea_id?: string | null
+}
+
+type FilmingItem = {
   id: string
   title: string
-  caption: string | null
-  tags: string | null
-  video_url: string | null
-  scheduled_for: string
-  platforms: string[]
-  status: string
-  idea_id: string | null
+  caption?: string
+  tags?: string
+  hook?: string
+  description?: string
 }
 
-type Idea = { id: string; title: string; hook: string; tags: string }
-type FilmingItem = Idea & { checklist: string[]; caption?: string; script?: string }
+const BEST_TIMES = [
+  { day: 'Monday', times: ['7am', '12pm', '7pm'], reason: 'Start of week energy' },
+  { day: 'Tuesday', times: ['8am', '1pm', '8pm'], reason: 'High engagement midweek' },
+  { day: 'Wednesday', times: ['7am', '11am', '6pm'], reason: 'Peak midweek traffic' },
+  { day: 'Thursday', times: ['8am', '12pm', '7pm'], reason: 'Pre-weekend build-up' },
+  { day: 'Friday', times: ['7am', '2pm', '5pm'], reason: 'End of week wind-down' },
+  { day: 'Saturday', times: ['9am', '11am', '7pm'], reason: 'Leisure browsing peak' },
+  { day: 'Sunday', times: ['10am', '2pm', '7pm'], reason: 'Sunday scroll session' },
+]
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function getWeekDates(offset: number): Date[] {
+function getBestPostingTime(): string {
   const now = new Date()
-  const dayOfWeek = now.getDay()
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() - dayOfWeek + offset * 7)
-  startOfWeek.setHours(0, 0, 0, 0)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek)
-    d.setDate(startOfWeek.getDate() + i)
-    return d
-  })
+  const dayName = now.toLocaleDateString('en-AU', { weekday: 'long' })
+  const day = BEST_TIMES.find((d) => d.day === dayName)
+  if (!day) return 'Tomorrow at 7am'
+  const nextDay = BEST_TIMES[(BEST_TIMES.findIndex((d) => d.day === dayName) + 1) % 7]
+  return `${nextDay.day} at ${nextDay.times[0]} — ${nextDay.reason}`
 }
 
-export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { userId: string | null; savedIdeas: Idea[]; filmingItems: FilmingItem[] }) {
-  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([])
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [weekDates, setWeekDates] = useState<Date[]>(getWeekDates(0))
-  const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour: number } | null>(null)
-  const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null)
-  const [showScheduleModal, setShowScheduleModal] = useState(false)
-  const [scheduleIdeaId, setScheduleIdeaId] = useState<string>('')
-  const [scheduleCaption, setScheduleCaption] = useState('')
-  const [scheduleTime, setScheduleTime] = useState('09:00')
-  const [scheduleDate, setScheduleDate] = useState('')
-  const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(['instagram'])
-  const [saving, setSaving] = useState(false)
+export default function SchedulerTab({ userId, filmingItems }: { userId: string | null; filmingItems: FilmingItem[] }) {
+  const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
-  const [showPastWarning, setShowPastWarning] = useState(false)
-
-  useEffect(() => {
-    setWeekDates(getWeekDates(weekOffset))
-  }, [weekOffset])
+  const [selectedRender, setSelectedRender] = useState<Render | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
     const load = async () => {
       setLoading(true)
-      const res = await fetch(`/api/scheduled-posts?userId=${userId}`)
-      const data = await res.json()
-      setScheduledPosts(data.posts || [])
+      const { data } = await supabase
+        .from('renders')
+        .select('id, output_url, status, created_at')
+        .eq('user_id', userId)
+        .eq('status', 'done')
+        .order('created_at', { ascending: false })
+      setRenders(data || [])
       setLoading(false)
     }
     load()
   }, [userId])
 
-  const openScheduleModal = (date: Date, hour: number) => {
-    const d = new Date(date)
-    d.setHours(hour, 0, 0, 0)
-    setScheduleDate(d.toISOString().split('T')[0])
-    setScheduleTime(`${String(hour).padStart(2, '0')}:00`)
-    setScheduleIdeaId('')
-    setScheduleCaption('')
-    setSchedulePlatforms(['instagram'])
-    setSelectedSlot({ date, hour })
-    setShowScheduleModal(true)
+  const getMatchingIdea = (render: Render): FilmingItem | null => {
+    return filmingItems[0] || null // best effort match — will improve with idea_id linkage
   }
 
-  const handleIdeaSelect = (ideaId: string) => {
-    setScheduleIdeaId(ideaId)
-    const idea = [...savedIdeas, ...filmingItems].find((i) => i.id === ideaId)
-    if (idea && 'caption' in idea && idea.caption) {
-      setScheduleCaption(idea.caption + (idea.tags ? '\n' + idea.tags : ''))
-    } else if (idea) {
-      setScheduleCaption(idea.tags || '')
-    }
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(null), 2000)
   }
 
-  const handleSchedule = async () => {
-    if (!userId || !scheduleIdeaId) return
-    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`)
-    if (scheduledDateTime < new Date()) {
-      setShowScheduleModal(false)
-      setShowPastWarning(true)
-      return
-    }
-    setSaving(true)
-    const idea = [...savedIdeas, ...filmingItems].find((i) => i.id === scheduleIdeaId)
-    const scheduledFor = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString()
-
-    const res = await fetch('/api/schedule-post', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        ideaId: scheduleIdeaId,
-        title: idea?.title || 'Untitled',
-        caption: scheduleCaption,
-        tags: idea?.tags || '',
-        scheduledFor,
-        platforms: schedulePlatforms,
-      }),
-    })
-    const data = await res.json()
-    if (res.ok && data.post) {
-      setScheduledPosts((prev) => [...prev, data.post])
-    }
-    setSaving(false)
-    setShowScheduleModal(false)
-    setSelectedSlot(null)
+  const downloadVideo = async (url: string) => {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'reelezy-video.mp4'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
-  const handleDelete = async (postId: string) => {
-    await fetch('/api/update-scheduled-post', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, postId, updates: { status: 'cancelled' } }),
-    })
-    setScheduledPosts((prev) => prev.filter((p) => p.id !== postId))
-    setSelectedPost(null)
-  }
-
-  const postsForSlot = (date: Date, hour: number) => {
-    return scheduledPosts.filter((p) => {
-      const d = new Date(p.scheduled_for)
-      return d.getFullYear() === date.getFullYear() &&
-        d.getMonth() === date.getMonth() &&
-        d.getDate() === date.getDate() &&
-        d.getHours() === hour &&
-        p.status !== 'cancelled'
-    })
-  }
-
-  const formatDate = (d: Date) => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
-  const isToday = (d: Date) => {
-    const now = new Date()
-    return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  }
-
-  // Deduplicate — filmingItems may share ids with savedIdeas
-  const allIdeasMap = new Map<string, Idea>()
-  ;[...savedIdeas, ...filmingItems].forEach((i) => allIdeasMap.set(i.id, i))
-  const allIdeas = Array.from(allIdeasMap.values())
+  if (loading) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Content Scheduler</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Click any time slot to schedule a post. Instagram posting coming soon.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={() => setWeekOffset((p) => p - 1)} style={{ background: 'var(--sand)', border: 'none', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 15, color: 'var(--ink)' }}>←</button>
-          <button onClick={() => setWeekOffset(0)} style={{ background: 'var(--sand)', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>This week</button>
-          <button onClick={() => setWeekOffset((p) => p + 1)} style={{ background: 'var(--sand)', border: 'none', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 15, color: 'var(--ink)' }}>→</button>
-        </div>
+      <div>
+        <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your completed videos with suggested captions, hashtags and best times to post.</p>
       </div>
 
       {/* Instagram connect banner */}
       <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.25)', borderRadius: 12, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Connect Instagram to enable auto-posting</p>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Currently in planning mode — posts are saved but not published automatically.</p>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Auto-posting coming soon</p>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Download your video and copy your caption to post manually for now.</p>
         </div>
         <button style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'not-allowed', opacity: 0.7 }}>
-          Coming soon
+          Connect Instagram
         </button>
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
-        {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: '48px repeat(7, 1fr)', borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
-          <div />
-          {weekDates.map((d, i) => (
-            <div key={i} style={{ padding: '12px 8px', textAlign: 'center', borderLeft: '1px solid rgba(128,128,128,0.08)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: isToday(d) ? 'var(--coral)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{DAYS[i]}</p>
-              <p style={{ fontSize: 16, fontWeight: isToday(d) ? 700 : 400, color: isToday(d) ? 'var(--coral)' : 'var(--ink)' }}>{d.getDate()}</p>
-              <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>{formatDate(d)}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Hour rows — show 7am to 10pm */}
-        <div style={{ overflowY: 'auto', maxHeight: 520 }}>
-          {HOURS.filter((h) => h >= 7 && h <= 22).map((hour) => (
-            <div key={hour} style={{ display: 'grid', gridTemplateColumns: '48px repeat(7, 1fr)', borderBottom: '1px solid rgba(128,128,128,0.06)', minHeight: 52 }}>
-              <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', paddingTop: 8 }}>
-                {hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
-              </div>
-              {weekDates.map((date, di) => {
-                const posts = postsForSlot(date, hour)
-                const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 59, 59, 0)
-        const isPast = slotTime < new Date()
-                return (
-                  <div
-                    key={di}
-                    onClick={() => { console.log('slot click isPast:', isPast, 'hour:', hour); isPast ? setShowPastWarning(true) : openScheduleModal(date, hour) }}
-                    style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative', overflow: 'hidden', minWidth: 0 }}
-                    onMouseEnter={(e) => { if (!isPast) e.currentTarget.style.background = 'rgba(216,90,48,0.07)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent' }}
-                  >
-                    {posts.map((post) => (
-                      <div
-                        key={post.id}
-                        onClick={(e) => { e.stopPropagation(); setSelectedPost(post) }}
-                        style={{ background: post.status === 'posted' ? 'rgba(34,197,94,0.15)' : 'var(--coral)', borderRadius: 5, padding: '3px 6px', marginBottom: 2, cursor: 'pointer', overflow: 'hidden', maxWidth: '100%' }}
-                      >
-                        <p style={{ fontSize: 10, fontWeight: 600, color: post.status === 'posted' ? 'rgb(34,197,94)' : '#fff', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {post.status === 'posted' ? '✓ ' : ''}{post.title}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
+      {/* Best times to post */}
+      <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>📅 Best times to post this week</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+          {BEST_TIMES.map((day) => (
+            <div key={day.day} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '10px 12px' }}>
+              <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{day.day}</p>
+              <p style={{ fontSize: 11, color: 'var(--coral)', marginBottom: 2 }}>{day.times.join(' · ')}</p>
+              <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>{day.reason}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Upcoming posts list */}
-      {scheduledPosts.filter((p) => p.status === 'scheduled' && new Date(p.scheduled_for) > new Date()).length > 0 && (
-        <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Upcoming posts</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {scheduledPosts
-              .filter((p) => p.status === 'scheduled' && new Date(p.scheduled_for) > new Date())
-              .slice(0, 5)
-              .map((post) => (
-                <div key={post.id} onClick={() => setSelectedPost(post)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--card-bg)', borderRadius: 8, cursor: 'pointer' }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600 }}>{post.title}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(post.scheduled_for).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+      {/* Renders */}
+      {renders.length === 0 ? (
+        <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>No completed videos yet.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor or Editor For Any Video to create your first video.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {renders.map((render) => {
+            const idea = getMatchingIdea(render)
+            const caption = idea?.caption || ''
+            const tags = idea?.tags || ''
+            const fullCaption = [caption, tags].filter(Boolean).join('\n')
+            const bestTime = getBestPostingTime()
+
+            return (
+              <div key={render.id} style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 0 }}>
+                  {/* Video preview */}
+                  <div style={{ background: '#000', position: 'relative' }}>
+                    {render.output_url ? (
+                      <video
+                        src={render.output_url}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 280 }}
+                        controls={false}
+                        muted
+                        loop
+                        onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0 }}
+                      />
+                    ) : (
+                      <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <p style={{ fontSize: 12, color: '#666' }}>No preview</p>
+                      </div>
+                    )}
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, padding: '3px 10px', fontWeight: 600 }}>
-                    {post.platforms.join(' · ')}
-                  </span>
+
+                  {/* Details */}
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                          {new Date(render.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                        {idea && <p style={{ fontSize: 14, fontWeight: 600 }}>{idea.title}</p>}
+                      </div>
+                      {render.output_url && (
+                        <button
+                          onClick={() => downloadVideo(render.output_url!)}
+                          style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          ⬇ Download
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Caption */}
+                    {fullCaption ? (
+                      <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>💬 Caption</p>
+                          <button
+                            onClick={() => copyToClipboard(fullCaption, `caption-${render.id}`)}
+                            style={{ fontSize: 11, color: copied === `caption-${render.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            {copied === `caption-${render.id}` ? '✓ Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{fullCaption}</p>
+                      </div>
+                    ) : (
+                      <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption available — generate filming instructions for this idea to get a suggested caption.</p>
+                      </div>
+                    )}
+
+                    {/* Best time */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⏰ Best time to post:</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--coral)' }}>{bestTime}</span>
+                    </div>
+
+                    {/* Hashtags */}
+                    {tags && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <p style={{ fontSize: 12, color: 'var(--coral)', flex: 1 }}>{tags}</p>
+                        <button
+                          onClick={() => copyToClipboard(tags, `tags-${render.id}`)}
+                          style={{ fontSize: 11, color: copied === `tags-${render.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}
+                        >
+                          {copied === `tags-${render.id}` ? '✓ Copied!' : 'Copy tags'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Schedule modal */}
-      {showScheduleModal && (
-        <div onClick={() => setShowScheduleModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', borderRadius: 20, padding: '32px', maxWidth: 480, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
-            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Schedule a post</h3>
-
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 }}>Choose an idea</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, maxHeight: 180, overflowY: 'auto' }}>
-              {allIdeas.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No saved ideas yet. Star ideas in Content Ideas first.</p>}
-              {allIdeas.map((idea) => (
-                <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 8, background: scheduleIdeaId === idea.id ? 'rgba(216,90,48,0.1)' : 'var(--sand)', cursor: 'pointer', border: scheduleIdeaId === idea.id ? '1.5px solid var(--coral)' : '1px solid transparent' }}>
-                  <input type="radio" name="idea" checked={scheduleIdeaId === idea.id} onChange={() => handleIdeaSelect(idea.id)} style={{ marginTop: 2, accentColor: 'var(--coral)' }} />
-                  <span style={{ fontSize: 13, fontWeight: scheduleIdeaId === idea.id ? 600 : 400 }}>{idea.title}</span>
-                </label>
-              ))}
-            </div>
-
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 }}>Caption</p>
-            <textarea
-              value={scheduleCaption}
-              onChange={(e) => setScheduleCaption(e.target.value)}
-              rows={3}
-              placeholder="Write your caption or it will auto-fill from the idea..."
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
-            />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }}>Date</p>
-                <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 13, boxSizing: 'border-box' }} />
               </div>
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }}>Time</p>
-                <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 13, boxSizing: 'border-box' }} />
-              </div>
-            </div>
-
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 }}>Platforms</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-              {['instagram', 'tiktok', 'facebook'].map((p) => (
-                <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, background: schedulePlatforms.includes(p) ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: schedulePlatforms.includes(p) ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: schedulePlatforms.includes(p) ? 'var(--coral)' : 'var(--ink)', textTransform: 'capitalize' }}>
-                  <input type="checkbox" checked={schedulePlatforms.includes(p)} onChange={(e) => { setSchedulePlatforms((prev) => e.target.checked ? [...prev, p] : prev.filter((x) => x !== p)) }} style={{ display: 'none' }} />
-                  {p}
-                </label>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowScheduleModal(false)} style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'none', color: 'var(--ink)', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSchedule} disabled={saving || !scheduleIdeaId || !scheduleDate} style={{ flex: 2, padding: '11px', borderRadius: 8, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving || !scheduleIdeaId || !scheduleDate ? 'not-allowed' : 'pointer', opacity: saving || !scheduleIdeaId || !scheduleDate ? 0.6 : 1 }}>
-                {saving ? 'Scheduling...' : 'Schedule post'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Post detail modal */}
-      {selectedPost && (
-        <div onClick={() => setSelectedPost(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', borderRadius: 20, padding: '32px', maxWidth: 420, width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700 }}>{selectedPost.title}</h3>
-              <span style={{ fontSize: 11, fontWeight: 600, color: selectedPost.status === 'posted' ? 'rgb(34,197,94)' : 'var(--coral)', background: selectedPost.status === 'posted' ? 'rgba(34,197,94,0.1)' : 'rgba(216,90,48,0.1)', borderRadius: 20, padding: '3px 10px' }}>{selectedPost.status}</span>
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-              {new Date(selectedPost.scheduled_for).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
-            </p>
-            {selectedPost.caption && (
-              <div style={{ background: 'var(--sand)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }}>Caption</p>
-                <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{selectedPost.caption}</p>
-                <button
-                  onClick={() => navigator.clipboard.writeText(selectedPost.caption || '')}
-                  style={{ marginTop: 8, background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '5px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                >
-                  Copy caption
-                </button>
-              </div>
-            )}
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>Platforms: {selectedPost.platforms.join(', ')}</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setSelectedPost(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'none', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}>Close</button>
-              {selectedPost.status === 'scheduled' && (
-                <button onClick={() => handleDelete(selectedPost.id)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid rgba(200,50,50,0.4)', background: 'none', color: 'rgba(200,50,50,0.8)', fontSize: 13, cursor: 'pointer' }}>Cancel post</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPastWarning && (
-        <div onClick={() => setShowPastWarning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', borderRadius: 16, padding: '28px 32px', maxWidth: 360, width: '100%', textAlign: 'center' }}>
-            <p style={{ fontSize: 28, marginBottom: 12 }}>⏰</p>
-            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Can't schedule in the past</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-              That time slot has already passed. Pick a future date or time to schedule your post.
-            </p>
-            <button
-              onClick={() => setShowPastWarning(false)}
-              style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Got it
-            </button>
-          </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -2622,7 +2622,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} savedIdeas={dbSavedIdeas} filmingItems={filmingItems} />
+          <SchedulerTab userId={userId} filmingItems={filmingItems} />
           )}
         </div>
       </div>
