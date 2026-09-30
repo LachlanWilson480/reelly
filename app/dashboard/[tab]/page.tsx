@@ -967,6 +967,10 @@ export default function DashboardPage() {
           outputOrientation,
           resolution: aiResolution,
           transition: aiTransition,
+          ideaId: selectedFilmingId || null,
+          ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
+          ideaCaption: filmingItems.find((f) => f.id === selectedFilmingId)?.caption || null,
+          ideaTags: filmingItems.find((f) => f.id === selectedFilmingId)?.tags || null,
         }),
       })
 
@@ -1047,7 +1051,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null }),
       })
 
       const data = await res.json()

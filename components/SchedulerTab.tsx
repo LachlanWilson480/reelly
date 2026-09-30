@@ -9,6 +9,9 @@ type Render = {
   status: string
   created_at: string
   idea_id?: string | null
+  title?: string | null
+  caption?: string | null
+  tags?: string | null
 }
 
 type FilmingItem = {
@@ -51,7 +54,7 @@ export default function SchedulerTab({ userId, filmingItems }: { userId: string 
       setLoading(true)
       const { data } = await supabase
         .from('renders')
-        .select('id, output_url, status, created_at')
+        .select('id, output_url, status, created_at, idea_id, title, caption, tags')
         .eq('user_id', userId)
         .eq('status', 'done')
         .order('created_at', { ascending: false })
@@ -60,10 +63,6 @@ export default function SchedulerTab({ userId, filmingItems }: { userId: string 
     }
     load()
   }, [userId])
-
-  const getMatchingIdea = (render: Render): FilmingItem | null => {
-    return filmingItems[0] || null // best effort match — will improve with idea_id linkage
-  }
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text)
@@ -127,9 +126,8 @@ export default function SchedulerTab({ userId, filmingItems }: { userId: string 
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {renders.map((render) => {
-            const idea = getMatchingIdea(render)
-            const caption = idea?.caption || ''
-            const tags = idea?.tags || ''
+            const caption = render.caption || ''
+            const tags = render.tags || ''
             const fullCaption = [caption, tags].filter(Boolean).join('\n')
             const bestTime = getBestPostingTime()
 
@@ -162,7 +160,7 @@ export default function SchedulerTab({ userId, filmingItems }: { userId: string 
                         <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
                           {new Date(render.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
-                        {idea && <p style={{ fontSize: 14, fontWeight: 600 }}>{idea.title}</p>}
+                        {render.title && <p style={{ fontSize: 14, fontWeight: 600 }}>{render.title}</p>}
                       </div>
                       {render.output_url && (
                         <button

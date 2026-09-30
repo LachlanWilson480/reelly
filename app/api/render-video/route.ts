@@ -75,7 +75,7 @@ async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | '
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, clipPaths, captionStyle, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition } = await req.json()
+    const { userId, clipPaths, captionStyle, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -325,6 +325,14 @@ export async function POST(req: NextRequest) {
         status: 'queued',
         clip_paths: clipPaths,
         caption_style: captionStyle || null,
+        idea_id: ideaId || null,
+        title: ideaTitle || null,
+        caption: ideaCaption || null,
+        tags: ideaTags || null,
+        idea_id: ideaId || null,
+        title: ideaTitle || null,
+        caption: ideaCaption || null,
+        tags: ideaTags || null,
       })
       .select()
       .single()
