@@ -1917,6 +1917,19 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      const ideaItems = savedIdeas.filter((idea) => selectedIdeaIdsForFilming.includes(idea.id))
+                      const scriptItems = savedScripts
+                        .filter((s) => selectedIdeaIdsForFilming.includes(`script-${s.id}`))
+                        .map((s) => ({ id: `script-${s.id}`, title: s.topic, hook: s.script.split(/[.!?]/)[0] || s.topic, description: s.topic, tags: '', script: s.script }))
+                      proceedToFilming([...ideaItems, ...scriptItems])
+                    }}
+                    disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
+                    style={{ marginTop: 4, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
+                  >
+                    {generatingFilming ? <><span className='rly-spinner' />Generating...</> : '🎬 Get filming instructions'}
+                  </button>
                 </div>
               )}
 
