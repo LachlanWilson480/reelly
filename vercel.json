@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/weekly-reminder",
-      "schedule": "0 21 * * 0"
-    },
-    {
-      "path": "/api/cleanup-inactive-accounts",
-      "schedule": "0 16 * * *"
+      "path": "/api/cron/process-scheduled-posts",
+      "schedule": "* * * * *"
     }
   ]
 }
