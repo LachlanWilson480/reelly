@@ -2626,7 +2626,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} />
+          <SchedulerTab userId={userId} carousels={savedCarousels} />
           )}
         </div>
       </div>
