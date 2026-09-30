@@ -1046,7 +1046,7 @@ export default function DashboardPage() {
           outputOrientation,
           resolution: aiResolution,
           transition: aiTransition,
-          perClipTransitions: aiPerClipMode ? clipPaths.map((_, i) => aiPerClipTransitions[i] || 'none') : null,
+          perClipTransitions: clipPaths.map((_, i) => aiPerClipTransitions[i] || aiTransition || 'none'),
           ideaId: selectedFilmingId || null,
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
           ideaCaption: filmingItems.find((f) => f.id === selectedFilmingId)?.caption || null,
@@ -1929,6 +1929,7 @@ export default function DashboardPage() {
                                   <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{instruction}</p>
                                 </div>
                               </div>
+                            </>
                             )
                           })}
                         </div>
@@ -2438,7 +2439,7 @@ export default function DashboardPage() {
 
               {/* ── STEP 3: Music ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Music</p>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>2 · Music</p>
                 <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
                 <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -2458,7 +2459,7 @@ export default function DashboardPage() {
 
               {/* ── STEP 4: Captions ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>4 · Captions</p>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Captions</p>
                 <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
                   <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
                   Add captions to my video
@@ -2491,7 +2492,7 @@ export default function DashboardPage() {
 
               {/* ── STEP 5: Resolution ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>5 · Resolution</p>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>4 · Resolution</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[{ id: 'high', label: 'High (1080p)', desc: 'Best quality' }, { id: 'low', label: 'Low', desc: 'Faster, smaller file' }].map((opt) => (
                     <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')} style={{ flex: 1, padding: '12px', borderRadius: 10, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
@@ -2640,6 +2641,20 @@ export default function DashboardPage() {
                           const timeRange = dashIdx !== -1 ? step.slice(0, dashIdx).trim() : null
                           const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
                           return (
+                            <>
+                            {i > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                                <div style={{ width: 24, flexShrink: 0 }} />
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Transition:</p>
+                                  {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe ←' }, { id: 'wipeRight', label: 'Wipe →' }, { id: 'slideLeft', label: 'Slide ←' }, { id: 'slideRight', label: 'Slide →' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                                    <button key={opt.id} type="button" onClick={() => setAiPerClipTransitions((prev) => ({ ...prev, [i]: opt.id }))} style={{ padding: '3px 8px', borderRadius: 5, border: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', fontSize: 10, color: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? 'var(--coral)' : 'var(--text-muted)', cursor: 'pointer' }}>
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div key={i} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '14px 16px' }}>
                               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                 <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
@@ -2694,40 +2709,7 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* ── STEP 2: Transitions ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>2 · Transition</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button type="button" onClick={() => setAiPerClipMode(false)} style={{ padding: '5px 12px', borderRadius: 6, border: !aiPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: !aiPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiPerClipMode ? 600 : 400, cursor: 'pointer' }}>All clips</button>
-                          <button type="button" onClick={() => setAiPerClipMode(true)} style={{ padding: '5px 12px', borderRadius: 6, border: aiPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: aiPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: aiPerClipMode ? 600 : 400, cursor: 'pointer' }}>Per clip</button>
-                        </div>
-                      </div>
-                      {!aiPerClipMode ? (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                            <button key={opt.id} type="button" onClick={() => setAiTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: aiTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: aiTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: aiTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>{opt.label}</button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {item.checklist.slice(1).map((_, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <p style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 80 }}>Clip {i + 1} → {i + 2}</p>
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                                  <button key={opt.id} type="button" onClick={() => setAiPerClipTransitions((prev) => ({ ...prev, [i + 1]: opt.id }))} style={{ padding: '5px 10px', borderRadius: 6, border: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── STEP 3: Music ── */}
+                    {/* ── STEP 2: Music ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Music</p>
                       <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
