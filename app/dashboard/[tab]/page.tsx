@@ -145,6 +145,10 @@ export default function DashboardPage() {
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
+  const [uploadPerClipTransitions, setUploadPerClipTransitions] = useState<Record<number, string>>({})
+  const [uploadPerClipMode, setUploadPerClipMode] = useState(false)
+  const [aiPerClipTransitions, setAiPerClipTransitions] = useState<Record<number, string>>({})
+  const [aiPerClipMode, setAiPerClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
@@ -1135,7 +1139,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadPerClipMode ? uploadSlots.map((id) => uploadPerClipTransitions[id] || 'none') : null, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null }),
       })
 
       const data = await res.json()
@@ -2398,15 +2402,37 @@ export default function DashboardPage() {
 
               {/* ── STEP 2: Transitions ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>2 · Transition</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                    <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
-                      {opt.label}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>2 · Transition</p>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={() => setUploadPerClipMode(false)} style={{ padding: '5px 12px', borderRadius: 6, border: !uploadPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !uploadPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: !uploadPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !uploadPerClipMode ? 600 : 400, cursor: 'pointer' }}>All clips</button>
+                    <button type="button" onClick={() => setUploadPerClipMode(true)} style={{ padding: '5px 12px', borderRadius: 6, border: uploadPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: uploadPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadPerClipMode ? 600 : 400, cursor: 'pointer' }}>Per clip</button>
+                  </div>
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Applied between every clip. <span style={{ textDecoration: 'underline', cursor: 'not-allowed', opacity: 0.5 }}>Custom per-clip transitions coming soon</span></p>
+                {!uploadPerClipMode ? (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                      <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {uploadSlots.slice(1).map((slotId, i) => (
+                      <div key={slotId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 80 }}>Clip {i + 1} → {i + 2}</p>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                            <button key={opt.id} type="button" onClick={() => setUploadPerClipTransitions((prev) => ({ ...prev, [slotId]: opt.id }))} style={{ padding: '5px 10px', borderRadius: 6, border: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* ── STEP 3: Music ── */}
@@ -2675,7 +2701,7 @@ export default function DashboardPage() {
                           <button key={opt.id} type="button" onClick={() => setAiTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: aiTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: aiTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: aiTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>{opt.label}</button>
                         ))}
                       </div>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Applied between every clip. <span style={{ textDecoration: 'underline', cursor: 'not-allowed', opacity: 0.5 }}>Custom per-clip transitions coming soon</span></p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Applied between every clip. Switch to per-clip mode to set different transitions for each cut.</p>
                     </div>
 
                     {/* ── STEP 3: Music ── */}
