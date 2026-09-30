@@ -70,7 +70,7 @@ const PREMIUM_WEEKLY_FILMING_LIMIT = 98
 
 export async function POST(req: NextRequest) {
   try {
-    const { idea, profile, customization, userId, styleOverride, peopleCountOverride, filmingMode } = await req.json()
+    const { idea, profile, customization, userId, styleOverride, peopleCountOverride, filmingMode, videoLength } = await req.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'No idea provided' }, { status: 400 })
@@ -145,13 +145,15 @@ export async function POST(req: NextRequest) {
 
     const seasonalNote = ideaIsSeasonal && profile.local_seasonal_context ? `\nSeasonal context (only use if directly relevant to this idea): ${profile.local_seasonal_context}` : ''
 
+    const lengthNote = videoLength ? `\nVIDEO LENGTH: Target ${videoLength} seconds total. Adjust number of steps and timing accordingly.` : ''
+
     const filmingModeNote = filmingMode === 'single'
       ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement — no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
       : filmingMode === 'multi'
       ? '\nFILMING MODE: Multi-shot. Generate 10-15 very short clips, each 2-4 seconds long. Total video should be 30-45 seconds. Each step = one specific shot (close-up, detail, action, reaction, product angle). Dialogue can span multiple consecutive clips — the person keeps talking while the camera cuts between different angles and b-roll shots. Most clips are silent b-roll, but 3-5 clips can have a voiceover or on-camera line that carries across them. Think high-energy showcase reels where someone narrates over fast cuts.'
       : ''
 
-    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}
+    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
 
 BUSINESS:
 ${profileBrief}

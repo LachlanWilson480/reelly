@@ -148,6 +148,7 @@ export default function DashboardPage() {
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single'>('default')
+  const [videoLength, setVideoLength] = useState<number>(30)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadPerClipTransitions, setUploadPerClipTransitions] = useState<Record<number, string>>({})
   const [uploadPerClipMode, setUploadPerClipMode] = useState(false)
@@ -794,7 +795,7 @@ export default function DashboardPage() {
           fetch("/api/generate-checklist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode }),
+            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode, videoLength }),
           }).then(async (res) => {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || "Request failed")
@@ -1910,6 +1911,16 @@ export default function DashboardPage() {
                 </div>
               )}
               <div style={{ marginTop: 32 }}>
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Video length</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
+                      <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '8px 16px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Filming style</p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[
