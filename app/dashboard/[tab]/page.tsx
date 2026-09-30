@@ -2036,12 +2036,20 @@ export default function DashboardPage() {
                                 }
                                 return null
                               })
+                              // Distribute directions evenly across sentences
+                              const validDirections = directions.filter(Boolean)
+                              const directionInterval = validDirections.length > 0 ? Math.max(1, Math.floor(sentences.length / validDirections.length)) : 0
+                              const sentenceDirections: (string | null)[] = sentences.map((_: string, i: number) => {
+                                const dirIdx = directionInterval > 0 ? Math.floor(i / directionInterval) : -1
+                                return (dirIdx >= 0 && dirIdx < validDirections.length && i % directionInterval === 0) ? validDirections[dirIdx] : null
+                              })
+
                               return sentences.map((sentence: string, i: number) => (
                                 <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
-                                  <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, marginBottom: directions[i] ? 5 : 0 }}>{sentence}</p>
-                                  {directions[i] && (
-                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>📷 {directions[i]}</p>
+                                  {sentenceDirections[i] && (
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>📷 {sentenceDirections[i]}</p>
                                   )}
+                                  <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65 }}>{sentence}</p>
                                 </div>
                               ))
                             })()}
