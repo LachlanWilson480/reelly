@@ -2693,7 +2693,7 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                             </div>
-                            </>
+                            </React.Fragment>
                           )
                         })}
                       </div>
