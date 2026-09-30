@@ -2353,7 +2353,7 @@ export default function DashboardPage() {
                           <input type="checkbox" checked={uploadSpeechSlots.has(slotId)} onChange={(e) => {
                             setUploadSpeechSlots((prev) => { const n = new Set(prev); e.target.checked ? n.add(slotId) : n.delete(slotId); return n })
                           }} />
-                          People talking
+                          People talking?
                         </label>
                         <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                           <input type="checkbox" checked={uploadLandscapeSlots.has(slotId)} onChange={(e) => {
@@ -2642,7 +2642,7 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', gap: 12, marginLeft: 'auto' }}>
                                   <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                     <input type="checkbox" checked={aiSpeechSteps.has(i)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
-                                    People talking
+                                    People talking?
                                   </label>
                                   <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                     <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
