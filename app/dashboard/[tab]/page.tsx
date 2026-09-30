@@ -1131,7 +1131,8 @@ export default function DashboardPage() {
         clipPaths.push(path)
         if (uploadSpeechSlots.has(slotId)) speechIndices.push(clipPaths.length - 1)
 
-        const duration = await getVideoDuration(file)
+        const uploadFile = uploadSlotFiles[slotId]
+        const duration = uploadFile ? await getVideoDuration(uploadFile) : 0
         clipTrims.push({ duration })
 
         const isLandscape = uploadLandscapeSlots.has(slotId)
