@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -2640,7 +2641,7 @@ export default function DashboardPage() {
                           const timeRange = dashIdx !== -1 ? step.slice(0, dashIdx).trim() : null
                           const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
                           return (
-                            <>
+                            <React.Fragment key={i}>
                             {i > 0 && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                                 <div style={{ width: 24, flexShrink: 0 }} />
