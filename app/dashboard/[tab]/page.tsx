@@ -385,6 +385,28 @@ export default function DashboardPage() {
         }
 
         setDraftsLoaded(true)
+
+      // Resume any in-progress render from localStorage
+      try {
+        const saved = localStorage.getItem('reelezy-render')
+        if (saved) {
+          const { id, type, ts } = JSON.parse(saved)
+          // Only resume if started within last 30 minutes
+          if (Date.now() - ts < 30 * 60 * 1000) {
+            if (type === 'upload') {
+              setRenderId(id)
+              setRenderStatus('queued')
+              setTab('uploads')
+            } else if (type === 'ai') {
+              setAiRenderId(id)
+              setAiRenderStatus('queued')
+              setTab('aiuploads')
+            }
+          } else {
+            localStorage.removeItem('reelezy-render')
+          }
+        }
+      } catch {}
       }
 
       setLoading(false)
@@ -987,7 +1009,7 @@ export default function DashboardPage() {
           const file = stepUploads[stepIndex]
           path = stepUploadPaths[stepIndex] || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
           if (!stepUploadPaths[stepIndex]) {
-            if (file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
+            if (file && file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from("video-uploads").upload(path, file)
             if (error) throw new Error(`Upload failed: ${error.message}`)
           }
@@ -999,7 +1021,8 @@ export default function DashboardPage() {
         clipPaths.push(path)
         if (aiSpeechSteps.has(stepIndex)) speechIndices.push(clipPaths.length - 1)
 
-        const duration = await getVideoDuration(file)
+        const file2 = stepUploads[stepIndex]
+        const duration = file2 ? await getVideoDuration(file2) : 0
         clipTrims.push({ duration })
 
         const isLandscape = aiLandscapeSteps.has(stepIndex)
@@ -1062,6 +1085,7 @@ export default function DashboardPage() {
 
       setAiRenderId(data.renderId)
       setAiRenderStatus("queued")
+      localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'ai', ts: Date.now() }))
       setMusicFile(null)
       setExtractedMusicPath(null)
     } catch (err) {
@@ -1094,7 +1118,7 @@ export default function DashboardPage() {
           const file = uploadSlotFiles[slotId]
           path = uploadSlotPaths[slotId] || `${userId}/${Date.now()}-${file.name}`
           if (!uploadSlotPaths[slotId]) {
-            if (file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
+            if (file && file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from('video-uploads').upload(path, file)
             if (error) throw new Error(`Upload failed: ${error.message}`)
           }
@@ -1154,6 +1178,7 @@ export default function DashboardPage() {
       setRenderStatus('queued')
       setLastRenderedPaths(clipPaths)
       setLastMusicPath(musicPath)
+      localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
       setUploadSlots([0])
       setUploadSlotFiles({})
       setUploadSlotPaths({})
