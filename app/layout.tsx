@@ -66,6 +66,7 @@ export default function RootLayout({
         }}
       >
         {children}
+      <RenderDoneToast />
       </body>
     </html>
   );

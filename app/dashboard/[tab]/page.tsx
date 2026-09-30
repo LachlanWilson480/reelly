@@ -2871,7 +2871,7 @@ export default function DashboardPage() {
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1a1a1a', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', minWidth: 300 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--coral)', flexShrink: 0 }} />
           <p style={{ fontSize: 13, fontWeight: 600, color: '#F1EFE8', flex: 1 }}>{renderToast}</p>
-          <button onClick={() => { setRenderToast(''); setTab('scheduler') }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>View</button>
+          <button onClick={() => { setRenderToast(''); window.location.href = '/dashboard/scheduler' }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>View video</button>
           <button onClick={() => setRenderToast('')} style={{ background: 'none', border: 'none', color: 'rgba(241,239,232,0.5)', fontSize: 16, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}>×</button>
         </div>
       )}
