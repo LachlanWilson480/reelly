@@ -1594,7 +1594,7 @@ export default function DashboardPage() {
                       <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginTop: 14, paddingTop: 12 }}>
                         <button
                           onClick={() => setTab('myideas')}
-                          style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                          style={{ background: 'rgba(216,90,48,0.1)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '5px 12px', fontSize: 12, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600 }}
                         >
                           View in My Ideas →
                         </button>
