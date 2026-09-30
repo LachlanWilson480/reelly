@@ -33,6 +33,9 @@ type RenderRow = {
   status: string
   output_url: string | null
   created_at: string
+  title?: string | null
+  caption?: string | null
+  tags?: string | null
 }
 
 export default function HistoryPage() {
@@ -60,7 +63,7 @@ export default function HistoryPage() {
 
       const { data: renderRows } = await supabase
         .from('renders')
-        .select('id, status, output_url, created_at')
+        .select('id, status, output_url, created_at, title, caption, tags')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -202,33 +205,55 @@ export default function HistoryPage() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                       <p style={{ fontSize: 13, fontWeight: 600 }}>
-                        {render.status === 'done' ? '✓ Completed' : render.status === 'failed' ? '✕ Failed' : '⋯ ' + render.status}
+                        {render.title || (render.status === 'done' ? 'Completed' : render.status === 'failed' ? 'Failed' : render.status === 'cleared' ? 'Removed from scheduler' : render.status)}
+                      </p>
+                      <p style={{ fontSize: 11, color: render.status === 'cleared' ? 'var(--text-muted)' : render.status === 'done' ? 'var(--coral)' : 'var(--text-secondary)' }}>
+                        {render.status === 'cleared' ? 'Cleared' : render.status === 'done' ? 'Ready to post' : render.status}
                       </p>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {formatDate(render.created_at)}
                       </span>
                     </div>
                   </button>
-                  {expandedId === `render-${render.id}` && render.output_url && (
+                  {expandedId === `render-${render.id}` && (
                     <div style={{ padding: '0 16px 16px' }}>
-                      <video controls src={render.output_url} style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />
-                      <button
-                        onClick={async () => {
-                          const res = await fetch(render.output_url!)
-                          const blob = await res.blob()
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement('a')
-                          a.href = url
-                          a.download = 'reelezy-video.mp4'
-                          document.body.appendChild(a)
-                          a.click()
-                          document.body.removeChild(a)
-                          URL.revokeObjectURL(url)
-                        }}
-                        style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        Download
-                      </button>
+                      {render.output_url && (
+                        <video controls src={render.output_url} style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />
+                      )}
+                      {render.title && <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{render.title}</p>}
+                      {render.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10 }}>{render.caption}</p>}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {render.output_url && (
+                          <button
+                            onClick={async () => {
+                              const res = await fetch(render.output_url!)
+                              const blob = await res.blob()
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = 'reelezy-video.mp4'
+                              document.body.appendChild(a)
+                              a.click()
+                              document.body.removeChild(a)
+                              URL.revokeObjectURL(url)
+                            }}
+                            style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Download
+                          </button>
+                        )}
+                        {render.status === 'cleared' && (
+                          <button
+                            onClick={async () => {
+                              await supabase.from('renders').update({ status: 'done' }).eq('id', render.id)
+                              setRenders((prev) => prev.map((r) => r.id === render.id ? { ...r, status: 'done' } : r))
+                            }}
+                            style={{ background: 'none', border: '1px solid var(--coral)', color: 'var(--coral)', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Restore to scheduler
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
