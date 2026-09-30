@@ -1580,14 +1580,7 @@ export default function DashboardPage() {
                     >
                       {savedIds.has(idea.id) ? '★' : '☆'}
                     </button>
-                    {savedIds.has(idea.id) && (
-                      <button
-                        onClick={() => setTab('myideas')}
-                        style={{ marginTop: 10, background: 'rgba(216,90,48,0.1)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
-                      >
-                        View in My Ideas →
-                      </button>
-                    )}
+
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 24 }}>
                       {idea.title}
                     </h3>
@@ -1597,6 +1590,16 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                       {idea.description}
                     </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
+                    {savedIds.has(idea.id) && (
+                      <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginTop: 14, paddingTop: 12 }}>
+                        <button
+                          onClick={() => setTab('myideas')}
+                          style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                        >
+                          View in My Ideas →
+                        </button>
+                      </div>
+                    )}
                     {(userPlan === "mid" || userPlan === "top") && (
                       refiningId === idea.id ? (
                         <div style={{ marginTop: 12 }}>
