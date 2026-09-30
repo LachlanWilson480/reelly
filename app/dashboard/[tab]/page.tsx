@@ -2353,13 +2353,13 @@ export default function DashboardPage() {
                           <input type="checkbox" checked={uploadSpeechSlots.has(slotId)} onChange={(e) => {
                             setUploadSpeechSlots((prev) => { const n = new Set(prev); e.target.checked ? n.add(slotId) : n.delete(slotId); return n })
                           }} />
-                          Speech
+                          People talking
                         </label>
                         <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                           <input type="checkbox" checked={uploadLandscapeSlots.has(slotId)} onChange={(e) => {
                             setUploadLandscapeSlots((prev) => { const n = new Set(prev); e.target.checked ? n.add(slotId) : n.delete(slotId); return n })
                           }} />
-                          Landscape
+                          Filmed horizontally
                         </label>
                         {uploadSlots.length > 1 && (
                           <button onClick={() => {
@@ -2598,11 +2598,11 @@ export default function DashboardPage() {
                           <div style={{ marginTop: 14, display: 'flex', gap: 16 }}>
                             <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                               <input type="checkbox" checked={aiSpeechSteps.has(0)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
-                              This video has speech (for captions)
+                              People are talking in this video
                             </label>
                             <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                               <input type="checkbox" checked={aiLandscapeSteps.has(0)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
-                              Filmed in landscape
+                              Filmed horizontally (landscape)
                             </label>
                           </div>
                         </div>
@@ -2642,11 +2642,11 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', gap: 12, marginLeft: 'auto' }}>
                                   <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                     <input type="checkbox" checked={aiSpeechSteps.has(i)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
-                                    Speech
+                                    People talking
                                   </label>
                                   <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                     <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
-                                    Landscape
+                                    Filmed horizontally
                                   </label>
                                 </div>
                               </div>
