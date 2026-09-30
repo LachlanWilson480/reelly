@@ -147,6 +147,7 @@ export default function DashboardPage() {
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [draftsLoaded, setDraftsLoaded] = useState(false)
+  const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single'>('default')
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadPerClipTransitions, setUploadPerClipTransitions] = useState<Record<number, string>>({})
   const [uploadPerClipMode, setUploadPerClipMode] = useState(false)
@@ -792,7 +793,7 @@ export default function DashboardPage() {
           fetch("/api/generate-checklist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count }),
+            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode }),
           }).then(async (res) => {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || "Request failed")
@@ -1715,6 +1716,21 @@ export default function DashboardPage() {
               ) : (
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Saved ideas</p>
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Filming style</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {[
+                        { id: 'default', label: 'Standard', desc: 'A few clips, balanced pacing' },
+                        { id: 'multi', label: 'Multi-shot', desc: 'Many short clips, high detail' },
+                        { id: 'single', label: 'Single shot', desc: 'One continuous video' },
+                      ].map((mode) => (
+                        <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '10px 16px', borderRadius: 10, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{mode.label}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{mode.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                       Review your selected ideas, then film them.
