@@ -2422,7 +2422,7 @@ export default function DashboardPage() {
                     {libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}
                   </button>
                   <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                    {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from a video clip'}
+                    {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from any video clip'}
                   </button>
                 </div>
                 {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
@@ -2686,7 +2686,7 @@ export default function DashboardPage() {
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                         <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>{musicFile ? `♪ ${musicFile.name}` : '+ Upload an audio file'}</button>
                         <button type="button" onClick={() => setShowMusicLibrary('ai')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>{libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}</button>
-                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from a video clip'}</button>
+                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from any video clip'}</button>
                       </div>
                       {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
                       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>You are responsible for ensuring you have the rights to use any audio you upload.</p>
