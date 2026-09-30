@@ -145,7 +145,13 @@ export async function POST(req: NextRequest) {
 
     const seasonalNote = ideaIsSeasonal && profile.local_seasonal_context ? `\nSeasonal context (only use if directly relevant to this idea): ${profile.local_seasonal_context}` : ''
 
-    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.
+    const filmingModeNote = filmingMode === 'single'
+      ? '\nFILMING MODE: Single shot. Generate exactly ONE step. The user will film their entire video in one continuous take. Make the single step describe the full video arc, what to say, and how to deliver it.'
+      : filmingMode === 'multi'
+      ? '\nFILMING MODE: Multi-shot. Generate 12-20 very short (1-3 second) clips. Each step = one specific shot (close-up, detail, action, reaction, product angle, etc). Think high-energy showcase content.'
+      : ''
+
+    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}
 
 BUSINESS:
 ${profileBrief}
