@@ -118,14 +118,22 @@ export default function SchedulerTab({ userId, filmingItems }: { userId: string 
       </div>
 
       {/* Renders */}
-      {renders.length === 0 ? (
-        <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>No completed videos yet.</p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor or Editor For Any Video to create your first video.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {renders.map((render) => {
+      {(() => {
+        const ideaRenders = renders.filter((r) => r.title)
+        const freeRenders = renders.filter((r) => !r.title)
+        if (renders.length === 0) return (
+          <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>No completed videos yet.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor or Editor For Any Video to create your first video.</p>
+          </div>
+        )
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {ideaRenders.length > 0 && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎬 From your ideas</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {ideaRenders.map((render) => {
             const caption = render.caption || ''
             const tags = render.tags || ''
             const fullCaption = [caption, tags].filter(Boolean).join('\n')
