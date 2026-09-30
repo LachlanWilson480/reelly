@@ -345,8 +345,9 @@ export default function DashboardPage() {
 
       const { data: scriptRows } = await supabase
         .from('generated_scripts')
-        .select('id, topic, script, length, style, created_at')
+        .select('id, topic, script, length, style, created_at, dismissed')
         .eq('user_id', user.id)
+        .eq('dismissed', false)
         .order('created_at', { ascending: false })
         .limit(20)
       if (scriptRows) setSavedScripts(scriptRows)
@@ -1824,6 +1825,9 @@ export default function DashboardPage() {
                               <button
                                 onClick={async () => {
                                   setDismissedScriptIds((prev) => new Set([...prev, s.id]))
+                                  setSavedScripts((prev) => prev.filter((sc) => sc.id !== s.id))
+                                  // Mark script as dismissed in DB
+                                  await supabase.from('generated_scripts').update({ dismissed: true }).eq('id', s.id)
                                   // Also unsave any generated_ideas row created from this script
                                   await supabase
                                     .from('generated_ideas')
