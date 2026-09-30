@@ -171,7 +171,7 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>In-app scheduling coming soon</p>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              We&apos;re building direct Instagram and TikTok posting. In the meantime, all your rendered videos are available to download below — complete with captions, descriptions and hashtags ready to paste when you post.
+              We&apos;re building direct Instagram and TikTok posting. In the meantime, all your rendered videos are available to download below, complete with captions, descriptions and hashtags ready to paste when you post.
             </p>
           </div>
         </div>
