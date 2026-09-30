@@ -90,6 +90,12 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
 
   const handleSchedule = async () => {
     if (!userId || !scheduleIdeaId) return
+    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`)
+    if (scheduledDateTime < new Date()) {
+      setShowScheduleModal(false)
+      setShowPastWarning(true)
+      return
+    }
     setSaving(true)
     const idea = [...savedIdeas, ...filmingItems].find((i) => i.id === scheduleIdeaId)
     const scheduledFor = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString()
@@ -198,7 +204,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
               </div>
               {weekDates.map((date, di) => {
                 const posts = postsForSlot(date, hour)
-                const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 0, 0, 0)
+                const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 59, 59, 0)
         const isPast = slotTime < new Date()
                 return (
                   <div
