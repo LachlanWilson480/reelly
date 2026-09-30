@@ -1583,7 +1583,7 @@ export default function DashboardPage() {
                     {savedIds.has(idea.id) && (
                       <button
                         onClick={() => setTab('myideas')}
-                        style={{ position: 'absolute', top: 12, right: 40, background: 'none', border: 'none', fontSize: 11, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0 }}
+                        style={{ position: 'absolute', bottom: 12, right: 12, background: 'rgba(216,90,48,0.1)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, textDecoration: 'none' }}
                       >
                         View in My Ideas →
                       </button>
