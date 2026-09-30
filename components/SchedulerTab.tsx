@@ -258,6 +258,49 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
         </div>
       )}
 
+      {carousels.length > 0 && (
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><rect x="1" y="1" width="4" height="12" rx="1"/><rect x="6" y="1" width="4" height="12" rx="1"/><rect x="11" y="1" width="2" height="12" rx="1"/></svg>
+            Carousel posts
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {carousels.map((c) => (
+              <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
+                  <div style={{ background: '#000' }}>
+                    {carouselThumbs[c.id] ? (
+                      <img src={carouselThumbs[c.id]} alt="Carousel" style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 200, display: 'block' }} />
+                    ) : <div style={{ height: 200 }} />}
+                  </div>
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{new Date(c.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <p style={{ fontSize: 14, fontWeight: 600 }}>{c.image_paths.length} image carousel</p>
+                      </div>
+                    </div>
+                    {c.caption ? (
+                      <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Caption</p>
+                          <button onClick={() => copyToClipboard(c.caption!, `caption-${c.id}`)} style={{ fontSize: 11, color: copied === `caption-${c.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                            {copied === `caption-${c.id}` ? '✓ Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{c.caption}</p>
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption added.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
