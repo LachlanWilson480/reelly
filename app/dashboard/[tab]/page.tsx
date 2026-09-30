@@ -1046,6 +1046,7 @@ export default function DashboardPage() {
           outputOrientation,
           resolution: aiResolution,
           transition: aiTransition,
+          perClipTransitions: aiPerClipMode ? clipPaths.map((_, i) => aiPerClipTransitions[i] || 'none') : null,
           ideaId: selectedFilmingId || null,
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
           ideaCaption: filmingItems.find((f) => f.id === selectedFilmingId)?.caption || null,
@@ -2695,13 +2696,35 @@ export default function DashboardPage() {
 
                     {/* ── STEP 2: Transitions ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>2 · Transition</p>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                          <button key={opt.id} type="button" onClick={() => setAiTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: aiTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: aiTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: aiTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>{opt.label}</button>
-                        ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>2 · Transition</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button type="button" onClick={() => setAiPerClipMode(false)} style={{ padding: '5px 12px', borderRadius: 6, border: !aiPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: !aiPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiPerClipMode ? 600 : 400, cursor: 'pointer' }}>All clips</button>
+                          <button type="button" onClick={() => setAiPerClipMode(true)} style={{ padding: '5px 12px', borderRadius: 6, border: aiPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: aiPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: aiPerClipMode ? 600 : 400, cursor: 'pointer' }}>Per clip</button>
+                        </div>
                       </div>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Applied between every clip. Switch to per-clip mode to set different transitions for each cut.</p>
+                      {!aiPerClipMode ? (
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                            <button key={opt.id} type="button" onClick={() => setAiTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: aiTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: aiTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: aiTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>{opt.label}</button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {item.checklist.slice(1).map((_, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <p style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 80 }}>Clip {i + 1} → {i + 2}</p>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                                  <button key={opt.id} type="button" onClick={() => setAiPerClipTransitions((prev) => ({ ...prev, [i + 1]: opt.id }))} style={{ padding: '5px 10px', borderRadius: 6, border: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: (aiPerClipTransitions[i + 1] || 'none') === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* ── STEP 3: Music ── */}
