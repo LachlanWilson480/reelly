@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const [selectedFilmingId, setSelectedFilmingId] = useState<string | null>(null)
   const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
   const [aiUploading, setAiUploading] = useState(false)
+  const [aiEditorError, setAiEditorError] = useState('')
   const [aiRenderId, setAiRenderId] = useState<string | null>(null)
   const [aiRenderProgress, setAiRenderProgress] = useState<number>(0)
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
@@ -986,8 +987,9 @@ export default function DashboardPage() {
           const file = stepUploads[stepIndex]
           path = stepUploadPaths[stepIndex] || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
           if (!stepUploadPaths[stepIndex]) {
+            if (file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from("video-uploads").upload(path, file)
-            if (error) throw new Error(error.message)
+            if (error) throw new Error(`Upload failed: ${error.message}`)
           }
         } else if (stepUploadPaths[stepIndex]) {
           path = stepUploadPaths[stepIndex]
@@ -1063,7 +1065,7 @@ export default function DashboardPage() {
       setMusicFile(null)
       setExtractedMusicPath(null)
     } catch (err) {
-      setIdeaError(err instanceof Error ? err.message : "Something went wrong")
+      setAiEditorError(err instanceof Error ? err.message : 'Something went wrong uploading your clips. Check file sizes and try again.')
     } finally {
       setAiUploading(false)
     }
@@ -1092,8 +1094,9 @@ export default function DashboardPage() {
           const file = uploadSlotFiles[slotId]
           path = uploadSlotPaths[slotId] || `${userId}/${Date.now()}-${file.name}`
           if (!uploadSlotPaths[slotId]) {
+            if (file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-            if (error) throw new Error(error.message)
+            if (error) throw new Error(`Upload failed: ${error.message}`)
           }
         } else if (uploadSlotPaths[slotId]) {
           path = uploadSlotPaths[slotId]
@@ -2771,6 +2774,9 @@ export default function DashboardPage() {
                     </div>
 
                     {/* ── Render ── */}
+                    {aiEditorError && (
+                      <p style={{ fontSize: 13, color: 'var(--coral)', padding: '12px 16px', background: 'rgba(216,90,48,0.08)', borderRadius: 10, border: '1px solid rgba(216,90,48,0.25)' }}>{aiEditorError}</p>
+                    )}
                     {showSpeechWarning && (
                       <div style={{ padding: '16px 20px', borderRadius: 10, border: '1px solid var(--coral)', background: 'rgba(216,90,48,0.08)' }}>
                         <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Confirm speech clips before rendering</p>
