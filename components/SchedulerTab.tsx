@@ -142,7 +142,10 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
     return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }
 
-  const allIdeas = [...savedIdeas, ...filmingItems]
+  // Deduplicate — filmingItems may share ids with savedIdeas
+  const allIdeasMap = new Map<string, Idea>()
+  ;[...savedIdeas, ...filmingItems].forEach((i) => allIdeasMap.set(i.id, i))
+  const allIdeas = Array.from(allIdeasMap.values())
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -194,7 +197,8 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
               </div>
               {weekDates.map((date, di) => {
                 const posts = postsForSlot(date, hour)
-                const isPast = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour) < new Date()
+                const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30)
+        const isPast = slotTime < new Date()
                 return (
                   <div
                     key={di}
