@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { useParams } from 'next/navigation'
 import JSZip from 'jszip'
+import SchedulerTab from '@/components/SchedulerTab'
 type Profile = {
   business_name: string
   industry: string
@@ -2621,12 +2622,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Scheduler coming soon</h3>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 400, margin: '0 auto' }}>
-                Plan and schedule your videos across Instagram, TikTok and Facebook — all from one place. We're building it now.
-              </p>
-            </div>
+          <SchedulerTab userId={userId} savedIdeas={dbSavedIdeas} filmingItems={filmingItems} />
           )}
         </div>
       </div>
