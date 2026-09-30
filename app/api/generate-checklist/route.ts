@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     const filmingModeNote = filmingMode === 'single'
       ? '\nFILMING MODE: Single shot. Generate exactly ONE step. The user will film their entire video in one continuous take. Make the single step describe the full video arc, what to say, and how to deliver it.'
       : filmingMode === 'multi'
-      ? '\nFILMING MODE: Multi-shot. Generate 10-15 very short clips, each 2-4 seconds long. Total video should be 30-45 seconds. Each step = one specific shot (close-up, detail, action, reaction, product angle). Most clips are silent b-roll — only 2-3 clips should have spoken dialogue, keep those under 5 words. Think high-energy showcase reels.'
+      ? '\nFILMING MODE: Multi-shot. Generate 10-15 very short clips, each 2-4 seconds long. Total video should be 30-45 seconds. Each step = one specific shot (close-up, detail, action, reaction, product angle). Dialogue can span multiple consecutive clips — the person keeps talking while the camera cuts between different angles and b-roll shots. Most clips are silent b-roll, but 3-5 clips can have a voiceover or on-camera line that carries across them. Think high-energy showcase reels where someone narrates over fast cuts.'
       : ''
 
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}
