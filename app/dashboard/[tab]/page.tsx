@@ -1909,7 +1909,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
               )}
-              <div style={{ marginTop: 32, paddingTop: 4 }}>
+              <div style={{ marginTop: 32 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Filming style</p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[
