@@ -197,8 +197,9 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
               </div>
               {weekDates.map((date, di) => {
                 const posts = postsForSlot(date, hour)
-                const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30)
-        const isPast = slotTime < new Date()
+                const slotDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        const today = new Date(); today.setHours(0,0,0,0)
+        const isPast = slotDate < today
                 return (
                   <div
                     key={di}
