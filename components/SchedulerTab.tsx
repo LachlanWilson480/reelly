@@ -32,11 +32,12 @@ function getBestPostingTime(): string {
   return `${nextDay.day} at ${nextDay.times[0]} — ${nextDay.reason}`
 }
 
-function RenderCard({ render, copied, onCopy, onDownload }: {
+function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
   render: Render
   copied: string | null
   onCopy: (text: string, key: string) => void
   onDownload: (url: string) => void
+  onClear: (id: string) => void
 }) {
   const caption = render.caption || ''
   const tags = render.tags || ''
@@ -66,11 +67,16 @@ function RenderCard({ render, copied, onCopy, onDownload }: {
               </p>
               {render.title && <p style={{ fontSize: 14, fontWeight: 600 }}>{render.title}</p>}
             </div>
-            {render.output_url && (
-              <button onClick={() => onDownload(render.output_url!)} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                ⬇ Download
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              {render.output_url && (
+                <button onClick={() => onDownload(render.output_url!)} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  ⬇ Download
+                </button>
+              )}
+              <button onClick={() => onClear(render.id)} style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
+                Remove
               </button>
-            )}
+            </div>
           </div>
 
           {fullCaption ? (
@@ -144,6 +150,11 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
     document.body.removeChild(a)
   }
 
+  const clearRender = async (renderId: string) => {
+    await supabase.from('renders').update({ status: 'cleared' }).eq('id', renderId)
+    setRenders((prev) => prev.filter((r) => r.id !== renderId))
+  }
+
   const ideaRenders = renders.filter((r) => r.title)
   const freeRenders = renders.filter((r) => !r.title)
 
@@ -190,7 +201,7 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎬 From your ideas</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {ideaRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
             ))}
           </div>
         </div>
@@ -201,7 +212,7 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>📁 Other renders</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {freeRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
             ))}
           </div>
         </div>
