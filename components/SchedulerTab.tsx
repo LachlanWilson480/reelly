@@ -29,7 +29,7 @@ function getBestPostingTime(): string {
   const dayName = now.toLocaleDateString('en-AU', { weekday: 'long' })
   const idx = BEST_TIMES.findIndex((d) => d.day === dayName)
   const nextDay = BEST_TIMES[(idx + 1) % 7]
-  return `${nextDay.day} at ${nextDay.times[0]} — ${nextDay.reason}`
+  return `${nextDay.day} at ${nextDay.times[0]} · ${nextDay.reason}`
 }
 
 function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
@@ -70,7 +70,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               {render.output_url && (
                 <button onClick={() => onDownload(render.output_url!)} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                  ⬇ Download
+                  Download
                 </button>
               )}
               <button onClick={() => onClear(render.id)} style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
@@ -82,7 +82,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
           {fullCaption ? (
             <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>💬 Caption</p>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><rect x="1" y="1" width="12" height="9" rx="1.5"/><line x1="3" y1="4" x2="11" y2="4"/><line x1="3" y1="6.5" x2="8" y2="6.5"/><path d="M4 10l-2 2.5"/></svg>Caption</p>
                 <button onClick={() => onCopy(fullCaption, `caption-${render.id}`)} style={{ fontSize: 11, color: copied === `caption-${render.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                   {copied === `caption-${render.id}` ? '✓ Copied!' : 'Copy'}
                 </button>
@@ -90,11 +90,11 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{fullCaption}</p>
             </div>
           ) : (
-            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption — generate filming instructions for this idea to get a suggested caption.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption · generate filming instructions for this idea to get a suggested caption.</p>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⏰ Best time to post:</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg>Best time to post:</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--coral)' }}>{bestTime}</span>
           </div>
 
@@ -177,7 +177,7 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
       </div>
 
       <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>📅 Best times to post this week</p>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg>Best times to post this week</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
           {BEST_TIMES.map((day) => (
             <div key={day.day} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '10px 12px' }}>
@@ -198,7 +198,7 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
 
       {ideaRenders.length > 0 && (
         <div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎬 From your ideas</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><rect x="1" y="1" width="12" height="12" rx="1.5"/><polygon points="5.5,4.5 10,7 5.5,9.5" fill="currentColor" stroke="none"/></svg>From your ideas</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {ideaRenders.map((render) => (
               <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
@@ -209,7 +209,7 @@ export default function SchedulerTab({ userId }: { userId: string | null }) {
 
       {freeRenders.length > 0 && (
         <div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>📁 Other renders</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><path d="M1 3.5h12v8a1 1 0 01-1 1H2a1 1 0 01-1-1v-8z"/><path d="M1 3.5l1.5-2h4l1.5 2"/></svg>Other renders</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {freeRenders.map((render) => (
               <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
