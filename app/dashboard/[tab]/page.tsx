@@ -55,7 +55,7 @@ type Idea = {
   source?: string
 }
 
-type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string }
+type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
 
@@ -332,7 +332,7 @@ export default function DashboardPage() {
 
         const filmingRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared !== true).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         if (filmingRows.length > 0) {
-          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "" } }))
+          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "", directions: (c as {directions?: string[]}).directions || [] } }))
         }
       }
 
@@ -856,7 +856,7 @@ export default function DashboardPage() {
               // Update checklist on existing row
               await supabase
                 .from("generated_ideas")
-                .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false, saved: true })
+                .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script, directions: item.directions }, filming_cleared: false, saved: true })
                 .eq("id", existing.id)
             }
             if (inserted) {
@@ -2021,24 +2021,8 @@ export default function DashboardPage() {
                                 .split(/(?<=[.!?])\s+/)
                                 .map((s: string) => s.trim())
                                 .filter((s: string) => s.length > 0)
-                              // Extract only camera/movement direction, strip all dialogue
-                              const directions = item.checklist.map((step: string) => {
-                                const dashIdx = step.indexOf(' - ')
-                                const afterTime = dashIdx !== -1 ? step.slice(dashIdx + 3) : step
-                                // Strip everything after "say:", "say '" or ", say"
-                                const sayPatterns = [/ and say:/i, / say:/i, /, say/i, /\.? say '/i]
-                                let direction = afterTime
-                                for (const pattern of sayPatterns) {
-                                  const match = direction.search(pattern)
-                                  if (match !== -1) {
-                                    direction = direction.slice(0, match).trim().replace(/,\s*$/, '')
-                                    break
-                                  }
-                                }
-                                // Also strip anything in quotes (dialogue)
-                                direction = direction.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '').trim().replace(/,\s*$/, '')
-                                return direction.length > 5 ? direction : null
-                              })
+                              // Use directions from API if available, otherwise no directions
+                              const directions: (string | null)[] = item.directions && item.directions.length > 0 ? item.directions : []
                               // Distribute directions evenly across sentences
                               const validDirections = directions.filter(Boolean)
                               const directionInterval = validDirections.length > 0 ? Math.max(1, Math.floor(sentences.length / validDirections.length)) : 0
