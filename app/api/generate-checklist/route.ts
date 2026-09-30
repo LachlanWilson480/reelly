@@ -150,7 +150,17 @@ export async function POST(req: NextRequest) {
     const filmingModeNote = filmingMode === 'single'
       ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement — no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
       : filmingMode === 'multi'
-      ? '\nFILMING MODE: Multi-shot. Generate 10-15 very short clips, each 2-4 seconds long. Total video should be 30-45 seconds. Each step = one specific shot (close-up, detail, action, reaction, product angle). Dialogue can span multiple consecutive clips — the person keeps talking while the camera cuts between different angles and b-roll shots. Most clips are silent b-roll, but 3-5 clips can have a voiceover or on-camera line that carries across them. Think high-energy showcase reels where someone narrates over fast cuts.'
+      ? `\nFILMING MODE: Multi-shot showcase reel.
+STRICT RULES:
+- Generate exactly ${Math.round((videoLength || 30) / 2)} clips (one clip every 2 seconds)
+- Each clip is 2 seconds long, NO exceptions
+- Each step = one single camera shot only (one angle, one subject, one movement)
+- 80% of clips are silent b-roll: close-ups, details, textures, actions, reactions, products
+- Only 20% of clips have spoken words — keep those under 6 words each
+- Dialogue carries across multiple clips as voiceover — the camera keeps cutting while person talks
+- NO long sentences in any single clip
+- Think: high-energy Instagram reel, fast cuts, mostly visual
+- Total video = exactly ${videoLength || 30} seconds`
       : ''
 
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
@@ -197,7 +207,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
       attempts++
       const message = await anthropic.messages.create({
         model,
-        max_tokens: 1600,
+        max_tokens: 2400,
         thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }],
       })
