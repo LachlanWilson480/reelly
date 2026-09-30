@@ -1929,7 +1929,6 @@ export default function DashboardPage() {
                                   <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{instruction}</p>
                                 </div>
                               </div>
-                            </>
                             )
                           })}
                         </div>
