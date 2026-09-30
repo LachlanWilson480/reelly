@@ -1723,10 +1723,32 @@ export default function DashboardPage() {
               ) : (
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Saved ideas</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 24 }}>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                       Review your selected ideas, then film them.
                     </p>
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 280 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video length</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
+                            <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[{ id: 'default', label: 'Standard' }, { id: 'multi', label: 'Multi-shot' }, { id: 'single', label: 'Single shot' }].map((mode) => (
+                            <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                              {mode.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                     <button
                       onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -1910,31 +1932,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
               )}
-              <div style={{ marginTop: 32 }}>
-                <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Video length</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
-                      <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '8px 16px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Filming style</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { id: 'default', label: 'Standard', desc: 'A few clips, balanced pacing' },
-                    { id: 'multi', label: 'Multi-shot', desc: 'Many short clips, high detail' },
-                    { id: 'single', label: 'Single shot', desc: 'One continuous video' },
-                  ].map((mode) => (
-                    <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '10px 16px', borderRadius: 10, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{mode.label}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{mode.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+
               {filmingError && (
                 <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
               )}              {filmingItems.length > 0 && (
