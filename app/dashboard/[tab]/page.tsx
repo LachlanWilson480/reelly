@@ -2290,21 +2290,15 @@ export default function DashboardPage() {
                             if (!error) {
                               setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
                               setUploadSlotNames((prev) => ({ ...prev, [slotId]: file.name }))
-                              await fetch('/api/save-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload', slotIndex: slotId, filePath: path, fileName: file.name }) })
+  
                             }
                           }}
                           style={{ display: 'none' }}
                         />
-                        {(uploadSlotFiles[slotId] || uploadSlotNames[slotId]) ? (
+                        {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId]?.name || uploadSlotNames[slotId]}</p>
+                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId].name}</p>
                             <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
-                            <button type="button" onClick={async () => {
-                              setUploadSlotFiles((prev) => { const n = {...prev}; delete n[slotId]; return n })
-                              setUploadSlotPaths((prev) => { const n = {...prev}; delete n[slotId]; return n })
-                              setUploadSlotNames((prev) => { const n = {...prev}; delete n[slotId]; return n })
-                              await fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload', slotIndex: slotId }) })
-                            }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.7)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
                           </div>
                         ) : (
                           <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
