@@ -203,7 +203,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
                   <div
                     key={di}
                     onClick={() => !isPast && openScheduleModal(date, hour)}
-                    style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: isPast ? 'default' : 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative' }}
+                    style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: isPast ? 'default' : 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative', overflow: 'hidden', minWidth: 0 }}
                     onMouseEnter={(e) => { if (!isPast) e.currentTarget.style.background = 'rgba(216,90,48,0.07)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent' }}
                   >
