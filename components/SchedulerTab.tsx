@@ -42,7 +42,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
   const caption = render.caption || ''
   const tags = render.tags || ''
   const fullCaption = [caption, tags].filter(Boolean).join('\n')
-  const bestTime = getBestPostingTime()
+  const bestTime = getBestPostingTime(render.id)
 
   return (
     <div style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
