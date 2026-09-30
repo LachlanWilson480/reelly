@@ -211,7 +211,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
                       <div
                         key={post.id}
                         onClick={(e) => { e.stopPropagation(); setSelectedPost(post) }}
-                        style={{ background: post.status === 'posted' ? 'rgba(34,197,94,0.15)' : 'var(--coral)', borderRadius: 5, padding: '3px 6px', marginBottom: 2, cursor: 'pointer' }}
+                        style={{ background: post.status === 'posted' ? 'rgba(34,197,94,0.15)' : 'var(--coral)', borderRadius: 5, padding: '3px 6px', marginBottom: 2, cursor: 'pointer', overflow: 'hidden', maxWidth: '100%' }}
                       >
                         <p style={{ fontSize: 10, fontWeight: 600, color: post.status === 'posted' ? 'rgb(34,197,94)' : '#fff', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {post.status === 'posted' ? '✓ ' : ''}{post.title}
