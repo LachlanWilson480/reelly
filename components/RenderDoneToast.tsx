@@ -9,6 +9,24 @@ export default function RenderDoneToast() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    const checkOnce = async () => {
+      if (localStorage.getItem('reelezy-render-done') === '1') {
+        setShow(true)
+        return
+      }
+      const saved = localStorage.getItem('reelezy-render')
+      if (!saved) return
+      try {
+        const { id, ts } = JSON.parse(saved)
+        if (Date.now() - ts > 30 * 60 * 1000) { localStorage.removeItem('reelezy-render'); return }
+        const res = await fetch('/api/render-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ renderId: id }) })
+        const data = await res.json()
+        if (data.status === 'done') { localStorage.removeItem('reelezy-render'); localStorage.setItem('reelezy-render-done', '1'); setShow(true) }
+        else if (data.status === 'failed') { localStorage.removeItem('reelezy-render') }
+      } catch {}
+    }
+    checkOnce()
+
     const startPolling = () => {
       if (pollingRef.current) clearInterval(pollingRef.current)
 
