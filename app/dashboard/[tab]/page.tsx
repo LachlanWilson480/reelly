@@ -138,6 +138,11 @@ export default function DashboardPage() {
   const [uploadTransition, setUploadTransition] = useState<string>('none')
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
+  const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
+  const [uploadSlotNames, setUploadSlotNames] = useState<Record<number, string>>({})
+  const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
+  const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
+  const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
@@ -336,6 +341,43 @@ export default function DashboardPage() {
       if (scriptRows) setSavedScripts(scriptRows)
 
       setProfile(data)
+
+      // Load draft clips for both editors
+      if (user.id) {
+        const draftRes = await fetch(`/api/draft-clips?userId=${user.id}`)
+        const draftData = await draftRes.json()
+        const drafts = draftData.drafts || []
+
+        const uploadDrafts = drafts.filter((d: {editor_type: string}) => d.editor_type === 'upload')
+        const aiDrafts = drafts.filter((d: {editor_type: string}) => d.editor_type === 'ai')
+
+        if (uploadDrafts.length > 0) {
+          const slots = uploadDrafts.map((d: {slot_index: number}) => d.slot_index)
+          setUploadSlots(slots)
+          const paths: Record<number, string> = {}
+          const names: Record<number, string> = {}
+          uploadDrafts.forEach((d: {slot_index: number; file_path: string; file_name: string}) => {
+            paths[d.slot_index] = d.file_path
+            names[d.slot_index] = d.file_name
+          })
+          setUploadSlotPaths(paths)
+          setUploadSlotNames(names)
+        }
+
+        if (aiDrafts.length > 0) {
+          const paths: Record<number, string> = {}
+          const names: Record<number, string> = {}
+          aiDrafts.forEach((d: {slot_index: number; file_path: string; file_name: string}) => {
+            paths[d.slot_index] = d.file_path
+            names[d.slot_index] = d.file_name
+          })
+          setStepUploadPaths(paths)
+          setStepUploadNames(names)
+        }
+
+        setDraftsLoaded(true)
+      }
+
       setLoading(false)
     }
     load()
@@ -902,7 +944,8 @@ export default function DashboardPage() {
     setAiOutputUrl(null)
 
     try {
-      const stepIndices = Object.keys(stepUploads).map(Number).sort((a, b) => a - b)
+      const allStepIndices = new Set([...Object.keys(stepUploads).map(Number), ...Object.keys(stepUploadPaths).map(Number)])
+      const stepIndices = Array.from(allStepIndices).sort((a, b) => a - b)
       const clipPaths: string[] = []
       const speechIndices: number[] = []
       const clipTrims: { duration: number }[] = []
@@ -910,10 +953,19 @@ export default function DashboardPage() {
       let anyLandscape = false
 
       for (const stepIndex of stepIndices) {
-        const file = stepUploads[stepIndex]
-        const path = `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
-        const { error } = await supabase.storage.from("video-uploads").upload(path, file)
-        if (error) throw new Error(error.message)
+        let path: string
+        if (stepUploads[stepIndex]) {
+          const file = stepUploads[stepIndex]
+          path = stepUploadPaths[stepIndex] || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
+          if (!stepUploadPaths[stepIndex]) {
+            const { error } = await supabase.storage.from("video-uploads").upload(path, file)
+            if (error) throw new Error(error.message)
+          }
+        } else if (stepUploadPaths[stepIndex]) {
+          path = stepUploadPaths[stepIndex]
+        } else {
+          continue
+        }
         clipPaths.push(path)
         if (aiSpeechSteps.has(stepIndex)) speechIndices.push(clipPaths.length - 1)
 
@@ -1006,10 +1058,19 @@ export default function DashboardPage() {
       let anyLandscape = false
 
       for (const slotId of slotIds) {
-        const file = uploadSlotFiles[slotId]
-        const path = `${userId}/${Date.now()}-${file.name}`
-        const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-        if (error) throw new Error(error.message)
+        let path: string
+        if (uploadSlotFiles[slotId]) {
+          const file = uploadSlotFiles[slotId]
+          path = uploadSlotPaths[slotId] || `${userId}/${Date.now()}-${file.name}`
+          if (!uploadSlotPaths[slotId]) {
+            const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+            if (error) throw new Error(error.message)
+          }
+        } else if (uploadSlotPaths[slotId]) {
+          path = uploadSlotPaths[slotId]
+        } else {
+          continue
+        }
         clipPaths.push(path)
         if (uploadSpeechSlots.has(slotId)) speechIndices.push(clipPaths.length - 1)
 
@@ -1063,10 +1124,13 @@ export default function DashboardPage() {
       setLastMusicPath(musicPath)
       setUploadSlots([0])
       setUploadSlotFiles({})
+      setUploadSlotPaths({})
+      setUploadSlotNames({})
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
       setExtractedMusicPath(null)
+      fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -2216,16 +2280,31 @@ export default function DashboardPage() {
                           id={`upload-slot-${slotId}`}
                           type="file"
                           accept="video/*"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0]
-                            if (file) setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
+                            if (!file || !userId) return
+                            setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
+                            // Upload immediately and save as draft
+                            const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
+                            const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+                            if (!error) {
+                              setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
+                              setUploadSlotNames((prev) => ({ ...prev, [slotId]: file.name }))
+                              await fetch('/api/save-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload', slotIndex: slotId, filePath: path, fileName: file.name }) })
+                            }
                           }}
                           style={{ display: 'none' }}
                         />
-                        {uploadSlotFiles[slotId] ? (
+                        {(uploadSlotFiles[slotId] || uploadSlotNames[slotId]) ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId].name}</p>
+                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId]?.name || uploadSlotNames[slotId]}</p>
                             <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                            <button type="button" onClick={async () => {
+                              setUploadSlotFiles((prev) => { const n = {...prev}; delete n[slotId]; return n })
+                              setUploadSlotPaths((prev) => { const n = {...prev}; delete n[slotId]; return n })
+                              setUploadSlotNames((prev) => { const n = {...prev}; delete n[slotId]; return n })
+                              await fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload', slotIndex: slotId }) })
+                            }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.7)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
                           </div>
                         ) : (
                           <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -2471,10 +2550,16 @@ export default function DashboardPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) setStepUploads((prev) => ({ ...prev, [i]: file })) }} style={{ display: 'none' }} />
-                                {stepUploads[i] ? (
+                                {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[i].name}</p>
+                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                                    <button type="button" onClick={async () => {
+                                      setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
+                                      setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
+                                      setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
+                                      await fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
+                                    }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.7)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
                                   </div>
                                 ) : (
                                   <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>

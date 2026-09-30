@@ -1,0 +1,24 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: NextRequest) {
+  try {
+    const { userId, editorType, slotIndex } = await req.json()
+    if (!userId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+    const query = supabaseAdmin.from('draft_clips').delete().eq('user_id', userId)
+    if (editorType) query.eq('editor_type', editorType)
+    if (slotIndex !== undefined) query.eq('slot_index', slotIndex)
+
+    await query
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('delete-draft-clip error:', error)
+    return NextResponse.json({ error: 'Failed to delete draft' }, { status: 500 })
+  }
+}
