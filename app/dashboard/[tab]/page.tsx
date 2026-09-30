@@ -1909,7 +1909,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
               )}
-              <div style={{ marginTop: 16, borderTop: '1px solid rgba(128,128,128,0.12)', paddingTop: 16 }}>
+              <div style={{ marginTop: 24, borderTop: '1px solid rgba(128,128,128,0.12)', paddingTop: 20 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Filming style</p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[
@@ -1927,12 +1927,14 @@ export default function DashboardPage() {
               {filmingError && (
                 <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
               )}              {filmingItems.length > 0 && (
-                <button
-                  onClick={clearFilming}
-                  style={{ marginBottom: 16, background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
-                >
-                  Clear
-                </button>
+                <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', paddingTop: 16, marginBottom: 16 }}>
+                  <button
+                    onClick={clearFilming}
+                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
+                  >
+                    Clear
+                  </button>
+                </div>
               )}
               {generatingFilming && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
