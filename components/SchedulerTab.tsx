@@ -48,6 +48,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
   const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(['instagram'])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showPastWarning, setShowPastWarning] = useState(false)
 
   useEffect(() => {
     setWeekDates(getWeekDates(weekOffset))
@@ -202,8 +203,8 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
                 return (
                   <div
                     key={di}
-                    onClick={() => !isPast && openScheduleModal(date, hour)}
-                    style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: isPast ? 'default' : 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative', overflow: 'hidden', minWidth: 0 }}
+                    onClick={() => isPast ? setShowPastWarning(true) : openScheduleModal(date, hour)}
+                    style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative', overflow: 'hidden', minWidth: 0 }}
                     onMouseEnter={(e) => { if (!isPast) e.currentTarget.style.background = 'rgba(216,90,48,0.07)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent' }}
                   >
@@ -336,6 +337,24 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
                 <button onClick={() => handleDelete(selectedPost.id)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid rgba(200,50,50,0.4)', background: 'none', color: 'rgba(200,50,50,0.8)', fontSize: 13, cursor: 'pointer' }}>Cancel post</button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPastWarning && (
+        <div onClick={() => setShowPastWarning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', borderRadius: 16, padding: '28px 32px', maxWidth: 360, width: '100%', textAlign: 'center' }}>
+            <p style={{ fontSize: 28, marginBottom: 12 }}>⏰</p>
+            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Can't schedule in the past</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+              That time slot has already passed. Pick a future date or time to schedule your post.
+            </p>
+            <button
+              onClick={() => setShowPastWarning(false)}
+              style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
