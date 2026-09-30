@@ -1937,7 +1937,7 @@ export default function DashboardPage() {
                 </div>
               )}
               {generatingFilming && (
-                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, marginTop: 16 }}>
                   <span className='rly-spinner rly-spinner-coral' />
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions — your existing cards are still below...</p>
                 </div>
