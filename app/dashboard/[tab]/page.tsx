@@ -1817,7 +1817,17 @@ export default function DashboardPage() {
                                 <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
                               )}
                               <button
-                                onClick={() => setDismissedScriptIds((prev) => new Set([...prev, s.id]))}
+                                onClick={async () => {
+                                  setDismissedScriptIds((prev) => new Set([...prev, s.id]))
+                                  // Also unsave any generated_ideas row created from this script
+                                  await supabase
+                                    .from('generated_ideas')
+                                    .update({ saved: false })
+                                    .eq('user_id', userId)
+                                    .eq('source', 'script')
+                                    .eq('title', s.topic)
+                                  setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === s.topic)))
+                                }}
                                 style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}
                               >
                                 Remove
