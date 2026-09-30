@@ -2532,6 +2532,12 @@ export default function DashboardPage() {
               </div>
 
               {/* ── Render ── */}
+              {uploading && (
+                <div style={{ padding: '12px 16px', background: 'rgba(216,90,48,0.08)', borderRadius: 10, border: '1px solid rgba(216,90,48,0.25)' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--coral)', marginBottom: 2 }}>Uploading your clips...</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Don't navigate away or close this tab until the render starts.</p>
+                </div>
+              )}
               {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)' }}>{uploadError}</p>}
 
               {showUploadSpeechWarning && (
@@ -2799,6 +2805,12 @@ export default function DashboardPage() {
                     </div>
 
                     {/* ── Render ── */}
+                    {aiUploading && (
+                      <div style={{ padding: '12px 16px', background: 'rgba(216,90,48,0.08)', borderRadius: 10, border: '1px solid rgba(216,90,48,0.25)' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--coral)', marginBottom: 2 }}>Uploading your clips...</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Don't navigate away or close this tab until the render starts.</p>
+                      </div>
+                    )}
                     {aiEditorError && (
                       <p style={{ fontSize: 13, color: 'var(--coral)', padding: '12px 16px', background: 'rgba(216,90,48,0.08)', borderRadius: 10, border: '1px solid rgba(216,90,48,0.25)' }}>{aiEditorError}</p>
                     )}
