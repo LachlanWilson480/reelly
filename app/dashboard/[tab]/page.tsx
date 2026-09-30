@@ -51,6 +51,7 @@ type Idea = {
   tags: string
   notes?: string
   day_of_week?: number
+  source?: string
 }
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string }
@@ -293,6 +294,7 @@ export default function DashboardPage() {
           tags: row.tags as string,
           notes: (row.notes as string) || undefined,
           day_of_week: row.day_of_week as number | undefined,
+          source: (row.source as string) || undefined,
         })
 
         const maxBatch = Math.max(...allIdeas.map((r) => r.batch_number as number))
@@ -797,6 +799,7 @@ export default function DashboardPage() {
                 batch_number: 0,
                 checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script },
                 filming_cleared: false,
+                source: 'script',
               })
               .select()
               .single()
@@ -1581,6 +1584,11 @@ export default function DashboardPage() {
                       {savedIds.has(idea.id) ? '★' : '☆'}
                     </button>
 
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                      {idea.source === 'script' && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', background: 'rgba(216,90,48,0.12)', color: 'var(--coral)', borderRadius: 4, padding: '2px 7px', border: '1px solid rgba(216,90,48,0.25)' }}>From script</span>
+                      )}
+                    </div>
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 24 }}>
                       {idea.title}
                     </h3>
