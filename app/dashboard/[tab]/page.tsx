@@ -2021,20 +2021,23 @@ export default function DashboardPage() {
                                 .split(/(?<=[.!?])\s+/)
                                 .map((s: string) => s.trim())
                                 .filter((s: string) => s.length > 0)
-                              // Extract stage direction (camera/movement before "and say:") from each checklist step
+                              // Extract only camera/movement direction, strip all dialogue
                               const directions = item.checklist.map((step: string) => {
                                 const dashIdx = step.indexOf(' - ')
                                 const afterTime = dashIdx !== -1 ? step.slice(dashIdx + 3) : step
-                                const sayPos = afterTime.toLowerCase().indexOf(' and say:')
-                                if (sayPos !== -1) {
-                                  return afterTime.slice(0, sayPos).trim().replace(/,\s*$/, '')
+                                // Strip everything after "say:", "say '" or ", say"
+                                const sayPatterns = [/ and say:/i, / say:/i, /, say/i, /\.? say '/i]
+                                let direction = afterTime
+                                for (const pattern of sayPatterns) {
+                                  const match = direction.search(pattern)
+                                  if (match !== -1) {
+                                    direction = direction.slice(0, match).trim().replace(/,\s*$/, '')
+                                    break
+                                  }
                                 }
-                                // fallback: try splitting on ", and " for steps without "say:"
-                                const andPos = afterTime.toLowerCase().indexOf(', and ')
-                                if (andPos !== -1) {
-                                  return afterTime.slice(0, andPos).trim().replace(/,\s*$/, '')
-                                }
-                                return null
+                                // Also strip anything in quotes (dialogue)
+                                direction = direction.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '').trim().replace(/,\s*$/, '')
+                                return direction.length > 5 ? direction : null
                               })
                               // Distribute directions evenly across sentences
                               const validDirections = directions.filter(Boolean)
