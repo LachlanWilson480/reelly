@@ -319,7 +319,7 @@ export default function DashboardPage() {
         setDbSavedIdeas(savedRows.map(toIdea))
         setSavedIds(new Set(savedRows.map((r) => r.id as string)))
 
-        const filmingRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared !== true)
+        const filmingRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared !== true).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         if (filmingRows.length > 0) {
           setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "" } }))
         }
@@ -1580,6 +1580,14 @@ export default function DashboardPage() {
                     >
                       {savedIds.has(idea.id) ? '★' : '☆'}
                     </button>
+                    {savedIds.has(idea.id) && (
+                      <button
+                        onClick={() => setTab('myideas')}
+                        style={{ position: 'absolute', top: 12, right: 40, background: 'none', border: 'none', fontSize: 11, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0 }}
+                      >
+                        View in My Ideas →
+                      </button>
+                    )}
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 24 }}>
                       {idea.title}
                     </h3>
