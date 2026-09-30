@@ -876,11 +876,10 @@ export default function DashboardPage() {
       }
 
       setFilmingItems((prev) => {
-        // Update existing items with same id, prepend new ones at top
-        const existingIds = new Set(prev.map((i) => i.id))
-        const updated = prev.map((i) => merged.find((m) => m.id === i.id) || i)
-        const newItems = merged.filter((m) => !existingIds.has(m.id))
-        return [...newItems, ...updated]
+        // Merge: new items at top, update existing, keep rest
+        const mergedIds = new Set(merged.map((m) => m.id))
+        const kept = prev.filter((i) => !mergedIds.has(i.id))
+        return [...merged, ...kept]
       })
       if (failCount > 0) {
         setFilmingError(`${failCount} of ${ideasToGenerate.length} idea${failCount > 1 ? "s" : ""} failed to generate. You can try again for those.`)
