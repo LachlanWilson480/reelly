@@ -70,7 +70,7 @@ const PREMIUM_WEEKLY_FILMING_LIMIT = 98
 
 export async function POST(req: NextRequest) {
   try {
-    const { idea, profile, customization, userId, styleOverride, peopleCountOverride } = await req.json()
+    const { idea, profile, customization, userId, styleOverride, peopleCountOverride, filmingMode } = await req.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'No idea provided' }, { status: 400 })
