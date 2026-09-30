@@ -1138,7 +1138,7 @@ export default function DashboardPage() {
     { id: 'uploads', label: 'Editor For Any Video' },
     { id: 'carousel', label: 'Carousel Reels' },
     { id: 'script', label: 'Script Generator' },
-    { id: 'scheduler', label: 'Scheduler 🔜' },
+    { id: 'scheduler', label: 'Scheduler' },
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'

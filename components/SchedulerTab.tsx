@@ -163,12 +163,18 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your completed videos and carousels with suggested captions and hashtags.</p>
       </div>
 
-      <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.25)', borderRadius: 12, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Auto-posting coming soon</p>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Download your video and copy your caption to post manually for now.</p>
+      <div style={{ background: 'var(--sand)', borderRadius: 14, padding: '20px 24px', border: '1px solid rgba(128,128,128,0.12)' }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(216,90,48,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="var(--coral)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4" x2="7" y2="7.5"/><circle cx="7" cy="9.5" r="0.5" fill="var(--coral)"/></svg>
+          </div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>In-app scheduling coming soon</p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              We&apos;re building direct Instagram and TikTok posting. In the meantime, all your rendered videos are available to download below — complete with captions, descriptions and hashtags ready to paste when you post.
+            </p>
+          </div>
         </div>
-        <button style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'not-allowed', opacity: 0.7 }}>Connect Instagram</button>
       </div>
 
       {renders.length === 0 && carousels.length === 0 && (
