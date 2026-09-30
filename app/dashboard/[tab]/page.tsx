@@ -2626,7 +2626,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} filmingItems={filmingItems} />
+          <SchedulerTab userId={userId} />
           )}
         </div>
       </div>
