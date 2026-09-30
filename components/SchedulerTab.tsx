@@ -203,7 +203,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
                 return (
                   <div
                     key={di}
-                    onClick={() => isPast ? setShowPastWarning(true) : openScheduleModal(date, hour)}
+                    onClick={() => { console.log('slot click isPast:', isPast, 'hour:', hour); isPast ? setShowPastWarning(true) : openScheduleModal(date, hour) }}
                     style={{ borderLeft: '1px solid rgba(128,128,128,0.08)', padding: '4px', cursor: 'pointer', background: isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent', transition: 'background 0.1s', position: 'relative', overflow: 'hidden', minWidth: 0 }}
                     onMouseEnter={(e) => { if (!isPast) e.currentTarget.style.background = 'rgba(216,90,48,0.07)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isToday(date) ? 'rgba(216,90,48,0.03)' : 'transparent' }}
@@ -342,7 +342,7 @@ export default function SchedulerTab({ userId, savedIdeas, filmingItems }: { use
       )}
 
       {showPastWarning && (
-        <div onClick={() => setShowPastWarning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={() => setShowPastWarning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', borderRadius: 16, padding: '28px 32px', maxWidth: 360, width: '100%', textAlign: 'center' }}>
             <p style={{ fontSize: 28, marginBottom: 12 }}>⏰</p>
             <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Can't schedule in the past</h3>
