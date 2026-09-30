@@ -821,11 +821,16 @@ export default function DashboardPage() {
             // Check if a row already exists for this script idea
             const { data: existing } = await supabase
               .from("generated_ideas")
-              .select("id")
+              .select("id, saved")
               .eq("user_id", userId)
               .eq("title", item.title)
               .eq("source", "script")
               .maybeSingle()
+
+            // Don't re-save if user has explicitly removed it
+            if (existing && existing.saved === false) {
+              continue
+            }
 
             let inserted = existing
             if (!existing) {
