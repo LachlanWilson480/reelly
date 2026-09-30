@@ -1927,7 +1927,7 @@ export default function DashboardPage() {
               {filmingError && (
                 <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
               )}              {filmingItems.length > 0 && (
-                <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', paddingTop: 16, marginBottom: 16 }}>
+                <div style={{ paddingTop: 4, marginBottom: 16 }}>
                   <button
                     onClick={clearFilming}
                     style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
