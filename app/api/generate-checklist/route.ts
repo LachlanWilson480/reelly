@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     const seasonalNote = ideaIsSeasonal && profile.local_seasonal_context ? `\nSeasonal context (only use if directly relevant to this idea): ${profile.local_seasonal_context}` : ''
 
     const filmingModeNote = filmingMode === 'single'
-      ? '\nFILMING MODE: Single shot. Generate exactly ONE step. The user will film their entire video in one continuous take. Make the single step describe the full video arc, what to say, and how to deliver it.'
+      ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement — no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
       : filmingMode === 'multi'
       ? '\nFILMING MODE: Multi-shot. Generate 10-15 very short clips, each 2-4 seconds long. Total video should be 30-45 seconds. Each step = one specific shot (close-up, detail, action, reaction, product angle). Dialogue can span multiple consecutive clips — the person keeps talking while the camera cuts between different angles and b-roll shots. Most clips are silent b-roll, but 3-5 clips can have a voiceover or on-camera line that carries across them. Think high-energy showcase reels where someone narrates over fast cuts.'
       : ''
@@ -179,7 +179,7 @@ Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say
 
 Also provide:
 - prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed for this specific idea)
-- caption: ready-to-post social caption, 2-4 sentences in the business's tone, ending with 2-4 hashtags
+- caption: ready-to-post social caption, maximum 100 characters total including hashtags, punchy and in the business's tone
 - script: full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud
 - directions: array of short camera-only instructions (one per checklist step), no dialogue, no quotes, just the physical action e.g. 'Hold phone at chest height facing the oven' or 'Close-up of hands shaping dough'
 
