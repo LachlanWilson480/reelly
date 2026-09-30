@@ -787,22 +787,41 @@ export default function DashboardPage() {
           merged.push(item)
           if (item.id.startsWith('script-')) {
             // Script-based ideas don't exist in generated_ideas — insert a new row
-            const { data: inserted } = await supabase
+            // Check if a row already exists for this script idea
+            const { data: existing } = await supabase
               .from("generated_ideas")
-              .insert({
-                user_id: userId,
-                title: item.title,
-                hook: item.hook,
-                description: item.description,
-                tags: item.tags,
-                saved: true,
-                batch_number: 0,
-                checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script },
-                filming_cleared: false,
-                source: 'script',
-              })
-              .select()
-              .single()
+              .select("id")
+              .eq("user_id", userId)
+              .eq("title", item.title)
+              .eq("source", "script")
+              .maybeSingle()
+
+            let inserted = existing
+            if (!existing) {
+              const { data: newRow } = await supabase
+                .from("generated_ideas")
+                .insert({
+                  user_id: userId,
+                  title: item.title,
+                  hook: item.hook,
+                  description: item.description,
+                  tags: item.tags,
+                  saved: true,
+                  batch_number: 0,
+                  checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script },
+                  filming_cleared: false,
+                  source: 'script',
+                })
+                .select()
+                .single()
+              inserted = newRow
+            } else {
+              // Update checklist on existing row
+              await supabase
+                .from("generated_ideas")
+                .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false, saved: true })
+                .eq("id", existing.id)
+            }
             if (inserted) {
               // Update the item id to the real DB id so future operations work
               merged[merged.length - 1] = { ...item, id: inserted.id }
