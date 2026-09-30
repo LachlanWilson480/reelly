@@ -1727,28 +1727,6 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                       Review your selected ideas, then film them.
                     </p>
-                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 280 }}>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video length</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
-                            <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[{ id: 'default', label: 'Standard' }, { id: 'multi', label: 'Multi-shot' }, { id: 'single', label: 'Single shot' }].map((mode) => (
-                            <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                              {mode.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
                     <button
                       onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -1930,6 +1908,28 @@ export default function DashboardPage() {
                   >
                     {generatingFilming ? <><span className='rly-spinner' />Generating...</> : '🎬 Get filming instructions'}
                   </button>
+                  <div style={{ display: 'flex', gap: 24, marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(128,128,128,0.12)' }}>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video length</p>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
+                          <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[{ id: 'default', label: 'Standard' }, { id: 'multi', label: 'Multi-shot' }, { id: 'single', label: 'Single shot' }].map((mode) => (
+                          <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                            {mode.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
