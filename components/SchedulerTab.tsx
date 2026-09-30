@@ -84,11 +84,6 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
             <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption · generate filming instructions for this idea to get a suggested caption.</p>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6,verticalAlign:'middle'}}><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg>Best time to post:</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--coral)' }}>{bestTime}</span>
-          </div>
-
           {tags && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <p style={{ fontSize: 12, color: 'var(--coral)', flex: 1 }}>{tags}</p>
