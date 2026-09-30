@@ -1,22 +1,58 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function RenderDoneToast() {
   const [show, setShow] = useState(false)
   const router = useRouter()
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    const check = () => {
-      if (localStorage.getItem('reelezy-render-done') === '1') {
-        setShow(true)
-      }
+    const startPolling = () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+
+      pollingRef.current = setInterval(async () => {
+        // Check if there's a render done flag already
+        if (localStorage.getItem('reelezy-render-done') === '1') {
+          setShow(true)
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          return
+        }
+
+        // Check if there's an in-progress render to poll
+        const saved = localStorage.getItem('reelezy-render')
+        if (!saved) return
+
+        try {
+          const { id, ts } = JSON.parse(saved)
+          if (Date.now() - ts > 30 * 60 * 1000) {
+            localStorage.removeItem('reelezy-render')
+            return
+          }
+
+          const res = await fetch('/api/render-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ renderId: id }),
+          })
+          const data = await res.json()
+
+          if (data.status === 'done') {
+            localStorage.removeItem('reelezy-render')
+            localStorage.setItem('reelezy-render-done', '1')
+            setShow(true)
+            if (pollingRef.current) clearInterval(pollingRef.current)
+          } else if (data.status === 'failed') {
+            localStorage.removeItem('reelezy-render')
+            if (pollingRef.current) clearInterval(pollingRef.current)
+          }
+        } catch {}
+      }, 5000)
     }
-    check()
-    // Poll every 5 seconds in case render completes while on another page
-    const interval = setInterval(check, 5000)
-    return () => clearInterval(interval)
+
+    startPolling()
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [])
 
   const dismiss = () => {
