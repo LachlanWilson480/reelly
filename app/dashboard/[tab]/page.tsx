@@ -144,6 +144,7 @@ export default function DashboardPage() {
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [draftsLoaded, setDraftsLoaded] = useState(false)
+  const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
@@ -2415,13 +2416,13 @@ export default function DashboardPage() {
                 <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                   <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
-                    {musicFile ? `♪ ${musicFile.name}` : '+ Upload audio'}
+                    {musicFile ? `♪ ${musicFile.name}` : '+ Upload an audio file'}
                   </button>
                   <button type="button" onClick={() => setShowMusicLibrary('upload')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
-                    {libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse library'}
+                    {libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}
                   </button>
                   <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                    {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}
+                    {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from a video clip'}
                   </button>
                 </div>
                 {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
@@ -2567,7 +2568,45 @@ export default function DashboardPage() {
                   <>
                     {/* ── STEP 1: Clips per step ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>1 · Upload a clip for each step</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>1 · Upload your clips</p>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                        <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 8, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiSingleClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
+                          I filmed separate clips per step
+                        </button>
+                        <button type="button" onClick={() => setAiSingleClipMode(true)} style={{ padding: '8px 16px', borderRadius: 8, border: aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiSingleClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, color: aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
+                          I filmed one long video
+                        </button>
+                      </div>
+                      {aiSingleClipMode ? (
+                        <div>
+                          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Upload your single video and we'll handle the rest.</p>
+                          <input id="ai-single-clip" type="file" accept="video/*" onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            setStepUploads({ 0: file })
+                          }} style={{ display: 'none' }} />
+                          {stepUploads[0] ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[0].name}</p>
+                              <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                              + Choose video
+                            </button>
+                          )}
+                          <div style={{ marginTop: 14, display: 'flex', gap: 16 }}>
+                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                              <input type="checkbox" checked={aiSpeechSteps.has(0)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
+                              This video has speech (for captions)
+                            </label>
+                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                              <input type="checkbox" checked={aiLandscapeSteps.has(0)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
+                              Filmed in landscape
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {item.checklist.map((step, i) => {
                           const dashIdx = step.indexOf(' - ')
@@ -2615,7 +2654,8 @@ export default function DashboardPage() {
                           )
                         })}
                       </div>
-                      {aiLandscapeSteps.size > 0 && (
+                      )}
+                      {!aiSingleClipMode && aiLandscapeSteps.size > 0 && (
                         <div style={{ marginTop: 16 }}>
                           <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips — how should they appear?</p>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -2644,9 +2684,9 @@ export default function DashboardPage() {
                       <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
                       <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                        <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>{musicFile ? `♪ ${musicFile.name}` : '+ Upload audio'}</button>
-                        <button type="button" onClick={() => setShowMusicLibrary('ai')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>{libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse library'}</button>
-                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}</button>
+                        <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>{musicFile ? `♪ ${musicFile.name}` : '+ Upload an audio file'}</button>
+                        <button type="button" onClick={() => setShowMusicLibrary('ai')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>{libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}</button>
+                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from a video clip'}</button>
                       </div>
                       {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
                       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>You are responsible for ensuring you have the rights to use any audio you upload.</p>
