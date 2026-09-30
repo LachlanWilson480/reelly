@@ -2373,7 +2373,7 @@ export default function DashboardPage() {
                         {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId].name}</p>
-                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
                           </div>
                         ) : (
                           <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -2650,7 +2650,7 @@ export default function DashboardPage() {
                           {stepUploads[0] ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[0].name}</p>
-                              <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                              <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
                               <button type="button" onClick={() => setStepUploads({})} style={{ fontSize: 11, color: 'rgba(200,50,50,0.8)', background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Remove</button>
                             </div>
                           ) : (
@@ -2703,7 +2703,7 @@ export default function DashboardPage() {
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
-                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Change</button>
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
                                     <button type="button" onClick={async () => {
                                       setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
                                       setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
