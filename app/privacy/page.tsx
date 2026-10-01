@@ -1,5 +1,12 @@
+'use client'
+
+import Sidebar from '@/components/Sidebar'
+
 export default function PrivacyPage() {
   return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+      <div style={{ flex: 1, overflow: 'auto' }}>
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "'Inter', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
       <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 1 October 2026</p>
@@ -59,6 +66,8 @@ export default function PrivacyPage() {
       <p style={{ fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: 24 }}>
         This privacy policy is intended to comply with the Australian Privacy Act 1988 and the Australian Privacy Principles.
       </p>
+    </div>
+      </div>
     </div>
   )
 }
