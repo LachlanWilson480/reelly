@@ -33,7 +33,7 @@ export default function Sidebar() {
   ]
 
   const bottomNavItems = [
-    { href: "/privacy", label: "Privacy Policy", icon: "⊕" },
+    { href: "/privacy", label: "Privacy Policy", icon: "§" },
     { href: "/settings", label: "Settings", icon: "⚙" },
     { href: "/terms", label: "Terms of Service", icon: "§" },
   ]
