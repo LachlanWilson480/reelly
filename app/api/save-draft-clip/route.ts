@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (error) throw error
     return NextResponse.json({ draft: data })
   } catch (error) {
-    console.error('save-draft-clip error:', error)
+    console.error('save-draft-clip error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 })
   }
 }

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     await query
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('delete-draft-clip error:', error)
+    console.error('delete-draft-clip error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to delete draft' }, { status: 500 })
   }
 }

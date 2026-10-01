@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for') || 'unknown'
-    const rl = rateLimit(`discount:${ip}`, 10, 60000)
+    const rl = await rateLimit(`discount:${ip}`, 10, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
 
     const { code } = await req.json()
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ valid: true, percentOff: data.percent_off, code: data.code })
   } catch (error) {
-    console.error('validate-discount error:', error)
+    console.error('validate-discount error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to validate code' }, { status: 500 })
   }
 }

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = rateLimit(`ai:${userId}`, 5, 60000)
+    const rl = await rateLimit(`ai:${userId}`, 5, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     const { clipPaths, captionStyle, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition, perClipTransitions, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
@@ -116,6 +116,16 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         )
       }
+    }
+
+    // Global daily render cap — prevents platform-wide abuse
+    const dayStart = new Date(); dayStart.setHours(0,0,0,0)
+    const { count: globalDailyRenders } = await supabaseAdmin
+      .from('renders')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', dayStart.toISOString())
+    if ((globalDailyRenders || 0) >= 500) {
+      return NextResponse.json({ error: 'Daily render limit reached. Please try again tomorrow.' }, { status: 429 })
     }
 
     const signedUrls: string[] = []
@@ -356,7 +366,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ renderId: renderRow.id, shotstackRenderId: renderId })
   } catch (error) {
-    console.error('render-video error:', error)
+    console.error('render-video error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to start render' }, { status: 500 })
   }
 }

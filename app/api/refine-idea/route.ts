@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = rateLimit(`ai:${userId}`, 10, 60000)
+    const rl = await rateLimit(`ai:${userId}`, 10, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     const { idea, instruction, profile } = await req.json()
 
@@ -80,7 +80,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
 
     return NextResponse.json({ idea: refined })
   } catch (error) {
-    console.error('refine-idea error:', error)
+    console.error('refine-idea error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to refine idea' }, { status: 500 })
   }
 }

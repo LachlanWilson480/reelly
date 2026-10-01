@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       subData.latest_invoice?.confirmation_secret?.client_secret
 
     if (!clientSecret) {
-      console.error('No client secret found on subscription:', JSON.stringify(subscription, null, 2))
+      console.error('No client secret found on subscription:', subscription.id)
       return NextResponse.json({ error: 'Could not initialize payment' }, { status: 500 })
     }
 

@@ -1,20 +1,32 @@
-// Simple in-memory rate limiter
-// For production scale, replace with Upstash Redis
-const counts = new Map<string, { count: number; resetAt: number }>()
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
-export function rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number } {
-  const now = Date.now()
-  const entry = counts.get(key)
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
-  if (!entry || now > entry.resetAt) {
-    counts.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true, remaining: limit - 1 }
+const limiters: Record<string, Ratelimit> = {}
+
+function getLimiter(limit: number, windowMs: number): Ratelimit {
+  const key = `${limit}:${windowMs}`
+  if (!limiters[key]) {
+    limiters[key] = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(limit, `${windowMs}ms`),
+      analytics: false,
+    })
   }
+  return limiters[key]
+}
 
-  if (entry.count >= limit) {
-    return { allowed: false, remaining: 0 }
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<{ allowed: boolean; remaining: number }> {
+  try {
+    const limiter = getLimiter(limit, windowMs)
+    const { success, remaining } = await limiter.limit(key)
+    return { allowed: success, remaining }
+  } catch {
+    // If Redis is down, fail open (allow the request)
+    return { allowed: true, remaining: 1 }
   }
-
-  entry.count++
-  return { allowed: true, remaining: limit - entry.count }
 }

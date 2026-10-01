@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, plan: newPlan, status: updatedSub.status })
   } catch (error) {
-    console.error('change-subscription error:', error)
+    console.error('change-subscription error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to change subscription' }, { status: 500 })
   }
 }

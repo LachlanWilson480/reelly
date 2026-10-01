@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const shotstackData = await shotstackRes.json()
 
     if (!shotstackRes.ok) {
-      console.error('Shotstack extract-audio error:', JSON.stringify(shotstackData, null, 2))
+      console.error('Shotstack extract-audio error:', shotstackData?.response?.status)
       return NextResponse.json({ error: 'Failed to start audio extraction' }, { status: 500 })
     }
 

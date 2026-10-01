@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ post: data })
   } catch (error) {
-    console.error('update-scheduled-post error:', error)
+    console.error('update-scheduled-post error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to update post' }, { status: 500 })
   }
 }

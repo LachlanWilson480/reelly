@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = rateLimit(`ai:${userId}`, 20, 60000)
+    const rl = await rateLimit(`ai:${userId}`, 20, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     const { profile, customization, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = await req.json()
 
@@ -480,7 +480,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
 
     return NextResponse.json({ ideas: safeIdeas, plan, usage: usageInfo })
   } catch (error) {
-    console.error('generate-ideas error:', error)
+    console.error('generate-ideas error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to generate ideas' }, { status: 500 })
   }
 }
