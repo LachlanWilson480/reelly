@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (plan === 'mid' &&) {
+    if (plan === 'mid') {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
         .select('scripts_generated_this_week, usage_reset_at')

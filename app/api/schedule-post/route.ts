@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const userId = authed.userId
     const { ideaId, title, caption, tags, videoUrl, scheduledFor, platforms } = await req.json()
 
-    if (! || !title || !scheduledFor) {
+    if (!title || !scheduledFor) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 

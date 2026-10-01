@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const userId = authed.userId
     const { shotstackRenderId } = await req.json()
 
-    if (!shotstackRenderId || !) {
+    if (!shotstackRenderId) {
       return NextResponse.json({ error: 'Missing render ID or user ID' }, { status: 400 })
     }
 

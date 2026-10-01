@@ -1,5 +1,5 @@
-import { authFetch } from '@/lib/authFetch'
 'use client'
+import { authFetch } from '@/lib/authFetch'
 
 import { useEffect, useRef, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
