@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseAdmin = createClient(
@@ -8,6 +9,10 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    const rl = rateLimit(`discount:${ip}`, 10, 60000)
+    if (!rl.allowed) return NextResponse.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
+
     const { code } = await req.json()
     if (!code?.trim()) {
       return NextResponse.json({ error: 'No code provided' }, { status: 400 })

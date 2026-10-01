@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
     const { editorType, slotIndex } = await req.json()
-    if (!userId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    if (!editorType) return NextResponse.json({ error: 'Missing editorType' }, { status: 400 })
 
     const query = supabaseAdmin.from('draft_clips').delete().eq('user_id', userId)
     if (editorType) query.eq('editor_type', editorType)
