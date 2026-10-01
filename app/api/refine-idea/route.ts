@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -25,7 +26,10 @@ async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 't
 
 export async function POST(req: NextRequest) {
   try {
-    const { idea, instruction, profile, userId } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { idea, instruction, profile } = await req.json()
 
     const plan = await getPlan(userId)
 

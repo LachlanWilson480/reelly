@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
@@ -25,8 +26,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Billing not configured' }, { status: 500 })
     }
 
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
+
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-    const { userId, email, plan, billingInterval, discountCode } = await req.json()
+    const { email, plan, billingInterval, discountCode } = await req.json()
     const interval = billingInterval === 'yearly' ? 'yearly' : 'monthly'
 
     const priceId = interval === 'yearly' ? YEARLY_PRICE_MAP[plan] : MONTHLY_PRICE_MAP[plan]

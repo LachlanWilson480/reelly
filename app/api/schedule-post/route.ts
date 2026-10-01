@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,9 +9,12 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, ideaId, title, caption, tags, videoUrl, scheduledFor, platforms } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { ideaId, title, caption, tags, videoUrl, scheduledFor, platforms } = await req.json()
 
-    if (!userId || !title || !scheduledFor) {
+    if (! || !title || !scheduledFor) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -21,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('scheduled_posts')
       .insert({
-        user_id: userId,
+        user_id:,
         idea_id: ideaId || null,
         title,
         caption: caption || null,

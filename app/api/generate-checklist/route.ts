@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -70,7 +71,10 @@ const PREMIUM_WEEKLY_FILMING_LIMIT = 98
 
 export async function POST(req: NextRequest) {
   try {
-    const { idea, profile, customization, userId, styleOverride, peopleCountOverride, filmingMode, videoLength } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { idea, profile, customization, styleOverride, peopleCountOverride, filmingMode, videoLength } = await req.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'No idea provided' }, { status: 400 })

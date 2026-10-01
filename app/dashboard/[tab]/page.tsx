@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { authFetch } from '@/lib/authFetch'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -357,7 +358,7 @@ export default function DashboardPage() {
 
       // Load draft clips for both editors
       if (user.id) {
-        const draftRes = await fetch(`/api/draft-clips?userId=${user.id}`)
+        const draftRes = await authFetch(`/api/draft-clips`)
         const draftData = await draftRes.json()
         const drafts = draftData.drafts || []
 
@@ -430,7 +431,7 @@ export default function DashboardPage() {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
 
     const interval = setInterval(async () => {
-      const res = await fetch('/api/render-status', {
+      const res = await authFetch('/api/render-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ renderId }),
@@ -449,7 +450,7 @@ export default function DashboardPage() {
     if (!aiRenderId || aiRenderStatus === "done" || aiRenderStatus === "failed") return
 
     const interval = setInterval(async () => {
-      const res = await fetch("/api/render-status", {
+      const res = await authFetch("/api/render-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ renderId: aiRenderId }),
@@ -488,7 +489,7 @@ export default function DashboardPage() {
     if (!profile || !refineInstruction.trim()) return
     setRefineLoading(true)
     try {
-      const res = await fetch("/api/refine-idea", {
+      const res = await authFetch("/api/refine-idea", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idea, instruction: refineInstruction, profile, userId }),
@@ -532,7 +533,7 @@ export default function DashboardPage() {
     setIdeaError("")
 
     try {
-      const res = await fetch("/api/generate-ideas", {
+      const res = await authFetch("/api/generate-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode, toneOverride }),
@@ -792,7 +793,7 @@ export default function DashboardPage() {
     try {
       const results = await Promise.allSettled(
         ideasToGenerate.map((idea) =>
-          fetch("/api/generate-checklist", {
+          authFetch("/api/generate-checklist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode, videoLength }),
@@ -898,7 +899,7 @@ export default function DashboardPage() {
     setGeneratedScript(null)
 
     try {
-      const res = await fetch("/api/generate-script", {
+      const res = await authFetch("/api/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: scriptTopic, length: scriptLength, style: scriptStyle, profile, userId }),
@@ -1065,7 +1066,7 @@ export default function DashboardPage() {
             : aiCaptionPreset)
         : null
 
-      const res = await fetch("/api/render-video", {
+      const res = await authFetch("/api/render-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1174,7 +1175,7 @@ export default function DashboardPage() {
             : captionPreset)
         : null
 
-      const res = await fetch('/api/render-video', {
+      const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadPerClipMode ? uploadSlots.map((id) => uploadPerClipTransitions[id] || 'none') : null, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null }),
@@ -1196,7 +1197,7 @@ export default function DashboardPage() {
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
       setExtractedMusicPath(null)
-      fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
+      authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -1219,7 +1220,7 @@ export default function DashboardPage() {
       const { error: uploadError } = await supabase.storage.from('video-uploads').upload(path, file)
       if (uploadError) throw new Error(uploadError.message)
 
-      const startRes = await fetch('/api/extract-audio', {
+      const startRes = await authFetch('/api/extract-audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoPath: path }),
@@ -1232,7 +1233,7 @@ export default function DashboardPage() {
       let done = false
       while (!done) {
         await new Promise((resolve) => setTimeout(resolve, 3000))
-        const statusRes = await fetch('/api/extract-audio-status', {
+        const statusRes = await authFetch('/api/extract-audio-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shotstackRenderId, userId }),
@@ -2750,7 +2751,7 @@ export default function DashboardPage() {
                                       setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
                                       setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
                                       setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
-                                      await fetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
+                                      await authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
                                     }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.8)', background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Remove</button>
                                   </div>
                                 ) : (

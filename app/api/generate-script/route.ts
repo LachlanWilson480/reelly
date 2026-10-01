@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -35,7 +36,10 @@ const PRO_WEEKLY_SCRIPT_LIMIT = 10
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, length, style, profile, userId } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { topic, length, style, profile } = await req.json()
 
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
       return NextResponse.json({ error: 'Please describe what the video is about.' }, { status: 400 })
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (plan === 'mid' && userId) {
+    if (plan === 'mid' &&) {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
         .select('scripts_generated_this_week, usage_reset_at')

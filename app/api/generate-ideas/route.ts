@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -285,7 +286,10 @@ const TOKEN_BUFFER = 200
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, customization, userId, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { profile, customization, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = await req.json()
 
     if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(

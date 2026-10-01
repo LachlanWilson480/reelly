@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
@@ -9,6 +10,9 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
     const { renderId } = await req.json()
 
     const { data: renderRow } = await supabaseAdmin
@@ -19,6 +23,9 @@ export async function POST(req: NextRequest) {
 
     if (!renderRow) {
       return NextResponse.json({ error: 'Render not found' }, { status: 404 })
+    }
+    if (renderRow.user_id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const shotstackRes = await fetch(

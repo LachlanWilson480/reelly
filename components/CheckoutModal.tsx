@@ -1,3 +1,4 @@
+import { authFetch } from '@/lib/authFetch'
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -82,7 +83,7 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
         return
       }
 
-      const res = await fetch('/api/create-subscription', {
+      const res = await authFetch('/api/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, email: user.email, plan, billingInterval: billingInterval || 'monthly', discountCode: discountCode || null }),

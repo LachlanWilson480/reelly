@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -6,14 +7,28 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const ALLOWED_FIELDS = ['status', 'scheduled_for', 'caption', 'tags', 'platforms', 'posted_at', 'error_text']
+
 export async function POST(req: NextRequest) {
   try {
-    const { userId, postId, updates } = await req.json()
-    if (!userId || !postId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
+
+    const { postId, updates } = await req.json()
+    if (!postId || !updates) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+    // Whitelist allowed fields
+    const safeUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([key]) => ALLOWED_FIELDS.includes(key))
+    )
+    if (Object.keys(safeUpdates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('scheduled_posts')
-      .update(updates)
+      .update(safeUpdates)
       .eq('id', postId)
       .eq('user_id', userId)
       .select()

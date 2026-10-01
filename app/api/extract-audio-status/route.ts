@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,9 +9,12 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { shotstackRenderId, userId } = await req.json()
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { shotstackRenderId } = await req.json()
 
-    if (!shotstackRenderId || !userId) {
+    if (!shotstackRenderId || !) {
       return NextResponse.json({ error: 'Missing render ID or user ID' }, { status: 400 })
     }
 
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
     const audioBuffer = await audioRes.arrayBuffer()
 
-    const musicPath = `${userId}/extracted-audio-${Date.now()}.mp3`
+    const musicPath = `${}/extracted-audio-${Date.now()}.mp3`
     const { error: uploadError } = await supabaseAdmin.storage
       .from('video-uploads')
       .upload(musicPath, Buffer.from(audioBuffer), { contentType: 'audio/mpeg' })

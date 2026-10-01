@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,8 +9,11 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, editorType, slotIndex, filePath, fileName, ideaId } = await req.json()
-    if (!userId || !filePath) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const authed = await getAuthedUser(req)
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = authed.userId
+    const { editorType, slotIndex, filePath, fileName, ideaId } = await req.json()
+    if (! || !filePath) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
     // Upsert — replace existing draft for same slot
     await supabaseAdmin
@@ -21,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('draft_clips')
-      .insert({ user_id: userId, editor_type: editorType, slot_index: slotIndex, file_path: filePath, file_name: fileName, idea_id: ideaId || null })
+      .insert({ user_id:, editor_type: editorType, slot_index: slotIndex, file_path: filePath, file_name: fileName, idea_id: ideaId || null })
       .select()
       .single()
 

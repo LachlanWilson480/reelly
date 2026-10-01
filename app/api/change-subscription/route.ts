@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
@@ -20,10 +21,10 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-    const { userId, newPlan } = await req.json()
+    const { newPlan } = await req.json()
 
-    if (!userId || !newPlan) {
-      return NextResponse.json({ error: 'Missing userId or newPlan' }, { status: 400 })
+    if (!newPlan) {
+      return NextResponse.json({ error: 'Missing newPlan' }, { status: 400 })
     }
 
     const newPriceId = PRICE_MAP[newPlan]
