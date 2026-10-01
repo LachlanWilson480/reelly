@@ -299,6 +299,15 @@ export default function SignUpPage() {
                   >
                     Terms of Service
                   </Link>
+                  {' '}and{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--coral)', fontWeight: 600 }}
+                  >
+                    Privacy Policy
+                  </Link>
                   .
                 </span>
               </label>
