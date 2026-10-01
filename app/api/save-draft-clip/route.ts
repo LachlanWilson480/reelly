@@ -9,13 +9,18 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-  const authed = await getAuthedUser(req)
-  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const userId = authed.userId
-    const { editorType, slotIndex, filePath, fileName, ideaId } = await req.json()
-    if (! || !filePath) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
 
-    // Upsert — replace existing draft for same slot
+    const { editorType, slotIndex, filePath, fileName, ideaId } = await req.json()
+    if (!filePath || !editorType) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+    // Validate path belongs to this user (prevent path traversal)
+    if (!filePath.startsWith(`${userId}/`)) {
+      return NextResponse.json({ error: 'Invalid file path' }, { status: 403 })
+    }
+
     await supabaseAdmin
       .from('draft_clips')
       .delete()
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('draft_clips')
-      .insert({ user_id:, editor_type: editorType, slot_index: slotIndex, file_path: filePath, file_name: fileName, idea_id: ideaId || null })
+      .insert({ user_id: userId, editor_type: editorType, slot_index: slotIndex, file_path: filePath, file_name: fileName, idea_id: ideaId || null })
       .select()
       .single()
 

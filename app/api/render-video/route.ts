@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
+    const rl = rateLimit(`ai:${userId}`, 5, 60000)
+    if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     const { clipPaths, captionStyle, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition, perClipTransitions, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
@@ -319,12 +322,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Render request failed' }, { status: 500 })
     }
 
+    // Validate all clip paths belong to this user (prevent path traversal/IDOR)
+    for (const path of clipPaths) {
+      if (!path.startsWith(`${userId}/`)) {
+        return NextResponse.json({ error: 'Invalid clip path' }, { status: 403 })
+      }
+    }
+    if (musicPath && !musicPath.startsWith(`${userId}/`)) {
+      return NextResponse.json({ error: 'Invalid music path' }, { status: 403 })
+    }
+
     const renderId = shotstackData.response.id
 
     const { data: renderRow, error: dbError } = await supabaseAdmin
       .from('renders')
       .insert({
-        user_id:,
+        user_id: userId,
         shotstack_render_id: renderId,
         status: 'queued',
         clip_paths: clipPaths,

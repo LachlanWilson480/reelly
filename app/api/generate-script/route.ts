@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
+    const rl = rateLimit(`ai:${userId}`, 10, 60000)
+    if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     const { topic, length, style, profile } = await req.json()
 
     if (!topic || typeof topic !== 'string' || !topic.trim()) {

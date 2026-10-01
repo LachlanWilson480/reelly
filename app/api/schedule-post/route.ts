@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('scheduled_posts')
       .insert({
-        user_id:,
+        user_id: userId,
         idea_id: ideaId || null,
         title,
         caption: caption || null,
