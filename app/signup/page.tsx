@@ -32,27 +32,19 @@ export default function SignUpPage() {
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
 
+    setIsSigningUp(false)
+
     if (signUpError) {
-      setIsSigningUp(false)
       setMessage(signUpError.message)
       return
     }
 
-    // Sign in immediately after signup so session is available on onboarding
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-
-    setIsSigningUp(false)
-
-    if (signInError) {
-      setMessage('Account created — please log in.')
-      router.push('/login')
-      return
-    }
-
-    localStorage.setItem('reelezy-has-logged-in', 'true')
-    router.push('/onboarding')
+    setMessage('check-email')
   }
 
   const googleButtonRef = useRef<HTMLDivElement>(null)
@@ -333,19 +325,22 @@ export default function SignUpPage() {
               </button>
             </form>
 
-            {message && (
-              <p
-                style={{
-                  marginTop: 20,
-                  fontSize: 13,
-                  color: '#F1EFE8',
-                  textAlign: 'center',
-                  lineHeight: 1.5,
-                }}
-              >
+            {message === 'check-email' ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
+                <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 10, color: '#F1EFE8' }}>Check your email</h2>
+                <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 6 }}>
+                  We sent a confirmation link to <strong>{email}</strong>
+                </p>
+                <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.5)' }}>
+                  Click the link to confirm your account and get started.
+                </p>
+              </div>
+            ) : message ? (
+              <p style={{ marginTop: 20, fontSize: 13, color: '#F1EFE8', textAlign: 'center', lineHeight: 1.5 }}>
                 {message}
               </p>
-            )}
+            ) : null}
 
             <p
               style={{
