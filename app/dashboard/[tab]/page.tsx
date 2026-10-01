@@ -107,7 +107,6 @@ export default function DashboardPage() {
   const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
   const [aiUploading, setAiUploading] = useState(false)
   const [aiEditorError, setAiEditorError] = useState('')
-  const [renderToast, setRenderToast] = useState('')
   const [aiRenderId, setAiRenderId] = useState<string | null>(null)
   const [aiRenderProgress, setAiRenderProgress] = useState<number>(0)
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
@@ -144,17 +143,14 @@ export default function DashboardPage() {
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
-  const [uploadSlotNames, setUploadSlotNames] = useState<Record<number, string>>({})
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
-  const [draftsLoaded, setDraftsLoaded] = useState(false)
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single'>('default')
   const [videoLength, setVideoLength] = useState<number>(30)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadPerClipTransitions, setUploadPerClipTransitions] = useState<Record<number, string>>({})
   const [uploadPerClipMode, setUploadPerClipMode] = useState(false)
   const [aiPerClipTransitions, setAiPerClipTransitions] = useState<Record<number, string>>({})
-  const [aiPerClipMode, setAiPerClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
@@ -184,7 +180,6 @@ export default function DashboardPage() {
   const [refiningId, setRefiningId] = useState<string | null>(null)
   const [refineInstruction, setRefineInstruction] = useState('')
   const [refineLoading, setRefineLoading] = useState(false)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [renderId, setRenderId] = useState<string | null>(null)
   const [renderProgress, setRenderProgress] = useState<number>(0)
@@ -199,11 +194,6 @@ export default function DashboardPage() {
   const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
-  const [landscapeTouched, setLandscapeTouched] = useState(false)
-  const [captionTouched, setCaptionTouched] = useState(false)
-  const [speechClipIndex, setSpeechClipIndex] = useState<number | null>(0)
-  const [lastRenderedPaths, setLastRenderedPaths] = useState<string[]>([])
-  const [lastMusicPath, setLastMusicPath] = useState<string | null>(null)
   const musicInputRef = useRef<HTMLInputElement>(null)
   const audioExtractInputRef = useRef<HTMLInputElement>(null)
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
@@ -375,7 +365,6 @@ export default function DashboardPage() {
             names[d.slot_index] = d.file_name
           })
           setUploadSlotPaths(paths)
-          setUploadSlotNames(names)
         }
 
         if (aiDrafts.length > 0) {
@@ -389,7 +378,6 @@ export default function DashboardPage() {
           setStepUploadNames(names)
         }
 
-        setDraftsLoaded(true)
 
       // Resume any in-progress render from localStorage
       try {
@@ -969,8 +957,6 @@ export default function DashboardPage() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files))
-      setSpeechClipIndex(0)
       setUploadError('')
     }
   }
@@ -1186,13 +1172,10 @@ export default function DashboardPage() {
 
       setRenderId(data.renderId)
       setRenderStatus('queued')
-      setLastRenderedPaths(clipPaths)
-      setLastMusicPath(musicPath)
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
       setUploadSlots([0])
       setUploadSlotFiles({})
       setUploadSlotPaths({})
-      setUploadSlotNames({})
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
@@ -2407,7 +2390,6 @@ export default function DashboardPage() {
                             const { error } = await supabase.storage.from('video-uploads').upload(path, file)
                             if (!error) {
                               setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
-                              setUploadSlotNames((prev) => ({ ...prev, [slotId]: file.name }))
   
                             }
                           }}
