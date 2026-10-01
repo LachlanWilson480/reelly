@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
     const audioBuffer = await audioRes.arrayBuffer()
 
-    const musicPath = `${}/extracted-audio-${Date.now()}.mp3`
+    const musicPath = `${userId}/extracted-audio-${Date.now()}.mp3`
     const { error: uploadError } = await supabaseAdmin.storage
       .from('video-uploads')
       .upload(musicPath, Buffer.from(audioBuffer), { contentType: 'audio/mpeg' })

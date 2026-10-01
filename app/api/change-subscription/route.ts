@@ -21,6 +21,11 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
+
     const { newPlan } = await req.json()
 
     if (!newPlan) {

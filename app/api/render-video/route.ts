@@ -346,10 +346,6 @@ export async function POST(req: NextRequest) {
         title: ideaTitle || null,
         caption: ideaCaption || null,
         tags: ideaTags || null,
-        idea_id: ideaId || null,
-        title: ideaTitle || null,
-        caption: ideaCaption || null,
-        tags: ideaTags || null,
       })
       .select()
       .single()
