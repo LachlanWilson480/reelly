@@ -165,6 +165,7 @@ export default function DashboardPage() {
   const [totalIdeasGenerated, setTotalIdeasGenerated] = useState(0)
   const [totalFilmingGenerated, setTotalFilmingGenerated] = useState(0)
   const [totalRenders, setTotalRenders] = useState(0)
+  const [postsThisWeek, setPostsThisWeek] = useState(0)
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
@@ -277,6 +278,17 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .gte("created_at", monthStart)
       setTotalRenders(renderCount || 0)
+
+      const weekStart = new Date()
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+      weekStart.setHours(0, 0, 0, 0)
+      const { count: postsCount } = await supabase
+        .from("scheduled_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "posted")
+        .gte("posted_at", weekStart.toISOString())
+      setPostsThisWeek(postsCount || 0)
 
       const { data: durationRows } = await supabase
         .from("renders")
@@ -1263,7 +1275,7 @@ export default function DashboardPage() {
     { label: 'Ideas generated', value: String(totalIdeasGenerated) },
     { label: 'Filming instructions generated', value: String(totalFilmingGenerated) },
     { label: 'Renders', value: isFreeTier ? 'N/A' : String(totalRenders), locked: isFreeTier },
-    { label: 'Posts this week', value: '0' },
+    { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render minutes used', value: isFreeTier ? 'N/A' : (() => {
       const usedMin = Math.floor(totalRenderSeconds / 60)
       const usedSec = totalRenderSeconds % 60
