@@ -1,16 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "Preserve",
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "noEmit": true,
-    "lib": ["es2015"],
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noUnusedLocals": true
+    "strict": false,
+    "outDir": "dist",
+    "rootDir": "."
   },
-  "exclude": ["remotion.config.ts"]
+  "include": ["server/**/*"],
+  "exclude": ["node_modules", "remotion", "dist"]
 }

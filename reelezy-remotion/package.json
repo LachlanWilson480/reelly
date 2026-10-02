@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "tsx watch server",
-    "build": "tsc --outDir dist --module commonjs --moduleResolution node --esModuleInterop true --skipLibCheck true",
+    "build": "tsc",
     "start": "node dist/server/index.js",
     "lint": "eslint . && tsc"
   },
