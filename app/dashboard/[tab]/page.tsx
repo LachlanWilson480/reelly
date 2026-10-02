@@ -94,6 +94,8 @@ export default function DashboardPage() {
   const [savingKeyEvent, setSavingKeyEvent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTabState] = useState<Tab>('overview')
+  const [editorMode, setEditorMode] = useState<'ai' | 'any'>('ai')
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const params = useParams()
   const setTab = (t: Tab) => {
     setTabState(t)
@@ -1412,34 +1414,63 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="dashboard-tabs-wrapper" style={{ display: 'flex', alignItems: 'stretch', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
-            <div className="dashboard-tabs-scroll" style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: tab === t.id ? '2px solid var(--coral)' : '2px solid transparent',
-                    padding: '10px 16px',
-                    fontSize: 14,
-                    fontWeight: tab === t.id ? 600 : 500,
-                    color: tab === t.id ? 'var(--ink)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontFamily: "'Inter', sans-serif",
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                >
-                  {t.label}{t.id === 'myideas' && savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
-                </button>
-              ))}
+          <div style={{ display: 'flex', alignItems: 'stretch', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 4, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
+
+            {/* Overview */}
+            <button onClick={(e) => { e.stopPropagation(); setTab('overview') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Overview
+            </button>
+
+            {/* Create dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'create' ? null : 'create') }} style={{ background: 'none', border: 'none', borderBottom: ['ideas','myideas','filming','script'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: ['ideas','myideas','filming','script'].includes(tab) ? 600 : 500, color: ['ideas','myideas','filming','script'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Create <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+              </button>
+              {openDropdown === 'create' && (
+                <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                  {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'myideas', label: `My Ideas${savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}` }, { id: 'filming', label: 'Filming' }, { id: 'script', label: 'Script Generator' }].map((item) => (
+                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'block', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="dashboard-tabs-arrow" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', width: 28, flexShrink: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-              →
+
+            {/* Edit tab with toggle inside */}
+            <button onClick={(e) => { e.stopPropagation(); setTab(editorMode === 'ai' ? 'aiuploads' : 'uploads') }} style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Edit
+            </button>
+
+            {/* Publish dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'publish' ? null : 'publish') }} style={{ background: 'none', border: 'none', borderBottom: ['scheduler','carousel'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: ['scheduler','carousel'].includes(tab) ? 600 : 500, color: ['scheduler','carousel'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Publish <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+              </button>
+              {openDropdown === 'publish' && (
+                <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                  {[{ id: 'scheduler', label: 'Scheduler' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
+                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'block', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      {item.label}{item.pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
+
+          {/* Editor toggle — shown when on edit tab */}
+          {(tab === 'aiuploads' || tab === 'uploads') && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <button onClick={() => { setEditorMode('ai'); setTab('aiuploads') }} style={{ padding: '7px 16px', borderRadius: 8, border: editorMode === 'ai' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'ai' ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: editorMode === 'ai' ? 600 : 400, color: editorMode === 'ai' ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                AI Editor
+              </button>
+              <button onClick={() => { setEditorMode('any'); setTab('uploads') }} style={{ padding: '7px 16px', borderRadius: 8, border: editorMode === 'any' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'any' ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: editorMode === 'any' ? 600 : 400, color: editorMode === 'any' ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                Editor For Any Video
+              </button>
+            </div>
+          )}
 
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
