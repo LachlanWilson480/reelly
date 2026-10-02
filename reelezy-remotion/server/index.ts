@@ -58,7 +58,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace } = req.body;
+      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace, userId, renderId } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -101,6 +101,8 @@ function setupApp() {
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,
+        userId,
+        renderId,
       });
 
       res.json({ jobId });

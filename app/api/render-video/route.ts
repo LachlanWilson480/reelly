@@ -146,6 +146,8 @@ export async function POST(req: NextRequest) {
         musicSrc: musicUrl || undefined,
         outputOrientation,
         resolution,
+        userId,
+        renderId: renderRow?.id,
       }),
     })
 
