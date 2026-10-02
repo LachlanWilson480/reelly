@@ -58,7 +58,7 @@ const PRESETS: Record<string, CaptionPreset> = {
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
 type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
-const BASIC_CAP_MIN = 10
+const BASIC_CAP_MIN = 25
 const PRO_CAP_MIN = 25
 const PREMIUM_CAP_MIN = 60
 

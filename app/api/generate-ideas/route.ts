@@ -274,7 +274,7 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
   return lines.join('\n')
 }
 
-const BASIC_BATCH_SIZE = 3
+const BASIC_BATCH_SIZE = 5
 const PREMIUM_BATCH_SIZE = 7
 
 const BASIC_WEEKLY_LIMIT = 95

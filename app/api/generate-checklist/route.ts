@@ -66,7 +66,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
   return lines.join('\n')
 }
 
-const BASIC_WEEKLY_FILMING_LIMIT = 24
+const BASIC_WEEKLY_FILMING_LIMIT = 50
 const PRO_WEEKLY_FILMING_LIMIT = 50
 const PREMIUM_WEEKLY_FILMING_LIMIT = 98
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (userId) {
-      const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_FILMING_LIMIT : plan === 'mid' ? PRO_WEEKLY_FILMING_LIMIT : BASIC_WEEKLY_FILMING_LIMIT
+      const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_FILMING_LIMIT : BASIC_WEEKLY_FILMING_LIMIT
 
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')

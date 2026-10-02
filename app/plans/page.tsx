@@ -25,7 +25,7 @@ export default function PlansPage() {
       yearlyPrice: '$350',
       yearlyPerMonth: '$29.17',
       desc: '25 render minutes/month',
-      features: ['25 render minutes/month', '5 ideas generated per batch (98/week max)', '50 filming instructions/week max', 'Access to Sound library', 'Limited access to Script Generator (10/week)', 'Full access to video scheduler', 'Access to in-depth video analytics', '5 GB of storage (app only)', 'Access to cloud library (stock videos etc)'],
+      features: ['25 render minutes/month', '5 ideas per batch (95/week max)', '50 filming instructions/week max', 'Access to AI Editor and video uploads', 'Access to Sound library', 'Access to video scheduler', 'Slight access to video analytics', '5 GB of storage (app only)'],
     },
     {
       id: 'top',
@@ -34,7 +34,7 @@ export default function PlansPage() {
       yearlyPrice: '$690',
       yearlyPerMonth: '$57.50',
       desc: '60 render minutes/month',
-      features: ['60 render minutes/month', '7 ideas generated per batch (210/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', '10 GB of storage (app only)'],
+      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Full access to video scheduler', 'Full access to video analytics', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', 'Access to cloud library (stock videos etc)', '10 GB of storage (app only)'],
       highlight: true,
     },
   ]

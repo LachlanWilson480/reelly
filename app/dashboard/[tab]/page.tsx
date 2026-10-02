@@ -1274,7 +1274,7 @@ export default function DashboardPage() {
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
 
-  const renderCapMin = userPlan === 'top' ? 60 : userPlan === 'mid' ? 25 : 0
+  const renderCapMin = userPlan === 'top' ? 60 : 25
 
   const stats = [
     { label: 'Ideas this week', value: `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
