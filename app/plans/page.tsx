@@ -25,7 +25,7 @@ export default function PlansPage() {
       yearlyPrice: '$350',
       yearlyPerMonth: '$29.17',
       desc: '25 render minutes/month',
-      features: ['25 render minutes/month', '5 ideas per batch (95/week max)', '50 filming instructions/week max', 'Access to AI Editor and video uploads', 'Access to Sound library', 'Access to video scheduler', 'Slight access to video analytics', '5 GB of storage (app only)'],
+      features: ['25 render minutes/month', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
     },
     {
       id: 'top',
@@ -34,7 +34,7 @@ export default function PlansPage() {
       yearlyPrice: '$690',
       yearlyPerMonth: '$57.50',
       desc: '60 render minutes/month',
-      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', 'Full access to Script Generator', 'Full access to video scheduler', 'Full access to video analytics', 'Access to suggested video ideas', 'Access to Dual Accounts (app only)', 'Access to Competitor Analytics', 'Access to higher capacity thinking AI', 'Access to cloud library (stock videos etc)', '10 GB of storage (app only)'],
+      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)', 'Suggested video ideas (coming soon)', 'Cloud stock library (coming soon)', 'Dual accounts (coming soon)', 'Competitor analytics (coming soon)'],
       highlight: true,
     },
   ]
@@ -177,11 +177,16 @@ export default function PlansPage() {
                   {tier.desc}
                 </p>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-                  {tier.features.map((f) => (
-                    <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)' }}>
-                      • {f}
-                    </li>
-                  ))}
+                  {tier.features.map((f) => {
+                    const isComing = f.includes('(coming soon)')
+                    const label = isComing ? f.replace(' (coming soon)', '') : f
+                    return (
+                      <li key={f} style={{ fontSize: 14, color: isComing ? 'rgba(128,128,128,0.5)' : tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <span>• {label}</span>
+                        {isComing && <span style={{ fontSize: 11, color: 'rgba(128,128,128,0.5)', whiteSpace: 'nowrap' }}>Soon</span>}
+                      </li>
+                    )
+                  })}
                 </ul>
                 <button
                   onClick={() => setCheckoutPlan({ id: tier.id, label: tier.name })}
