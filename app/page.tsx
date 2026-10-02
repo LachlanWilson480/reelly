@@ -163,6 +163,10 @@ export default function HomePage() {
           <style>{`@keyframes heroFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </section>
 
+        <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 500 }}>Made for small businesses</p>
+        </section>
+
         <section style={{ padding: '96px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>How it works</h2>
