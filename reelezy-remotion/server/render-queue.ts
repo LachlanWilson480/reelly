@@ -101,6 +101,7 @@ export const makeRenderQueue = ({
       if (cancelled) throw new Error('Cancelled');
 
       // Step 4: upload to Supabase if credentials available
+      console.info(`[${jobId}] userId=${userId} renderId=${renderId} hasSupabase=${!!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)}`)
       let finalUrl = httpUrl;
       if (userId && renderId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
         setProgress(jobId, 90, job.data, cancel);
