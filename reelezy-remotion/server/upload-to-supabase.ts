@@ -10,7 +10,6 @@ export async function uploadRenderToSupabase(filePath: string, userId: string, r
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey, {
-    realtime: { transport: 'websocket' as never },
     global: { fetch },
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -27,9 +26,12 @@ export async function uploadRenderToSupabase(filePath: string, userId: string, r
 
   if (error) throw new Error(`Supabase upload failed: ${error.message}`);
 
-  const { data } = supabase.storage
+  // Generate a signed URL valid for 1 year (31536000 seconds)
+  const { data: signedData, error: signError } = await supabase.storage
     .from('video-uploads')
-    .getPublicUrl(fileName);
+    .createSignedUrl(fileName, 31536000);
 
-  return data.publicUrl;
+  if (signError || !signedData) throw new Error(`Failed to create signed URL: ${signError?.message}`);
+
+  return signedData.signedUrl;
 }
