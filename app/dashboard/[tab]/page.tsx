@@ -94,7 +94,6 @@ export default function DashboardPage() {
   const [savingKeyEvent, setSavingKeyEvent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTabState] = useState<Tab>('overview')
-  const [loading, setLoading] = useState(true)
   const [editorMode, setEditorMode] = useState<'ai' | 'any'>('ai')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const params = useParams()
@@ -211,7 +210,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      try {
       const { data: sessionData } = await supabase.auth.getUser()
       const user = sessionData.user
 
@@ -1309,10 +1307,6 @@ export default function DashboardPage() {
 
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
   const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
-
-  if (loading) {
-    return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
-  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
