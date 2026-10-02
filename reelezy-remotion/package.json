@@ -1,0 +1,42 @@
+{
+  "name": "reelezy-remotion",
+  "version": "1.0.0",
+  "description": "My Remotion video",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/bundler": "4.0.532",
+    "@remotion/cli": "4.0.532",
+    "@remotion/renderer": "4.0.532",
+    "@remotion/zod-types": "4.0.532",
+    "@types/cors": "^2.8.19",
+    "@types/fluent-ffmpeg": "^2.1.28",
+    "cors": "^2.8.6",
+    "express": "5.1.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.532",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.532",
+    "@remotion/eslint-plugin": "4.0.532",
+    "@types/express": "5.0.1",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "prettier": "3.8.1",
+    "tsx": "4.19.3",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "build": "remotion bundle",
+    "dev": "tsx watch server",
+    "start": "tsx server",
+    "lint": "eslint . && tsc",
+    "remotion:upgrade": "remotion upgrade",
+    "remotion:studio": "remotion studio"
+  }
+}

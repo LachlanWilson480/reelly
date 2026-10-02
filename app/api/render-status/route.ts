@@ -10,47 +10,52 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-  const authed = await getAuthedUser(req)
-  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const userId = authed.userId
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
+
     const { renderId } = await req.json()
 
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
-      .select('shotstack_render_id, user_id, notified, status')
+      .select('shotstack_render_id, user_id, notified, status, output_url')
       .eq('id', renderId)
       .single()
 
-    if (!renderRow) {
-      return NextResponse.json({ error: 'Render not found' }, { status: 404 })
-    }
-    if (renderRow.user_id !== userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    if (!renderRow) return NextResponse.json({ error: 'Render not found' }, { status: 404 })
+    if (renderRow.user_id !== userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-    const shotstackRes = await fetch(
-      `https://api.shotstack.io/edit/v1/render/${renderRow.shotstack_render_id}`,
-      { headers: { 'x-api-key': process.env.SHOTSTACK_API_KEY! } }
-    )
-
-    const shotstackData = await shotstackRes.json()
-    if (shotstackData.response.status === 'failed') console.error('RENDER FAILED:', shotstackData.response.id)
-    const status = shotstackData.response.status
-    const outputUrl = shotstackData.response.url || null
-
-    const durationSeconds = status === 'done' && typeof shotstackData.response.duration === 'number'
-      ? Math.round(shotstackData.response.duration)
-      : null
-
-    const updateData: Record<string, unknown> = { status, output_url: outputUrl }
-    if (durationSeconds !== null) {
-      updateData.duration_seconds = durationSeconds
+    // If already done or failed in DB, return cached result
+    if (renderRow.status === 'done' || renderRow.status === 'failed') {
+      const proxyUrl = renderRow.output_url
+        ? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/api/render-proxy?renderId=${renderId}`
+        : null
+      return NextResponse.json({
+        status: renderRow.status,
+        outputUrl: proxyUrl,
+        progress: renderRow.status === 'done' ? 100 : 0,
+        error: renderRow.status === 'failed' ? 'Render failed' : null,
+      })
     }
 
-    await supabaseAdmin
-      .from('renders')
-      .update(updateData)
-      .eq('id', renderId)
+    // Poll render server
+    const renderServerUrl = process.env.RENDER_SERVER_URL!
+    const pollRes = await fetch(`${renderServerUrl}/renders/${renderRow.shotstack_render_id}`, {
+      headers: { 'x-api-key': process.env.RENDER_SERVER_SECRET! },
+    })
+
+    if (!pollRes.ok) {
+      console.error('Render server poll failed:', pollRes.status)
+      return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
+    }
+
+    const { status, progress, outputUrl: rawOutputUrl, error: renderError } = await pollRes.json()
+    console.log(`[render-status] renderId=${renderId} status=${status} progress=${progress} outputUrl=${rawOutputUrl}`)
+
+    const updateData: Record<string, unknown> = { status }
+    if (rawOutputUrl) updateData.output_url = rawOutputUrl
+
+    await supabaseAdmin.from('renders').update(updateData).eq('id', renderId)
 
     if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY)
@@ -81,17 +86,12 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('renders').update({ notified: true }).eq('id', renderId)
     }
 
-    const progressMap: Record<string, number> = {
-      queued: 10,
-      fetching: 30,
-      rendering: 60,
-      saving: 90,
-      done: 100,
-      failed: 0,
-    }
-    const progress = progressMap[status] ?? 10
+    // Return proxy URL so frontend never hits localhost directly
+    const proxyUrl = status === 'done'
+      ? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/api/render-proxy?renderId=${renderId}`
+      : null
 
-    return NextResponse.json({ status, outputUrl, progress, error: status === "failed" ? shotstackData.response.error : undefined })
+    return NextResponse.json({ status, outputUrl: proxyUrl, progress, error: renderError || null })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
