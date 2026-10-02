@@ -82,7 +82,7 @@ export default function CustomisePage() {
 
         {plan === 'basic' ? (
           <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
-            <p style={{ fontSize: 32, marginBottom: 12 }}>🔒</p>
+            
             <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
               Custom guidance is a Pro plan feature
             </h3>

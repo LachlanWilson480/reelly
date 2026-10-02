@@ -1484,7 +1484,7 @@ export default function DashboardPage() {
                     <button
                       onClick={generateIdeas}
                       disabled={generatingIdeas}
-                      style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                      style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
                     >
                       {generatingIdeas ? <><span className='rly-spinner' />Generating...</> : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
                     </button>
@@ -1571,7 +1571,7 @@ export default function DashboardPage() {
                   <button
                     onClick={addKeyEvent}
                     disabled={savingKeyEvent || !newKeyEvent.trim()}
-                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: savingKeyEvent || !newKeyEvent.trim() ? 'not-allowed' : 'pointer', opacity: savingKeyEvent || !newKeyEvent.trim() ? 0.5 : 1, marginBottom: 14 }}
+                    style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: savingKeyEvent || !newKeyEvent.trim() ? 'not-allowed' : 'pointer', opacity: savingKeyEvent || !newKeyEvent.trim() ? 0.5 : 1, marginBottom: 14 }}
                   >
                     {savingKeyEvent ? 'Saving...' : 'Add event'}
                   </button>
@@ -1714,7 +1714,7 @@ export default function DashboardPage() {
                       onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                     >
-                      🎬 Get filming instructions
+                      Get filming instructions
                     </button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
@@ -1872,7 +1872,7 @@ export default function DashboardPage() {
                               }}
                               style={{ marginTop: 3, cursor: 'pointer' }}
                             />
-                            <span style={{ fontSize: 13, lineHeight: 1.4 }}>📝 {s.topic}</span>
+                            <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                           </label>
                         ))}
                       </>
@@ -1909,9 +1909,9 @@ export default function DashboardPage() {
                       proceedToFilming([...ideaItems, ...scriptItems])
                     }}
                     disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
-                    style={{ marginTop: 4, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
+                    style={{ marginTop: 4, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
                   >
-                    {generatingFilming ? <><span className='rly-spinner' />Generating...</> : '🎬 Get filming instructions'}
+                    {generatingFilming ? <><span className='rly-spinner' />Generating...</> : 'Get filming instructions'}
                   </button>
                 </div>
               )}
@@ -1956,7 +1956,7 @@ export default function DashboardPage() {
                       {/* What you'll need */}
                       {item.prep && item.prep.length > 0 && (
                         <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(128,128,128,0.12)', background: 'rgba(128,128,128,0.04)' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>📦 What you'll need</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>What you'll need</p>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {item.prep.map((p, i) => (
                               <span key={i} style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.18)', borderRadius: 20, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -1969,7 +1969,7 @@ export default function DashboardPage() {
 
                       {/* Filming steps */}
                       <div style={{ padding: '16px 24px', borderBottom: item.caption || item.script ? '1px solid rgba(128,128,128,0.12)' : 'none' }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎬 Filming steps</p>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Filming steps</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {item.checklist.map((step, i) => {
                             const dashIdx = step.indexOf(' - ')
@@ -1997,7 +1997,7 @@ export default function DashboardPage() {
                       {/* Caption */}
                       {item.caption && (
                         <div style={{ padding: '16px 24px', borderBottom: item.script ? '1px solid rgba(128,128,128,0.12)' : 'none', background: 'rgba(128,128,128,0.04)' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>💬 Suggested caption</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Suggested caption</p>
                           <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{item.caption}</p>
                         </div>
                       )}
@@ -2005,7 +2005,7 @@ export default function DashboardPage() {
                       {/* Script */}
                       {item.script && (
                         <div style={{ padding: '16px 24px' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>🎙 Full script</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Full script</p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             {(() => {
                               // Split script into sentences
@@ -2026,7 +2026,7 @@ export default function DashboardPage() {
                               return sentences.map((sentence: string, i: number) => (
                                 <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
                                   {sentenceDirections[i] && (
-                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>📷 {sentenceDirections[i]}</p>
+                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>{sentenceDirections[i]}</p>
                                   )}
                                   <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65 }}>{sentence}</p>
                                 </div>
@@ -2041,7 +2041,7 @@ export default function DashboardPage() {
                           onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()); setTab('aiuploads'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                         >
-                          🎞️ Film &amp; edit this
+                          Film & edit this
                         </button>
                       </div>
                     </div>
@@ -2296,7 +2296,7 @@ export default function DashboardPage() {
                 {generatedScript && (
                   <div style={{ background: "var(--card-bg)", borderRadius: 12, padding: "24px" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>🎙 Full script</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Full script</p>
                       <button onClick={() => setGeneratedScript(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>← Back to history</button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -2320,9 +2320,9 @@ export default function DashboardPage() {
                       const idea = { id: 'script-gen', title: scriptTopic, hook: generatedScript.split(/[.!?]/)[0] || scriptTopic, description: scriptTopic, tags: '', script: generatedScript }
                       await proceedToFilming([idea])
                     }}
-                    style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', padding: '11px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                    style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                   >
-                    🎬 Make filming instructions for this
+                    Make filming instructions for this
                   </button>
                 )}
               </div>
@@ -2583,7 +2583,7 @@ export default function DashboardPage() {
                   setShowUploadSpeechWarning(true)
                 }}
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
-                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '16px', borderRadius: 10, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1 }}
+                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1 }}
               >
                 {uploading ? 'Uploading...' : extractingAudio ? 'Waiting for audio...' : 'Render video'}
               </button>
@@ -2608,7 +2608,7 @@ export default function DashboardPage() {
                   {renderStatus === 'done' && outputUrl && (
                     <>
                       <video controls src={outputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
-                      <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>⬇</button>
+                      <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
                     </>
                   )}
                 </div>
@@ -2854,7 +2854,7 @@ export default function DashboardPage() {
                     <button
                       onClick={() => { if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; setShowSpeechWarning(true) }}
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
-                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '16px', borderRadius: 10, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
+                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
                     >
                       {aiUploading ? 'Uploading...' : extractingAudio ? 'Waiting for audio...' : 'Render video'}
                     </button>
@@ -2874,7 +2874,7 @@ export default function DashboardPage() {
                         {aiRenderStatus === 'done' && aiOutputUrl && (
                           <>
                             <video controls src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
-                            <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>⬇</button>
+                            <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
                           </>
                         )}
                       </div>
