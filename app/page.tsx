@@ -164,7 +164,7 @@ export default function HomePage() {
         </section>
 
         <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 500 }}>Made for small businesses</p>
+          <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for small businesses</p>
         </section>
 
         <section style={{ padding: '96px 64px 0' }}>
