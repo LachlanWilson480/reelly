@@ -1831,7 +1831,7 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {savedScripts.filter((s) => !dismissedScriptIds.has(s.id)).map((s) => (
-                      <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden', borderLeft: '3px solid var(--coral)' }}>
+                      <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
                         <div style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                             <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
