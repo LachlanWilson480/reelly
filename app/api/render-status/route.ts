@@ -8,6 +8,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+function resolveOutputUrl(outputUrl: string | null, renderId: string, siteUrl: string): string | null {
+  if (!outputUrl) return null
+  // If it's already a Supabase public URL, return it directly
+  if (outputUrl.includes('supabase.co')) return outputUrl
+  // Otherwise proxy it through Next.js
+  return `${siteUrl}/api/render-proxy?renderId=${renderId}`
+}
+
 export async function POST(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
@@ -15,6 +23,7 @@ export async function POST(req: NextRequest) {
     const userId = authed.userId
 
     const { renderId } = await req.json()
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
@@ -27,12 +36,9 @@ export async function POST(req: NextRequest) {
 
     // If already done or failed in DB, return cached result
     if (renderRow.status === 'done' || renderRow.status === 'failed') {
-      const proxyUrl = renderRow.output_url
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/api/render-proxy?renderId=${renderId}`
-        : null
       return NextResponse.json({
         status: renderRow.status,
-        outputUrl: proxyUrl,
+        outputUrl: resolveOutputUrl(renderRow.output_url, renderId, siteUrl),
         progress: renderRow.status === 'done' ? 100 : 0,
         error: renderRow.status === 'failed' ? 'Render failed' : null,
       })
@@ -54,12 +60,10 @@ export async function POST(req: NextRequest) {
 
     const updateData: Record<string, unknown> = { status }
     if (rawOutputUrl) updateData.output_url = rawOutputUrl
-
     await supabaseAdmin.from('renders').update(updateData).eq('id', renderId)
 
     if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY)
-
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(renderRow.user_id)
       const { data: profile } = await supabaseAdmin
         .from('business_profiles')
@@ -78,20 +82,15 @@ export async function POST(req: NextRequest) {
           html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
             <h2 style="color: #2C2C2A;">Your video is ready, ${profile?.business_name || 'there'}!</h2>
             <p style="color: #555;">Your latest render just finished. Log in to Reelezy to view and download it.</p>
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reelezy.com'}/dashboard" style="display: inline-block; background: #D85A30; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">View your video</a>
+            <a href="${siteUrl}/dashboard" style="display: inline-block; background: #D85A30; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">View your video</a>
           </div>`,
         })
       }
-
       await supabaseAdmin.from('renders').update({ notified: true }).eq('id', renderId)
     }
 
-    // Return proxy URL so frontend never hits localhost directly
-    const proxyUrl = status === 'done'
-      ? `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/api/render-proxy?renderId=${renderId}`
-      : null
-
-    return NextResponse.json({ status, outputUrl: proxyUrl, progress, error: renderError || null })
+    const resolvedUrl = resolveOutputUrl(rawOutputUrl, renderId, siteUrl)
+    return NextResponse.json({ status, outputUrl: resolvedUrl, progress, error: renderError || null })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
