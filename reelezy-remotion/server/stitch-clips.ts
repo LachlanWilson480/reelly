@@ -27,20 +27,17 @@ type ClipInput = {
 function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: number): string {
   const filters: string[] = [];
 
-  // Rotation/flip
   if (clip.flipH && clip.flipV) filters.push('hflip,vflip');
   else if (clip.flipH) filters.push('hflip');
   else if (clip.flipV) filters.push('vflip');
   if (clip.rotate) filters.push(`rotate=${clip.rotate}*PI/180`);
 
-  // Color filter
   if (clip.filter && clip.filter !== 'none') {
     if (clip.filter === 'greyscale') filters.push('hue=s=0');
     else if (clip.filter === 'sepia') filters.push('colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131');
     else if (clip.filter === 'invert') filters.push('negate');
   }
 
-  // Scale to output size
   if (clip.letterbox) {
     filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
@@ -50,7 +47,7 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
   }
 
   filters.push('setpts=PTS-STARTPTS');
-  filters.push(`fps=30`);
+  filters.push('fps=30');
 
   return filters.join(',');
 }
@@ -65,7 +62,6 @@ export async function stitchClips(
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
 
-  // Step 1: process each clip individually (trim, speed, scale, filters)
   for (let i = 0; i < clips.length; i++) {
     const clip = clips[i];
     const outPath = path.join(tmpDir, `${randomUUID()}-clip${i}.mp4`);
@@ -102,13 +98,11 @@ export async function stitchClips(
     processedPaths.push(outPath);
   }
 
-  // Step 2: write concat list file
   const concatListPath = path.join(tmpDir, `${randomUUID()}-list.txt`);
   const concatContent = processedPaths.map(p => `file '${p}'`).join('\n');
   fs.writeFileSync(concatListPath, concatContent);
   cleanups.push(() => { try { fs.unlinkSync(concatListPath); } catch {} });
 
-  // Step 3: concatenate all processed clips
   const stitchedPath = path.join(tmpDir, `${randomUUID()}-stitched.mp4`);
   cleanups.push(() => { try { fs.unlinkSync(stitchedPath); } catch {} });
 
@@ -121,7 +115,6 @@ export async function stitchClips(
     stitchedPath,
   ]);
 
-  // Step 4: mix in music if provided
   let finalPath = stitchedPath;
   if (musicUrl) {
     const mixedPath = path.join(tmpDir, `${randomUUID()}-mixed.mp4`);
@@ -143,21 +136,20 @@ export async function stitchClips(
     finalPath = mixedPath;
   }
 
-  // Step 5: copy final output to renders dir (served directly, not via tmp)
   const outputFileName = `${randomUUID()}-final.mp4`;
   const outputPath = path.join(path.resolve('renders'), outputFileName);
   fs.copyFileSync(finalPath, outputPath);
 
-  // Clean up all tmp files
   cleanups.forEach(fn => fn());
 
-  const httpUrl = `http://localhost:${port}/renders/${outputFileName}`;
+  // Use PUBLIC_URL env var if set (production), otherwise fall back to localhost
+  const baseUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
+  const httpUrl = `${baseUrl}/renders/${outputFileName}`;
   const cleanup = () => { try { fs.unlinkSync(outputPath); } catch {} };
 
   return { httpUrl, cleanup };
 }
 
-// Cleanup old renders (older than 24h) to prevent disk filling up
 export function cleanOldRenders(rendersDir: string) {
   const files = fs.readdirSync(rendersDir);
   const now = Date.now();
