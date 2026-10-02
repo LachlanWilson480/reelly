@@ -37,13 +37,12 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`ai:${userId}`, 5, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, musicUrl: directMusicUrl, speechClipIndex, speechClipIndices, clipTrims, clipSettings, outputOrientation, resolution, transition, perClipTransitions, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
     }
 
-    // Validate clip paths belong to this user
     for (const path of clipPaths) {
       if (!path.startsWith(`${userId}/`)) {
         return NextResponse.json({ error: 'Invalid clip path' }, { status: 403 })
@@ -86,7 +85,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Daily render limit reached. Please try again tomorrow.' }, { status: 429 })
     }
 
-    // Sign all clip URLs
     const signedUrls: string[] = []
     for (const p of clipPaths) {
       const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(p, 3600)
@@ -103,11 +101,9 @@ export async function POST(req: NextRequest) {
     const trims: ClipTrim[] = Array.isArray(clipTrims) ? clipTrims : []
     const settings: ClipSetting[] = Array.isArray(clipSettings) ? clipSettings : []
 
-    // Build clips array for Remotion render server
     const clips = signedUrls.map((src, i) => {
       const trim = trims[i] || {}
       const setting = settings[i] || {}
-
       const trimStart = trim.trimStart ?? 0
       const durationInSeconds =
         typeof trim.trimLength === 'number' && trim.trimLength > 0
@@ -133,37 +129,12 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Call Remotion render server
-    const renderServerUrl = process.env.RENDER_SERVER_URL!
-    const renderRes = await fetch(`${renderServerUrl}/renders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.RENDER_SERVER_SECRET!,
-      },
-      body: JSON.stringify({
-        clips,
-        musicSrc: musicUrl || undefined,
-        outputOrientation,
-        resolution,
-        userId,
-        renderId: renderRow?.id,
-      }),
-    })
-
-    if (!renderRes.ok) {
-      const err = await renderRes.json()
-      console.error('Render server error:', err)
-      return NextResponse.json({ error: 'Render request failed' }, { status: 500 })
-    }
-
-    const { jobId } = await renderRes.json()
-
+    // Insert DB row FIRST so we have the renderId to pass to the render server
     const { data: renderRow, error: dbError } = await supabaseAdmin
       .from('renders')
       .insert({
         user_id: userId,
-        shotstack_render_id: jobId,   // reusing existing column to store job ID
+        shotstack_render_id: 'pending',
         status: 'queued',
         clip_paths: clipPaths,
         caption_style: null,
@@ -176,6 +147,39 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (dbError) return NextResponse.json({ error: 'Failed to save render record' }, { status: 500 })
+
+    // Call render server with the real renderId
+    const renderServerUrl = process.env.RENDER_SERVER_URL!
+    const renderRes = await fetch(`${renderServerUrl}/renders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.RENDER_SERVER_SECRET!,
+      },
+      body: JSON.stringify({
+        clips,
+        musicSrc: musicUrl || undefined,
+        outputOrientation,
+        resolution,
+        cutDeadSpace: cutDeadSpace === true,
+        userId,
+        renderId: renderRow.id,
+      }),
+    })
+
+    if (!renderRes.ok) {
+      const err = await renderRes.json()
+      console.error('Render server error:', err)
+      return NextResponse.json({ error: 'Render request failed' }, { status: 500 })
+    }
+
+    const { jobId } = await renderRes.json()
+
+    // Update the row with the real job ID
+    await supabaseAdmin
+      .from('renders')
+      .update({ shotstack_render_id: jobId })
+      .eq('id', renderRow.id)
 
     return NextResponse.json({ renderId: renderRow.id, shotstackRenderId: jobId })
   } catch (error) {
