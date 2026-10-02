@@ -1428,9 +1428,9 @@ export default function DashboardPage() {
               </button>
               {openDropdown === 'create' && (
                 <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-                  {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'myideas', label: `My Ideas${savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}` }, { id: 'filming', label: 'Filming' }, { id: 'script', label: 'Script Generator' }].map((item) => (
-                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'block', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
-                      {item.label}
+                  {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'myideas', label: `My Ideas${savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}` }, { id: 'filming', label: 'Filming' }, { id: 'script', label: 'Script Generator' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
+                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      {item.label}{(item as {pro?: boolean}).pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)' }}>Pro</span> : ''}
                     </button>
                   ))}
                 </div>
@@ -1442,21 +1442,10 @@ export default function DashboardPage() {
               Edit
             </button>
 
-            {/* Publish dropdown */}
-            <div style={{ position: 'relative' }}>
-              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'publish' ? null : 'publish') }} style={{ background: 'none', border: 'none', borderBottom: ['scheduler','carousel'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: ['scheduler','carousel'].includes(tab) ? 600 : 500, color: ['scheduler','carousel'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Publish <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
-              </button>
-              {openDropdown === 'publish' && (
-                <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-                  {[{ id: 'scheduler', label: 'Scheduler' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
-                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'block', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
-                      {item.label}{item.pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Publish button */}
+            <button onClick={(e) => { e.stopPropagation(); setTab('scheduler') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Publish
+            </button>
 
           </div>
 
