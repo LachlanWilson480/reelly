@@ -33,7 +33,8 @@ const LENGTH_GUIDANCE: Record<string, string> = {
   long: 'about 60-90 seconds when read aloud at a natural pace (roughly 140-220 words)',
 }
 
-const PRO_WEEKLY_SCRIPT_LIMIT = 10
+const BASIC_WEEKLY_SCRIPT_LIMIT = 20
+const PRO_WEEKLY_SCRIPT_LIMIT = 96
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (plan === 'mid') {
+    if (plan !== 'top') {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
         .select('scripts_generated_this_week, usage_reset_at')
@@ -73,9 +74,10 @@ export async function POST(req: NextRequest) {
       const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
       const currentCount = needsReset ? 0 : (usageRow?.scripts_generated_this_week || 0)
 
-      if (currentCount >= PRO_WEEKLY_SCRIPT_LIMIT) {
+      const weeklyScriptLimit = BASIC_WEEKLY_SCRIPT_LIMIT
+      if (currentCount >= weeklyScriptLimit) {
         return NextResponse.json(
-          { error: `You've reached your limit of ${PRO_WEEKLY_SCRIPT_LIMIT} scripts generated this week on the Basic plan. Upgrade to Pro for unlimited scripts.` },
+          { error: `You've reached your limit of ${weeklyScriptLimit} scripts this week. Upgrade to Pro for 96 scripts per week.` },
           { status: 403 }
         )
       }

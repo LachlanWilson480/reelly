@@ -2229,7 +2229,7 @@ export default function DashboardPage() {
             <div>
               {!isProPlan && (
                 <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Basic plan includes limited Script Generator access. Upgrade to Pro for unlimited scripts.</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Basic plan includes 20 scripts per week. Pro plan includes 96 scripts per week.</p>
                   <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 16 }}>Upgrade to Pro →</a>
                 </div>
               )}
