@@ -275,11 +275,9 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
 }
 
 const BASIC_BATCH_SIZE = 3
-const PRO_BATCH_SIZE = 5
 const PREMIUM_BATCH_SIZE = 7
 
-const BASIC_WEEKLY_LIMIT = 24
-const PRO_WEEKLY_LIMIT = 98
+const BASIC_WEEKLY_LIMIT = 95
 const PREMIUM_WEEKLY_LIMIT = 210
 
 const TOKENS_PER_CARD = 250
@@ -302,8 +300,8 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = await getPlan(userId)
-    const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'mid' ? PRO_BATCH_SIZE : BASIC_BATCH_SIZE
-    const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'mid' ? PRO_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
+    const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : BASIC_BATCH_SIZE
+    const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
     const maxTokens = batchSize * TOKENS_PER_CARD + TOKEN_BUFFER
 
     let keyEventsContext = ''

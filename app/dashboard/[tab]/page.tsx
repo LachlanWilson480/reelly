@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { authFetch } from '@/lib/authFetch'
+import { PLAN_LIMITS } from '@/lib/planLimits'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -1276,8 +1277,8 @@ export default function DashboardPage() {
   const renderCapMin = userPlan === 'top' ? 60 : userPlan === 'mid' ? 25 : 0
 
   const stats = [
-    { label: 'Ideas this week', value: `${ideasThisWeek} / ${userPlan === 'top' ? 210 : 95}` },
-    { label: 'Filming instructions this week', value: `${filmingThisWeek} / ${userPlan === 'top' ? 96 : 40}` },
+    { label: 'Ideas this week', value: `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
+    { label: 'Filming instructions this week', value: `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}` },
     { label: 'Renders', value: isFreeTier ? 'N/A' : String(totalRenders), locked: isFreeTier },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render minutes used', value: isFreeTier ? 'N/A' : (() => {
