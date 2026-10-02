@@ -1571,7 +1571,7 @@ export default function DashboardPage() {
                         { id: 'casual', label: 'Casual' },
                         { id: 'professional', label: 'Professional' },
                         { id: 'humorous', label: 'Humorous' },
-                        { id: 'heartfelt', label: 'Heartfelt' },
+                        { id: 'heartfelt', label: 'Inspirational' },
                       ] as { id: string | null; label: string }[]).map((t) => (
                         <button key={t.id ?? 'default'} type="button" onClick={() => setToneOverride(t.id)} style={{ padding: '4px 10px', borderRadius: 20, border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: toneOverride === t.id ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)', fontSize: 11, fontWeight: toneOverride === t.id ? 600 : 400, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
                           {t.label}
