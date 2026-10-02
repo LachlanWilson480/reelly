@@ -169,6 +169,7 @@ export default function DashboardPage() {
   const [filmingThisWeek, setFilmingThisWeek] = useState(0)
   const [totalRenders, setTotalRenders] = useState(0)
   const [postsThisWeek, setPostsThisWeek] = useState(0)
+  const [scriptsThisWeek, setScriptsThisWeek] = useState(0)
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
@@ -322,6 +323,15 @@ export default function DashboardPage() {
         const dayOfWeek = now.getDay()
         const daysSinceMonday = (dayOfWeek + 6) % 7
         const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
+
+        const { data: scriptUsageRow } = await supabase
+          .from('business_profiles')
+          .select('scripts_generated_this_week, usage_reset_at')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        const scriptResetAt = scriptUsageRow?.usage_reset_at ? new Date(scriptUsageRow.usage_reset_at) : null
+        const scriptNeedsReset = !scriptResetAt || scriptResetAt.getTime() < mostRecentMonday.getTime()
+        setScriptsThisWeek(scriptNeedsReset ? 0 : (scriptUsageRow?.scripts_generated_this_week || 0))
 
         const thisWeekRows = allIdeas.filter((r) => new Date(r.created_at as string).getTime() >= mostRecentMonday.getTime())
         setIdeasThisWeek(thisWeekRows.length)
