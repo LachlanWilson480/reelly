@@ -3,8 +3,10 @@ import Link from 'next/link'
 export default function NotFound() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'fixed', top: 24, left: 32 }}>
+        <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: -0.3, color: 'var(--ink)', margin: 0 }}>Reelezy</p>
+      </div>
       <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-        <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: -0.3, color: 'var(--ink)', marginBottom: 32 }}>Reelezy</p>
         <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 96, fontWeight: 700, color: 'var(--coral)', lineHeight: 1, margin: '0 0 8px' }}>404</p>
         <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 12 }}>Page not found</h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, maxWidth: 320, margin: '0 auto 32px' }}>
