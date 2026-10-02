@@ -1273,6 +1273,7 @@ export default function DashboardPage() {
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
+  const isProPlan = userPlan === 'top' && realSubStatus === 'active'
 
   const renderCapMin = userPlan === 'top' ? 60 : 25
 
@@ -2070,7 +2071,14 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'carousel' && (
+          {tab === 'carousel' && !isProPlan && (
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Carousel Posts</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Carousel posts are available on the Pro plan.</p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>Upgrade to Pro →</a>
+            </div>
+          )}
+          {tab === 'carousel' && isProPlan && (
             <div>
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
@@ -2209,22 +2217,22 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'script' && userPlan === 'basic' && (
+          {tab === 'script' && isFreeTier && (
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                Script Generator
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                The Script Generator is available on the Basic and Pro plans.
-              </p>
-              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
-                Upgrade to Basic →
-              </a>
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Script Generator</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>The Script Generator is available on Basic and Pro plans.</p>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>See plans →</a>
             </div>
           )}
 
-          {tab === 'script' && userPlan !== 'basic' && (
+          {tab === 'script' && !isFreeTier && (
             <div>
+              {!isProPlan && (
+                <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Basic plan includes limited Script Generator access. Upgrade to Pro for unlimited scripts.</p>
+                  <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 16 }}>Upgrade to Pro →</a>
+                </div>
+              )}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '32px', marginBottom: 24 }}>
                 <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                   Script Generator
