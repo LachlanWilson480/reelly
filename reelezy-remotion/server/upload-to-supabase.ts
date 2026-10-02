@@ -9,7 +9,12 @@ export async function uploadRenderToSupabase(filePath: string, userId: string, r
     throw new Error('Supabase credentials not configured');
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    realtime: { transport: 'websocket' as never },
+    global: { fetch },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   const fileName = `${userId}/renders/${renderId}.mp4`;
   const fileBuffer = fs.readFileSync(filePath);
 
