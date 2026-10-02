@@ -164,6 +164,8 @@ export default function DashboardPage() {
   const [dbSavedIdeas, setDbSavedIdeas] = useState<Idea[]>([])
   const [totalIdeasGenerated, setTotalIdeasGenerated] = useState(0)
   const [totalFilmingGenerated, setTotalFilmingGenerated] = useState(0)
+  const [ideasThisWeek, setIdeasThisWeek] = useState(0)
+  const [filmingThisWeek, setFilmingThisWeek] = useState(0)
   const [totalRenders, setTotalRenders] = useState(0)
   const [postsThisWeek, setPostsThisWeek] = useState(0)
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
@@ -321,6 +323,8 @@ export default function DashboardPage() {
         const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
 
         const thisWeekRows = allIdeas.filter((r) => new Date(r.created_at as string).getTime() >= mostRecentMonday.getTime())
+        setIdeasThisWeek(thisWeekRows.length)
+        setFilmingThisWeek(thisWeekRows.filter((r) => r.checklist).length)
         const batchNumbersThisWeek = Array.from(new Set(thisWeekRows.map((r) => r.batch_number as number))).sort((a, b) => a - b)
         const groups = batchNumbersThisWeek.map((bn) => ({
           batchNumber: bn,
@@ -1272,8 +1276,8 @@ export default function DashboardPage() {
   const renderCapMin = userPlan === 'top' ? 60 : userPlan === 'mid' ? 25 : 0
 
   const stats = [
-    { label: 'Ideas generated', value: String(totalIdeasGenerated) },
-    { label: 'Filming instructions generated', value: String(totalFilmingGenerated) },
+    { label: 'Ideas this week', value: `${ideasThisWeek} / ${userPlan === 'top' ? 210 : userPlan === 'mid' ? 140 : 98}` },
+    { label: 'Filming instructions this week', value: `${filmingThisWeek} / ${userPlan === 'top' ? 60 : userPlan === 'mid' ? 40 : 20}` },
     { label: 'Renders', value: isFreeTier ? 'N/A' : String(totalRenders), locked: isFreeTier },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render minutes used', value: isFreeTier ? 'N/A' : (() => {
