@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <li style={{ marginBottom: 8 }}>Business profile information you provide (name, industry, location, services)</li>
         <li style={{ marginBottom: 8 }}>Video and audio files you upload for editing</li>
         <li style={{ marginBottom: 8 }}>Content ideas, scripts and filming instructions we generate for you</li>
-        <li style={{ marginBottom: 8 }}>Payment information (processed by Stripe — we never see your card details)</li>
+        <li style={{ marginBottom: 8 }}>Payment information (processed by Stripe: we never see your card details)</li>
         <li style={{ marginBottom: 8 }}>Usage data (how many ideas and videos you generate each month)</li>
       </ul>
 
@@ -33,12 +33,12 @@ export default function PrivacyPage() {
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Who we share it with</h2>
       <ul style={{ paddingLeft: 24, marginBottom: 24 }}>
-        <li style={{ marginBottom: 8 }}><strong>Supabase</strong> — database and file storage</li>
-        <li style={{ marginBottom: 8 }}><strong>Anthropic</strong> — AI content generation (your business profile is sent to generate content; Anthropic does not train on your data by default)</li>
-        <li style={{ marginBottom: 8 }}><strong>Shotstack</strong> — video rendering</li>
-        <li style={{ marginBottom: 8 }}><strong>Stripe</strong> — payment processing</li>
-        <li style={{ marginBottom: 8 }}><strong>Resend</strong> — transactional email</li>
-        <li style={{ marginBottom: 8 }}><strong>Vercel</strong> — hosting</li>
+        <li style={{ marginBottom: 8 }}><strong>Supabase</strong>: database and file storage</li>
+        <li style={{ marginBottom: 8 }}><strong>Anthropic</strong>: AI content generation (your business profile is sent to generate content; Anthropic does not train on your data by default)</li>
+        <li style={{ marginBottom: 8 }}><strong>Shotstack</strong>: video rendering</li>
+        <li style={{ marginBottom: 8 }}><strong>Stripe</strong>: payment processing</li>
+        <li style={{ marginBottom: 8 }}><strong>Resend</strong>: transactional email</li>
+        <li style={{ marginBottom: 8 }}><strong>Vercel</strong>: hosting</li>
       </ul>
       <p style={{ marginBottom: 24 }}>We do not sell your data to any third party.</p>
 
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
       <p style={{ marginBottom: 24 }}>Reelezy uses essential cookies only for authentication and session management. We do not use tracking or advertising cookies.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Contact</h2>
-      <p style={{ marginBottom: 8 }}>Reelezy — ABN 76 182 998 115</p>
+      <p style={{ marginBottom: 8 }}>Reelezy: ABN 76 182 998 115</p>
       <p style={{ marginBottom: 48 }}>Email: privacy@reelezy.com</p>
 
       <p style={{ fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: 24 }}>

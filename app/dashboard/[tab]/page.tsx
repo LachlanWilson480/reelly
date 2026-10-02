@@ -1979,7 +1979,7 @@ export default function DashboardPage() {
               {generatingFilming && (
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, marginTop: 16 }}>
                   <span className='rly-spinner rly-spinner-coral' />
-                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions — your existing cards are still below...</p>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions. Your existing cards are still below...</p>
                 </div>
               )}
               {!generatingFilming && filmingItems.length === 0 && savedIdeas.length === 0 && (
@@ -2502,7 +2502,7 @@ export default function DashboardPage() {
 
                 {uploadLandscapeSlots.size > 0 && (
                   <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips — how should they appear?</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips: how should they appear?</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep landscape' }].map((opt) => (
                         <button key={opt.id} type="button" onClick={() => setLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 8, border: landscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>
@@ -2819,7 +2819,7 @@ export default function DashboardPage() {
                       )}
                       {!aiSingleClipMode && aiLandscapeSteps.size > 0 && (
                         <div style={{ marginTop: 16 }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips — how should they appear?</p>
+                          <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips: how should they appear?</p>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep landscape' }].map((opt) => (
                               <button key={opt.id} type="button" onClick={() => setAiLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 8, border: aiLandscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>{opt.label}</button>
