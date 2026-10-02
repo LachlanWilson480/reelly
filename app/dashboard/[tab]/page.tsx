@@ -1414,7 +1414,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'stretch', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 4, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 4, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
             <button onClick={(e) => { e.stopPropagation(); setTab('overview') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 16px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
