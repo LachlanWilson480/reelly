@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 
 export async function uploadRenderToSupabase(filePath: string, userId: string, renderId: string): Promise<string> {
@@ -9,29 +8,46 @@ export async function uploadRenderToSupabase(filePath: string, userId: string, r
     throw new Error('Supabase credentials not configured');
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    global: { fetch },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
   const fileName = `${userId}/renders/${renderId}.mp4`;
   const fileBuffer = fs.readFileSync(filePath);
 
-  const { error } = await supabase.storage
-    .from('video-uploads')
-    .upload(fileName, fileBuffer, {
-      contentType: 'video/mp4',
-      upsert: true,
-    });
+  // Upload using raw fetch — no WebSocket dependency
+  const uploadRes = await fetch(
+    `${supabaseUrl}/storage/v1/object/video-uploads/${fileName}`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'video/mp4',
+        'x-upsert': 'true',
+      },
+      body: fileBuffer,
+    }
+  );
 
-  if (error) throw new Error(`Supabase upload failed: ${error.message}`);
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error(`Supabase upload failed: ${err}`);
+  }
 
-  // Generate a signed URL valid for 1 year (31536000 seconds)
-  const { data: signedData, error: signError } = await supabase.storage
-    .from('video-uploads')
-    .createSignedUrl(fileName, 31536000);
+  // Generate signed URL using raw fetch
+  const signRes = await fetch(
+    `${supabaseUrl}/storage/v1/object/sign/video-uploads/${fileName}`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expiresIn: 31536000 }),
+    }
+  );
 
-  if (signError || !signedData) throw new Error(`Failed to create signed URL: ${signError?.message}`);
+  if (!signRes.ok) {
+    const err = await signRes.text();
+    throw new Error(`Failed to create signed URL: ${err}`);
+  }
 
-  return signedData.signedUrl;
+  const { signedURL } = await signRes.json();
+  return `${supabaseUrl}/storage/v1${signedURL}`;
 }
