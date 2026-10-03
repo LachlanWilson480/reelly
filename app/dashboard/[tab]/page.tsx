@@ -1238,27 +1238,8 @@ export default function DashboardPage() {
         body: JSON.stringify({ videoPath: path }),
       })
       const startData = await startRes.json()
-      if (!startRes.ok) throw new Error(startData.error || 'Failed to start audio extraction')
-
-      const shotstackRenderId = startData.shotstackRenderId
-
-      let done = false
-      while (!done) {
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        const statusRes = await authFetch('/api/extract-audio-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shotstackRenderId, userId }),
-        })
-        const statusData = await statusRes.json()
-
-        if (statusData.status === 'done') {
-          setExtractedMusicPath(statusData.musicPath)
-          done = true
-        } else if (statusData.status === 'failed') {
-          throw new Error(statusData.error || 'Audio extraction failed')
-        }
-      }
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to extract audio')
+      setExtractedMusicPath(startData.musicPath)
     } catch (err) {
       setExtractAudioError(err instanceof Error ? err.message : 'Something went wrong extracting audio')
     } finally {

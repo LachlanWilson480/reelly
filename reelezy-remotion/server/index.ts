@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { makeRenderQueue } from "./render-queue";
+import { extractAudio } from "./extract-audio";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -146,6 +147,29 @@ function setupApp() {
     }
     job.cancel();
     res.json({ message: "Job cancelled" });
+  });
+
+  // Extract audio from a video URL synchronously
+  app.post("/extract-audio", async (req, res) => {
+    try {
+      const { videoUrl } = req.body;
+      if (!videoUrl) {
+        res.status(400).json({ error: "videoUrl is required" });
+        return;
+      }
+
+      console.info(`Extracting audio from: ${videoUrl.split('?')[0]}`);
+      const { buffer, cleanup } = await extractAudio(videoUrl);
+
+      res.set('Content-Type', 'audio/mpeg');
+      res.set('Content-Length', String(buffer.length));
+      res.send(buffer);
+
+      cleanup();
+    } catch (err) {
+      console.error("POST /extract-audio error:", err);
+      res.status(500).json({ error: "Failed to extract audio" });
+    }
   });
 
   return app;
