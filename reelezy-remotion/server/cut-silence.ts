@@ -12,8 +12,9 @@ if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
 type Segment = { start: number; end: number };
 
+const PADDING = 0.3; // seconds to keep around each silent segment
+
 async function detectSilence(inputPath: string): Promise<Segment[]> {
-  // Returns time ranges that ARE silence
   const { stderr } = await execFileAsync(FFMPEG_PATH, [
     '-i', inputPath,
     '-af', 'silencedetect=noise=-35dB:d=0.4',
@@ -40,18 +41,21 @@ async function detectSilence(inputPath: string): Promise<Segment[]> {
 }
 
 function invertSegments(silentSegments: Segment[], totalDuration: number): Segment[] {
-  // Convert silent segments into the segments we KEEP
+  // Convert silent segments into the segments we KEEP, with padding
   const keepSegments: Segment[] = [];
   let cursor = 0;
 
   for (const seg of silentSegments) {
-    if (seg.start > cursor + 0.1) {
-      keepSegments.push({ start: cursor, end: seg.start });
+    // Keep audio up to PADDING seconds into the silence
+    const keepUntil = Math.min(seg.start + PADDING, seg.end);
+    if (keepUntil > cursor + 0.05) {
+      keepSegments.push({ start: cursor, end: keepUntil });
     }
-    cursor = seg.end;
+    // Resume PADDING seconds before the silence ends
+    cursor = Math.max(seg.end - PADDING, keepUntil);
   }
 
-  if (cursor < totalDuration - 0.1) {
+  if (cursor < totalDuration - 0.05) {
     keepSegments.push({ start: cursor, end: totalDuration });
   }
 
@@ -75,7 +79,6 @@ async function extractSegments(inputPath: string, segments: Segment[], outputPat
     return;
   }
 
-  // Build a select filter to keep only non-silent segments
   const vSelects = segments.map(s => `between(t,${s.start},${s.end})`).join('+');
   const aSelects = segments.map(s => `between(t,${s.start},${s.end})`).join('+');
 
