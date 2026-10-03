@@ -157,6 +157,7 @@ export default function DashboardPage() {
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
+  const [cutDeadSpace, setCutDeadSpace] = useState(false)
   const [showUploadSpeechWarning, setShowUploadSpeechWarning] = useState(false)
   const [extractingAudio, setExtractingAudio] = useState(false)
   const [extractAudioError, setExtractAudioError] = useState('')
@@ -1193,7 +1194,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadPerClipMode ? uploadSlots.map((id) => uploadPerClipTransitions[id] || 'none') : null, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadPerClipMode ? uploadSlots.map((id) => uploadPerClipTransitions[id] || 'none') : null, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -2594,6 +2595,16 @@ export default function DashboardPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* ── Dead Space ── */}
+              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>5 · Smart Trim</p>
+                <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                  Auto-remove silent pauses
+                </label>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Automatically cuts out quiet or still sections to tighten your video.</p>
               </div>
 
               {/* ── Render ── */}
