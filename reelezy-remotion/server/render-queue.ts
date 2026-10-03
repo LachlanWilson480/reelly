@@ -3,6 +3,7 @@ import { ensureMp4 } from "./convert-clip";
 import { cutSilence } from "./cut-silence";
 import { stitchClips } from "./stitch-clips";
 import { uploadRenderToSupabase } from "./upload-to-supabase";
+import { getVideoDuration } from "./get-duration";
 
 type ClipInput = {
   src: string;
@@ -32,7 +33,7 @@ type JobData = {
 type JobState =
   | { status: "queued"; data: JobData; cancel: () => void }
   | { status: "in-progress"; progress: number; data: JobData; cancel: () => void }
-  | { status: "completed"; videoUrl: string; data: JobData }
+  | { status: "completed"; videoUrl: string; durationSeconds: number; data: JobData }
   | { status: "failed"; error: string; data: JobData };
 
 export const makeRenderQueue = ({
@@ -100,26 +101,28 @@ export const makeRenderQueue = ({
       );
       if (cancelled) throw new Error('Cancelled');
 
+      // Measure duration of the stitched output
+      const fileName = httpUrl.split('/renders/')[1];
+      const localFilePath = require('node:path').join(require('node:path').resolve('renders'), fileName);
+      const durationSeconds = await getVideoDuration(localFilePath);
+      console.info(`[${jobId}] Duration: ${durationSeconds.toFixed(1)}s`);
+
       // Step 4: upload to Supabase if credentials available
-      console.info(`[${jobId}] userId=${userId} renderId=${renderId} hasSupabase=${!!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)}`)
       let finalUrl = httpUrl;
+      console.info(`[${jobId}] userId=${userId} renderId=${renderId} hasSupabase=${!!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)}`);
       if (userId && renderId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
         setProgress(jobId, 90, job.data, cancel);
         console.info(`[${jobId}] Step 4: uploading to Supabase`);
         try {
-          // Extract local file path from httpUrl to read the file
-          const fileName = httpUrl.split('/renders/')[1];
-          const localFilePath = require('node:path').join(require('node:path').resolve('renders'), fileName);
           finalUrl = await uploadRenderToSupabase(localFilePath, userId, renderId);
-          stitchCleanup(); // clean up local file after upload
+          stitchCleanup();
           console.info(`[${jobId}] Uploaded to Supabase: ${finalUrl}`);
         } catch (uploadErr) {
           console.error(`[${jobId}] Supabase upload failed, keeping local URL:`, uploadErr);
-          // Fall back to local URL if upload fails
         }
       }
 
-      jobs.set(jobId, { status: "completed", videoUrl: finalUrl, data: job.data });
+      jobs.set(jobId, { status: "completed", videoUrl: finalUrl, durationSeconds, data: job.data });
       console.info(`[${jobId}] Done: ${finalUrl}`);
 
     } catch (error) {

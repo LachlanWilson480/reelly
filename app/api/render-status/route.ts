@@ -55,11 +55,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })
     }
 
-    const { status, progress, outputUrl: rawOutputUrl, error: renderError } = await pollRes.json()
+    const { status, progress, outputUrl: rawOutputUrl, durationSeconds, error: renderError } = await pollRes.json()
     console.log(`[render-status] renderId=${renderId} status=${status} progress=${progress} outputUrl=${rawOutputUrl}`)
 
     const updateData: Record<string, unknown> = { status }
     if (rawOutputUrl) updateData.output_url = rawOutputUrl
+    if (durationSeconds) updateData.duration_seconds = Math.round(durationSeconds)
     await supabaseAdmin.from('renders').update(updateData).eq('id', renderId)
 
     if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {

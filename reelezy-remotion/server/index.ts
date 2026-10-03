@@ -119,6 +119,8 @@ function setupApp() {
       return;
     }
 
+    const completed = job.status === "completed" ? job as { videoUrl: string; durationSeconds: number } : null;
+
     res.json({
       status: job.status === "completed" ? "done" : job.status,
       progress: job.status === "in-progress"
@@ -126,7 +128,8 @@ function setupApp() {
         : job.status === "completed" ? 100
         : job.status === "queued" ? 10
         : 0,
-      outputUrl: job.status === "completed" ? (job as { videoUrl: string }).videoUrl : null,
+      outputUrl: completed ? completed.videoUrl : null,
+      durationSeconds: completed ? completed.durationSeconds : null,
       error: job.status === "failed" ? (job as { error: string }).error : null,
     });
   });
