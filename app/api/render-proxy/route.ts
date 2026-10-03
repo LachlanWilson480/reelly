@@ -1,3 +1,4 @@
+import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -11,14 +12,24 @@ export async function GET(req: NextRequest) {
     const renderId = req.nextUrl.searchParams.get('renderId')
     if (!renderId) return NextResponse.json({ error: 'Missing renderId' }, { status: 400 })
 
+    // Auth check
+    const authed = await getAuthedUser(req)
+    if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const userId = authed.userId
+
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
-      .select('output_url, status')
+      .select('output_url, status, user_id')
       .eq('id', renderId)
       .single()
 
     if (!renderRow || !renderRow.output_url) {
       return NextResponse.json({ error: 'Render not found' }, { status: 404 })
+    }
+
+    // Ensure the render belongs to the requesting user
+    if (renderRow.user_id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const videoRes = await fetch(renderRow.output_url)
