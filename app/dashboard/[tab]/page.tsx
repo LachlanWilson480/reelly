@@ -59,12 +59,10 @@ type Idea = {
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
-const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
+const FONT_OPTIONS = ['Impact', 'Arial', 'Arial Black', 'Helvetica', 'Georgia']
 
 const CAPTION_PRESETS = [
-  { id: 'word_by_word', label: 'Word by Word (Impact)', desc: 'Bold Impact font, one word at a time' },
-  { id: 'word_by_word_minimal', label: 'Word by Word (Clean)', desc: 'Clean Arial, one word at a time' },
-  { id: 'word_by_word_coral', label: 'Word by Word (Coral)', desc: 'Coral Impact, one word at a time' },
+  { id: 'word_by_word', label: 'Word by Word', desc: 'One word at a time as it is spoken' },
   { id: 'bold_center', label: 'Bold Pop', desc: 'Large Impact, 3 words at a time' },
   { id: 'coral_pop', label: 'Coral Pop', desc: 'Coral highlight, 3 words at a time' },
   { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle, clean, 5 words at a time' },
