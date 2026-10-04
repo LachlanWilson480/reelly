@@ -4,6 +4,8 @@ import { cutSilence } from "./cut-silence";
 import { stitchClips } from "./stitch-clips";
 import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
+import { transcribeVideo } from "./transcribe";
+import { renderWithCaptions } from "./render-captions";
 
 type ClipInput = {
   src: string;
@@ -20,12 +22,21 @@ type ClipInput = {
   filter?: string;
 };
 
+type CaptionStyle = {
+  preset: string;
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  position?: 'top' | 'center' | 'bottom';
+};
+
 type JobData = {
   clips: ClipInput[];
   musicSrc?: string;
   outputWidth: number;
   outputHeight: number;
   cutDeadSpace?: boolean;
+  captionStyle?: CaptionStyle | null;
   userId?: string;
   renderId?: string;
 };
@@ -62,7 +73,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, outputWidth, outputHeight, cutDeadSpace, userId, renderId } = job.data;
+      const { clips, musicSrc, outputWidth, outputHeight, cutDeadSpace, captionStyle, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -77,7 +88,7 @@ export const makeRenderQueue = ({
       if (cancelled) throw new Error('Cancelled');
 
       // Step 2: cut dead space (optional)
-      setProgress(jobId, 25, job.data, cancel);
+      setProgress(jobId, 20, job.data, cancel);
       const readyClips = await Promise.all(
         convertedClips.map(async (clip) => {
           if (!cutDeadSpace) return clip;
@@ -90,32 +101,62 @@ export const makeRenderQueue = ({
       if (cancelled) throw new Error('Cancelled');
 
       // Step 3: stitch clips + mix music
-      setProgress(jobId, 50, job.data, cancel);
+      setProgress(jobId, 40, job.data, cancel);
       console.info(`[${jobId}] Step 3: stitching clips`);
       const { httpUrl, cleanup: stitchCleanup } = await stitchClips(
         readyClips,
-        musicSrc,
+        captionStyle ? undefined : musicSrc, // don't mix music yet if captions needed
         outputWidth,
         outputHeight,
         port
       );
       if (cancelled) throw new Error('Cancelled');
 
-      // Measure duration of the stitched output
-      const fileName = httpUrl.split('/renders/')[1];
-      const localFilePath = require('node:path').join(require('node:path').resolve('renders'), fileName);
-      const durationSeconds = await getVideoDuration(localFilePath);
+      // Get local file path of stitched video
+      const stitchedFileName = httpUrl.split('/renders/')[1];
+      const stitchedLocalPath = require('node:path').join(require('node:path').resolve('renders'), stitchedFileName);
+
+      let finalPath = stitchedLocalPath;
+      let captionCleanup: (() => void) | null = null;
+
+      // Step 4: transcribe + render captions (optional)
+      if (captionStyle && process.env.OPENAI_API_KEY) {
+        setProgress(jobId, 55, job.data, cancel);
+        console.info(`[${jobId}] Step 4: transcribing audio`);
+        const words = await transcribeVideo(stitchedLocalPath);
+        if (cancelled) throw new Error('Cancelled');
+
+        setProgress(jobId, 70, job.data, cancel);
+        console.info(`[${jobId}] Step 5: rendering captions`);
+        const { outputPath, cleanup } = await renderWithCaptions(
+          httpUrl,
+          words,
+          captionStyle,
+          musicSrc,
+          outputWidth,
+          outputHeight
+        );
+        captionCleanup = cleanup;
+        tmpCleanups.push(() => { try { require('node:fs').unlinkSync(stitchedLocalPath); } catch {} });
+        finalPath = outputPath;
+        if (cancelled) throw new Error('Cancelled');
+      }
+
+      // Measure duration
+      const durationSeconds = await getVideoDuration(finalPath);
       console.info(`[${jobId}] Duration: ${durationSeconds.toFixed(1)}s`);
 
-      // Step 4: upload to Supabase if credentials available
-      let finalUrl = httpUrl;
+      // Step 5/6: upload to Supabase
+      let finalUrl = `${process.env.PUBLIC_URL || `http://localhost:${port}`}/renders/${require('node:path').basename(finalPath)}`;
       console.info(`[${jobId}] userId=${userId} renderId=${renderId} hasSupabase=${!!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)}`);
+
       if (userId && renderId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
         setProgress(jobId, 90, job.data, cancel);
-        console.info(`[${jobId}] Step 4: uploading to Supabase`);
+        console.info(`[${jobId}] Uploading to Supabase`);
         try {
-          finalUrl = await uploadRenderToSupabase(localFilePath, userId, renderId);
+          finalUrl = await uploadRenderToSupabase(finalPath, userId, renderId);
           stitchCleanup();
+          if (captionCleanup) captionCleanup();
           console.info(`[${jobId}] Uploaded to Supabase: ${finalUrl}`);
         } catch (uploadErr) {
           console.error(`[${jobId}] Supabase upload failed, keeping local URL:`, uploadErr);

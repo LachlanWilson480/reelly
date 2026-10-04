@@ -59,7 +59,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace, userId, renderId } = req.body;
+      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -96,12 +96,29 @@ function setupApp() {
         };
       });
 
+      // Normalize captionStyle
+      let normalizedCaptionStyle = null;
+      if (captionStyle) {
+        if (typeof captionStyle === 'string') {
+          normalizedCaptionStyle = { preset: captionStyle };
+        } else if (typeof captionStyle === 'object' && captionStyle.preset) {
+          normalizedCaptionStyle = {
+            preset: captionStyle.preset,
+            fontFamily: captionStyle.custom?.font?.family,
+            fontSize: captionStyle.custom?.font?.size,
+            color: captionStyle.custom?.font?.color,
+            position: captionStyle.custom?.position,
+          };
+        }
+      }
+
       const jobId = queue.createJob({
         clips: mappedClips,
         musicSrc,
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,
+        captionStyle: normalizedCaptionStyle,
         userId,
         renderId,
       });
@@ -149,7 +166,6 @@ function setupApp() {
     res.json({ message: "Job cancelled" });
   });
 
-  // Extract audio from a video URL synchronously
   app.post("/extract-audio", async (req, res) => {
     try {
       const { videoUrl } = req.body;
@@ -175,8 +191,15 @@ function setupApp() {
   return app;
 }
 
+import { ensureBrowser } from "@remotion/renderer";
+
 const app = setupApp();
 
-app.listen(PORT, () => {
-  console.info(`Render server running on port ${PORT}`);
+ensureBrowser().then(() => {
+  app.listen(PORT, () => {
+    console.info(`Render server running on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error("Failed to ensure browser:", err);
+  process.exit(1);
 });
