@@ -1,4 +1,4 @@
-import { AbsoluteFill, Video, Audio, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Video, Audio, useCurrentFrame, useVideoConfig, staticFile } from "remotion";
 import { z } from "zod";
 
 export const wordSchema = z.object({
@@ -25,6 +25,9 @@ export const captionedVideoSchema = z.object({
 export type CaptionedVideoProps = z.infer<typeof captionedVideoSchema>;
 export type WordTimestamp = z.infer<typeof wordSchema>;
 
+// Timing offset to compensate for Whisper's slight delay
+const TIMING_OFFSET = -0.05;
+
 const PRESETS: Record<string, {
   fontFamily: string;
   fontSize: number;
@@ -32,50 +35,79 @@ const PRESETS: Record<string, {
   activeColor: string;
   strokeColor?: string;
   strokeWidth?: number;
+  bgColor?: string;
   position: 'top' | 'center' | 'bottom';
   wordsPerGroup: number;
+  uppercase?: boolean;
 }> = {
   bold_center: {
-    fontFamily: 'Montserrat, sans-serif',
-    fontSize: 52,
+    fontFamily: 'Impact, "Arial Black", sans-serif',
+    fontSize: 72,
     color: '#FFFFFF',
+    activeColor: '#D85A30',
+    strokeColor: '#000000',
+    strokeWidth: 4,
+    position: 'bottom',
+    wordsPerGroup: 3,
+    uppercase: true,
+  },
+  minimal_bottom: {
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontSize: 42,
+    color: '#FFFFFF',
+    activeColor: '#FFFFFF',
+    bgColor: 'rgba(0,0,0,0.5)',
+    position: 'bottom',
+    wordsPerGroup: 5,
+  },
+  coral_pop: {
+    fontFamily: 'Impact, "Arial Black", sans-serif',
+    fontSize: 64,
+    color: '#F1EFE8',
     activeColor: '#D85A30',
     strokeColor: '#000000',
     strokeWidth: 3,
     position: 'bottom',
     wordsPerGroup: 3,
-  },
-  minimal_bottom: {
-    fontFamily: 'Inter, sans-serif',
-    fontSize: 38,
-    color: '#FFFFFF',
-    activeColor: '#FFFFFF',
-    position: 'bottom',
-    wordsPerGroup: 5,
-  },
-  coral_pop: {
-    fontFamily: 'Montserrat, sans-serif',
-    fontSize: 48,
-    color: '#F1EFE8',
-    activeColor: '#D85A30',
-    position: 'bottom',
-    wordsPerGroup: 3,
+    uppercase: true,
   },
   word_by_word: {
-    fontFamily: 'Montserrat, sans-serif',
-    fontSize: 64,
+    fontFamily: 'Impact, "Arial Black", sans-serif',
+    fontSize: 96,
     color: '#FFFFFF',
-    activeColor: '#D85A30',
+    activeColor: '#FFFFFF',
     strokeColor: '#000000',
-    strokeWidth: 4,
+    strokeWidth: 5,
+    position: 'center',
+    wordsPerGroup: 1,
+    uppercase: true,
+  },
+  word_by_word_minimal: {
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontSize: 80,
+    color: '#FFFFFF',
+    activeColor: '#FFFFFF',
+    bgColor: 'rgba(0,0,0,0.6)',
     position: 'center',
     wordsPerGroup: 1,
   },
+  word_by_word_coral: {
+    fontFamily: 'Impact, "Arial Black", sans-serif',
+    fontSize: 96,
+    color: '#D85A30',
+    activeColor: '#FFFFFF',
+    strokeColor: '#000000',
+    strokeWidth: 5,
+    position: 'center',
+    wordsPerGroup: 1,
+    uppercase: true,
+  },
   typewriter: {
-    fontFamily: 'Inter, sans-serif',
-    fontSize: 42,
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontSize: 44,
     color: '#FFFFFF',
     activeColor: '#FFFFFF',
+    bgColor: 'rgba(0,0,0,0.5)',
     position: 'bottom',
     wordsPerGroup: 4,
   },
@@ -102,7 +134,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const currentTime = frame / fps;
+  const currentTime = frame / fps + TIMING_OFFSET;
 
   const presetKey = captionStyle.preset || 'bold_center';
   const preset = PRESETS[presetKey] || PRESETS.bold_center;
@@ -113,17 +145,21 @@ export const CaptionedVideo: React.FC<CaptionedVideoProps> = ({
   const position = captionStyle.position || preset.position;
 
   const groups = groupWords(words, preset.wordsPerGroup);
-  const currentGroup = groups.find(g => currentTime >= g.start && currentTime <= g.end + 0.1);
+  const currentGroup = groups.find(g => currentTime >= g.start && currentTime <= g.end + 0.15);
 
   const positionStyle: React.CSSProperties = {
     position: 'absolute',
-    left: '5%',
-    right: '5%',
+    left: '4%',
+    right: '4%',
     textAlign: 'center',
-    ...(position === 'bottom' ? { bottom: '12%' } : {}),
+    ...(position === 'bottom' ? { bottom: '10%' } : {}),
     ...(position === 'top' ? { top: '8%' } : {}),
-    ...(position === 'center' ? { top: '50%', transform: 'translateY(-50%)' } : {}),
+    ...(position === 'center' ? { top: '45%', transform: 'translateY(-50%)' } : {}),
   };
+
+  const textShadow = preset.strokeColor
+    ? `${preset.strokeWidth}px ${preset.strokeWidth}px 0 ${preset.strokeColor}, -${preset.strokeWidth}px -${preset.strokeWidth}px 0 ${preset.strokeColor}, ${preset.strokeWidth}px -${preset.strokeWidth}px 0 ${preset.strokeColor}, -${preset.strokeWidth}px ${preset.strokeWidth}px 0 ${preset.strokeColor}`
+    : undefined;
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
@@ -132,26 +168,32 @@ export const CaptionedVideo: React.FC<CaptionedVideoProps> = ({
 
       {currentGroup && (
         <div style={positionStyle}>
-          <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0 8px' }}>
+          <div style={{
+            display: 'inline-flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '0 10px',
+            padding: preset.bgColor ? '8px 20px' : undefined,
+            background: preset.bgColor,
+            borderRadius: preset.bgColor ? 8 : undefined,
+          }}>
             {currentGroup.words.map((w, i) => {
-              const isActive = currentTime >= w.start && currentTime <= w.end;
+              const isActive = currentTime >= w.start && currentTime <= w.end + 0.1;
+              const displayWord = preset.uppercase ? w.word.toUpperCase() : w.word;
               return (
                 <span
                   key={i}
                   style={{
                     fontFamily,
                     fontSize,
-                    fontWeight: 700,
+                    fontWeight: 900,
                     color: isActive ? preset.activeColor : color,
-                    textShadow: preset.strokeColor
-                      ? `${preset.strokeWidth}px ${preset.strokeWidth}px 0 ${preset.strokeColor}, -${preset.strokeWidth}px -${preset.strokeWidth}px 0 ${preset.strokeColor}, ${preset.strokeWidth}px -${preset.strokeWidth}px 0 ${preset.strokeColor}, -${preset.strokeWidth}px ${preset.strokeWidth}px 0 ${preset.strokeColor}`
-                      : undefined,
-                    lineHeight: 1.2,
+                    textShadow,
+                    lineHeight: 1.15,
                     display: 'inline-block',
-                    transition: 'color 0.05s',
                   }}
                 >
-                  {w.word}
+                  {displayWord}
                 </span>
               );
             })}
