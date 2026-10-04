@@ -114,15 +114,36 @@ const PRESETS: Record<string, {
 };
 
 function groupWords(words: WordTimestamp[], wordsPerGroup: number): { words: WordTimestamp[]; start: number; end: number }[] {
-  const groups = [];
-  for (let i = 0; i < words.length; i += wordsPerGroup) {
-    const group = words.slice(i, i + wordsPerGroup);
+  if (words.length === 0) return [];
+  
+  const PAUSE_THRESHOLD = 0.4; // seconds — start new group if gap is longer than this
+  const groups: { words: WordTimestamp[]; start: number; end: number }[] = [];
+  let currentGroup: WordTimestamp[] = [words[0]];
+
+  for (let i = 1; i < words.length; i++) {
+    const gap = words[i].start - words[i - 1].end;
+    const groupFull = currentGroup.length >= wordsPerGroup;
+
+    if (gap > PAUSE_THRESHOLD || groupFull) {
+      groups.push({
+        words: currentGroup,
+        start: currentGroup[0].start,
+        end: currentGroup[currentGroup.length - 1].end,
+      });
+      currentGroup = [words[i]];
+    } else {
+      currentGroup.push(words[i]);
+    }
+  }
+
+  if (currentGroup.length > 0) {
     groups.push({
-      words: group,
-      start: group[0].start,
-      end: group[group.length - 1].end,
+      words: currentGroup,
+      start: currentGroup[0].start,
+      end: currentGroup[currentGroup.length - 1].end,
     });
   }
+
   return groups;
 }
 
