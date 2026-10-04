@@ -5,7 +5,7 @@ import { stitchClips } from "./stitch-clips";
 import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
 import { transcribeVideo } from "./transcribe";
-import { renderWithCaptions } from "./render-captions";
+import { burnCaptions } from "./burn-captions";
 
 type ClipInput = {
   src: string;
@@ -127,12 +127,11 @@ export const makeRenderQueue = ({
         if (cancelled) throw new Error('Cancelled');
 
         setProgress(jobId, 70, job.data, cancel);
-        console.info(`[${jobId}] Step 5: rendering captions`);
-        const { outputPath, cleanup } = await renderWithCaptions(
-          httpUrl,
+        console.info(`[${jobId}] Step 5: burning captions`);
+        const { outputPath, cleanup } = await burnCaptions(
+          stitchedLocalPath,
           words,
           captionStyle,
-          musicSrc,
           outputWidth,
           outputHeight
         );
