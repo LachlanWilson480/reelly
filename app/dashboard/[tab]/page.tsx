@@ -62,11 +62,13 @@ type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: stri
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Inter', 'Roboto', 'Poppins', 'Oswald']
 
 const CAPTION_PRESETS = [
-  { id: 'word_by_word', label: 'Word by Word', desc: 'One word pops as it is spoken (karaoke)' },
-  { id: 'bold_center', label: 'Bold Pop', desc: 'Large, punchy, scales on each word' },
-  { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle fade-in, out of the way' },
-  { id: 'coral_pop', label: 'Coral Bounce', desc: 'On-brand coral, bouncy' },
-  { id: 'typewriter', label: 'Typewriter', desc: 'Words build up in sequence' },
+  { id: 'word_by_word', label: 'Word by Word (Impact)', desc: 'Bold Impact font, one word at a time' },
+  { id: 'word_by_word_minimal', label: 'Word by Word (Clean)', desc: 'Clean Arial, one word at a time' },
+  { id: 'word_by_word_coral', label: 'Word by Word (Coral)', desc: 'Coral Impact, one word at a time' },
+  { id: 'bold_center', label: 'Bold Pop', desc: 'Large Impact, 3 words at a time' },
+  { id: 'coral_pop', label: 'Coral Pop', desc: 'Coral highlight, 3 words at a time' },
+  { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle, clean, 5 words at a time' },
+  { id: 'typewriter', label: 'Typewriter', desc: 'Clean Arial, 4 words at a time' },
 ]
 
 export default function DashboardPage() {
