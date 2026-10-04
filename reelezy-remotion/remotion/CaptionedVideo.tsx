@@ -26,7 +26,7 @@ export type CaptionedVideoProps = z.infer<typeof captionedVideoSchema>;
 export type WordTimestamp = z.infer<typeof wordSchema>;
 
 // Timing offset to compensate for Whisper's slight delay
-const TIMING_OFFSET = -0.05;
+const TIMING_OFFSET = -0.15;
 
 const PRESETS: Record<string, {
   fontFamily: string;
@@ -145,7 +145,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoProps> = ({
   const position = captionStyle.position || preset.position;
 
   const groups = groupWords(words, preset.wordsPerGroup);
-  const currentGroup = groups.find(g => currentTime >= g.start && currentTime <= g.end + 0.15);
+  const currentGroup = groups.find(g => currentTime >= g.start - 0.05 && currentTime <= g.end + 0.05);
 
   const positionStyle: React.CSSProperties = {
     position: 'absolute',
@@ -178,7 +178,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoProps> = ({
             borderRadius: preset.bgColor ? 8 : undefined,
           }}>
             {currentGroup.words.map((w, i) => {
-              const isActive = currentTime >= w.start && currentTime <= w.end + 0.1;
+              const isActive = currentTime >= w.start - 0.05 && currentTime <= w.end;
               const displayWord = preset.uppercase ? w.word.toUpperCase() : w.word;
               return (
                 <span
