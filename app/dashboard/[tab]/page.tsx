@@ -2386,10 +2386,10 @@ export default function DashboardPage() {
           {tab === 'uploads' && realSubPlan && realSubStatus === 'active' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-              {/* ── STEP 1: Timeline ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>1 · Your clips</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+              {/* ── CLIPS ── */}
+              <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '24px' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>Your clips</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                   {uploadSlots.map((slotId, slotIndex) => (
                     <div
                       key={slotId}
@@ -2409,57 +2409,36 @@ export default function DashboardPage() {
                           return next
                         })
                       }}
-                      style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'grab' }}
+                      style={{ background: 'var(--card-bg)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'grab', border: '1px solid rgba(128,128,128,0.1)' }}
                     >
-                      {/* Drag handle + clip number */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                        <span style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1 }}>⠿</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{slotIndex + 1}</span>
-                      </div>
-                      {/* File input */}
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>⠿</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{slotIndex + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <input
-                          id={`upload-slot-${slotId}`}
-                          type="file"
-                          accept="video/*"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file || !userId) return
-                            setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
-                            // Upload immediately and save as draft
-                            const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
-                            const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-                            if (!error) {
-                              setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
-  
-                            }
-                          }}
-                          style={{ display: 'none' }}
-                        />
+                        <input id={`upload-slot-${slotId}`} type="file" accept="video/*" onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file || !userId) return
+                          setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
+                          const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
+                          const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+                          if (!error) setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
+                        }} style={{ display: 'none' }} />
                         {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {uploadSlotFiles[slotId].name}</p>
-                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
+                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {uploadSlotFiles[slotId].name}</p>
+                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
-                          <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                             + Choose clip
                           </button>
                         )}
                       </div>
-                      {/* Toggles */}
-                      <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                        <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={uploadSpeechSlots.has(slotId)} onChange={(e) => {
-                            setUploadSpeechSlots((prev) => { const n = new Set(prev); e.target.checked ? n.add(slotId) : n.delete(slotId); return n })
-                          }} />
-                          People talking?
-                        </label>
-                        <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           <input type="checkbox" checked={uploadLandscapeSlots.has(slotId)} onChange={(e) => {
                             setUploadLandscapeSlots((prev) => { const n = new Set(prev); e.target.checked ? n.add(slotId) : n.delete(slotId); return n })
                           }} />
-                          Filmed horizontally
+                          Landscape
                         </label>
                         {uploadSlots.length > 1 && (
                           <button onClick={() => {
@@ -2467,27 +2446,23 @@ export default function DashboardPage() {
                             setUploadSlotFiles((prev) => { const n = { ...prev }; delete n[slotId]; return n })
                             setUploadSpeechSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
                             setUploadLandscapeSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
-                          }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                          }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setUploadSlots((prev) => [...prev, (prev[prev.length - 1] ?? -1) + 1])}
-                  style={{ background: 'none', border: '1px dashed rgba(128,128,128,0.35)', borderRadius: 8, padding: '8px 16px', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                >
+                <button type="button" onClick={() => setUploadSlots((prev) => [...prev, (prev[prev.length - 1] ?? -1) + 1])}
+                  style={{ background: 'none', border: '1px dashed rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', width: '100%' }}>
                   + Add another clip
                 </button>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>Drag clips to reorder. Mark any clip with speech so captions sync correctly.</p>
-
                 {uploadLandscapeSlots.size > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips: how should they appear?</p>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep landscape' }].map((opt) => (
-                        <button key={opt.id} type="button" onClick={() => setLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 8, border: landscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.12)' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>How should landscape clips appear?</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep as-is' }].map((opt) => (
+                        <button key={opt.id} type="button" onClick={() => setLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')}
+                          style={{ padding: '6px 12px', borderRadius: 8, border: landscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: landscapeHandling === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: landscapeHandling === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: landscapeHandling === opt.id ? 600 : 400 }}>
                           {opt.label}
                         </button>
                       ))}
@@ -2496,147 +2471,134 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* ── STEP 2: Transitions ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>2 · Transition</p>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => setUploadPerClipMode(false)} style={{ padding: '5px 12px', borderRadius: 6, border: !uploadPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !uploadPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: !uploadPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !uploadPerClipMode ? 600 : 400, cursor: 'pointer' }}>All clips</button>
-                    <button type="button" onClick={() => setUploadPerClipMode(true)} style={{ padding: '5px 12px', borderRadius: 6, border: uploadPerClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadPerClipMode ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: uploadPerClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadPerClipMode ? 600 : 400, cursor: 'pointer' }}>Per clip</button>
-                  </div>
-                </div>
-                {!uploadPerClipMode ? (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                      <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)} style={{ padding: '8px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {uploadSlots.slice(1).map((slotId, i) => (
-                      <div key={slotId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 80 }}>Clip {i + 1} → {i + 2}</p>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe left' }, { id: 'wipeRight', label: 'Wipe right' }, { id: 'slideLeft', label: 'Slide left' }, { id: 'slideRight', label: 'Slide right' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                            <button key={opt.id} type="button" onClick={() => setUploadPerClipTransitions((prev) => ({ ...prev, [slotId]: opt.id }))} style={{ padding: '5px 10px', borderRadius: 6, border: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 11, color: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                              {opt.label}
+              {/* ── CUSTOMISE (collapsed) ── */}
+              <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
+                <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Customise</span>
+                  <span style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>{showAdvancedCaptions ? '−' : '+'}</span>
+                </button>
+
+                {showAdvancedCaptions && (
+                  <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+                    {/* Music */}
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Music</p>
+                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => setShowMusicLibrary('upload')}
+                          style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
+                          {libraryMusicName ? `♪ ${libraryMusicName}` : '♪ Music library'}
+                        </button>
+                        <button type="button" onClick={() => musicInputRef.current?.click()}
+                          style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
+                          {musicFile ? `♪ ${musicFile.name}` : '+ Upload audio'}
+                        </button>
+                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
+                          style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
+                          {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}
+                        </button>
+                      </div>
+                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
+                    </div>
+
+                    {/* Captions */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Captions</p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Enable</span>
+                        </label>
+                      </div>
+                      {uploadAddCaptions && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
+                            {CAPTION_PRESETS.map((preset) => (
+                              <button key={preset.id} onClick={() => setCaptionPreset(preset.id)}
+                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                          <details>
+                            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                            </div>
+                          </details>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Transition */}
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Transition between clips</p>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                          <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)}
+                            style={{ padding: '7px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Quality + Smart Trim */}
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Quality</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[{ id: 'high', label: '1080p', desc: 'Best' }, { id: 'low', label: '540p', desc: 'Faster' }].map((opt) => (
+                            <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')}
+                              style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>{opt.label}</p>
+                              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</p>
                             </button>
                           ))}
                         </div>
                       </div>
-                    ))}
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Smart Trim</p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+                          <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Auto-remove silence</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cuts 2s+ quiet gaps</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
                   </div>
                 )}
-              </div>
-
-              {/* ── STEP 3: Music ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>2 · Music</p>
-                <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                  <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
-                    {musicFile ? `♪ ${musicFile.name}` : '+ Upload an audio file'}
-                  </button>
-                  <button type="button" onClick={() => setShowMusicLibrary('upload')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
-                    {libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}
-                  </button>
-                  <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                    {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from any video clip'}
-                  </button>
-                </div>
-                {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
-                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>You are responsible for ensuring you have the rights to use any audio you upload.</p>
-              </div>
-
-              {/* ── STEP 4: Captions ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Captions</p>
-                <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
-                  Add captions to my video
-                </label>
-                {uploadAddCaptions && (
-                  <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
-                      {CAPTION_PRESETS.map((preset) => (
-                        <button key={preset.id} onClick={() => setCaptionPreset(preset.id)} style={{ textAlign: 'left', padding: '12px', borderRadius: 10, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{preset.desc}</p>
-                        </button>
-                      ))}
-                    </div>
-                    <button type="button" onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: showAdvancedCaptions ? 16 : 0 }}>
-                      {showAdvancedCaptions ? '− Hide advanced' : '+ Advanced options'}
-                    </button>
-                    {showAdvancedCaptions && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, background: 'var(--card-bg)', padding: 16, borderRadius: 10, marginTop: 12 }}>
-                        <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                        <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }} /></div>
-                        <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Text colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
-                        <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>BG colour</label><input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
-                        <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* ── STEP 5: Resolution ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>4 · Resolution</p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {[{ id: 'high', label: 'High (1080p)', desc: 'Best quality' }, { id: 'low', label: 'Low', desc: 'Faster, smaller file' }].map((opt) => (
-                    <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')} style={{ flex: 1, padding: '12px', borderRadius: 10, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{opt.label}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Dead Space ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>5 · Smart Trim</p>
-                <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
-                  Auto-remove silent pauses
-                </label>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Automatically cuts out quiet or still sections to tighten your video.</p>
               </div>
 
               {/* ── Render ── */}
               {uploading && (
-                <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.1)', borderRadius: 10, border: '1px solid rgba(200,50,50,0.4)' }}>
+                <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.06)', borderRadius: 10, border: '1px solid rgba(200,50,50,0.3)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(220,60,60)', marginBottom: 2 }}>Uploading your clips...</p>
-                  <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.8)' }}>Don't navigate away or close this tab until the render starts.</p>
+                  <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
                 </div>
               )}
               {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)' }}>{uploadError}</p>}
-
-              {showUploadSpeechWarning && (
-                <div style={{ padding: '16px 20px', borderRadius: 10, border: '1px solid var(--coral)', background: 'rgba(216,90,48,0.08)' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Confirm speech clips before rendering</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>Make sure you've ticked "Speech" on every clip where someone is talking. This is what drives caption sync.</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setShowUploadSpeechWarning(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }}>Go back</button>
-                    <button onClick={() => { setShowUploadSpeechWarning(false); startUploadAndRender() }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--coral)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Confirm & render</button>
-                  </div>
-                </div>
-              )}
 
               <button
                 onClick={() => {
                   const hasAnyFile = uploadSlots.some((id) => uploadSlotFiles[id])
                   if (uploading || extractingAudio || !hasAnyFile) return
-                  setShowUploadSpeechWarning(true)
+                  startUploadAndRender()
                 }}
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
-                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1 }}
+                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
-                {uploading ? 'Uploading...' : extractingAudio ? 'Waiting for audio...' : 'Render video'}
+                {uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
               </button>
 
               {/* ── Result ── */}
