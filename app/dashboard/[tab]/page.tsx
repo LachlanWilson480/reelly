@@ -2480,92 +2480,90 @@ export default function DashboardPage() {
                 </button>
 
                 {showAdvancedCaptions && (
-                  <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+                  <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)' }}>
+                    <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                    <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
 
-                    {/* Music */}
-                    <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Music</p>
-                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {/* Music row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Music</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         <button type="button" onClick={() => setShowMusicLibrary('upload')}
-                          style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                          {libraryMusicName ? `♪ ${libraryMusicName}` : '♪ Music library'}
+                          style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'transparent', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
+                          {libraryMusicName ? `♪ ${libraryMusicName.slice(0,16)}…` : '♪ Library'}
                         </button>
                         <button type="button" onClick={() => musicInputRef.current?.click()}
-                          style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                          {musicFile ? `♪ ${musicFile.name}` : '+ Upload audio'}
+                          style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'transparent', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                          {musicFile ? '♪ Uploaded' : 'Upload'}
                         </button>
                         <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
-                          style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                          {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}
+                          style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'transparent', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
+                          {extractingAudio ? '…' : extractedMusicPath ? '♪ Extracted' : 'From clip'}
                         </button>
                       </div>
-                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
                     </div>
 
-                    {/* Captions */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Captions</p>
+                    {/* Captions row */}
+                    <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: uploadAddCaptions ? 12 : 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Captions</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                           <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Enable</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{uploadAddCaptions ? 'On' : 'Off'}</span>
                         </label>
                       </div>
                       {uploadAddCaptions && (
                         <>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                             {CAPTION_PRESETS.map((preset) => (
                               <button key={preset.id} onClick={() => setCaptionPreset(preset.id)}
-                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
-                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
-                                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.desc}</p>
+                                style={{ padding: '6px 12px', borderRadius: 7, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: captionPreset === preset.id ? 600 : 400, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>
+                                {preset.label}
                               </button>
                             ))}
                           </div>
                           <details>
-                            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                            <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Advanced</summary>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                              <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select>
+                              <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, width: 60 }} />
+                              <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, width: 44 }} />
+                              <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select>
                             </div>
                           </details>
                         </>
                       )}
                     </div>
 
-                    {/* Transition */}
-                    <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Transition between clips</p>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {/* Transition row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Transition</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
                           <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)}
-                            style={{ padding: '7px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
+                            style={{ padding: '6px 12px', borderRadius: 7, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
                             {opt.label}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Quality + Smart Trim */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-                        {[{ id: 'high', label: '1080p' }, { id: 'low', label: '540p' }].map((opt) => (
-                          <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')}
-                            style={{ flex: 1, padding: '9px 12px', borderRadius: 9, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 9, padding: '9px 14px', flex: 1 }}>
-                        <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
-                        <div>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Smart Trim</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
+                    {/* Quality + Smart Trim row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Quality</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[{ id: 'high', label: '1080p' }, { id: 'low', label: '540p' }].map((opt) => (
+                            <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')}
+                              style={{ padding: '6px 12px', borderRadius: 7, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: uploadResolution === opt.id ? 600 : 400, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
+                              {opt.label}
+                            </button>
+                          ))}
                         </div>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Smart Trim</span>
                       </label>
                     </div>
 
