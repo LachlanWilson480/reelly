@@ -1194,7 +1194,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadPerClipMode ? uploadSlots.map((id) => uploadPerClipTransitions[id] || 'none') : null, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadSlots.map((id) => uploadPerClipTransitions[id] || uploadTransition || 'none'), ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -2391,6 +2391,20 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>Your clips</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                   {uploadSlots.map((slotId, slotIndex) => (
+                    <div key={`slot-wrapper-${slotId}`}>
+                    {slotIndex > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', marginBottom: 4 }}>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>↓</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
+                            <button key={opt.id} type="button" onClick={() => setUploadPerClipTransitions((prev) => ({ ...prev, [slotId]: opt.id }))}
+                              style={{ padding: '2px 8px', borderRadius: 5, border: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)', background: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'rgba(216,90,48,0.1)' : 'transparent', fontSize: 10, color: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'var(--coral)' : 'var(--text-muted)', cursor: 'pointer' }}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div
                       key={slotId}
                       draggable
@@ -2449,6 +2463,7 @@ export default function DashboardPage() {
                           }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
                         )}
                       </div>
+                    </div>
                     </div>
                   ))}
                 </div>
