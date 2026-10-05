@@ -2551,29 +2551,22 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Quality + Smart Trim */}
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Quality</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[{ id: 'high', label: '1080p', desc: 'Best' }, { id: 'low', label: '540p', desc: 'Faster' }].map((opt) => (
-                            <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')}
-                              style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
-                              <p style={{ fontSize: 12, fontWeight: 600, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>{opt.label}</p>
-                              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</p>
-                            </button>
-                          ))}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+                        {[{ id: 'high', label: '1080p' }, { id: 'low', label: '540p' }].map((opt) => (
+                          <button key={opt.id} type="button" onClick={() => setUploadResolution(opt.id as 'high' | 'low')}
+                            style={{ flex: 1, padding: '9px 12px', borderRadius: 9, border: uploadResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: uploadResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 9, padding: '9px 14px', flex: 1 }}>
+                        <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Smart Trim</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
                         </div>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Smart Trim</p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '10px 14px' }}>
-                          <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
-                          <div>
-                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Auto-remove silence</p>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cuts 2s+ quiet gaps</p>
-                          </div>
-                        </label>
-                      </div>
+                      </label>
                     </div>
 
                   </div>
