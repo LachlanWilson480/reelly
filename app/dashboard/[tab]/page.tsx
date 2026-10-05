@@ -2694,11 +2694,7 @@ export default function DashboardPage() {
                               + Choose video
                             </button>
                           )}
-                          <div style={{ marginTop: 14, display: 'flex', gap: 16 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                              <input type="checkbox" checked={aiSpeechSteps.has(0)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
-                              People are talking in this video
-                            </label>
+                          <div style={{ marginTop: 14 }}>
                             <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                               <input type="checkbox" checked={aiLandscapeSteps.has(0)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
                               Filmed horizontally (landscape)
@@ -2752,16 +2748,10 @@ export default function DashboardPage() {
                                     + Choose clip
                                   </button>
                                 )}
-                                <div style={{ display: 'flex', gap: 12, marginLeft: 'auto' }}>
-                                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={aiSpeechSteps.has(i)} onChange={(e) => { setAiSpeechSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
-                                    People talking?
-                                  </label>
-                                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
-                                    Filmed horizontally
-                                  </label>
-                                </div>
+                                <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 'auto' }}>
+                                  <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
+                                  Landscape
+                                </label>
                               </div>
                             </div>
                             </React.Fragment>
