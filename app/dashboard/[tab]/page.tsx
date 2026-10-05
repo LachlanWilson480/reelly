@@ -197,7 +197,7 @@ export default function DashboardPage() {
   const [uploadError, setUploadError] = useState('')
 
   const [captionPreset, setCaptionPreset] = useState('bold_center')
-  const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(false)
+  const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(true)
   const [captionFontSize, setCaptionFontSize] = useState(36)
   const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
@@ -2475,7 +2475,7 @@ export default function DashboardPage() {
               <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
                 <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
                   style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Customise</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Preferences</span>
                   <span style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>{showAdvancedCaptions ? '−' : '+'}</span>
                 </button>
 
@@ -2775,7 +2775,7 @@ export default function DashboardPage() {
                     <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
                       <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
                         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Customise</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Preferences</span>
                         <span style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>{showAdvancedCaptions ? '−' : '+'}</span>
                       </button>
 
