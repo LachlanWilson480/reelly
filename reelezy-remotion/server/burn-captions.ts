@@ -141,15 +141,8 @@ export async function burnCaptions(
     return { outputPath, cleanup: () => { try { fs.unlinkSync(outputPath); } catch {} } };
   }
 
-  // Extend each group's end time to just before the next group starts
-  const extendedGroups = groups.map((group, i) => {
-    const nextGroup = groups[i + 1];
-    const extendedEnd = nextGroup ? nextGroup.start - 0.05 : group.end + 0.1;
-    return { ...group, end: Math.max(group.end, extendedEnd) };
-  });
-
   // Build drawtext filter for each group
-  const drawtextFilters = extendedGroups.map((group) => {
+  const drawtextFilters = groups.map((group) => {
     const text = (uppercase ? group.text.toUpperCase() : group.text)
       .replace(/'/g, "\u2019")   // replace apostrophes
       .replace(/:/g, "\\:")      // escape colons
