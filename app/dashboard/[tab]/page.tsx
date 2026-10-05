@@ -2781,93 +2781,101 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* ── STEP 2: Music ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>3 · Music</p>
-                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                        <button type="button" onClick={() => musicInputRef.current?.click()} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>{musicFile ? `♪ ${musicFile.name}` : '+ Upload an audio file'}</button>
-                        <button type="button" onClick={() => setShowMusicLibrary('ai')} style={{ background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>{libraryMusicName ? `♪ ${libraryMusicName}` : 'Browse music library'}</button>
-                        <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio} style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 8, padding: '9px 16px', fontSize: 13, color: 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>{extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Use audio from any video clip'}</button>
-                      </div>
-                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)' }}>{extractAudioError}</p>}
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>You are responsible for ensuring you have the rights to use any audio you upload.</p>
-                    </div>
+                    {/* ── CUSTOMISE (collapsed) ── */}
+                    <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
+                      <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
+                        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Customise</span>
+                        <span style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>{showAdvancedCaptions ? '−' : '+'}</span>
+                      </button>
 
-                    {/* ── STEP 4: Captions ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>4 · Captions</p>
-                      <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={aiAddCaptions} onChange={(e) => setAiAddCaptions(e.target.checked)} />
-                        Add captions to my video
-                      </label>
-                      {aiAddCaptions && (
-                        <>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
-                            {CAPTION_PRESETS.map((preset) => (
-                              <button key={preset.id} onClick={() => setAiCaptionPreset(preset.id)} style={{ textAlign: 'left', padding: '12px', borderRadius: 10, border: aiCaptionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiCaptionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
-                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: aiCaptionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
-                                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{preset.desc}</p>
+                      {showAdvancedCaptions && (
+                        <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)' }}>
+                          <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                          <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
+
+                          {/* Music row */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Music</span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button type="button" onClick={() => setShowMusicLibrary('ai')}
+                                style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'transparent', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
+                                {libraryMusicName ? `♪ ${libraryMusicName.slice(0,16)}…` : '♪ Library'}
                               </button>
-                            ))}
-                          </div>
-                          <button type="button" onClick={() => setShowAdvancedCaptions(!showAdvancedCaptions)} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: showAdvancedCaptions ? 16 : 0 }}>
-                            {showAdvancedCaptions ? '− Hide advanced' : '+ Advanced options'}
-                          </button>
-                          {showAdvancedCaptions && (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, background: 'var(--card-bg)', padding: 16, borderRadius: 10, marginTop: 12 }}>
-                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Text colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>BG colour</label><input type="color" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 38, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: 'block' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                              <button type="button" onClick={() => musicInputRef.current?.click()}
+                                style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'transparent', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                                {musicFile ? '♪ Uploaded' : 'Upload'}
+                              </button>
+                              <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
+                                style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'transparent', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
+                                {extractingAudio ? '…' : extractedMusicPath ? '♪ Extracted' : 'From clip'}
+                              </button>
                             </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                          </div>
 
-                    {/* ── STEP 5: Resolution ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>5 · Resolution</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {[{ id: 'high', label: 'High (1080p)', desc: 'Best quality' }, { id: 'low', label: 'Low', desc: 'Faster, smaller file' }].map((opt) => (
-                          <button key={opt.id} type="button" onClick={() => setAiResolution(opt.id as 'high' | 'low')} style={{ flex: 1, padding: '12px', borderRadius: 10, border: aiResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left' }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: aiResolution === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{opt.label}</p>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</p>
-                          </button>
-                        ))}
-                      </div>
+                          {/* Captions row */}
+                          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
+                            <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: aiAddCaptions ? 14 : 0, cursor: 'pointer' }}>
+                              <input type="checkbox" checked={aiAddCaptions} onChange={(e) => setAiAddCaptions(e.target.checked)} />
+                              Add captions to my video
+                            </label>
+                            {aiAddCaptions && (
+                              <>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                                  {CAPTION_PRESETS.map((preset) => (
+                                    <button key={preset.id} onClick={() => setAiCaptionPreset(preset.id)}
+                                      style={{ padding: '6px 12px', borderRadius: 7, border: aiCaptionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiCaptionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: aiCaptionPreset === preset.id ? 600 : 400, color: aiCaptionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>
+                                      {preset.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <details>
+                                  <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Advanced</summary>
+                                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                                    <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select>
+                                    <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, width: 60 }} />
+                                    <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, width: 44 }} />
+                                    <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select>
+                                  </div>
+                                </details>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Quality row */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px' }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Quality</span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {[{ id: 'high', label: '1080p' }, { id: 'low', label: '540p' }].map((opt) => (
+                                <button key={opt.id} type="button" onClick={() => setAiResolution(opt.id as 'high' | 'low')}
+                                  style={{ padding: '6px 12px', borderRadius: 7, border: aiResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: aiResolution === opt.id ? 600 : 400, color: aiResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* ── Render ── */}
                     {aiUploading && (
-                      <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.1)', borderRadius: 10, border: '1px solid rgba(200,50,50,0.4)' }}>
+                      <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.06)', borderRadius: 10, border: '1px solid rgba(200,50,50,0.3)' }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(220,60,60)', marginBottom: 2 }}>Uploading your clips...</p>
-                        <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.8)' }}>Don't navigate away or close this tab until the render starts.</p>
+                        <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
                       </div>
                     )}
                     {aiEditorError && (
                       <p style={{ fontSize: 13, color: 'var(--coral)', padding: '12px 16px', background: 'rgba(216,90,48,0.08)', borderRadius: 10, border: '1px solid rgba(216,90,48,0.25)' }}>{aiEditorError}</p>
                     )}
-                    {showSpeechWarning && (
-                      <div style={{ padding: '16px 20px', borderRadius: 10, border: '1px solid var(--coral)', background: 'rgba(216,90,48,0.08)' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Confirm speech clips before rendering</p>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>Make sure you've ticked "Speech" on every clip where someone is talking.</p>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => setShowSpeechWarning(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink)' }}>Go back</button>
-                          <button onClick={() => { setShowSpeechWarning(false); submitAiEditorUploads() }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--coral)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Confirm & render</button>
-                        </div>
-                      </div>
-                    )}
 
                     <button
-                      onClick={() => { if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; setShowSpeechWarning(true) }}
+                      onClick={() => { if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
-                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 14px rgba(216,90,48,0.35)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1 }}
+                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
-                      {aiUploading ? 'Uploading...' : extractingAudio ? 'Waiting for audio...' : 'Render video'}
+                      {aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
                     </button>
 
                     {aiRenderId && (
