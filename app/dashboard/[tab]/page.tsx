@@ -2474,7 +2474,7 @@ export default function DashboardPage() {
               {/* ── CUSTOMISE (collapsed) ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
                 <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
-                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Customise</span>
                   <span style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>{showAdvancedCaptions ? '−' : '+'}</span>
                 </button>
@@ -2485,7 +2485,7 @@ export default function DashboardPage() {
                     <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
 
                     {/* Music row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Music</span>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button type="button" onClick={() => setShowMusicLibrary('upload')}
@@ -2504,7 +2504,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Captions row */}
-                    <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                    <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: uploadAddCaptions ? 12 : 0 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Captions</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
@@ -2536,7 +2536,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Transition row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Transition</span>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
@@ -2549,7 +2549,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Quality + Smart Trim row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Quality</span>
                         <div style={{ display: 'flex', gap: 6 }}>
