@@ -2506,13 +2506,10 @@ export default function DashboardPage() {
 
                     {/* Captions */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: uploadAddCaptions ? 12 : 0 }}>
+                        <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Captions</p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Enable</span>
-                        </label>
-                      </div>
+                      </label>
                       {uploadAddCaptions && (
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
