@@ -12,12 +12,12 @@ if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
 type Segment = { start: number; end: number };
 
-const PADDING = 0.3; // seconds to keep around each silent segment
+const PADDING = 0.5; // seconds to keep around each silent segment
 
 async function detectSilence(inputPath: string): Promise<Segment[]> {
   const { stderr } = await execFileAsync(FFMPEG_PATH, [
     '-i', inputPath,
-    '-af', 'silencedetect=noise=-35dB:d=0.4',
+    '-af', 'silencedetect=noise=-35dB:d=2.0',
     '-f', 'null',
     '-',
   ]).catch((e) => ({ stderr: e.stderr as string }));
