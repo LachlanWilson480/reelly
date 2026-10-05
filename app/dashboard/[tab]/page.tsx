@@ -2498,7 +2498,7 @@ export default function DashboardPage() {
                         </button>
                         <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
                           style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                          {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : '+ Extract from video'}
+                          {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : 'Sound from video'}
                         </button>
                       </div>
                       {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
