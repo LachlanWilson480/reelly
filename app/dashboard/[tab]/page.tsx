@@ -2506,9 +2506,10 @@ export default function DashboardPage() {
 
                     {/* Captions */}
                     <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: uploadAddCaptions ? 12 : 0 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
+                      <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: uploadAddCaptions ? 14 : 0, cursor: 'pointer' }}>
                         <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Captions</p>
+                        Add captions to my video
                       </label>
                       {uploadAddCaptions && (
                         <>
