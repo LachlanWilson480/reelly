@@ -100,7 +100,7 @@ async function applyTransition(
     `[0:a][1:a]acrossfade=d=${TRANSITION_DURATION}[aout]`,
     '-map', '[vout]',
     '-map', '[aout]',
-    '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
     '-c:a', 'aac',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
@@ -141,7 +141,7 @@ export async function stitchClips(
     if (audioFilters.length > 0) args.push('-af', audioFilters.join(','));
     if (speed !== 1) args.push('-filter:v', `setpts=${1/speed}*PTS`);
 
-    args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '23');
+    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28');
     args.push('-c:a', 'aac');
     args.push('-pix_fmt', 'yuv420p');
     args.push('-movflags', '+faststart');

@@ -151,7 +151,9 @@ export async function burnCaptions(
 
     const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=10` : '';
 
-    return `drawtext=text='${text}':enable='between(t,${group.start},${group.end})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${preset.yPosition}${boxPart}:line_spacing=8`;
+    const adjStart = Math.max(0, group.start - 0.1);
+    const adjEnd = group.end - 0.05;
+    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':"fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${preset.yPosition}${boxPart}:line_spacing=8`;
   });
 
   const filterComplex = drawtextFilters.join(',');
@@ -161,8 +163,8 @@ export async function burnCaptions(
     '-i', inputPath,
     '-vf', filterComplex,
     '-c:v', 'libx264',
-    '-preset', 'fast',
-    '-crf', '23',
+    '-preset', 'ultrafast',
+    '-crf', '28',
     '-c:a', 'copy',
     '-movflags', '+faststart',
     outputPath,
