@@ -20,6 +20,7 @@ type ClipInput = {
   flipH?: boolean;
   flipV?: boolean;
   filter?: string;
+  transition?: string;
 };
 
 type CaptionStyle = {

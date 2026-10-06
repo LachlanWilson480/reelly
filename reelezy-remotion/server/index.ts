@@ -20,6 +20,7 @@ type IncomingClip = {
   flipH?: boolean;
   flipV?: boolean;
   letterbox?: boolean;
+  transition?: string;
 };
 
 function setupApp() {
@@ -93,6 +94,7 @@ function setupApp() {
           flipH: clip.flipH,
           flipV: clip.flipV,
           letterbox: clip.letterbox,
+          transition: clip.transition,
         };
       });
 
