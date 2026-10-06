@@ -133,6 +133,26 @@ export async function burnCaptions(
   const fontColor = captionStyle.color || preset.fontColor;
   const uppercase = preset.uppercase;
 
+  // Map position override
+  const positionOverride = captionStyle.position;
+  const yPosition = positionOverride === 'top' ? 'h*0.08'
+    : positionOverride === 'center' ? '(h-text_h)/2'
+    : positionOverride === 'bottom' ? 'h*0.85'
+    : preset.yPosition;
+
+  // Map font family to system font file paths (Linux/Railway)
+  const fontMap: Record<string, string> = {
+    'Impact': '/usr/share/fonts/truetype/msttcorefonts/Impact.ttf',
+    'Arial': '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',
+    'Arial Black': '/usr/share/fonts/truetype/msttcorefonts/Arial_Black.ttf',
+    'Helvetica': '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',
+    'Georgia': '/usr/share/fonts/truetype/msttcorefonts/Georgia.ttf',
+  };
+  const fontFilePath = captionStyle.fontFamily ? fontMap[captionStyle.fontFamily] : null;
+  const fontFilePart = fontFilePath && require('node:fs').existsSync(fontFilePath)
+    ? `:fontfile='${fontFilePath}'`
+    : '';
+
   const groups = groupWords(words, preset.wordsPerGroup);
 
   if (groups.length === 0) {
@@ -151,7 +171,7 @@ export async function burnCaptions(
     const adjStart = Math.max(0, group.start - 0.1);
     const adjEnd = group.end - 0.05;
 
-    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${preset.yPosition}${boxPart}:line_spacing=8`;
+    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
   });
 
   const filterComplex = drawtextFilters.join(',');

@@ -1,6 +1,5 @@
 FROM node:20-slim
 
-# Install ffmpeg and Chrome dependencies
 RUN apt-get update && apt-get install -y \
   ffmpeg \
   chromium \
@@ -19,6 +18,9 @@ RUN apt-get update && apt-get install -y \
   libasound2 \
   libpango-1.0-0 \
   libcairo2 \
+  ttf-mscorefonts-installer \
+  fontconfig \
+  && fc-cache -f -v \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
