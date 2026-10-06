@@ -10,6 +10,9 @@ const FFMPEG_PATH = process.env.FFMPEG_PATH || `${process.env.HOME}/bin/ffmpeg`;
 const tmpDir = path.resolve('tmp');
 if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
+const PAUSE_THRESHOLD = 0.4;
+const MIN_FONT_SIZE = 18;
+
 type WordTimestamp = { word: string; start: number; end: number };
 type CaptionStyle = {
   preset: string;
@@ -18,41 +21,6 @@ type CaptionStyle = {
   color?: string;
   position?: 'top' | 'center' | 'bottom';
 };
-
-const PAUSE_THRESHOLD = 0.4;
-
-function groupWords(words: WordTimestamp[], wordsPerGroup: number): { text: string; start: number; end: number }[] {
-  if (words.length === 0) return [];
-
-  const groups: { text: string; start: number; end: number }[] = [];
-  let currentGroup: WordTimestamp[] = [words[0]];
-
-  for (let i = 1; i < words.length; i++) {
-    const gap = words[i].start - words[i - 1].end;
-    const groupFull = currentGroup.length >= wordsPerGroup;
-
-    if (gap > PAUSE_THRESHOLD || groupFull) {
-      groups.push({
-        text: currentGroup.map(w => w.word).join(' ').toUpperCase(),
-        start: currentGroup[0].start,
-        end: currentGroup[currentGroup.length - 1].end,
-      });
-      currentGroup = [words[i]];
-    } else {
-      currentGroup.push(words[i]);
-    }
-  }
-
-  if (currentGroup.length > 0) {
-    groups.push({
-      text: currentGroup.map(w => w.word).join(' ').toUpperCase(),
-      start: currentGroup[0].start,
-      end: currentGroup[currentGroup.length - 1].end,
-    });
-  }
-
-  return groups;
-}
 
 type PresetConfig = {
   fontSize: number;
@@ -118,6 +86,37 @@ const PRESETS: Record<string, PresetConfig> = {
   },
 };
 
+function groupWords(words: WordTimestamp[], wordsPerGroup: number): { text: string; start: number; end: number }[] {
+  if (words.length === 0) return [];
+  const groups: { text: string; start: number; end: number }[] = [];
+  let currentGroup: WordTimestamp[] = [words[0]];
+
+  for (let i = 1; i < words.length; i++) {
+    const gap = words[i].start - words[i - 1].end;
+    const groupFull = currentGroup.length >= wordsPerGroup;
+    if (gap > PAUSE_THRESHOLD || groupFull) {
+      groups.push({
+        text: currentGroup.map(w => w.word).join(' '),
+        start: currentGroup[0].start,
+        end: currentGroup[currentGroup.length - 1].end,
+      });
+      currentGroup = [words[i]];
+    } else {
+      currentGroup.push(words[i]);
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    groups.push({
+      text: currentGroup.map(w => w.word).join(' '),
+      start: currentGroup[0].start,
+      end: currentGroup[currentGroup.length - 1].end,
+    });
+  }
+
+  return groups;
+}
+
 export async function burnCaptions(
   inputPath: string,
   words: WordTimestamp[],
@@ -130,7 +129,7 @@ export async function burnCaptions(
   const presetKey = captionStyle.preset || 'word_by_word';
   const preset = PRESETS[presetKey] || PRESETS.word_by_word;
 
-  const fontSize = captionStyle.fontSize || preset.fontSize;
+  const fontSize = Math.max(MIN_FONT_SIZE, captionStyle.fontSize || preset.fontSize);
   const fontColor = captionStyle.color || preset.fontColor;
   const uppercase = preset.uppercase;
 
@@ -141,19 +140,18 @@ export async function burnCaptions(
     return { outputPath, cleanup: () => { try { fs.unlinkSync(outputPath); } catch {} } };
   }
 
-  // Build drawtext filter for each group
   const drawtextFilters = groups.map((group) => {
     const text = (uppercase ? group.text.toUpperCase() : group.text)
-      .replace(/'/g, "\u2019")   // replace apostrophes
-      .replace(/:/g, "\\:")      // escape colons
+      .replace(/'/g, "\u2019")
+      .replace(/:/g, "\\:")
       .replace(/\[/g, "\\[")
       .replace(/\]/g, "\\]");
 
     const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=10` : '';
-
     const adjStart = Math.max(0, group.start - 0.1);
     const adjEnd = group.end - 0.05;
-    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':"fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${preset.yPosition}${boxPart}:line_spacing=8`;
+
+    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${preset.borderColor}:x=(w-text_w)/2:y=${preset.yPosition}${boxPart}:line_spacing=8`;
   });
 
   const filterComplex = drawtextFilters.join(',');
