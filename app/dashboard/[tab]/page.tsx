@@ -1072,15 +1072,13 @@ export default function DashboardPage() {
       const outputOrientation = anyLandscape && aiLandscapeHandling === "landscape" ? "landscape" : undefined
 
       const aiCaptionStyle = aiAddCaptions
-        ? (showAdvancedCaptions
-            ? {
-                preset: aiCaptionPreset,
-                custom: {
-                  font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
-                  position: captionPosition,
-                },
-              }
-            : aiCaptionPreset)
+        ? {
+            preset: aiCaptionPreset,
+            custom: {
+              font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
+              position: captionPosition,
+            },
+          }
         : null
 
       const res = await authFetch("/api/render-video", {
@@ -1180,15 +1178,13 @@ export default function DashboardPage() {
       const outputOrientation = anyLandscape && landscapeHandling === "landscape" ? "landscape" : undefined
 
       const captionStyle = uploadAddCaptions
-        ? (showAdvancedCaptions
-            ? {
-                preset: captionPreset,
-                custom: {
-                  font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
-                  position: captionPosition,
-                },
-              }
-            : captionPreset)
+        ? {
+            preset: captionPreset,
+            custom: {
+              font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
+              position: captionPosition,
+            },
+          }
         : null
 
       const res = await authFetch('/api/render-video', {
