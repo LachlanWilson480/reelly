@@ -2244,15 +2244,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'script' && isFreeTier && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Script Generator</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>The Script Generator is available on Basic and Pro plans.</p>
-              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>See plans →</a>
-            </div>
-          )}
-
-          {tab === 'script' && !isFreeTier && (
+          {tab === 'script' && (
             <div>
               {!isProPlan && (
                 <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2384,21 +2376,7 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-          {tab === 'uploads' && (!realSubPlan || realSubStatus !== 'active') && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                Upload your clips
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                Video rendering is not available on the Free plan.
-              </p>
-              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>
-                View paid plans →
-              </a>
-            </div>
-          )}
-
-          {tab === 'uploads' && realSubPlan && realSubStatus === 'active' && (
+          {tab === 'uploads' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── CLIPS ── */}
@@ -2644,15 +2622,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'aiuploads' && (!realSubPlan || realSubStatus !== 'active') && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Upload clips per filming step</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Video rendering is not available on the Free plan.</p>
-              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>View paid plans →</a>
-            </div>
-          )}
-
-          {tab === 'aiuploads' && realSubPlan && realSubStatus === 'active' && (
+          {tab === 'aiuploads' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── Select idea ── */}
