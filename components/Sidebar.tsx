@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Tooltip from './Tooltip'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
@@ -136,26 +137,28 @@ export default function Sidebar() {
               </Link>
             ))
           : navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => isMobileDrawer && setMobileOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 4px',
-                  borderRadius: 8,
-                  textDecoration: 'none',
-                  color: 'var(--ink)',
-                  fontSize: 13,
-                  fontFamily: "'Inter', sans-serif",
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
-                {(expanded || isMobileDrawer) && <span>{item.label}</span>}
-              </Link>
+              <Tooltip key={item.href} text={item.label}>
+                <Link
+                  href={item.href}
+                  onClick={() => isMobileDrawer && setMobileOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 4px',
+                    borderRadius: 8,
+                    textDecoration: 'none',
+                    color: 'var(--ink)',
+                    fontSize: 13,
+                    fontFamily: "'Inter', sans-serif",
+                    whiteSpace: 'nowrap',
+                    width: '100%',
+                  }}
+                >
+                  <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                  {(expanded || isMobileDrawer) && <span>{item.label}</span>}
+                </Link>
+              </Tooltip>
             ))}
 
         <div style={{ flex: 1 }} />
