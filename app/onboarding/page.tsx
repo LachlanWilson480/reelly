@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 16 }
-const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, display: 'block' as const }
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
+const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
 const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
@@ -160,8 +160,8 @@ export default function OnboardingPage() {
           <form onSubmit={handleSubmit}>
 
             {/* Required fields */}
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 20 }}>The essentials</p>
+            <div style={{ background: 'linear-gradient(135deg, #26215C 0%, #712B13 100%)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(241,239,232,0.5)', marginBottom: 20 }}>The essentials</p>
 
               <Field label="Business name *" value={businessName} onChange={setBusinessName} placeholder="e.g. Jake's Plumbing" />
               <Field label="Industry *" value={industry} onChange={setIndustry} placeholder="e.g. hair salon, electrician, personal trainer" />
