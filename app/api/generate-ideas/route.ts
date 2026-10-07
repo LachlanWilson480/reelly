@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
-    const objectivesBlock = weeklyObjectives?.trim() ? `\nTHIS WEEK'S OBJECTIVES — read each objective as its own separate video goal. If a number is mentioned (e.g. '2 videos about X'), dedicate that many cards to it. If no number is given (e.g. 'introduce Jacob'), dedicate exactly 1 card to it. Only combine two objectives into one card if the user explicitly says so. Fulfil every objective listed, then fill remaining cards with evergreen angles:\n${weeklyObjectives.trim()}` : ''
+    const objectivesBlock = weeklyObjectives?.trim() ? `\n\nCUSTOM INPUT — THIS OVERRIDES EVERYTHING ELSE. Ignore all angle suggestions, seasonal context, and style guidance below. Follow these instructions exactly as written. Use the business name, industry, location, and tone of voice as context only:\n${weeklyObjectives.trim()}\n\nOnly after fully satisfying the custom input above, fill any remaining idea slots with evergreen angles from the business profile.` : ''
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
