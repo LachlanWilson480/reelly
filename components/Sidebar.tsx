@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: '▦' },
@@ -17,12 +23,25 @@ export default function Sidebar() {
   const [expanded, setExpanded] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileShowFullMenu, setMobileShowFullMenu] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   useEffect(() => {
     setMobileShowFullMenu(false)
   }, [pathname])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!isLoggedIn) return null
 
   const navItems = [
     { href: "/?stay=1", label: "Home", icon: "⌂" },
