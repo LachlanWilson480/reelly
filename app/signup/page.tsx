@@ -216,7 +216,7 @@ export default function SignUpPage() {
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
             </div>
 
-            <form onSubmit={handleSignUp}>
+            {message !== 'check-email' && <form onSubmit={handleSignUp}>
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="email"
@@ -335,7 +335,7 @@ export default function SignUpPage() {
               >
                 {isSigningUp ? 'Creating account...' : 'Sign up'}
               </button>
-            </form>
+            </form>}
 
             {message === 'check-email' ? (
               <div style={{ padding: '8px 0' }}>
@@ -351,7 +351,7 @@ export default function SignUpPage() {
                   placeholder="Enter 6-digit code"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  style={{ width: '100%', padding: '14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 22, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', textAlign: 'center', letterSpacing: 8, marginBottom: 16 }}
+                  style={{ width: '100%', padding: '16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 28, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', textAlign: 'center', letterSpacing: 12, marginBottom: 16 }}
                 />
                 <button
                   onClick={async () => {
