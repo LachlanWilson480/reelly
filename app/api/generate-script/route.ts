@@ -33,7 +33,7 @@ const LENGTH_GUIDANCE: Record<string, string> = {
   long: 'about 60-90 seconds when read aloud at a natural pace (roughly 140-220 words)',
 }
 
-const FREE_LIFETIME_SCRIPT_LIMIT = 1
+const FREE_LIFETIME_SCRIPT_LIMIT = 3
 const BASIC_WEEKLY_SCRIPT_LIMIT = 20
 const PRO_WEEKLY_SCRIPT_LIMIT = 96
 
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
           .eq('user_id', userId)
         const totalScripts = (allUsage || []).reduce((sum: number, r: { scripts_generated_this_week: number | null }) => sum + (r.scripts_generated_this_week || 0), 0)
         if (totalScripts >= FREE_LIFETIME_SCRIPT_LIMIT) {
-          return NextResponse.json({ error: 'Free plan includes 1 custom script. Upgrade to create more.' }, { status: 403 })
+          return NextResponse.json({ error: 'Free plan includes 3 scripts lifetime. Upgrade for more.' }, { status: 403 })
         }
       }
       const weeklyScriptLimit = BASIC_WEEKLY_SCRIPT_LIMIT
