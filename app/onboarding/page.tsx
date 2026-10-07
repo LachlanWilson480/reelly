@@ -189,11 +189,8 @@ export default function OnboardingPage() {
               onClick={() => setShowOptional(!showOptional)}
               style={{ width: '100%', background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
-              <span>
-                <span style={{ fontWeight: 600 }}>{showOptional ? '− Hide' : '+ Add'} additional details</span>
-                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>optional - improves idea quality</span>
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>can do this later in Settings</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{showOptional ? '− Hide additional details' : '+ Add additional details'}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>optional</span>
             </button>
 
             {showOptional && (
