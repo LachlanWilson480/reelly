@@ -205,7 +205,7 @@ export default function SignUpPage() {
             <p style={{ fontSize: 13, color: '#D3D1C7', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
               {agreedToTerms
                 ? 'Continue with Google, or use your email below.'
-                : 'Tick the Terms of Service box below to enable Google sign-up.'}
+                : 'Agree to the Terms of Service below to continue with Google.'}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
