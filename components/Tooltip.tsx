@@ -21,28 +21,30 @@ export default function Tooltip({ text, children }: { text: string; children: Re
       {visible && (
         <span style={{
           position: 'absolute',
-          bottom: 'calc(100% + 8px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'var(--ink)',
-          color: 'var(--card-bg)',
-          fontSize: 11,
-          fontWeight: 500,
-          padding: '5px 10px',
-          borderRadius: 6,
+          left: 'calc(100% + 12px)',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'var(--card-bg)',
+          color: 'var(--ink)',
+          fontSize: 12,
+          fontWeight: 600,
+          padding: '7px 12px',
+          borderRadius: 8,
           whiteSpace: 'nowrap',
           zIndex: 999,
           pointerEvents: 'none',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(128,128,128,0.15)',
+          fontFamily: "'Inter', sans-serif",
         }}>
           {text}
           <span style={{
             position: 'absolute',
-            top: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            right: '100%',
+            top: '50%',
+            transform: 'translateY(-50%)',
             border: '5px solid transparent',
-            borderTopColor: 'var(--ink)',
+            borderRightColor: 'var(--card-bg)',
           }} />
         </span>
       )}
