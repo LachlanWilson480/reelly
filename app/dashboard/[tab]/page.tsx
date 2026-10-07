@@ -65,7 +65,6 @@ const FONT_OPTIONS = ['Impact', 'Arial', 'Arial Black', 'Helvetica', 'Georgia']
 const CAPTION_PRESETS = [
   { id: 'word_by_word', label: 'Word by Word', desc: 'One word at a time as it is spoken' },
   { id: 'bold_center', label: 'Bold Pop', desc: 'Large Impact, 3 words at a time' },
-  { id: 'coral_pop', label: 'Coral Pop', desc: 'Coral highlight, 3 words at a time' },
   { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle, clean, 5 words at a time' },
   { id: 'typewriter', label: 'Typewriter', desc: 'Clean Arial, 4 words at a time' },
 ]
@@ -196,6 +195,7 @@ export default function DashboardPage() {
   const [uploadError, setUploadError] = useState('')
 
   const [captionPreset, setCaptionPreset] = useState('bold_center')
+  const [captionBorderColor, setCaptionBorderColor] = useState('#000000')
   const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(true)
   const [captionFontSize, setCaptionFontSize] = useState(36)
   const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
@@ -1077,6 +1077,7 @@ export default function DashboardPage() {
             custom: {
               font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
               position: captionPosition,
+              borderColor: captionBorderColor,
             },
           }
         : null
@@ -1183,6 +1184,7 @@ export default function DashboardPage() {
             custom: {
               font: { family: captionFontFamily, size: captionFontSize, color: captionColor },
               position: captionPosition,
+              borderColor: captionBorderColor,
             },
           }
         : null

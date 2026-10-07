@@ -110,6 +110,7 @@ function setupApp() {
             fontSize: captionStyle.custom?.font?.size,
             color: captionStyle.custom?.font?.color,
             position: captionStyle.custom?.position,
+            borderColor: captionStyle.custom?.borderColor,
           };
         }
       }
