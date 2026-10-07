@@ -49,7 +49,6 @@ export default function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "⌂" },
-    { href: "/dashboard", label: "Dashboard", icon: "⊞" },
     { href: "/history", label: "History", icon: "◷" },
     { href: "/plans", label: "Plans", icon: "$" },
     { href: "/customise", label: "Customise Generation", icon: "✎" },
