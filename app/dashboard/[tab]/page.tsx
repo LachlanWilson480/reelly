@@ -1272,15 +1272,18 @@ export default function DashboardPage() {
   const renderCapMin = userPlan === 'top' ? 60 : 25
 
   const stats = [
-    { label: 'Ideas this week', value: `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
-    { label: 'Filming instructions this week', value: `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}` },
-    { label: 'Renders', value: isFreeTier ? 'N/A' : String(totalRenders), locked: isFreeTier },
+    { label: 'Ideas this week', value: isFreeTier ? `${ideasThisWeek} / 24` : `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
+    { label: 'Filming instructions', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}` },
+    { label: 'Reels', value: isFreeTier ? `${totalRenders} / 2` : String(totalRenders) },
     { label: 'Posts this week', value: String(postsThisWeek) },
-    { label: 'Render minutes used', value: isFreeTier ? 'N/A' : (() => {
+    { label: 'Render time used', value: isFreeTier ? (() => {
+      const usedSec = totalRenderSeconds
+      return `${usedSec}s / 60s`
+    })() : (() => {
       const usedMin = Math.floor(totalRenderSeconds / 60)
       const usedSec = totalRenderSeconds % 60
       return `${usedMin}:${String(usedSec).padStart(2, '0')} / ${renderCapMin}:00`
-    })(), locked: isFreeTier },
+    })() },
   ]
 
   const savedIdeas = dbSavedIdeas
@@ -1384,12 +1387,8 @@ export default function DashboardPage() {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
               {stats.map((s) => (
-                <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', opacity: s.locked ? 0.5 : 1 }}>
-                  {s.locked ? (
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#F1EFE8', lineHeight: 1.4 }}>Upgrade to get access to our editor</p>
-                  ) : (
-                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8' }}>{s.value}</p>
-                  )}
+                <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }}>
+                  <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8' }}>{s.value}</p>
                   <p style={{ fontSize: 12, color: '#D3D1C7' }}>{s.label}</p>
                 </div>
               ))}
