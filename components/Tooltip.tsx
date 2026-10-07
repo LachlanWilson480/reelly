@@ -21,7 +21,7 @@ export default function Tooltip({ text, children }: { text: string; children: Re
       {visible && (
         <span style={{
           position: 'absolute',
-          left: 'calc(100% + 12px)',
+          left: 'calc(100% + 10px)',
           top: '50%',
           transform: 'translateY(-50%)',
           background: 'var(--card-bg)',
@@ -37,24 +37,19 @@ export default function Tooltip({ text, children }: { text: string; children: Re
           border: '1px solid rgba(128,128,128,0.15)',
           fontFamily: "'Inter', sans-serif",
         }}>
-          {text}
           <span style={{
             position: 'absolute',
             right: '100%',
             top: '50%',
-            transform: 'translateY(-50%)',
+            marginTop: -6,
             width: 0,
             height: 0,
-            borderTopWidth: 6,
-            borderBottomWidth: 6,
-            borderRightWidth: 6,
-            borderTopStyle: 'solid',
-            borderBottomStyle: 'solid',
-            borderRightStyle: 'solid',
-            borderTopColor: 'transparent',
-            borderBottomColor: 'transparent',
-            borderRightColor: 'var(--card-bg)',
+            display: 'block',
+            borderStyle: 'solid',
+            borderWidth: '6px 6px 6px 0',
+            borderColor: 'transparent var(--card-bg) transparent transparent',
           }} />
+          {text}
         </span>
       )}
     </span>
