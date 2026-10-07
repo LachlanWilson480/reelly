@@ -33,22 +33,10 @@ export default function Tooltip({ text, children }: { text: string; children: Re
           whiteSpace: 'nowrap',
           zIndex: 9999,
           pointerEvents: 'none',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
           border: '1px solid rgba(128,128,128,0.15)',
           fontFamily: "'Inter', sans-serif",
         }}>
-          <span style={{
-            position: 'absolute',
-            right: '100%',
-            top: '50%',
-            marginTop: -6,
-            width: 0,
-            height: 0,
-            display: 'block',
-            borderStyle: 'solid',
-            borderWidth: '6px 6px 6px 0',
-            borderColor: 'transparent var(--card-bg) transparent transparent',
-          }} />
           {text}
         </span>
       )}
