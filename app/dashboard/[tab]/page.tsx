@@ -1274,7 +1274,7 @@ export default function DashboardPage() {
   const stats = [
     { label: 'Ideas this week', value: isFreeTier ? `${ideasThisWeek} / 24` : `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
     { label: 'Filming instructions', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}` },
-    { label: 'Renders', value: String(totalRenders) },
+    { label: 'Reels made', value: String(totalRenders) },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render time used', value: isFreeTier ? (() => {
       const usedSec = totalRenderSeconds
