@@ -132,7 +132,7 @@ export default function PlansPage() {
                 value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
-                placeholder="Discount code"
+                placeholder="Have a code?"
                 style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
