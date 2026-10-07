@@ -1478,9 +1478,8 @@ export default function DashboardPage() {
                   Scheduler
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Plan and schedule your videos across Instagram, TikTok and Facebook. Coming soon.
+                  Plan and schedule your videos across Instagram, TikTok and Facebook.
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12, fontWeight: 600 }}>Coming soon →</p>
               </button>
             </div>
           )}
@@ -1619,7 +1618,6 @@ export default function DashboardPage() {
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.15)' }}>
                     <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Weekly performance suggestions</p>
                     <p style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 6 }}>
-                      Coming soon: once scheduling and posting analytics are live, Reelezy will analyse last week's video performance and tailor this week's ideas and editing style to improve on it.
                     </p>
                   </div>
                 </div>

@@ -43,7 +43,7 @@ export default function PlansPage() {
       yearlyPrice: '$690',
       yearlyPerMonth: '$57.50',
       desc: '60 render minutes/month',
-      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)', 'Suggested video ideas (coming soon)', 'Cloud stock library (coming soon)', 'Dual accounts (coming soon)', 'Competitor analytics (coming soon)'],
+      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)'],
       highlight: true,
     },
   ]
@@ -187,12 +187,12 @@ export default function PlansPage() {
                 </p>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {tier.features.map((f) => {
-                    const isComing = f.includes('(coming soon)')
-                    const label = isComing ? f.replace(' (coming soon)', '') : f
+                    const isComing = f.includes()
+                    const label = isComing ? f.replace(, '') : f
                     return (
-                      <li key={f} style={{ fontSize: 14, color: isComing ? 'rgba(128,128,128,0.5)' : tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <span>• {label}</span>
-                        {isComing && <span style={{ fontSize: 11, color: 'rgba(128,128,128,0.5)', whiteSpace: 'nowrap' }}>Soon</span>}
+                        
                       </li>
                     )
                   })}
