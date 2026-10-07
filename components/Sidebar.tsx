@@ -203,7 +203,7 @@ export default function Sidebar() {
           display: 'flex',
           flexDirection: 'column',
           padding: '20px 12px',
-          gap: 4,
+          gap: 16,
           transition: 'width 0.2s ease',
           zIndex: 100,
         }}
@@ -252,7 +252,7 @@ export default function Sidebar() {
               display: 'flex',
               flexDirection: 'column',
               padding: '20px 12px',
-              gap: 4,
+              gap: 16,
               zIndex: 200,
             }}
           >
