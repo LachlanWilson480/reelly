@@ -50,7 +50,6 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
   }
 
   filters.push('setpts=PTS-STARTPTS');
-  filters.push('fps=30');
 
   return filters.join(',');
 }
@@ -100,7 +99,7 @@ async function applyTransition(
     `[0:a][1:a]acrossfade=d=${TRANSITION_DURATION}[aout]`,
     '-map', '[vout]',
     '-map', '[aout]',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+    '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
     '-c:a', 'aac',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
@@ -113,7 +112,8 @@ export async function stitchClips(
   musicUrl: string | undefined,
   outputWidth: number,
   outputHeight: number,
-  port: number | string
+  port: number | string,
+  crf: number = 18
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
@@ -141,7 +141,7 @@ export async function stitchClips(
     if (audioFilters.length > 0) args.push('-af', audioFilters.join(','));
     if (speed !== 1) args.push('-filter:v', `setpts=${1/speed}*PTS`);
 
-    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28');
+    args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
     args.push('-c:a', 'aac');
     args.push('-pix_fmt', 'yuv420p');
     args.push('-movflags', '+faststart');

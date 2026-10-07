@@ -68,6 +68,7 @@ function setupApp() {
       }
 
       const isLow = resolution === "low";
+      const crf = isLow ? 24 : 16;
       const isLandscape = outputOrientation === "landscape";
       const outputWidth = isLandscape ? (isLow ? 960 : 1920) : (isLow ? 540 : 1080);
       const outputHeight = isLandscape ? (isLow ? 540 : 1080) : (isLow ? 960 : 1920);
@@ -121,6 +122,7 @@ function setupApp() {
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,
+        crf,
         captionStyle: normalizedCaptionStyle,
         watermark: watermark === true,
         userId,

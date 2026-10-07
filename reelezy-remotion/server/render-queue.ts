@@ -37,6 +37,7 @@ type JobData = {
   outputWidth: number;
   outputHeight: number;
   cutDeadSpace?: boolean;
+  crf?: number;
   captionStyle?: CaptionStyle | null;
   watermark?: boolean;
   userId?: string;
@@ -75,7 +76,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, userId, renderId } = job.data;
+      const { clips, musicSrc, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
