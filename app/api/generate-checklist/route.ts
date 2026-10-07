@@ -12,14 +12,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
-  if (!userId) return 'basic'
+async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | 'mid' | 'top'> {
+  if (!userId) return 'free'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'basic'
+  if (!data || data.status !== 'active') return 'free'
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'
