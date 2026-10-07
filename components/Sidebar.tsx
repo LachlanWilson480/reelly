@@ -52,7 +52,6 @@ export default function Sidebar() {
     { href: "/dashboard", label: "Dashboard", icon: "⌂" },
     { href: "/history", label: "History", icon: "◷" },
     { href: "/plans", label: "Plans", icon: "$" },
-    { href: "/customise", label: "Customise Generation", icon: "✎" },
   ]
 
   const bottomNavItems = [

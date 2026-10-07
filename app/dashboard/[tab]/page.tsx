@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
   const [weeklyObjectives, setWeeklyObjectives] = useState('')
+  const [batchGuidance, setBatchGuidance] = useState('')
   const [showProfileNudge, setShowProfileNudge] = useState(false)
   const [seasonalMode, setSeasonalMode] = useState<'seasonal' | 'evergreen' | 'mix'>('mix')
   const [toneOverride, setToneOverride] = useState<string | null>(null)
@@ -553,7 +554,7 @@ export default function DashboardPage() {
       const res = await authFetch("/api/generate-ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode, toneOverride }),
+        body: JSON.stringify({ profile, customization: (profile.custom_guidance ? profile.custom_guidance + (batchGuidance.trim() ? '\n' + batchGuidance.trim() : '') : batchGuidance.trim() || null), userId, peopleCountOverride: profile.video_people_count, weeklyObjectives: weeklyObjectives.trim() || null, seasonalMode, toneOverride }),
       })
 
       const data = await res.json()
@@ -1495,17 +1496,31 @@ export default function DashboardPage() {
 
                 {/* Row 1: objectives + generate button + arrows */}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-                      This week&apos;s objectives (optional)
-                    </label>
-                    <textarea
-                      value={weeklyObjectives}
-                      onChange={(e) => setWeeklyObjectives(e.target.value)}
-                      rows={2}
-                      placeholder="e.g. Promote our new triple chocolate croissant for 2 videos, show behind-the-scenes baking, introduce Jacob our new apprentice baker"
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
-                    />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                        This batch&apos;s objectives (optional)
+                      </label>
+                      <textarea
+                        value={weeklyObjectives}
+                        onChange={(e) => setWeeklyObjectives(e.target.value)}
+                        rows={2}
+                        placeholder="e.g. Promote our new croissant for 2 videos, introduce Jacob our new baker"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                        Style guidance for this batch (optional)
+                      </label>
+                      <textarea
+                        value={batchGuidance}
+                        onChange={(e) => setBatchGuidance(e.target.value)}
+                        rows={2}
+                        placeholder="e.g. More humour this week. Focus on before and after content."
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
+                      />
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
                     <button
