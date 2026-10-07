@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 
-export default function Tooltip({ text, children, position = 'right' }: { text: string; children: React.ReactNode; position?: 'right' | 'bottom' }) {
+export default function Tooltip({ text, children, position = 'right' }: { text: string; children: React.ReactNode; position?: 'right' | 'bottom' | 'top' }) {
   const [visible, setVisible] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -15,9 +15,10 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     setVisible(false)
   }
 
-  const tooltipStyle: React.CSSProperties = position === 'bottom' ? {
+  const tooltipStyle: React.CSSProperties = (position === 'bottom' || position === 'top') ? {
     position: 'absolute',
-    top: 'calc(100% + 8px)',
+    top: position === 'top' ? 'auto' : 'calc(100% + 8px)',
+    bottom: position === 'top' ? 'calc(100% + 8px)' : 'auto',
     left: 0,
     transform: 'none',
     background: 'var(--card-bg)',
