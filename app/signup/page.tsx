@@ -14,6 +14,10 @@ export default function SignUpPage() {
   const [message, setMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSigningUp, setIsSigningUp] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -34,6 +38,7 @@ export default function SignUpPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { email_confirm: true },
       },
     })
 
@@ -335,14 +340,40 @@ export default function SignUpPage() {
             </form>
 
             {message === 'check-email' ? (
-              <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📬</div>
-                <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 10, color: '#F1EFE8' }}>Check your email</h2>
-                <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 6 }}>
-                  We sent a confirmation link to <strong>{email}</strong>
+              <div style={{ padding: '8px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: 'center' }}>📬</div>
+                <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#F1EFE8', textAlign: 'center' }}>Check your email</h2>
+                <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
+                  We sent a 6-digit code to <strong>{email}</strong>
                 </p>
-                <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.5)' }}>
-                  Click the link to confirm your account and get started.
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  style={{ width: '100%', padding: '14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 22, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', textAlign: 'center', letterSpacing: 8, marginBottom: 16 }}
+                />
+                <button
+                  onClick={async () => {
+                    if (otp.length !== 6) return
+                    setVerifying(true)
+                    const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' })
+                    setVerifying(false)
+                    if (error) {
+                      setMessage(error.message)
+                    } else {
+                      window.location.href = '/onboarding'
+                    }
+                  }}
+                  disabled={otp.length !== 6 || verifying}
+                  style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
+                >
+                  {verifying ? 'Verifying...' : 'Confirm account'}
+                </button>
+                <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.4)', textAlign: 'center', marginTop: 12 }}>
+                  Didn&apos;t get it? Check your spam folder.
                 </p>
               </div>
             ) : message ? (
