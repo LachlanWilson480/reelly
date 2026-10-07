@@ -1398,7 +1398,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 16, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
-            <button onClick={(e) => { e.stopPropagation(); setTab('overview') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setTab('overview'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Overview
             </button>
 
@@ -1419,12 +1419,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Edit tab with toggle inside */}
-            <button onClick={(e) => { e.stopPropagation(); setTab(editorMode === 'ai' ? 'aiuploads' : 'uploads') }} style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab(editorMode === 'ai' ? 'aiuploads' : 'uploads') }} style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Edit
             </button>
 
             {/* Publish button */}
-            <button onClick={(e) => { e.stopPropagation(); setTab('scheduler') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Publish
             </button>
 
