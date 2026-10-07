@@ -147,7 +147,7 @@ export default function DashboardPage() {
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
-  const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single'>('default')
+  const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
   const [videoLength, setVideoLength] = useState<number>(30)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
@@ -1930,8 +1930,8 @@ export default function DashboardPage() {
                     <div>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        {[{ id: 'default', label: 'Standard' }, { id: 'multi', label: 'Multi-shot' }, { id: 'single', label: 'Single shot' }].map((mode) => (
-                          <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                        {[{ id: 'default', label: 'Standard' }, { id: 'multi', label: 'Multi-shot' }, { id: 'single', label: 'Single shot' }, { id: 'quick', label: 'Limited time' }].map((mode) => (
+                          <button key={mode.id} type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
                             {mode.label}
                           </button>
                         ))}

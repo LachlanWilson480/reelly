@@ -180,6 +180,16 @@ STRICT RULES:
 - NO long sentences in any single clip
 - Think: high-energy Instagram reel, fast cuts, mostly visual
 - Total video = exactly ${videoLength || 30} seconds`
+      : filmingMode === 'quick'
+      ? `\nFILMING MODE: Limited time. The person has very little time to film.
+STRICT RULES:
+- Generate exactly 2-3 steps maximum
+- Total video length: 15-25 seconds only
+- Each step must be filmable in under 10 seconds
+- No complex setups, no multiple angles, no props required
+- Simple, grab-your-phone-and-go instructions
+- Prefer single-location, single-subject shots
+- Think: quick, authentic, done in under 2 minutes of filming`
       : ''
 
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
