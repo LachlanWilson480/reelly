@@ -187,12 +187,9 @@ export default function PlansPage() {
                 </p>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {tier.features.map((f) => {
-                    const isComing = f.includes()
-                    const label = isComing ? f.replace(, '') : f
                     return (
-                      <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <span>• {label}</span>
-                        
+                      <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>• {f}</span>
                       </li>
                     )
                   })}
