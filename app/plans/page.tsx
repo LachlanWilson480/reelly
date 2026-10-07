@@ -10,7 +10,7 @@ export default function PlansPage() {
   const router = useRouter()
   const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
   const [success, setSuccess] = useState(false)
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('yearly')
   const [discountCode, setDiscountCode] = useState('')
   const [discountInput, setDiscountInput] = useState('')
   const [discountError, setDiscountError] = useState('')
