@@ -54,17 +54,17 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
-    // Free plan: allow up to 60s lifetime, watermark all renders
+    // Free plan: 2 reels max, 60s total lifetime, watermark all renders
+    const FREE_REEL_LIMIT = 2
     const FREE_CAP_SECONDS = 60
     if (plan === 'free') {
       const { data: allRenders } = await supabaseAdmin
         .from('renders')
         .select('duration_seconds')
         .eq('user_id', userId)
-      const usedSeconds = (allRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
-      if (usedSeconds >= FREE_CAP_SECONDS) {
-        // Over quota — still allow render but mark as over_quota so frontend blocks download
-        // We'll pass watermark flag and over_quota flag through
+      const totalReels = (allRenders || []).length
+      if (totalReels >= FREE_REEL_LIMIT) {
+        return NextResponse.json({ error: 'Free plan includes 2 reels. Upgrade to create more videos.' }, { status: 403 })
       }
     }
 

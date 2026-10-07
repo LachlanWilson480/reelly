@@ -36,14 +36,14 @@ const MID_EXTRA_ANGLES = [
   "explain a term or piece of jargon from your industry that confuses customers",
 ]
 
-async function getPlan(userId: string | undefined): Promise<'basic' | 'mid' | 'top'> {
+async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | 'mid' | 'top'> {
   if (!userId) return 'basic'
   const { data } = await supabaseAdmin
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'basic'
+  if (!data || data.status !== 'active') return 'free'
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'
@@ -274,6 +274,8 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
   return lines.join('\n')
 }
 
+const FREE_BATCH_SIZE = 3
+const FREE_WEEKLY_LIMIT = 24
 const BASIC_BATCH_SIZE = 5
 const PREMIUM_BATCH_SIZE = 7
 
@@ -300,8 +302,8 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = await getPlan(userId)
-    const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : BASIC_BATCH_SIZE
-    const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
+    const batchSize = plan === 'top' ? PREMIUM_BATCH_SIZE : plan === 'free' ? FREE_BATCH_SIZE : BASIC_BATCH_SIZE
+    const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_LIMIT : plan === 'free' ? FREE_WEEKLY_LIMIT : BASIC_WEEKLY_LIMIT
     const maxTokens = batchSize * TOKENS_PER_CARD + TOKEN_BUFFER
 
     let keyEventsContext = ''

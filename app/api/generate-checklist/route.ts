@@ -66,6 +66,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
   return lines.join('\n')
 }
 
+const FREE_LIFETIME_FILMING_LIMIT = 7
 const BASIC_WEEKLY_FILMING_LIMIT = 50
 const PRO_WEEKLY_FILMING_LIMIT = 50
 const PREMIUM_WEEKLY_FILMING_LIMIT = 98
@@ -90,6 +91,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (userId) {
+      if (plan === 'free') {
+        // Free plan: lifetime limit of 7 filming instructions
+        const { data: allChecklists } = await supabaseAdmin
+          .from('checklists')
+          .select('id')
+          .eq('user_id', userId)
+        if ((allChecklists || []).length >= FREE_LIFETIME_FILMING_LIMIT) {
+          return NextResponse.json({ error: 'Free plan includes 7 filming instructions. Upgrade for more.' }, { status: 403 })
+        }
+      }
       const weeklyLimit = plan === 'top' ? PREMIUM_WEEKLY_FILMING_LIMIT : BASIC_WEEKLY_FILMING_LIMIT
 
       const { data: usageRow } = await supabaseAdmin

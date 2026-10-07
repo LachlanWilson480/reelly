@@ -33,6 +33,7 @@ const LENGTH_GUIDANCE: Record<string, string> = {
   long: 'about 60-90 seconds when read aloud at a natural pace (roughly 140-220 words)',
 }
 
+const FREE_LIFETIME_SCRIPT_LIMIT = 1
 const BASIC_WEEKLY_SCRIPT_LIMIT = 20
 const PRO_WEEKLY_SCRIPT_LIMIT = 96
 
@@ -74,6 +75,16 @@ export async function POST(req: NextRequest) {
       const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
       const currentCount = needsReset ? 0 : (usageRow?.scripts_generated_this_week || 0)
 
+      if (plan === 'free') {
+        // Free plan: lifetime limit of 1 script
+        const { count } = await supabaseAdmin
+          .from('scripts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+        if ((count || 0) >= FREE_LIFETIME_SCRIPT_LIMIT) {
+          return NextResponse.json({ error: 'Free plan includes 1 custom script. Upgrade to create more.' }, { status: 403 })
+        }
+      }
       const weeklyScriptLimit = BASIC_WEEKLY_SCRIPT_LIMIT
       if (currentCount >= weeklyScriptLimit) {
         return NextResponse.json(
