@@ -113,6 +113,11 @@ export default function LoginPage() {
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
+              <div style={{ textAlign: 'right', marginBottom: 16, marginTop: -8 }}>
+                <Link href="/forgot-password" style={{ fontSize: 12, color: '#D3D1C7', textDecoration: 'none' }}>
+                  Forgot password?
+                </Link>
+              </div>
               <button type="submit" style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer' }}>
                 Log in
               </button>
