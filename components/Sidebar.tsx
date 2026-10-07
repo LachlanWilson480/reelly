@@ -48,7 +48,7 @@ export default function Sidebar() {
   if (!isLoggedIn) return null
 
   const navItems = [
-    { href: "/?stay=1", label: "Home", icon: "⌂" },
+    { href: "/dashboard", label: "Dashboard", icon: "⌂" },
     { href: "/dashboard", label: "Dashboard", icon: "⊞" },
     { href: "/history", label: "History", icon: "◷" },
     { href: "/plans", label: "Plans", icon: "$" },
