@@ -60,7 +60,7 @@ type Idea = {
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
-const FONT_OPTIONS = ['Impact', 'Arial', 'Arial Black', 'Helvetica', 'Georgia']
+const FONT_OPTIONS = ['Sans', 'Sans Bold', 'Serif', 'Serif Bold', 'Mono', 'Mono Bold', 'Narrow', 'Narrow Bold']
 
 const CAPTION_PRESETS = [
   { id: 'word_by_word', label: 'Word by Word', desc: 'One word at a time as it is spoken' },

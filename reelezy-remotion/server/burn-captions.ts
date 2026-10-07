@@ -142,13 +142,16 @@ export async function burnCaptions(
     : positionOverride === 'bottom' ? 'h*0.85'
     : preset.yPosition;
 
-  // Map font family to system font file paths (Linux/Railway)
+  // Map font family to system font file paths (Linux/Railway - fonts-liberation)
   const fontMap: Record<string, string> = {
-    'Impact': '/usr/share/fonts/truetype/msttcorefonts/Impact.ttf',
-    'Arial': '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',
-    'Arial Black': '/usr/share/fonts/truetype/msttcorefonts/Arial_Black.ttf',
-    'Helvetica': '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',
-    'Georgia': '/usr/share/fonts/truetype/msttcorefonts/Georgia.ttf',
+    'Sans': '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+    'Sans Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    'Serif': '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
+    'Serif Bold': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+    'Mono': '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf',
+    'Mono Bold': '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf',
+    'Narrow': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Regular.ttf',
+    'Narrow Bold': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
   };
   const fontFilePath = captionStyle.fontFamily ? fontMap[captionStyle.fontFamily] : null;
   const fontFilePart = fontFilePath && require('node:fs').existsSync(fontFilePath)
