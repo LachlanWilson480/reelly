@@ -32,9 +32,10 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
     border: '1px solid rgba(128,128,128,0.15)',
     fontFamily: "'Inter', sans-serif",
-    maxWidth: 280,
-    whiteSpace: 'normal' as const,
-    textAlign: 'center' as const,
+    maxWidth: 480,
+    minWidth: 280,
+    whiteSpace: 'nowrap' as const,
+    textAlign: 'left' as const,
   } : {
     position: 'absolute',
     left: 'calc(100% + 10px)',
