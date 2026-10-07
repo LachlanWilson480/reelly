@@ -93,11 +93,12 @@ export async function POST(req: NextRequest) {
     if (userId) {
       if (plan === 'free') {
         // Free plan: lifetime limit of 7 filming instructions
-        const { data: allChecklists } = await supabaseAdmin
-          .from('checklists')
-          .select('id')
+        const { data: allUsage } = await supabaseAdmin
+          .from('user_usage')
+          .select('filming_generated_this_week')
           .eq('user_id', userId)
-        if ((allChecklists || []).length >= FREE_LIFETIME_FILMING_LIMIT) {
+        const totalFilming = (allUsage || []).reduce((sum: number, r: { filming_generated_this_week: number | null }) => sum + (r.filming_generated_this_week || 0), 0)
+        if (totalFilming >= FREE_LIFETIME_FILMING_LIMIT) {
           return NextResponse.json({ error: 'Free plan includes 7 filming instructions. Upgrade for more.' }, { status: 403 })
         }
       }

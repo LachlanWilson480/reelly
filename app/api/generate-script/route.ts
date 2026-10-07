@@ -76,12 +76,13 @@ export async function POST(req: NextRequest) {
       const currentCount = needsReset ? 0 : (usageRow?.scripts_generated_this_week || 0)
 
       if (plan === 'free') {
-        // Free plan: lifetime limit of 1 script
-        const { count } = await supabaseAdmin
-          .from('scripts')
-          .select('*', { count: 'exact', head: true })
+        // Free plan: lifetime limit of 1 script — check total scripts_generated_this_week across all time
+        const { data: allUsage } = await supabaseAdmin
+          .from('user_usage')
+          .select('scripts_generated_this_week')
           .eq('user_id', userId)
-        if ((count || 0) >= FREE_LIFETIME_SCRIPT_LIMIT) {
+        const totalScripts = (allUsage || []).reduce((sum: number, r: { scripts_generated_this_week: number | null }) => sum + (r.scripts_generated_this_week || 0), 0)
+        if (totalScripts >= FREE_LIFETIME_SCRIPT_LIMIT) {
           return NextResponse.json({ error: 'Free plan includes 1 custom script. Upgrade to create more.' }, { status: 403 })
         }
       }
