@@ -2844,17 +2844,23 @@ export default function DashboardPage() {
                             )}
                           </div>
 
-                          {/* Quality row */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Quality</span>
-                            <div style={{ display: 'flex', gap: 6 }}>
+                          {/* Quality + Smart Trim row */}
+                          <div style={{ display: 'flex', gap: 8, padding: '10px 20px' }}>
+                            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
                               {[{ id: 'high', label: '1080p' }, { id: 'low', label: '540p' }].map((opt) => (
                                 <button key={opt.id} type="button" onClick={() => setAiResolution(opt.id as 'high' | 'low')}
-                                  style={{ padding: '6px 12px', borderRadius: 7, border: aiResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: aiResolution === opt.id ? 600 : 400, color: aiResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
+                                  style={{ flex: 1, padding: '9px 12px', borderRadius: 9, border: aiResolution === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiResolution === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: aiResolution === opt.id ? 'var(--coral)' : 'var(--ink)' }}>
                                   {opt.label}
                                 </button>
                               ))}
                             </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 9, padding: '9px 14px', flex: 1 }}>
+                              <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                              <div>
+                                <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Smart Trim</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
+                              </div>
+                            </label>
                           </div>
                         </div>
                       )}
