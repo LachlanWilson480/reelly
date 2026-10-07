@@ -11,7 +11,7 @@ const tmpDir = path.resolve('tmp');
 if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
 const PAUSE_THRESHOLD = 0.4;
-const MIN_FONT_SIZE = 18;
+const MIN_FONT_SIZE = 36;
 
 type WordTimestamp = { word: string; start: number; end: number };
 type CaptionStyle = {
