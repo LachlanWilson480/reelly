@@ -214,7 +214,7 @@ input.no-native-spinner {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px rgba(255,255,255,0.08) inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px #2a1f3d inset !important;
   -webkit-text-fill-color: #F1EFE8 !important;
   caret-color: #F1EFE8;
 }
