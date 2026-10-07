@@ -49,8 +49,8 @@ export default function PlansPage() {
       monthlyPrice: `${p.symbol}${p.basic}`,
       yearlyPrice: `${p.symbol}${p.basicYearly}`,
       yearlyPerMonth: `${p.symbol}${p.basicPerMonth}`,
-      desc: '25 render minutes/month',
-      features: ['25 render minutes/month', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
+      desc: '~40 reels per month',
+      features: ['~40 reels/month (25 render minutes)', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
     },
     {
       id: 'top',
@@ -58,8 +58,8 @@ export default function PlansPage() {
       monthlyPrice: `${p.symbol}${p.pro}`,
       yearlyPrice: `${p.symbol}${p.proYearly}`,
       yearlyPerMonth: `${p.symbol}${p.proPerMonth}`,
-      desc: '60 render minutes/month',
-      features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)'],
+      desc: '~90 reels per month',
+      features: ['~90 reels/month (60 render minutes)', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)'],
       highlight: true,
     },
   ]
