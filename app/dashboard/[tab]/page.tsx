@@ -2392,19 +2392,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                   {uploadSlots.map((slotId, slotIndex) => (
                     <div key={`slot-wrapper-${slotId}`}>
-                    {slotIndex > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', marginBottom: 4 }}>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>↓</span>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                            <button key={opt.id} type="button" onClick={() => setUploadPerClipTransitions((prev) => ({ ...prev, [slotId]: opt.id }))}
-                              style={{ padding: '2px 8px', borderRadius: 5, border: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)', background: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'rgba(216,90,48,0.1)' : 'transparent', fontSize: 10, color: (uploadPerClipTransitions[slotId] || 'none') === opt.id ? 'var(--coral)' : 'var(--text-muted)', cursor: 'pointer' }}>
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+
                     <div
                       key={slotId}
                       draggable
