@@ -43,8 +43,11 @@ export default function Tooltip({ text, children }: { text: string; children: Re
             right: '100%',
             top: '50%',
             transform: 'translateY(-50%)',
-            border: '5px solid transparent',
-            borderRightColor: 'var(--card-bg)',
+            width: 0,
+            height: 0,
+            borderTop: '6px solid transparent',
+            borderBottom: '6px solid transparent',
+            borderRight: '6px solid var(--card-bg)',
           }} />
         </span>
       )}
