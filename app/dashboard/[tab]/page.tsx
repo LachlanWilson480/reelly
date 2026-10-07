@@ -2822,21 +2822,22 @@ export default function DashboardPage() {
                             </label>
                             {aiAddCaptions && (
                               <>
-                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
                                   {CAPTION_PRESETS.map((preset) => (
                                     <button key={preset.id} onClick={() => setAiCaptionPreset(preset.id)}
-                                      style={{ padding: '6px 12px', borderRadius: 7, border: aiCaptionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiCaptionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: aiCaptionPreset === preset.id ? 600 : 400, color: aiCaptionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>
-                                      {preset.label}
+                                      style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: aiCaptionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiCaptionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                                      <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: aiCaptionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
+                                      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.desc}</p>
                                     </button>
                                   ))}
                                 </div>
                                 <details>
-                                  <summary style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Advanced</summary>
-                                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                                    <select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select>
-                                    <input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, width: 60 }} />
-                                    <input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, width: 44 }} />
-                                    <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12, flex: 1 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select>
+                                  <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
+                                    <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                                    <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="number" value={captionFontSize} onChange={(e) => setCaptionFontSize(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                                    <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                                    <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
                                   </div>
                                 </details>
                               </>
