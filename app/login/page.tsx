@@ -109,7 +109,7 @@ export default function LoginPage() {
               </div>
               <div style={{ marginBottom: 24, position: 'relative' }}>
                 <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ ...inputStyle, padding: '12px 44px 12px 14px' }} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 12, color: '#F1EFE8', fontWeight: 600, cursor: 'pointer' }}>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 12, color: 'rgba(241,239,232,0.5)', fontWeight: 600, cursor: 'pointer' }}>
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
