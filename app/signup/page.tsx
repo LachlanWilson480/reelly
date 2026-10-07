@@ -196,6 +196,7 @@ export default function SignUpPage() {
               Create your account to get started.
             </p>
 
+            {message !== 'check-email' && <>
             <div style={{ position: 'relative', marginBottom: 8, minHeight: 44 }}>
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', opacity: agreedToTerms ? 1 : 0.5, transition: 'opacity 0.15s ease' }} />
               {!agreedToTerms && (
@@ -215,6 +216,7 @@ export default function SignUpPage() {
               <span style={{ fontSize: 12, color: '#D3D1C7' }}>or</span>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
             </div>
+            </>}
 
             {message !== 'check-email' && <form onSubmit={handleSignUp}>
               <div style={{ marginBottom: 16 }}>
@@ -344,15 +346,43 @@ export default function SignUpPage() {
                 <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
                   We sent a 6-digit code to <strong>{email}</strong>
                 </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="Enter 6-digit code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  style={{ width: '100%', padding: '16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 28, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', textAlign: 'center', letterSpacing: 12, marginBottom: 16 }}
-                />
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
+                  {[0,1,2,3,4,5].map((i) => (
+                    <input
+                      key={i}
+                      id={`otp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={otp[i] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '')
+                        const newOtp = otp.split('')
+                        newOtp[i] = val
+                        const joined = newOtp.join('').slice(0, 6)
+                        setOtp(joined)
+                        if (val && i < 5) {
+                          const next = document.getElementById(`otp-${i+1}`)
+                          if (next) (next as HTMLInputElement).focus()
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace' && !otp[i] && i > 0) {
+                          const prev = document.getElementById(`otp-${i-1}`)
+                          if (prev) (prev as HTMLInputElement).focus()
+                        }
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault()
+                        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+                        setOtp(pasted)
+                        const next = document.getElementById(`otp-${Math.min(pasted.length, 5)}`)
+                        if (next) (next as HTMLInputElement).focus()
+                      }}
+                      style={{ width: 44, height: 56, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 24, fontFamily: "'Inter', sans-serif", outline: 'none', color: '#F1EFE8', textAlign: 'center', fontWeight: 700 }}
+                    />
+                  ))}
+                </div>
                 <button
                   onClick={async () => {
                     if (otp.length !== 6) return
@@ -373,6 +403,13 @@ export default function SignUpPage() {
                 <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.4)', textAlign: 'center', marginTop: 12 }}>
                   Didn&apos;t get it? Check your spam folder.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => { setMessage(''); setOtp('') }}
+                  style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  ← Back to email options
+                </button>
               </div>
             ) : message ? (
               <p style={{ marginTop: 20, fontSize: 13, color: '#F1EFE8', textAlign: 'center', lineHeight: 1.5 }}>
