@@ -5,9 +5,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
-const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
-const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: '#F1EFE8', marginTop: 24, marginBottom: 12, opacity: 0.9 }
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 16 }
+const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, display: 'block' as const }
+const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -137,9 +137,9 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #26215C 0%, #712B13 100%)', fontFamily: "'Inter', sans-serif", color: '#F1EFE8' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-        <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: '#F1EFE8', textDecoration: 'none' }}>
+        <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
           Reelezy
         </Link>
       </nav>
@@ -149,10 +149,10 @@ export default function OnboardingPage() {
 
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10 }}>
+            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
               Let&apos;s get you set up
             </h1>
-            <p style={{ fontSize: 15, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               Four quick fields and you&apos;re generating content ideas in under a minute.
             </p>
           </div>
@@ -160,8 +160,8 @@ export default function OnboardingPage() {
           <form onSubmit={handleSubmit}>
 
             {/* Required fields */}
-            <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: '24px', marginBottom: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(241,239,232,0.5)', marginBottom: 20 }}>The essentials</p>
+            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 20 }}>The essentials</p>
 
               <Field label="Business name *" value={businessName} onChange={setBusinessName} placeholder="e.g. Jake's Plumbing" />
               <Field label="Industry *" value={industry} onChange={setIndustry} placeholder="e.g. hair salon, electrician, personal trainer" />
@@ -187,17 +187,17 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '14px', color: 'rgba(241,239,232,0.8)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ width: '100%', background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span>
                 <span style={{ fontWeight: 600 }}>{showOptional ? '− Hide' : '+ Add'} additional details</span>
-                <span style={{ color: 'rgba(241,239,232,0.5)', marginLeft: 8 }}>optional — improves idea quality</span>
+                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>optional — improves idea quality</span>
               </span>
-              <span style={{ fontSize: 11, color: 'rgba(241,239,232,0.4)' }}>can do this later in Settings</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>can do this later in Settings</span>
             </button>
 
             {showOptional && (
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px', marginBottom: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
 
                 <p style={sectionTitle}>Voice & audience</p>
                 <Field label="Tone of voice" value={tone} onChange={setTone} placeholder="e.g. playful, professional, edgy" />
@@ -211,7 +211,7 @@ export default function OnboardingPage() {
                   <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Do customers come to you, or do you travel to them?</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'both', label: 'Both' }].map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(216,90,48,0.15)' : 'rgba(255,255,255,0.06)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                      <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
                         {opt.label}
                       </button>
                     ))}
@@ -264,7 +264,7 @@ export default function OnboardingPage() {
             )}
 
             {message && (
-              <p style={{ fontSize: 13, color: 'rgba(241,239,232,0.9)', marginBottom: 12, textAlign: 'center' }}>{message}</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12, textAlign: 'center' }}>{message}</p>
             )}
 
             <button
@@ -275,7 +275,7 @@ export default function OnboardingPage() {
               {loading ? 'Setting up...' : 'Start generating ideas →'}
             </button>
 
-            <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.4)', textAlign: 'center', marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 12 }}>
               You can update all of this anytime in Settings.
             </p>
           </form>
