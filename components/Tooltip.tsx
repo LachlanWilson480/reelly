@@ -31,7 +31,7 @@ export default function Tooltip({ text, children }: { text: string; children: Re
           padding: '7px 12px',
           borderRadius: 8,
           whiteSpace: 'nowrap',
-          zIndex: 999,
+          zIndex: 9999,
           pointerEvents: 'none',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           border: '1px solid rgba(128,128,128,0.15)',
