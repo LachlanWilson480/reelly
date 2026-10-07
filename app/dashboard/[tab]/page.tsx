@@ -1800,9 +1800,9 @@ export default function DashboardPage() {
                             if (!profile) return
                             await proceedToFilming([idea])
                           }}
-                          style={{ marginTop: 12, background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer', display: 'block' }}
+                          style={{ marginTop: 12, background: 'none', border: '1px solid var(--coral)', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: 'var(--coral)', cursor: 'pointer', display: 'block' }}
                         >
-                          🎬 Film this
+                          Film this
                         </button>
                       </div>
                     ))}
