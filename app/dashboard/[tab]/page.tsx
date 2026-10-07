@@ -1937,7 +1937,7 @@ export default function DashboardPage() {
                           { id: 'single', label: 'Single shot', tip: 'One continuous shot - perfect for vlogs, talking-to-camera, or quick product demos.' },
                           { id: 'quick', label: 'Limited time', tip: 'Busy? 2-3 simple steps, 15-25 seconds total. Grab your phone and film in under 2 minutes.' },
                         ].map((mode) => (
-                          <Tooltip key={mode.id} text={mode.tip}>
+                          <Tooltip key={mode.id} text={mode.tip} position="bottom">
                             <button type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
                               {mode.label}
                             </button>
