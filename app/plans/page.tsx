@@ -25,7 +25,7 @@ export default function PlansPage() {
       yearlyPrice: '$0',
       yearlyPerMonth: '$0',
       desc: 'Get started for free',
-      features: ['3 ideas per batch (24 max ideas)', '7 filming instructions max', '2 reels/month (1 min max each)', '1 custom script', '3 image posts'],
+      features: ['2 reels (1 min max each)', '3 ideas per batch (24 max ideas)', '1 custom script', '3 image posts', '7 filming instructions max'],
     },
     {
       id: 'mid',
