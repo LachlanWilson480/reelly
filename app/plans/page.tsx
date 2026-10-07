@@ -12,15 +12,15 @@ export default function PlansPage() {
   const [currency, setCurrency] = useState<'AUD' | 'USD' | 'GBP'>('AUD')
   useEffect(() => {
     const host = window.location.hostname
-    if (host.includes('.co.uk')) setCurrency('GBP')
-    else if (host.includes('.com') && !host.includes('.com.au')) setCurrency('USD')
-    else setCurrency('AUD')
+    if (host.endsWith('.co.uk')) setCurrency('GBP')
+    else if (host.endsWith('.com.au') || host.endsWith('localhost')) setCurrency('AUD')
+    else setCurrency('USD')
   }, [])
 
   const prices = {
-    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: 29, proPerMonth: 57 },
-    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: 19, proPerMonth: 37 },
-    GBP: { symbol: '£', basic: 18, pro: 36, basicYearly: 180, proYearly: 360, basicPerMonth: 15, proPerMonth: 30 },
+    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: '29.17', proPerMonth: '57.50' },
+    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: '19.17', proPerMonth: '37.50' },
+    GBP: { symbol: '£', basic: 19, pro: 37, basicYearly: 190, proYearly: 370, basicPerMonth: '15.83', proPerMonth: '30.83' },
   }
   const p = prices[currency]
 
