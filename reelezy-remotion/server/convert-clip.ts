@@ -43,8 +43,8 @@ function convertToMp4(inputPath: string, outputPath: string, rotation: number): 
   return new Promise((resolve, reject) => {
     const outputOptions = [
       '-c:v libx264',
-      '-preset ultrafast',
-      '-crf 28',
+      '-preset fast',
+      '-crf 0',
       '-c:a aac',
       '-movflags +faststart',
       '-pix_fmt yuv420p',
