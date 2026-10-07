@@ -2568,11 +2568,12 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => {
+                  if (freeQuotaExceeded) { window.location.href = '/plans'; return }
                   const hasAnyFile = uploadSlots.some((id) => uploadSlotFiles[id])
                   if (uploading || extractingAudio || !hasAnyFile) return
                   startUploadAndRender()
                 }}
-                disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) || freeQuotaExceeded}
+                disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
                 style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
                 {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
@@ -2831,8 +2832,8 @@ export default function DashboardPage() {
                     )}
 
                     <button
-                      onClick={() => { if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
-                      disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 || freeQuotaExceeded}
+                      onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
+                      disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
                       style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
                       {freeQuotaExceeded ? 'Upgrade to render more videos' : aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
