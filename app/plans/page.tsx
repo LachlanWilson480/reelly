@@ -19,6 +19,15 @@ export default function PlansPage() {
 
   const pricing = [
     {
+      id: 'free',
+      name: 'Free',
+      monthlyPrice: '$0',
+      yearlyPrice: '$0',
+      yearlyPerMonth: '$0',
+      desc: 'Get started for free',
+      features: ['3 ideas per batch (24 max ideas)', '7 filming instructions max', '2 reels/month (1 min max each)', '1 custom script', '3 image posts'],
+    },
+    {
       id: 'mid',
       name: 'Basic',
       monthlyPrice: '$35',
@@ -188,24 +197,26 @@ export default function PlansPage() {
                     )
                   })}
                 </ul>
-                <button
-                  onClick={() => setCheckoutPlan({ id: tier.id, label: tier.name })}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'center',
-                    padding: '12px',
-                    borderRadius: 8,
-                    backgroundColor: tier.highlight ? 'var(--coral)' : 'transparent',
-                    border: tier.highlight ? 'none' : '1px solid var(--ink)',
-                    color: tier.highlight ? '#fff' : 'var(--ink)',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Get started
-                </button>
+                {tier.id !== 'free' && (
+                  <button
+                    onClick={() => setCheckoutPlan({ id: tier.id, label: tier.name })}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'center',
+                      padding: '12px',
+                      borderRadius: 8,
+                      backgroundColor: tier.highlight ? 'var(--coral)' : 'transparent',
+                      border: tier.highlight ? 'none' : '1px solid var(--ink)',
+                      color: tier.highlight ? '#fff' : 'var(--ink)',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Get started
+                  </button>
+                )}
               </div>
             ))}
           </div>
