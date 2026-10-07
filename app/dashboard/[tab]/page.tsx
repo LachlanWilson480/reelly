@@ -122,7 +122,6 @@ export default function DashboardPage() {
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
-  const [aiTransition, setAiTransition] = useState<string>('none')
   const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
   const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
   const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
@@ -142,7 +141,6 @@ export default function DashboardPage() {
   const [carouselError, setCarouselError] = useState('')
   const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
-  const [uploadTransition, setUploadTransition] = useState<string>('none')
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
@@ -151,9 +149,6 @@ export default function DashboardPage() {
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single'>('default')
   const [videoLength, setVideoLength] = useState<number>(30)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
-  const [uploadPerClipTransitions, setUploadPerClipTransitions] = useState<Record<number, string>>({})
-  const [uploadPerClipMode, setUploadPerClipMode] = useState(false)
-  const [aiPerClipTransitions, setAiPerClipTransitions] = useState<Record<number, string>>({})
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
@@ -1097,7 +1092,7 @@ export default function DashboardPage() {
           outputOrientation,
           resolution: aiResolution,
           transition: aiTransition,
-          perClipTransitions: clipPaths.map((_, i) => aiPerClipTransitions[i] || aiTransition || 'none'),
+          
           ideaId: selectedFilmingId || null,
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
           ideaCaption: filmingItems.find((f) => f.id === selectedFilmingId)?.caption || null,
@@ -1194,7 +1189,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, transition: uploadTransition, perClipTransitions: uploadSlots.map((id) => uploadPerClipTransitions[id] || uploadTransition || 'none'), ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
       })
 
       const data = await res.json()
