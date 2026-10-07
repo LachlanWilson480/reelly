@@ -173,8 +173,8 @@ export async function burnCaptions(
       .replace(/\]/g, "\\]");
 
     const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=10` : '';
-    const adjStart = Math.max(0, group.start - 0.1);
-    const adjEnd = group.end - 0.05;
+    const adjStart = Math.max(0, group.start);
+    const adjEnd = group.end;
 
     return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
   });
