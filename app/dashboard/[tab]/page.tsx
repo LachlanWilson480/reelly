@@ -1433,12 +1433,16 @@ export default function DashboardPage() {
           {/* Editor toggle - shown when on edit tab */}
           {(tab === 'aiuploads' || tab === 'uploads') && (
             <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              <button onClick={() => { setEditorMode('ai'); setTab('aiuploads') }} style={{ padding: '7px 16px', borderRadius: 8, border: editorMode === 'ai' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'ai' ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: editorMode === 'ai' ? 600 : 400, color: editorMode === 'ai' ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                AI Editor
-              </button>
-              <button onClick={() => { setEditorMode('any'); setTab('uploads') }} style={{ padding: '7px 16px', borderRadius: 8, border: editorMode === 'any' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'any' ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: editorMode === 'any' ? 600 : 400, color: editorMode === 'any' ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                Editor For Any Video
-              </button>
+              <Tooltip text="Upload clips from your AI-generated filming instructions" position="bottom">
+                <button onClick={() => { setEditorMode('ai'); setTab('aiuploads') }} style={{ padding: '8px 18px', borderRadius: 8, border: editorMode === 'ai' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'ai' ? 'var(--coral)' : 'var(--card-bg)', fontSize: 13, fontWeight: 600, color: editorMode === 'ai' ? '#fff' : 'var(--ink)', cursor: 'pointer' }}>
+                  AI Editor
+                </button>
+              </Tooltip>
+              <Tooltip text="Upload and edit any video clips you have filmed" position="bottom">
+                <button onClick={() => { setEditorMode('any'); setTab('uploads') }} style={{ padding: '8px 18px', borderRadius: 8, border: editorMode === 'any' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'any' ? 'var(--coral)' : 'var(--card-bg)', fontSize: 13, fontWeight: 600, color: editorMode === 'any' ? '#fff' : 'var(--ink)', cursor: 'pointer' }}>
+                  Editor For Any Video
+                </button>
+              </Tooltip>
             </div>
           )}
 
