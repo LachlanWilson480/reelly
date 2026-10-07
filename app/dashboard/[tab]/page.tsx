@@ -1091,7 +1091,6 @@ export default function DashboardPage() {
           clipSettings,
           outputOrientation,
           resolution: aiResolution,
-          transition: aiTransition,
           
           ideaId: selectedFilmingId || null,
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
@@ -2530,20 +2529,6 @@ export default function DashboardPage() {
                         </>
                       )}
                     </div>
-
-                    {/* Transition */}
-                    <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Transition between clips</p>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe' }, { id: 'slideLeft', label: 'Slide' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                          <button key={opt.id} type="button" onClick={() => setUploadTransition(opt.id)}
-                            style={{ padding: '7px 14px', borderRadius: 8, border: uploadTransition === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadTransition === opt.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: uploadTransition === opt.id ? 'var(--coral)' : 'var(--ink)', fontWeight: uploadTransition === opt.id ? 600 : 400, cursor: 'pointer' }}>
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Quality + Smart Trim */}
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 200 }}>
@@ -2705,20 +2690,7 @@ export default function DashboardPage() {
                           const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
                           return (
                             <React.Fragment key={i}>
-                            {i > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                                <div style={{ width: 24, flexShrink: 0 }} />
-                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Transition:</p>
-                                  {[{ id: 'none', label: 'Cut' }, { id: 'fade', label: 'Fade' }, { id: 'wipeLeft', label: 'Wipe ←' }, { id: 'wipeRight', label: 'Wipe →' }, { id: 'slideLeft', label: 'Slide ←' }, { id: 'slideRight', label: 'Slide →' }, { id: 'zoom', label: 'Zoom' }].map((opt) => (
-                                    <button key={opt.id} type="button" onClick={() => setAiPerClipTransitions((prev) => ({ ...prev, [i]: opt.id }))} style={{ padding: '3px 8px', borderRadius: 5, border: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? 'rgba(216,90,48,0.08)' : 'transparent', fontSize: 10, color: (aiPerClipTransitions[i] || aiTransition || 'none') === opt.id ? 'var(--coral)' : 'var(--text-muted)', cursor: 'pointer' }}>
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            <div key={i} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '14px 16px' }}>
+<div key={i} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '14px 16px' }}>
                               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                 <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
                                 <div>
