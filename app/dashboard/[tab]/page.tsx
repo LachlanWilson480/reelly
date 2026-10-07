@@ -187,6 +187,8 @@ export default function DashboardPage() {
   const [renderId, setRenderId] = useState<string | null>(null)
   const [renderProgress, setRenderProgress] = useState<number>(0)
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
+  const [renderOverQuota, setRenderOverQuota] = useState(false)
+  const [aiRenderOverQuota, setAiRenderOverQuota] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
@@ -451,6 +453,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setRenderStatus(data.status)
+      if (data.overQuota) setRenderOverQuota(true)
       if (typeof data.progress === 'number') setRenderProgress(data.progress)
       if (data.error) setRenderError(data.error)
       if (data.outputUrl) setOutputUrl(data.outputUrl)
@@ -470,6 +473,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setAiRenderStatus(data.status)
+      if (data.overQuota) setAiRenderOverQuota(true)
       if (typeof data.progress === 'number') setAiRenderProgress(data.progress)
       if (data.outputUrl) setAiOutputUrl(data.outputUrl)
     }, 4000)
@@ -2600,7 +2604,13 @@ export default function DashboardPage() {
                   {renderStatus === 'done' && outputUrl && (
                     <>
                       <video controls src={outputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
-                      <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                      {renderOverQuota ? (
+                        <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          Upgrade to download ↗
+                        </button>
+                      ) : (
+                        <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                      )}
                     </>
                   )}
                 </div>
@@ -2851,7 +2861,13 @@ export default function DashboardPage() {
                         {aiRenderStatus === 'done' && aiOutputUrl && (
                           <>
                             <video controls src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
-                            <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                            {aiRenderOverQuota ? (
+                              <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                                Upgrade to download ↗
+                              </button>
+                            ) : (
+                              <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                            )}
                           </>
                         )}
                       </div>

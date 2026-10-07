@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
-      .select('shotstack_render_id, user_id, notified, status, output_url')
+      .select('shotstack_render_id, user_id, notified, status, output_url, over_quota')
       .eq('id', renderId)
       .single()
 
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
         outputUrl: resolveOutputUrl(renderRow.output_url, renderId, siteUrl),
         progress: renderRow.status === 'done' ? 100 : 0,
         error: renderRow.status === 'failed' ? 'Render failed' : null,
+        overQuota: renderRow.over_quota === true,
       })
     }
 

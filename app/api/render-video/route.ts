@@ -53,23 +53,31 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = await getPlan(userId)
+
+    // Free plan: allow up to 60s lifetime, watermark all renders
+    const FREE_CAP_SECONDS = 60
     if (plan === 'free') {
-      return NextResponse.json(
-        { error: 'Video rendering is not available on the Free plan. Upgrade to Basic, Pro, or Premium to render videos.' },
-        { status: 403 }
-      )
+      const { data: allRenders } = await supabaseAdmin
+        .from('renders')
+        .select('duration_seconds')
+        .eq('user_id', userId)
+      const usedSeconds = (allRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+      if (usedSeconds >= FREE_CAP_SECONDS) {
+        // Over quota — still allow render but mark as over_quota so frontend blocks download
+        // We'll pass watermark flag and over_quota flag through
+      }
     }
 
     const capMin = plan === 'top' ? PREMIUM_CAP_MIN : plan === 'mid' ? PRO_CAP_MIN : BASIC_CAP_MIN
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-    const { data: monthRenders } = await supabaseAdmin
+    const { data: monthRenders } = plan !== 'free' ? await supabaseAdmin
       .from('renders')
       .select('duration_seconds')
       .eq('user_id', userId)
-      .gte('created_at', monthStart)
+      .gte('created_at', monthStart) : { data: [] }
 
-    const usedSeconds = (monthRenders || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0)
-    if (usedSeconds / 60 >= capMin) {
+    const usedSeconds = (monthRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+    if (plan !== 'free' && usedSeconds / 60 >= capMin) {
       return NextResponse.json(
         { error: `You've used your ${capMin} minutes of render time for this month. Upgrade for more render time.` },
         { status: 403 }
@@ -149,6 +157,19 @@ export async function POST(req: NextRequest) {
 
     if (dbError) return NextResponse.json({ error: 'Failed to save render record' }, { status: 500 })
 
+    // Calculate free plan quota
+    let overQuota = false
+    if (plan === 'free') {
+      const { data: allRenders } = await supabaseAdmin.from('renders').select('duration_seconds').eq('user_id', userId)
+      const totalUsed = (allRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+      overQuota = totalUsed >= 60
+    }
+
+    // Mark over_quota in DB so frontend can block download
+    if (overQuota) {
+      await supabaseAdmin.from('renders').update({ over_quota: true }).eq('id', renderRow.id)
+    }
+
     // Call render server with the real renderId
     const renderServerUrl = process.env.RENDER_SERVER_URL!
     const renderRes = await fetch(`${renderServerUrl}/renders`, {
@@ -166,6 +187,7 @@ export async function POST(req: NextRequest) {
         captionStyle: captionStyle || null,
         userId,
         renderId: renderRow.id,
+        watermark: plan === 'free',
       }),
     })
 

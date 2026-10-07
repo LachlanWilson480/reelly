@@ -60,7 +60,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId } = req.body;
+      const { clips, musicSrc, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -121,6 +121,7 @@ function setupApp() {
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,
         captionStyle: normalizedCaptionStyle,
+        watermark: watermark === true,
         userId,
         renderId,
       });
