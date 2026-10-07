@@ -365,7 +365,11 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
-    const objectivesBlock = weeklyObjectives?.trim() ? `\n\nCUSTOM INPUT — THIS OVERRIDES EVERYTHING ELSE. Ignore all angle suggestions, seasonal context, and style guidance below. Follow these instructions exactly as written. Use the business name, industry, location, and tone of voice as context only:\n${weeklyObjectives.trim()}\n\nOnly after fully satisfying the custom input above, fill any remaining idea slots with evergreen angles from the business profile.` : ''
+    const objectivesBlock = weeklyObjectives?.trim() ? `MANDATORY INSTRUCTION — FOLLOW THIS EXACTLY. Do not use any pre-built angles, frameworks, or editorial voice. The user has given you a direct command:
+
+"${weeklyObjectives.trim()}"
+
+Execute this command literally. If they say "3 harsh fantasy football punishments", generate exactly 3 ideas that ARE harsh fantasy football punishments — not tips about punishments, not advice about punishments, not meta-commentary about punishments. The actual thing they asked for. Use the business context below only for names, location and tone.` : ''
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
@@ -414,15 +418,15 @@ export async function POST(req: NextRequest) {
     const profileBrief = compressProfile(profile)
 
     const prompt = `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
-
-BUSINESS:
+${objectivesBlock ? objectivesBlock + '\n' : ''}
+BUSINESS CONTEXT (use for tone, names, location only — do not override custom input above):
 ${profileBrief}
 ${crewLine}
 Location: ${locationBrief}
-${seasonalBlock ? `\n${seasonalBlock}` : ''}
-${keyEventsContext ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
+${seasonalBlock && !objectivesBlock ? `\n${seasonalBlock}` : ''}
+${keyEventsContext && !objectivesBlock ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
-${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch — let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${objectivesBlock}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
+${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch — let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
 HOW TO USE THE BRIEF:
 - Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea
