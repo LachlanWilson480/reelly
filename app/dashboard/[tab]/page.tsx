@@ -2261,7 +2261,7 @@ export default function DashboardPage() {
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Script Generator</h3>
                   <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '6px 12px', textAlign: 'center', flexShrink: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{scriptsThisWeek} / {isFreeTier ? 3 : isProPlan ? 96 : 20}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>'scripts this week'</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>`scripts`</p>
                   </div>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
