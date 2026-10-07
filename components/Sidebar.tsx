@@ -35,8 +35,12 @@ export default function Sidebar() {
     supabase.auth.getSession().then(({ data }) => {
       setIsLoggedIn(!!data.session)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setIsLoggedIn(false)
+      } else {
+        setIsLoggedIn(!!session)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
