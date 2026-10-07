@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
@@ -8,6 +8,22 @@ import CheckoutModal from '@/components/CheckoutModal'
 
 export default function PlansPage() {
   const router = useRouter()
+
+  const [currency, setCurrency] = useState<'AUD' | 'USD' | 'GBP'>('AUD')
+  useEffect(() => {
+    const host = window.location.hostname
+    if (host.includes('.co.uk')) setCurrency('GBP')
+    else if (host.includes('.com') && !host.includes('.com.au')) setCurrency('USD')
+    else setCurrency('AUD')
+  }, [])
+
+  const prices = {
+    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: 29, proPerMonth: 57 },
+    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: 19, proPerMonth: 37 },
+    GBP: { symbol: '£', basic: 18, pro: 36, basicYearly: 180, proYearly: 360, basicPerMonth: 15, proPerMonth: 30 },
+  }
+  const p = prices[currency]
+
   const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
   const [success, setSuccess] = useState(false)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('yearly')
@@ -30,18 +46,18 @@ export default function PlansPage() {
     {
       id: 'mid',
       name: 'Basic',
-      monthlyPrice: '$35',
-      yearlyPrice: '$350',
-      yearlyPerMonth: '$29.17',
+      monthlyPrice: `${p.symbol}${p.basic}`,
+      yearlyPrice: `${p.symbol}${p.basicYearly}`,
+      yearlyPerMonth: `${p.symbol}${p.basicPerMonth}`,
       desc: '25 render minutes/month',
       features: ['25 render minutes/month', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
     },
     {
       id: 'top',
       name: 'Pro',
-      monthlyPrice: '$69',
-      yearlyPrice: '$690',
-      yearlyPerMonth: '$57.50',
+      monthlyPrice: `${p.symbol}${p.pro}`,
+      yearlyPrice: `${p.symbol}${p.proYearly}`,
+      yearlyPerMonth: `${p.symbol}${p.proPerMonth}`,
       desc: '60 render minutes/month',
       features: ['60 render minutes/month', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)'],
       highlight: true,
@@ -70,8 +86,8 @@ export default function PlansPage() {
 
   const discountedPrice = (price: string) => {
     if (!discountPercent) return null
-    const num = parseFloat(price.replace('$', ''))
-    return `$${(num * (1 - discountPercent / 100)).toFixed(2)}`
+    const num = parseFloat(price.replace(/[^0-9.]/g, ''))
+    return `${p.symbol}${(num * (1 - discountPercent / 100)).toFixed(2)}`
   }
 
   return (
@@ -223,7 +239,7 @@ export default function PlansPage() {
               What happens if I go over my render minutes?
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Overage renders are billed monthly at a flat fee of $0.50/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
+              Overage renders are billed monthly at a flat fee of {p.symbol}0.50/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
             </p>
           </div>
         </div>
