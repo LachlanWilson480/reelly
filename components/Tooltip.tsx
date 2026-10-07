@@ -45,9 +45,15 @@ export default function Tooltip({ text, children }: { text: string; children: Re
             transform: 'translateY(-50%)',
             width: 0,
             height: 0,
-            borderTop: '6px solid transparent',
-            borderBottom: '6px solid transparent',
-            borderRight: '6px solid var(--card-bg)',
+            borderTopWidth: 6,
+            borderBottomWidth: 6,
+            borderRightWidth: 6,
+            borderTopStyle: 'solid',
+            borderBottomStyle: 'solid',
+            borderRightStyle: 'solid',
+            borderTopColor: 'transparent',
+            borderBottomColor: 'transparent',
+            borderRightColor: 'var(--card-bg)',
           }} />
         </span>
       )}
