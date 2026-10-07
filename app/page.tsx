@@ -90,7 +90,7 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
-      <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
+      <div style={{ marginLeft: 0 }}>
 
         <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 64px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, letterSpacing: -0.2 }}>Reelezy</span>
