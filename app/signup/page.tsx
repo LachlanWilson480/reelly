@@ -16,8 +16,6 @@ export default function SignUpPage() {
   const [isSigningUp, setIsSigningUp] = useState(false)
   const [otp, setOtp] = useState('')
   const [verifying, setVerifying] = useState(false)
-  const [otp, setOtp] = useState('')
-  const [verifying, setVerifying] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   const handleSignUp = async (e: React.FormEvent) => {
