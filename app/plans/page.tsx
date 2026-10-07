@@ -18,9 +18,9 @@ export default function PlansPage() {
   }, [])
 
   const prices = {
-    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: '29.17', proPerMonth: '57.50' },
-    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: '19.17', proPerMonth: '37.50' },
-    GBP: { symbol: '£', basic: 19, pro: 37, basicYearly: 190, proYearly: 370, basicPerMonth: '15.83', proPerMonth: '30.83' },
+    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: '29.10', proPerMonth: '57.50' },
+    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: '19.10', proPerMonth: '37.50' },
+    GBP: { symbol: '£', basic: 19, pro: 37, basicYearly: 190, proYearly: 370, basicPerMonth: '15.80', proPerMonth: '30.80' },
   }
   const p = prices[currency]
 
