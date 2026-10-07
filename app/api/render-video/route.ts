@@ -54,17 +54,16 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
-    // Free plan: 2 reels max, 60s total lifetime, watermark all renders
-    const FREE_REEL_LIMIT = 2
+    // Free plan: 60s total lifetime render time, watermark all renders
     const FREE_CAP_SECONDS = 60
     if (plan === 'free') {
       const { data: allRenders } = await supabaseAdmin
         .from('renders')
         .select('duration_seconds')
         .eq('user_id', userId)
-      const totalReels = (allRenders || []).length
-      if (totalReels >= FREE_REEL_LIMIT) {
-        return NextResponse.json({ error: 'Free plan includes 2 reels. Upgrade to create more videos.' }, { status: 403 })
+      const usedSeconds = (allRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+      if (usedSeconds >= FREE_CAP_SECONDS) {
+        return NextResponse.json({ error: 'You have used your free 60 seconds of render time. Upgrade to create more videos.' }, { status: 403 })
       }
     }
 
