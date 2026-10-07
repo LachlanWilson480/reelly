@@ -365,11 +365,20 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
-    const objectivesBlock = weeklyObjectives?.trim() ? `MANDATORY INSTRUCTION — FOLLOW THIS EXACTLY. Do not use any pre-built angles, frameworks, or editorial voice. The user has given you a direct command:
+    const customOverridePrompt = weeklyObjectives?.trim() ? `You are a social media content assistant. Generate exactly ${batchSize} short-form social video ideas as a JSON array.
 
+The user has given you the following instruction:
 "${weeklyObjectives.trim()}"
 
-Execute this command literally. If they say "3 harsh fantasy football punishments", generate exactly 3 ideas that ARE harsh fantasy football punishments — not tips about punishments, not advice about punishments, not meta-commentary about punishments. The actual thing they asked for. Use the business context below only for names, location and tone.` : ''
+Create ideas that directly fulfil this instruction, tailored to this account:
+- Business name: ${profile.business_name || 'not specified'}
+- Industry: ${profile.industry || 'not specified'}
+- Location: ${profile.suburb || 'not specified'}
+- Tone of voice: ${profile.tone || 'not specified'}
+- Core services/products: ${profile.core_services || 'not specified'}
+
+Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, hook, description, tags. Do not add advice, tips, commentary or meta-analysis — just the ideas themselves.` : ''
+    const objectivesBlock = customOverridePrompt
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, batchSize)
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
@@ -417,9 +426,21 @@ Execute this command literally. If they say "3 harsh fantasy football punishment
 
     const profileBrief = compressProfile(profile)
 
-    const prompt = `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
-${objectivesBlock ? objectivesBlock + '\n' : ''}
-BUSINESS CONTEXT (use for tone, names, location only — do not override custom input above):
+    const prompt = weeklyObjectives?.trim()
+      ? `You are a social media content assistant. Generate exactly ${batchSize} short-form social video ideas as a JSON array.
+
+The user has given you the following instruction: "${weeklyObjectives.trim()}"
+
+Create ideas that directly fulfil this instruction, tailored to this account:
+- Business: ${profile.business_name || ''} (${profile.industry || ''})
+- Location: ${profile.suburb || ''}, ${profile.country || ''}
+- Tone: ${profile.tone || 'authentic, relatable'}
+- Services: ${profile.core_services || ''}
+
+Return exactly ${batchSize} ideas. Each must have: title (catchy), hook (1 sentence), description (1-2 sentences), tags (3-5 hashtags). Do not add advice or commentary — just the ideas.`
+      : `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
+
+BUSINESS:
 ${profileBrief}
 ${crewLine}
 Location: ${locationBrief}
