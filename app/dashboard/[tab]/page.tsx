@@ -1795,6 +1795,15 @@ export default function DashboardPage() {
                             + Add notes
                           </button>
                         )}
+                        <button
+                          onClick={async () => {
+                            if (!profile) return
+                            await proceedToFilming([idea])
+                          }}
+                          style={{ marginTop: 12, background: 'var(--coral)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer', display: 'block' }}
+                        >
+                          🎬 Film this
+                        </button>
                       </div>
                     ))}
                   </div>
