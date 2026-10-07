@@ -6,14 +6,8 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
   const [visible, setVisible] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const show = () => {
-    timer.current = setTimeout(() => setVisible(true), 800)
-  }
-
-  const hide = () => {
-    if (timer.current) clearTimeout(timer.current)
-    setVisible(false)
-  }
+  const show = () => { timer.current = setTimeout(() => setVisible(true), 800) }
+  const hide = () => { if (timer.current) clearTimeout(timer.current); setVisible(false) }
 
   const tooltipStyle: React.CSSProperties = (position === 'bottom' || position === 'top') ? {
     position: 'absolute',
@@ -21,7 +15,6 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     bottom: position === 'top' ? 'calc(100% + 8px)' : 'auto',
     left: position === 'top' ? 'auto' : 0,
     right: position === 'top' ? 0 : 'auto',
-    transform: 'none',
     background: 'var(--card-bg)',
     color: 'var(--ink)',
     fontSize: 12,
@@ -34,8 +27,6 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
     border: '1px solid rgba(128,128,128,0.15)',
     fontFamily: "'Inter', sans-serif",
-    whiteSpace: 'nowrap' as const,
-    textAlign: 'left' as const,
   } : {
     position: 'absolute',
     left: 'calc(100% + 10px)',

@@ -2789,28 +2789,29 @@ export default function DashboardPage() {
                           <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
 
                           {/* Music row */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 80 }}>Music</span>
-                            <div style={{ display: 'flex', gap: 6 }}>
+                          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Music</p>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                               <Tooltip text="Browse our royalty-free music library" position="top">
                                 <button type="button" onClick={() => setShowMusicLibrary('ai')}
-                                  style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'transparent', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                                  {libraryMusicName ? `♪ ${libraryMusicName.slice(0,16)}…` : '♪ Library'}
+                                  style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
+                                  {libraryMusicName ? `♪ ${libraryMusicName}` : '♪ Library'}
                                 </button>
                               </Tooltip>
                               <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="top">
                                 <button type="button" onClick={() => musicInputRef.current?.click()}
-                                  style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'transparent', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
-                                  {musicFile ? '♪ Uploaded' : 'Upload'}
+                                  style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
+                                  {musicFile ? `♪ ${musicFile.name}` : 'Upload'}
                                 </button>
                               </Tooltip>
                               <Tooltip text="Extract audio from any video clip and use it as background sound" position="top">
                                 <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
-                                  style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'transparent', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                                  {extractingAudio ? '…' : extractedMusicPath ? '♪ Extracted' : 'Sound from video'}
+                                  style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
+                                  {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : 'Sound from video'}
                                 </button>
                               </Tooltip>
                             </div>
+                            {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
                           </div>
 
                           {/* Captions row */}
