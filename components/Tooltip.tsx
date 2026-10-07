@@ -18,8 +18,8 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
   const tooltipStyle: React.CSSProperties = position === 'bottom' ? {
     position: 'absolute',
     top: 'calc(100% + 8px)',
-    left: '50%',
-    transform: 'translateX(-50%)',
+    left: 0,
+    transform: 'none',
     background: 'var(--card-bg)',
     color: 'var(--ink)',
     fontSize: 12,
