@@ -191,7 +191,7 @@ export default function OnboardingPage() {
             >
               <span>
                 <span style={{ fontWeight: 600 }}>{showOptional ? '− Hide' : '+ Add'} additional details</span>
-                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>optional — improves idea quality</span>
+                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>optional - improves idea quality</span>
               </span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>can do this later in Settings</span>
             </button>

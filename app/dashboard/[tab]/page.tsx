@@ -837,7 +837,7 @@ export default function DashboardPage() {
           }
           merged.push(item)
           if (item.id.startsWith('script-')) {
-            // Script-based ideas don't exist in generated_ideas — insert a new row
+            // Script-based ideas don't exist in generated_ideas - insert a new row
             // Check if a row already exists for this script idea
             const { data: existing } = await supabase
               .from("generated_ideas")
@@ -1429,7 +1429,7 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Editor toggle — shown when on edit tab */}
+          {/* Editor toggle - shown when on edit tab */}
           {(tab === 'aiuploads' || tab === 'uploads') && (
             <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
               <button onClick={() => { setEditorMode('ai'); setTab('aiuploads') }} style={{ padding: '7px 16px', borderRadius: 8, border: editorMode === 'ai' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'ai' ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 13, fontWeight: editorMode === 'ai' ? 600 : 400, color: editorMode === 'ai' ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
@@ -1523,7 +1523,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Row 2: seasonal mode + tone — full width */}
+                {/* Row 2: seasonal mode + tone - full width */}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   {/* Seasonal */}
                   <div style={{ flex: 1 }}>

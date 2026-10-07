@@ -76,9 +76,9 @@ export default function HomePage() {
   ]
 
   const mockFilmingSteps = [
-    '0:00-0:08 — Standing at the counter, introduce yourself',
-    '0:08-0:17 — Show the product up close, explain the benefit',
-    '0:17-0:25 — End with a smile, invite them to book',
+    '0:00-0:08 - Standing at the counter, introduce yourself',
+    '0:08-0:17 - Show the product up close, explain the benefit',
+    '0:17-0:25 - End with a smile, invite them to book',
   ]
 
   const heroSteps = [
