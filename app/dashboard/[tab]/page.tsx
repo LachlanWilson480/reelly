@@ -2476,7 +2476,7 @@ export default function DashboardPage() {
                             }}
                             style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
                           >
-                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               + Choose clip
                             </button>
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
