@@ -1358,7 +1358,7 @@ export default function DashboardPage() {
               <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· Manage</span>
             </a>
           <button
-            onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
+            onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); router.push('/login') }}
             style={{ background: 'none', border: 'none', fontSize: 14, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
           >
             Log out

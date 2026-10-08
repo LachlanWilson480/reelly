@@ -47,6 +47,18 @@ export async function POST(req: NextRequest) {
 
     let customerId = existingSub?.stripe_customer_id
 
+    // Verify the existing customer belongs to this user before reusing
+    if (customerId) {
+      try {
+        const existingCustomer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+        if (existingCustomer.deleted || existingCustomer.metadata?.userId !== userId) {
+          customerId = undefined
+        }
+      } catch {
+        customerId = undefined
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({ email, metadata: { userId } })
       customerId = customer.id
