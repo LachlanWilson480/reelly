@@ -1046,8 +1046,9 @@ export default function DashboardPage() {
       const clipSettings: { letterbox?: boolean }[] = []
       let anyLandscape = false
 
-      for (const stepIndex of stepIndices) {
-        let path: string
+      // Upload all clips in parallel
+      const uploadResults = await Promise.all(stepIndices.map(async (stepIndex) => {
+        let path: string | null = null
         if (stepUploads[stepIndex]) {
           const file = stepUploads[stepIndex]
           path = stepUploadPaths[stepIndex] || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
@@ -1058,18 +1059,20 @@ export default function DashboardPage() {
           }
         } else if (stepUploadPaths[stepIndex]) {
           path = stepUploadPaths[stepIndex]
-        } else {
-          continue
         }
-        clipPaths.push(path)
-        if (aiSpeechSteps.has(stepIndex)) speechIndices.push(clipPaths.length - 1)
-
+        if (!path) return null
         const file2 = stepUploads[stepIndex]
         const duration = file2 ? await getVideoDuration(file2) : 0
-        clipTrims.push({ duration })
-
         const isLandscape = aiLandscapeSteps.has(stepIndex)
-        if (isLandscape) {
+        return { path, stepIndex, duration, isLandscape }
+      }))
+
+      for (const result of uploadResults) {
+        if (!result) continue
+        clipPaths.push(result.path)
+        if (aiSpeechSteps.has(result.stepIndex)) speechIndices.push(clipPaths.length - 1)
+        clipTrims.push({ duration: result.duration })
+        if (result.isLandscape) {
           anyLandscape = true
           clipSettings.push({ letterbox: true })
         } else {
@@ -1153,8 +1156,9 @@ export default function DashboardPage() {
       const speechIndices: number[] = []
       let anyLandscape = false
 
-      for (const slotId of slotIds) {
-        let path: string
+      // Upload all clips in parallel
+      const uploadResults = await Promise.all(slotIds.map(async (slotId) => {
+        let path: string | null = null
         if (uploadSlotFiles[slotId]) {
           const file = uploadSlotFiles[slotId]
           path = uploadSlotPaths[slotId] || `${userId}/${Date.now()}-${file.name}`
@@ -1165,18 +1169,20 @@ export default function DashboardPage() {
           }
         } else if (uploadSlotPaths[slotId]) {
           path = uploadSlotPaths[slotId]
-        } else {
-          continue
         }
-        clipPaths.push(path)
-        if (uploadSpeechSlots.has(slotId)) speechIndices.push(clipPaths.length - 1)
-
+        if (!path) return null
         const uploadFile = uploadSlotFiles[slotId]
         const duration = uploadFile ? await getVideoDuration(uploadFile) : 0
-        clipTrims.push({ duration })
-
         const isLandscape = uploadLandscapeSlots.has(slotId)
-        if (isLandscape) {
+        return { path, slotId, duration, isLandscape }
+      }))
+
+      for (const result of uploadResults) {
+        if (!result) continue
+        clipPaths.push(result.path)
+        if (uploadSpeechSlots.has(result.slotId)) speechIndices.push(clipPaths.length - 1)
+        clipTrims.push({ duration: result.duration })
+        if (result.isLandscape) {
           anyLandscape = true
           clipSettings.push({ letterbox: true })
         } else {
