@@ -165,7 +165,8 @@ export async function burnCaptions(
     return { outputPath, cleanup: () => { try { fs.unlinkSync(outputPath); } catch {} } };
   }
 
-  const drawtextFilters = groups.map((group) => {
+  const drawtextFilters = groups.map((group, i) => {
+    const nextGroup = groups[i + 1];
     const text = (uppercase ? group.text.toUpperCase() : group.text)
       .replace(/'/g, "\u2019")
       .replace(/:/g, "\\:")
@@ -174,7 +175,7 @@ export async function burnCaptions(
 
     const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=10` : '';
     const adjStart = Math.max(0, group.start);
-    const adjEnd = group.end;
+    const adjEnd = nextGroup ? Math.min(group.end, nextGroup.start) : group.end;
 
     return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
   });
