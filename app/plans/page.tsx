@@ -12,12 +12,15 @@ export default function PlansPage() {
 
   const [currency, setCurrency] = useState<'AUD' | 'USD' | 'GBP'>('AUD')
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserEmail(user.email || null)
+        const { data: profile } = await supabase.from('business_profiles').select('business_name').eq('user_id', user.id).maybeSingle()
+        setBusinessName(profile?.business_name || user.email || null)
         const { data: sub } = await supabase.from('subscriptions').select('plan, status').eq('user_id', user.id).maybeSingle()
         setUserPlan(sub?.status === 'active' ? sub.plan : 'free')
       }
@@ -117,7 +120,7 @@ export default function PlansPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
-                <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{userEmail}</span>
+                <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{businessName || userEmail}</span>
                 {userPlan && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {userPlan === 'free' ? 'Free Plan' : userPlan === 'top' ? 'Pro' : 'Basic'}</span>}
               </div>
               <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); window.location.href = '/login' }} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
