@@ -41,14 +41,9 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     else if (clip.filter === 'invert') filters.push('negate');
   }
 
-  if (clip.letterbox) {
-    // Landscape clip: scale to fill portrait height, crop sides to 9:16
-    filters.push(`scale=-2:${outputHeight}`);
-    filters.push(`crop=${outputWidth}:${outputHeight}`);
-  } else {
-    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
-    filters.push(`crop=${outputWidth}:${outputHeight}`);
-  }
+  // Always scale to fill the output frame and crop to exact dimensions
+  filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
+  filters.push(`crop=${outputWidth}:${outputHeight}`);
 
   filters.push('setpts=PTS-STARTPTS');
 
