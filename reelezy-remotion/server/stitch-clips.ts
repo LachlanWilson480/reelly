@@ -42,11 +42,13 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
   }
 
   if (clip.letterbox) {
+    // Landscape clip: fit inside portrait frame with black bars
     filters.push(`scale='if(gt(iw,${outputWidth}),${outputWidth},iw)':'if(gt(ih,${outputHeight}),${outputHeight},ih)':force_original_aspect_ratio=decrease`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   } else {
-    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
-    filters.push(`crop=${outputWidth}:${outputHeight}`);
+    // Portrait clip: scale to fit width, pad height if needed (no crop)
+    filters.push(`scale=${outputWidth}:-2`);
+    filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   }
 
   filters.push('setpts=PTS-STARTPTS');
