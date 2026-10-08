@@ -444,6 +444,12 @@ export default function DashboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    const handleClick = () => setOpenDropdown(null)
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
   useEffect(() => {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
 
