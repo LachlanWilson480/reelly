@@ -2443,9 +2443,7 @@ export default function DashboardPage() {
                             const sid = parseInt(e.target.dataset.slotid || '0')
                             if (!file || !userId) return
                             setUploadSlotFiles((prev) => ({ ...prev, [sid]: file }))
-                            const landscape = await isLandscapeVideo(file)
-                            setUploadLandscapeSlots((prev) => { const n = new Set(prev); landscape ? n.add(sid) : n.delete(sid); return n })
-                            const path = `${userId}/drafts/upload-${sid}-${Date.now()}-${file.name}`
+                              const path = `${userId}/drafts/upload-${sid}-${Date.now()}-${file.name}`
                             const { error } = await supabase.storage.from('video-uploads').upload(path, file)
                             if (!error) setUploadSlotPaths((prev) => ({ ...prev, [sid]: path }))
                           }}
@@ -2468,8 +2466,6 @@ export default function DashboardPage() {
                               const file = e.dataTransfer.files?.[0]
                               if (!file || !userId) return
                               setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
-                              const landscape = await isLandscapeVideo(file)
-                              setUploadLandscapeSlots((prev) => { const n = new Set(prev); landscape ? n.add(slotId) : n.delete(slotId); return n })
                               const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
                               const { error } = await supabase.storage.from('video-uploads').upload(path, file)
                               if (!error) setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
@@ -2706,8 +2702,6 @@ export default function DashboardPage() {
                             const file = e.target.files?.[0]
                             if (!file) return
                             setStepUploads({ 0: file })
-                            const landscape = await isLandscapeVideo(file)
-                            setAiLandscapeSteps((prev) => { const n = new Set(prev); landscape ? n.add(0) : n.delete(0); return n })
                           }} style={{ display: 'none' }} />
                           <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
@@ -2750,7 +2744,7 @@ export default function DashboardPage() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
                                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{instruction}</p>
-                                <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); const landscape = await isLandscapeVideo(file); setAiLandscapeSteps((prev) => { const n = new Set(prev); landscape ? n.add(i) : n.delete(i); return n }) } }} style={{ display: 'none' }} />
+                                <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
