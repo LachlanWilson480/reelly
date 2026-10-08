@@ -985,10 +985,21 @@ export default function DashboardPage() {
       video.preload = "metadata"
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src)
-        resolve(video.videoWidth > video.videoHeight)
+        // Use displayed dimensions (respects rotation metadata on iPhone MOVs)
+        const w = video.videoWidth
+        const h = video.videoHeight
+        // If dimensions are equal it's square, not landscape
+        resolve(w > h)
       }
       video.onerror = () => resolve(false)
+      // Force the video to render so browser applies rotation
+      video.style.position = 'fixed'
+      video.style.visibility = 'hidden'
+      document.body.appendChild(video)
       video.src = URL.createObjectURL(file)
+      setTimeout(() => {
+        try { document.body.removeChild(video) } catch {}
+      }, 2000)
     })
   }
 
