@@ -2673,29 +2673,40 @@ export default function DashboardPage() {
                         </button>
                       </div>
                       {aiSingleClipMode ? (
-                        <div>
-                          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Upload your single video and we'll handle the rest.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <input id="ai-single-clip" type="file" accept="video/*" onChange={async (e) => {
                             const file = e.target.files?.[0]
                             if (!file) return
                             setStepUploads({ 0: file })
                           }} style={{ display: 'none' }} />
-                          {stepUploads[0] ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[0].name}</p>
-                              <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
-                              <button type="button" onClick={() => setStepUploads({})} style={{ fontSize: 11, color: 'rgba(200,50,50,0.8)', background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Remove</button>
+                          <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {stepUploads[0] ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {stepUploads[0].name}</p>
+                                  <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                                </div>
+                              ) : (
+                                <div
+                                  draggable={false}
+                                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = 'var(--coral)' }}
+                                  onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.borderColor = 'transparent' }}
+                                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = 'transparent'; const file = e.dataTransfer.files?.[0]; if (file) setStepUploads({ 0: file }) }}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
+                                >
+                                  <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                              + Choose video
-                            </button>
-                          )}
-                          <div style={{ marginTop: 14 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                              <input type="checkbox" checked={aiLandscapeSteps.has(0)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
-                              Filmed horizontally (landscape)
-                            </label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={aiLandscapeSteps.has(0)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(0) : n.delete(0); return n }) }} />
+                                Landscape
+                              </label>
+                              {stepUploads[0] && <button type="button" onClick={() => setStepUploads({})} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
+                            </div>
                           </div>
                         </div>
                       ) : (
