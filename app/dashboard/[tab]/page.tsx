@@ -2706,50 +2706,49 @@ export default function DashboardPage() {
                           const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
                           return (
                             <React.Fragment key={i}>
-<div key={i} style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '14px 16px' }}>
-                              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
-                                <div>
-                                  {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
-                                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{instruction}</p>
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+<div key={i} style={{ background: 'var(--card-bg)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
+                              <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}>⠿</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>{i + 1}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
+                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{instruction}</p>
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) setStepUploads((prev) => ({ ...prev, [i]: file })) }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
-                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Change</button>
-                                    <button type="button" onClick={async () => {
-                                      setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
-                                      setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
-                                      setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
-                                      await authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
-                                    }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.8)', background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Remove</button>
+                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                   </div>
                                 ) : (
                                   <div
                                     draggable={false}
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = 'var(--coral)' }}
-                                    onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.borderColor = 'rgba(128,128,128,0.25)' }}
+                                    onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.borderColor = 'transparent' }}
                                     onDrop={async (e) => {
                                       e.preventDefault(); e.stopPropagation()
-                                      e.currentTarget.style.borderColor = 'rgba(128,128,128,0.25)'
+                                      e.currentTarget.style.borderColor = 'transparent'
                                       const file = e.dataTransfer.files?.[0]
                                       if (file) setStepUploads((prev) => ({ ...prev, [i]: file }))
                                     }}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed rgba(128,128,128,0.25)', borderRadius: 7, padding: '4px 8px 4px 4px', transition: 'border-color 0.15s' }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
                                   >
-                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                                      + Choose clip
-                                    </button>
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                   </div>
                                 )}
-                                <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 'auto' }}>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                                <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                   <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
                                   Landscape
                                 </label>
+                                {(stepUploads[i] || stepUploadNames[i]) && (
+                                  <button type="button" onClick={async () => {
+                                    setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    await authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
+                                  }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                                )}
                               </div>
                             </div>
                             </React.Fragment>
