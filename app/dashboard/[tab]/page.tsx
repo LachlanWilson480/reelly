@@ -2427,10 +2427,12 @@ export default function DashboardPage() {
                           </div>
                         ) : (
                           <div
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--coral)' }}
-                            onDragLeave={(e) => { e.currentTarget.style.borderColor = 'transparent' }}
+                            draggable={false}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = 'var(--coral)' }}
+                            onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.borderColor = 'transparent' }}
                             onDrop={async (e) => {
                               e.preventDefault()
+                              e.stopPropagation()
                               e.currentTarget.style.borderColor = 'transparent'
                               const file = e.dataTransfer.files?.[0]
                               if (!file || !userId) return
