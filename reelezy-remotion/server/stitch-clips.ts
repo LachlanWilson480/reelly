@@ -42,7 +42,7 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
   }
 
   if (clip.letterbox) {
-    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease`);
+    filters.push(`scale='if(gt(iw,${outputWidth}),${outputWidth},iw)':'if(gt(ih,${outputHeight}),${outputHeight},ih)':force_original_aspect_ratio=decrease`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   } else {
     filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);

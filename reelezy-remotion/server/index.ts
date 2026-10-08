@@ -116,6 +116,27 @@ function setupApp() {
         }
       }
 
+      // Detect source resolution from first clip
+      try {
+        const { execFile } = require('node:child_process');
+        const { promisify } = require('node:util');
+        const execFileAsync = promisify(execFile);
+        const FFPROBE = (process.env.FFMPEG_PATH || '/usr/bin/ffmpeg').replace('ffmpeg', 'ffprobe');
+        const firstClipUrl = mappedClips[0]?.src;
+        if (firstClipUrl) {
+          const { stdout } = await execFileAsync(FFPROBE, ['-v', 'quiet', '-print_format', 'json', '-show_streams', firstClipUrl]);
+          const streams = JSON.parse(stdout).streams;
+          const video = streams.find((s: {codec_type: string}) => s.codec_type === 'video');
+          if (video?.width && video?.height) {
+            outputWidth = isLow ? Math.round(video.width / 2 / 2) * 2 : video.width;
+            outputHeight = isLow ? Math.round(video.height / 2 / 2) * 2 : video.height;
+            console.info(`[render] Detected source resolution: ${video.width}x${video.height}, output: ${outputWidth}x${outputHeight}`);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not detect source resolution, using default:', e);
+      }
+
       const jobId = queue.createJob({
         clips: mappedClips,
         musicSrc,
