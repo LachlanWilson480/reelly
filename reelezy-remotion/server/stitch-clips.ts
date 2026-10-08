@@ -42,9 +42,9 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
   }
 
   if (clip.letterbox) {
-    // Landscape clip: blurred background fills portrait frame, clip centred on top
-    const preFilters = filters.length > 0 ? filters.join(',') + ',' : '';
-    return `${preFilters}split=2[bg][fg];[bg]scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase,crop=${outputWidth}:${outputHeight},boxblur=20:5[blurred];[fg]scale=${outputWidth}:-2[scaled];[blurred][scaled]overlay=(W-w)/2:(H-h)/2,setpts=PTS-STARTPTS`;
+    // Landscape clip: scale to fill portrait height, crop sides to 9:16
+    filters.push(`scale=-2:${outputHeight}`);
+    filters.push(`crop=${outputWidth}:${outputHeight}`);
   } else {
     filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
     filters.push(`crop=${outputWidth}:${outputHeight}`);
