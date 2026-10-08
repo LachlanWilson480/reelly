@@ -68,7 +68,7 @@ function setupApp() {
       }
 
       const isLow = resolution === "low";
-      const crf = isLow ? 24 : 16;
+      const crf = isLow ? 32 : 28;
       const isLandscape = outputOrientation === "landscape";
       let outputWidth = isLandscape ? (isLow ? 960 : 1920) : (isLow ? 540 : 1080);
       let outputHeight = isLandscape ? (isLow ? 540 : 1080) : (isLow ? 960 : 1920);

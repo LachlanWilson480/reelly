@@ -101,7 +101,7 @@ async function applyTransition(
     `[0:a][1:a]acrossfade=d=${TRANSITION_DURATION}[aout]`,
     '-map', '[vout]',
     '-map', '[aout]',
-    '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
+    '-c:v', 'libx264', '-preset', 'fast', '-crf', '28',
     '-c:a', 'aac',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
@@ -115,7 +115,7 @@ export async function stitchClips(
   outputWidth: number,
   outputHeight: number,
   port: number | string,
-  crf: number = 18
+  crf: number = 28
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
