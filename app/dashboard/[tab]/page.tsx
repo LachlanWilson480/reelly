@@ -2876,7 +2876,7 @@ export default function DashboardPage() {
                                 Upgrade to download ↗
                               </button>
                             ) : (
-                              {isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>}
+                              isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
                             )}
                           </>
                         )}
