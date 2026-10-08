@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
+import { supabase } from '@/lib/supabase'
 
 export default function PlansPage() {
   const router = useRouter()
