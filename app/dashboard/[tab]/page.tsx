@@ -2728,9 +2728,23 @@ export default function DashboardPage() {
                                     }} style={{ fontSize: 11, color: 'rgba(200,50,50,0.8)', background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>Remove</button>
                                   </div>
                                 ) : (
-                                  <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                                    + Choose clip
-                                  </button>
+                                  <div
+                                    draggable={false}
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.style.borderColor = 'var(--coral)' }}
+                                    onDragLeave={(e) => { e.stopPropagation(); e.currentTarget.style.borderColor = 'rgba(128,128,128,0.25)' }}
+                                    onDrop={async (e) => {
+                                      e.preventDefault(); e.stopPropagation()
+                                      e.currentTarget.style.borderColor = 'rgba(128,128,128,0.25)'
+                                      const file = e.dataTransfer.files?.[0]
+                                      if (file) setStepUploads((prev) => ({ ...prev, [i]: file }))
+                                    }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed rgba(128,128,128,0.25)', borderRadius: 7, padding: '4px 8px 4px 4px', transition: 'border-color 0.15s' }}
+                                  >
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                      + Choose clip
+                                    </button>
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                                  </div>
                                 )}
                                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', marginLeft: 'auto' }}>
                                   <input type="checkbox" checked={aiLandscapeSteps.has(i)} onChange={(e) => { setAiLandscapeSteps((prev) => { const n = new Set(prev); e.target.checked ? n.add(i) : n.delete(i); return n }) }} />
