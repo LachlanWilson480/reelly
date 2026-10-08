@@ -42,7 +42,7 @@ const PRESETS: Record<string, PresetConfig> = {
     borderColor: 'black',
     borderWidth: 4,
     wordsPerGroup: 1,
-    yPosition: '(h-text_h)/2',
+    yPosition: 'h*0.55',
     uppercase: true,
   },
   bold_center: {
@@ -71,7 +71,7 @@ const PRESETS: Record<string, PresetConfig> = {
     boxColor: '0x00000080',
     box: 1,
     wordsPerGroup: 5,
-    yPosition: 'h*0.85',
+    yPosition: 'h*0.78',
     uppercase: false,
   },
   typewriter: {
@@ -82,7 +82,7 @@ const PRESETS: Record<string, PresetConfig> = {
     boxColor: '0x00000080',
     box: 1,
     wordsPerGroup: 4,
-    yPosition: 'h*0.85',
+    yPosition: 'h*0.78',
     uppercase: false,
   },
 };
@@ -138,8 +138,8 @@ export async function burnCaptions(
   // Map position override
   const positionOverride = captionStyle.position;
   const yPosition = positionOverride === 'top' ? 'h*0.08'
-    : positionOverride === 'center' ? '(h-text_h)/2'
-    : positionOverride === 'bottom' ? 'h*0.85'
+    : positionOverride === 'center' ? 'h*0.55'
+    : positionOverride === 'bottom' ? 'h*0.78'
     : preset.yPosition;
 
   // Map font family to system font file paths (Linux/Railway - fonts-liberation)

@@ -115,7 +115,7 @@ export default function DashboardPage() {
   const [aiRenderProgress, setAiRenderProgress] = useState<number>(0)
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
   const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
-  const [aiCaptionPreset, setAiCaptionPreset] = useState('bold_center')
+  const [aiCaptionPreset, setAiCaptionPreset] = useState('word_by_word')
   const [aiAddCaptions, setAiAddCaptions] = useState(false)
   const [aiSpeechSteps, setAiSpeechSteps] = useState<Set<number>>(new Set())
   const [aiLandscapeSteps, setAiLandscapeSteps] = useState<Set<number>>(new Set())
@@ -194,7 +194,7 @@ export default function DashboardPage() {
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState('')
 
-  const [captionPreset, setCaptionPreset] = useState('bold_center')
+  const [captionPreset, setCaptionPreset] = useState('word_by_word')
   const [captionBorderColor, setCaptionBorderColor] = useState('#000000')
   const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(true)
   const [captionFontSize, setCaptionFontSize] = useState<number | string>(50)
@@ -206,7 +206,7 @@ export default function DashboardPage() {
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
-  const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
+  const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
 
   useEffect(() => {
     const load = async () => {
@@ -2356,8 +2356,8 @@ export default function DashboardPage() {
                         .map((s: string) => s.trim())
                         .filter((s: string) => s.length > 0)
                         .map((sentence: string, i: number, arr: string[]) => (
-                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
-                            <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65 }}>{sentence}</p>
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 20, paddingBottom: 20, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                            <p style={{ fontSize: 22, color: 'var(--ink)', lineHeight: 1.7, fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>{sentence}</p>
                           </div>
                         ))
                       }
@@ -2426,9 +2426,26 @@ export default function DashboardPage() {
                             <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
-                          <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            + Choose clip
-                          </button>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--coral)' }}
+                            onDragLeave={(e) => { e.currentTarget.style.borderColor = 'transparent' }}
+                            onDrop={async (e) => {
+                              e.preventDefault()
+                              e.currentTarget.style.borderColor = 'transparent'
+                              const file = e.dataTransfer.files?.[0]
+                              if (!file || !userId) return
+                              setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
+                              const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
+                              const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+                              if (!error) setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
+                            }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
+                          >
+                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              + Choose clip
+                            </button>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                          </div>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
@@ -2604,7 +2621,8 @@ export default function DashboardPage() {
                           Upgrade to download ↗
                         </button>
                       ) : (
-                        <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                        {!isFreeTier && <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>}
+                        {isFreeTier && <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a>}
                       )}
                     </>
                   )}
@@ -2859,7 +2877,8 @@ export default function DashboardPage() {
                                 Upgrade to download ↗
                               </button>
                             ) : (
-                              <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                              {!isFreeTier && <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>}
+                              {isFreeTier && <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a>}
                             )}
                           </>
                         )}

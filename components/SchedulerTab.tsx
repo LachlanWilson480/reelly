@@ -39,7 +39,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
             <video
               src={render.output_url}
               style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 280, display: 'block' }}
-              muted loop
+              loop controls
               onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
               onMouseLeave={(e) => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0 }}
             />
