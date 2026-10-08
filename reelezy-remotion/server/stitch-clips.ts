@@ -41,9 +41,13 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     else if (clip.filter === 'invert') filters.push('negate');
   }
 
-  // Always scale to fill the output frame and crop to exact dimensions
-  filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
-  filters.push(`crop=${outputWidth}:${outputHeight}`);
+  if (clip.letterbox) {
+    filters.push(`scale='if(gt(iw,${outputWidth}),${outputWidth},iw)':'if(gt(ih,${outputHeight}),${outputHeight},ih)':force_original_aspect_ratio=decrease`);
+    filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
+  } else {
+    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase`);
+    filters.push(`crop=${outputWidth}:${outputHeight}`);
+  }
 
   filters.push('setpts=PTS-STARTPTS');
 
@@ -138,8 +142,8 @@ export async function stitchClips(
     if (speed !== 1) args.push('-filter:v', `setpts=${1/speed}*PTS`);
 
     args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
-    args.push('-r', '30');
-    args.push('-c:a', 'aac', '-ar', '44100', '-ac', '2');
+    args.push('-c:a', 'aac');
+    args.push('-pix_fmt', 'yuv420p');
     args.push('-movflags', '+faststart');
     args.push(outPath);
 
@@ -164,12 +168,7 @@ export async function stitchClips(
     cleanups.push(() => { try { fs.unlinkSync(stitchedPath); } catch {} });
 
     await execFileAsync(FFMPEG_PATH, [
-      '-y', '-f', 'concat', '-safe', '0', '-i', concatListPath,
-      '-c:v', 'libx264', '-preset', 'fast', '-crf', String(crf),
-      '-r', '30', '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-ar', '44100', '-ac', '2',
-      '-movflags', '+faststart',
-      stitchedPath,
+      '-y', '-f', 'concat', '-safe', '0', '-i', concatListPath, '-c', 'copy', stitchedPath,
     ]);
   } else {
     // Apply transitions between clips one pair at a time
