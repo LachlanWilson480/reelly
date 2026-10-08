@@ -1060,11 +1060,7 @@ export default function DashboardPage() {
         const isLandscape = aiLandscapeSteps.has(stepIndex)
         if (isLandscape) {
           anyLandscape = true
-          clipSettings.push(
-            aiLandscapeHandling === "blur" ? { letterbox: true } :
-            aiLandscapeHandling === "crop" ? { fit: 'cover' } :
-            {}
-          )
+          clipSettings.push({ letterbox: true })
         } else {
           clipSettings.push({})
         }
@@ -1079,7 +1075,7 @@ export default function DashboardPage() {
         if (!musicError) musicPath = mPath
       }
 
-      const outputOrientation = anyLandscape && aiLandscapeHandling === "landscape" ? "landscape" : undefined
+      const outputOrientation = undefined  // always portrait output
 
       const aiCaptionStyle = aiAddCaptions
         ? {
@@ -1171,11 +1167,7 @@ export default function DashboardPage() {
         const isLandscape = uploadLandscapeSlots.has(slotId)
         if (isLandscape) {
           anyLandscape = true
-          clipSettings.push(
-            landscapeHandling === "blur" ? { letterbox: true } :
-            landscapeHandling === "crop" ? { fit: 'cover' } :
-            {}
-          )
+          clipSettings.push({ letterbox: true })
         } else {
           clipSettings.push({})
         }
@@ -1190,7 +1182,7 @@ export default function DashboardPage() {
         if (!musicError) musicPath = mPath
       }
 
-      const outputOrientation = anyLandscape && landscapeHandling === "landscape" ? "landscape" : undefined
+      const outputOrientation = undefined  // always portrait output
 
       const captionStyle = uploadAddCaptions
         ? {
