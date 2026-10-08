@@ -10,6 +10,20 @@ export default function PlansPage() {
   const router = useRouter()
 
   const [currency, setCurrency] = useState<'AUD' | 'USD' | 'GBP'>('AUD')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userPlan, setUserPlan] = useState<string | null>(null)
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserEmail(user.email || null)
+        const { data: sub } = await supabase.from('subscriptions').select('plan, status').eq('user_id', user.id).maybeSingle()
+        setUserPlan(sub?.status === 'active' ? sub.plan : 'free')
+      }
+    }
+    loadUser()
+  }, [])
+
   useEffect(() => {
     const host = window.location.hostname
     if (host.endsWith('.co.uk')) setCurrency('GBP')
@@ -98,6 +112,16 @@ export default function PlansPage() {
           <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
             Reelezy
           </Link>
+          {userEmail && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
+                <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{userEmail}</span>
+                {userPlan && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {userPlan === 'free' ? 'Free Plan' : userPlan === 'top' ? 'Pro' : 'Basic'}</span>}
+              </div>
+              <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); window.location.href = '/login' }} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
+            </div>
+          )}
         </nav>
 
         <div style={{ padding: '32px 48px 64px', maxWidth: 1000, margin: '0 auto' }}>
