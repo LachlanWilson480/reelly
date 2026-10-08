@@ -179,25 +179,41 @@ export async function burnCaptions(
     return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
   });
 
-  // Write filter to a temp file to bypass OS argument length limits
-  const filterScriptPath = path.join(path.resolve('tmp'), `${randomUUID()}-captions.txt`);
-  fs.writeFileSync(filterScriptPath, drawtextFilters.join(',\n'));
+  // Split into batches of 50 to avoid OS argument length limits
+  const BATCH_SIZE = 50;
+  const batches: string[][] = [];
+  for (let i = 0; i < drawtextFilters.length; i += BATCH_SIZE) {
+    batches.push(drawtextFilters.slice(i, i + BATCH_SIZE));
+  }
 
-  try {
+  let currentInput = inputPath;
+  const tempPaths: string[] = [];
+
+  for (let b = 0; b < batches.length; b++) {
+    const isLast = b === batches.length - 1;
+    const batchOutput = isLast ? outputPath : path.join(path.resolve('renders'), `${randomUUID()}-caption-batch-${b}.mp4`);
+    if (!isLast) tempPaths.push(batchOutput);
+
     await execFileAsync(FFMPEG_PATH, [
       '-y',
-      '-i', inputPath,
-      '-filter_script:v', filterScriptPath,
+      '-i', currentInput,
+      '-vf', batches[b].join(','),
       '-c:v', 'libx264',
       '-preset', 'fast',
       '-crf', '18',
       '-c:a', 'copy',
       '-movflags', '+faststart',
-      outputPath,
+      batchOutput,
     ]);
-  } finally {
-    try { fs.unlinkSync(filterScriptPath); } catch {}
+
+    if (b > 0 && currentInput !== inputPath) {
+      try { fs.unlinkSync(currentInput); } catch {}
+    }
+    currentInput = batchOutput;
   }
+
+  // Clean up temp batch files
+  for (const p of tempPaths) { try { fs.unlinkSync(p); } catch {} }
 
   const cleanup = () => { try { fs.unlinkSync(outputPath); } catch {} };
   return { outputPath, cleanup };
