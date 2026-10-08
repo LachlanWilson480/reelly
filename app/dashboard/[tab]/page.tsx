@@ -1060,7 +1060,11 @@ export default function DashboardPage() {
         const isLandscape = aiLandscapeSteps.has(stepIndex)
         if (isLandscape) {
           anyLandscape = true
-          clipSettings.push(aiLandscapeHandling === "blur" ? { letterbox: true } : {})
+          clipSettings.push(
+            aiLandscapeHandling === "blur" ? { letterbox: true } :
+            aiLandscapeHandling === "crop" ? { fit: 'cover' } :
+            {}
+          )
         } else {
           clipSettings.push({})
         }
@@ -1167,7 +1171,11 @@ export default function DashboardPage() {
         const isLandscape = uploadLandscapeSlots.has(slotId)
         if (isLandscape) {
           anyLandscape = true
-          clipSettings.push(landscapeHandling === "blur" ? { letterbox: true } : {})
+          clipSettings.push(
+            landscapeHandling === "blur" ? { letterbox: true } :
+            landscapeHandling === "crop" ? { fit: 'cover' } :
+            {}
+          )
         } else {
           clipSettings.push({})
         }
