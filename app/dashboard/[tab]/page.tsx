@@ -2434,20 +2434,27 @@ export default function DashboardPage() {
                       <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>⠿</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{slotIndex + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <input id={`upload-slot-${slotId}`} type="file" accept="video/*" onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file || !userId) return
-                          setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
-                          const landscape = await isLandscapeVideo(file)
-                          setUploadLandscapeSlots((prev) => { const n = new Set(prev); landscape ? n.add(slotId) : n.delete(slotId); return n })
-                          const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
-                          const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-                          if (!error) setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
-                        }} style={{ display: 'none' }} />
+                        <input
+                          ref={(el) => { if (el) el.dataset.slotid = String(slotId) }}
+                          className={`upload-slot-input-${slotId}`}
+                          type="file" accept="video/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            const sid = parseInt(e.target.dataset.slotid || '0')
+                            if (!file || !userId) return
+                            setUploadSlotFiles((prev) => ({ ...prev, [sid]: file }))
+                            const landscape = await isLandscapeVideo(file)
+                            setUploadLandscapeSlots((prev) => { const n = new Set(prev); landscape ? n.add(sid) : n.delete(sid); return n })
+                            const path = `${userId}/drafts/upload-${sid}-${Date.now()}-${file.name}`
+                            const { error } = await supabase.storage.from('video-uploads').upload(path, file)
+                            if (!error) setUploadSlotPaths((prev) => ({ ...prev, [sid]: path }))
+                          }}
+                          style={{ display: 'none' }}
+                        />
                         {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {uploadSlotFiles[slotId].name}</p>
-                            <button type="button" onClick={() => document.getElementById(`upload-slot-${slotId}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                            <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
                           <div
