@@ -1382,6 +1382,14 @@ export default function DashboardPage() {
         </div>
       )}
       <Sidebar />
+      {(renderStatus === 'queued' || renderStatus === 'rendering' || renderStatus === 'processing' || aiRenderStatus === 'queued' || aiRenderStatus === 'rendering' || aiRenderStatus === 'processing') && (
+        <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '12px 36px 0', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 20, padding: '8px 18px', fontSize: 13, color: 'var(--coral)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <span className="rly-spinner" />
+            Rendering in the background - feel free to navigate away
+          </div>
+        </div>
+      )}
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
