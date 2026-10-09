@@ -106,6 +106,8 @@ export default function DashboardPage() {
   }
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
+  const [editingScriptItemId, setEditingScriptItemId] = useState<string | null>(null)
+  const [editingScriptText, setEditingScriptText] = useState<string>('')
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
   const [selectedFilmingId, setSelectedFilmingId] = useState<string | null>(null)
   const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
@@ -2099,14 +2101,40 @@ export default function DashboardPage() {
                                 return (dirIdx >= 0 && dirIdx < validDirections.length && i % directionInterval === 0) ? validDirections[dirIdx] : null
                               })
 
-                              return sentences.map((sentence: string, i: number) => (
-                                <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
-                                  {sentenceDirections[i] && (
-                                    <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>{sentenceDirections[i]}</p>
-                                  )}
-                                  <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65 }}>{sentence}</p>
-                                </div>
-                              ))
+                              return sentences.map((sentence: string, i: number) => {
+                                const editKey = `${item.id}-${i}`
+                                const isEditing = editingScriptItemId === editKey
+                                return (
+                                  <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                                    {sentenceDirections[i] && (
+                                      <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>{sentenceDirections[i]}</p>
+                                    )}
+                                    {isEditing ? (
+                                      <textarea
+                                        autoFocus
+                                        value={editingScriptText}
+                                        onChange={(e) => setEditingScriptText(e.target.value)}
+                                        onBlur={async () => {
+                                          const newSentences = [...sentences]
+                                          newSentences[i] = editingScriptText.trim() || sentence
+                                          const newScript = newSentences.join(' ')
+                                          setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript } : f))
+                                          setEditingScriptItemId(null)
+                                          await supabase.from('ideas').update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur() } if (e.key === 'Escape') { setEditingScriptItemId(null) } }}
+                                        style={{ width: '100%', fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, background: 'var(--card-bg)', border: '1px solid var(--coral)', borderRadius: 6, padding: '6px 8px', fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, minHeight: 60 }}
+                                      />
+                                    ) : (
+                                      <p
+                                        onClick={() => { setEditingScriptItemId(editKey); setEditingScriptText(sentence) }}
+                                        title="Click to edit"
+                                        style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, cursor: 'text', borderRadius: 4, padding: '2px 4px', margin: '-2px -4px' }}
+                                      >{sentence}</p>
+                                    )}
+                                  </div>
+                                )
+                              })
                             })()}
                           </div>
                         </div>
