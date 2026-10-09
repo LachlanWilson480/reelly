@@ -1706,7 +1706,7 @@ export default function DashboardPage() {
                     </p>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                       {idea.description}
-                    </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
+                    </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{(() => { try { const t = JSON.parse(idea.tags); return Array.isArray(t) ? t.join(" ") : idea.tags } catch { return idea.tags } })()}</p>
                     {savedIds.has(idea.id) && (
                       <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginTop: 14, paddingTop: 12 }}>
                         <button
@@ -1808,7 +1808,7 @@ export default function DashboardPage() {
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                           {idea.description}
                         </p>
-                        <p style={{ fontSize: 12, color: 'var(--coral)' }}>{idea.tags}</p>
+                        <p style={{ fontSize: 12, color: 'var(--coral)' }}>{(() => { try { const t = JSON.parse(idea.tags); return Array.isArray(t) ? t.join(" ") : idea.tags } catch { return idea.tags } })()}</p>
                         {editingNotesId === idea.id ? (
                           <textarea
                             value={idea.notes || ''}
