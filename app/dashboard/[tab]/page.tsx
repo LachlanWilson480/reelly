@@ -2121,11 +2121,19 @@ export default function DashboardPage() {
                                         <div style={{ display: 'flex', gap: 8 }}>
                                           <button onClick={async () => {
                                             const newSentences = [...sentences]
-                                            newSentences[i] = editingScriptText.trim() || sentence
+                                            const trimmed = editingScriptText.trim() || sentence
+                                            newSentences[i] = trimmed
                                             const newScript = newSentences.join(' ')
-                                            setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript } : f))
+                                            // Also update matching checklist step's Say: part
+                                            const newChecklist = item.checklist.map((step: string, si: number) => {
+                                              if (si !== i) return step
+                                              const sayIdx = step.indexOf("Say: '")
+                                              if (sayIdx === -1) return step
+                                              return step.slice(0, sayIdx) + `Say: '${trimmed}'`
+                                            })
+                                            setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript, checklist: newChecklist } : f))
                                             setEditingScriptItemId(null)
-                                            await supabase.from('ideas').update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
+                                            await supabase.from('ideas').update({ checklist: { steps: newChecklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
                                           }} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--coral)', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Save</button>
                                           <button onClick={() => setEditingScriptItemId(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Cancel</button>
                                         </div>
