@@ -210,6 +210,21 @@ export default function DashboardPage() {
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
 
+  const refreshStats = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const weekStart = new Date()
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    weekStart.setHours(0, 0, 0, 0)
+    const { data: ideasRows } = await supabase.from('generated_ideas').select('checklist, created_at').eq('user_id', user.id).gte('created_at', weekStart.toISOString())
+    setIdeasThisWeek((ideasRows || []).length)
+    setFilmingThisWeek((ideasRows || []).filter((r) => r.checklist).length)
+    const { count: renders } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+    setTotalRenders(renders || 0)
+    const { data: renderRows } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).not('duration_seconds', 'is', null)
+    setTotalRenderSeconds((renderRows || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
+  }
+
   useEffect(() => {
     const load = async () => {
       const { data: sessionData } = await supabase.auth.getUser()
