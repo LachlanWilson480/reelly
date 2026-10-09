@@ -262,9 +262,13 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
   const filmLines = film.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
   if (filmLines.length) lines.push('FILMING: ' + filmLines.join(' | '))
 
+  // People on camera
+  if (profile.on_camera_people?.trim()) lines.push(`OnCamera: ${profile.on_camera_people.trim()}`)
+
   // Local & extra
   const local: Array<[string, string | null | undefined]> = [
     ['Community', profile.community_ties],
+    ['LocalContext', profile.local_seasonal_context],
     ['Notes', profile.notes],
   ]
   for (const [k, v] of local) {
