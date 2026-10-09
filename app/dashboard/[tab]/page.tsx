@@ -930,7 +930,7 @@ export default function DashboardPage() {
     } catch (err) {
       setFilmingError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
-      setGeneratingFilming(false)
+      setGeneratingFilming(false); refreshStats()
     }
   }
 
