@@ -435,11 +435,11 @@ export default function DashboardPage() {
             if (type === 'upload') {
               setRenderId(id)
               setRenderStatus('queued')
-              setTab('uploads')
+              // Don't redirect - resume silently in background
             } else if (type === 'ai') {
               setAiRenderId(id)
               setAiRenderStatus('queued')
-              setTab('aiuploads')
+              // Don't redirect - resume silently in background
             }
           } else {
             localStorage.removeItem('reelezy-render')
@@ -1434,6 +1434,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {(renderStatus === 'queued' || renderStatus === 'rendering' || renderStatus === 'processing' || aiRenderStatus === 'queued' || aiRenderStatus === 'rendering' || aiRenderStatus === 'processing') && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(216,90,48,0.1)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 20, padding: '6px 14px', fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>
+                <span className="rly-spinner" />
+                Rendering your video in the background — feel free to navigate away
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 16, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
