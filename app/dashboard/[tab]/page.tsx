@@ -2110,27 +2110,31 @@ export default function DashboardPage() {
                                       <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>{sentenceDirections[i]}</p>
                                     )}
                                     {isEditing ? (
-                                      <textarea
-                                        autoFocus
-                                        value={editingScriptText}
-                                        onChange={(e) => setEditingScriptText(e.target.value)}
-                                        onBlur={async () => {
-                                          const newSentences = [...sentences]
-                                          newSentences[i] = editingScriptText.trim() || sentence
-                                          const newScript = newSentences.join(' ')
-                                          setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript } : f))
-                                          setEditingScriptItemId(null)
-                                          await supabase.from('ideas').update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
-                                        }}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur() } if (e.key === 'Escape') { setEditingScriptItemId(null) } }}
-                                        style={{ width: '100%', fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, background: 'var(--card-bg)', border: '1px solid var(--coral)', borderRadius: 6, padding: '6px 8px', fontFamily: "'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, minHeight: 60 }}
-                                      />
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        <textarea
+                                          autoFocus
+                                          value={editingScriptText}
+                                          onChange={(e) => setEditingScriptText(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === 'Escape') setEditingScriptItemId(null) }}
+                                          style={{ width: '100%', fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, background: 'var(--card-bg)', border: '1px solid var(--coral)', borderRadius: 6, padding: '6px 8px', fontFamily: "'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box' as const, minHeight: 60 }}
+                                        />
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          <button onClick={async () => {
+                                            const newSentences = [...sentences]
+                                            newSentences[i] = editingScriptText.trim() || sentence
+                                            const newScript = newSentences.join(' ')
+                                            setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript } : f))
+                                            setEditingScriptItemId(null)
+                                            await supabase.from('ideas').update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
+                                          }} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--coral)', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Save</button>
+                                          <button onClick={() => setEditingScriptItemId(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Cancel</button>
+                                        </div>
+                                      </div>
                                     ) : (
-                                      <p
-                                        onClick={() => { setEditingScriptItemId(editKey); setEditingScriptText(sentence) }}
-                                        title="Click to edit"
-                                        style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, cursor: 'text', borderRadius: 4, padding: '2px 4px', margin: '-2px -4px' }}
-                                      >{sentence}</p>
+                                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                        <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, flex: 1 }}>{sentence}</p>
+                                        <button onClick={() => { setEditingScriptItemId(editKey); setEditingScriptText(sentence) }} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}>Edit</button>
+                                      </div>
                                     )}
                                   </div>
                                 )
