@@ -2605,7 +2605,7 @@ export default function DashboardPage() {
 
                     {/* Music */}
                     <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Music</p>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
                       <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
                       <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -2891,7 +2891,7 @@ export default function DashboardPage() {
 
                           {/* Music row */}
                           <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Music</p>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                               <Tooltip text="Browse our royalty-free music library" position="bottom">
                                 <button type="button" onClick={() => setShowMusicLibrary('ai')}
