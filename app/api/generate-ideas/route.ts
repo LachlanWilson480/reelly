@@ -92,7 +92,6 @@ function getEventDate(e: SeasonalEvent, year: number): Date {
 // Major civic/retail events per country
 const AU_EVENTS: SeasonalEvent[] = [
   { name: 'New Year', type: 'fixed', month: 1, day: 1, windowDays: 14 },
-  { name: 'Australia Day', type: 'fixed', month: 1, day: 26, windowDays: 21 },
   { name: "Valentine's Day", type: 'fixed', month: 2, day: 14, windowDays: 21 },
   { name: 'Easter', type: 'easterOffset', offsetDays: 0, windowDays: 28 },
   { name: 'ANZAC Day', type: 'fixed', month: 4, day: 25, windowDays: 14 },

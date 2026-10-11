@@ -71,7 +71,7 @@ export default function HomePage() {
   ]
 
   const mockIdeas = [
-    { title: 'Behind the chair: 3 quick tips', tag: '#sydneysalon' },
+    { title: 'Behind the chair: 3 quick tips', tag: '#hairsalon' },
     { title: 'Before and after reveal', tag: '#transformation' },
     { title: 'Booking slots open this week', tag: '#comebookus' },
   ]
@@ -292,7 +292,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>© 2026 Reelezy. Built in Sydney.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>© 2026 Reelezy. </p>
         </footer>
 
       </div>

@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 1 October 2026</p>
 
-      <p style={{ marginBottom: 24 }}>Reelezy (ABN 76 182 998 115) operates reelezy.com. This policy explains how we collect, use and protect your personal information in accordance with the Australian Privacy Act 1988.</p>
+      <p style={{ marginBottom: 24 }}>Reelezy (ABN 76 182 998 115) operates reelezy.com. This policy explains how we collect, use and protect your personal information in accordance with applicable privacy laws.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>What we collect</h2>
       <ul style={{ paddingLeft: 24, marginBottom: 24 }}>
@@ -43,14 +43,14 @@ export default function PrivacyPage() {
       <p style={{ marginBottom: 24 }}>We do not sell your data to any third party.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>How long we keep it</h2>
-      <p style={{ marginBottom: 24 }}>We keep your data for as long as your account is active. If you delete your account, all your data including uploaded files and generated content is permanently deleted within 24 hours. Payment records are retained for 7 years as required by Australian tax law.</p>
+      <p style={{ marginBottom: 24 }}>We keep your data for as long as your account is active. If you delete your account, all your data including uploaded files and generated content is permanently deleted within 24 hours. Payment records are retained for 7 years as required by applicable tax law.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Your rights</h2>
       <ul style={{ paddingLeft: 24, marginBottom: 24 }}>
         <li style={{ marginBottom: 8 }}>Access the personal information we hold about you</li>
         <li style={{ marginBottom: 8 }}>Correct inaccurate information</li>
         <li style={{ marginBottom: 8 }}>Delete your account and all associated data (via Settings in the dashboard)</li>
-        <li style={{ marginBottom: 8 }}>Complain to the Office of the Australian Information Commissioner (OAIC)</li>
+        <li style={{ marginBottom: 8 }}>Lodge a complaint with your local data protection authority</li>
       </ul>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Security</h2>
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
       <p style={{ marginBottom: 48 }}>Email: privacy@reelezy.com</p>
 
       <p style={{ fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: 24 }}>
-        This privacy policy is intended to comply with the Australian Privacy Act 1988 and the Australian Privacy Principles.
+        This privacy policy is intended to comply with applicable privacy and data protection laws.
       </p>
     </div>
       </div>

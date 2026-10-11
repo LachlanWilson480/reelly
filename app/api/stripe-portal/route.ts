@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://reelezy.com.au'}/plans`,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://reelezy.com'}/plans`,
     })
 
     return NextResponse.json({ url: session.url })

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const prompt = `You are refining a single existing social media video idea for a small business owner based on their feedback. Keep the same overall angle/topic, but adjust it based on their instruction below.
 
-Business: ${profile.business_name}, a ${profile.industry} in ${profile.suburb}, Sydney. Tone: ${profile.tone || 'not specified'}.
+Business: ${profile.business_name}, a ${profile.industry}. Tone: ${profile.tone || 'not specified'}.
 
 Current idea:
 Title: ${idea.title}
