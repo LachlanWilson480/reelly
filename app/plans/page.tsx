@@ -168,28 +168,6 @@ export default function PlansPage() {
             </span>
           </div>
 
-          {/* Discount code */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
-                placeholder="Have a code?"
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
-              />
-              <button
-                onClick={applyDiscount}
-                disabled={discountLoading || !discountInput.trim()}
-                style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
-              >
-                {discountLoading ? 'Checking...' : 'Apply'}
-              </button>
-            </div>
-            {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
-            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>✓ {discountPercent}% off applied!</p>}
-          </div>
-
           {success && (
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'center' }}>
               <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Subscription active! You're all set.</p>
@@ -261,7 +239,29 @@ export default function PlansPage() {
             ))}
           </div>
 
-          <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px 32px' }}>
+          {/* Discount code */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
+                placeholder="Have a code?"
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+              />
+              <button
+                onClick={applyDiscount}
+                disabled={discountLoading || !discountInput.trim()}
+                style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
+              >
+                {discountLoading ? 'Checking...' : 'Apply'}
+              </button>
+            </div>
+            {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
+            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>✓ {discountPercent}% off applied!</p>}
+          </div>
+
+                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px 32px' }}>
             <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
               What happens if I go over my render minutes?
             </h3>
