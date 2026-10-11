@@ -54,29 +54,24 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
-    // Free plan: 1 render per account (and per email address)
+    // Free plan: 60s total lifetime render time across all accounts with same email
+    const FREE_CAP_SECONDS = 60
     if (plan === 'free') {
-      const { count: accountRenderCount } = await supabaseAdmin
-        .from('renders')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-      if ((accountRenderCount || 0) >= 1) {
-        return NextResponse.json({ error: 'You have used your free render. Upgrade to create more videos.' }, { status: 403 })
-      }
+      // Get all user IDs sharing this email
       const { data: userRecord } = await supabaseAdmin.auth.admin.getUserById(userId)
       const email = userRecord?.user?.email
+      const allUserIds = [userId]
       if (email) {
         const { data: { users: allUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-        const siblingIds = allUsers.filter(u => u.email === email && u.id !== userId).map(u => u.id)
-        if (siblingIds.length > 0) {
-          const { count: emailRenderCount } = await supabaseAdmin
-            .from('renders')
-            .select('*', { count: 'exact', head: true })
-            .in('user_id', siblingIds)
-          if ((emailRenderCount || 0) >= 1) {
-            return NextResponse.json({ error: 'You have used your free render. Upgrade to create more videos.' }, { status: 403 })
-          }
-        }
+        allUsers.filter(u => u.email === email && u.id !== userId).forEach(u => allUserIds.push(u.id))
+      }
+      const { data: allRenders } = await supabaseAdmin
+        .from('renders')
+        .select('duration_seconds')
+        .in('user_id', allUserIds)
+      const usedSeconds = (allRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+      if (usedSeconds >= FREE_CAP_SECONDS) {
+        return NextResponse.json({ error: 'You have used your free 60 seconds of render time. Upgrade to create more videos.' }, { status: 403 })
       }
     }
 
@@ -169,8 +164,20 @@ export async function POST(req: NextRequest) {
 
     if (dbError) return NextResponse.json({ error: 'Failed to save render record' }, { status: 500 })
 
-    // Free plan: overQuota is always false here (blocked above if already used one)
+    // Calculate free plan quota (across all accounts with same email)
     let overQuota = false
+    if (plan === 'free') {
+      const { data: userRecord2 } = await supabaseAdmin.auth.admin.getUserById(userId)
+      const email2 = userRecord2?.user?.email
+      const allUserIds2 = [userId]
+      if (email2) {
+        const { data: { users: allUsers2 } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+        allUsers2.filter(u => u.email === email2 && u.id !== userId).forEach(u => allUserIds2.push(u.id))
+      }
+      const { data: allRenders2 } = await supabaseAdmin.from('renders').select('duration_seconds').in('user_id', allUserIds2)
+      const totalUsed = (allRenders2 || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+      overQuota = totalUsed >= 60
+    }
 
     // Mark over_quota in DB so frontend can block download
     if (overQuota) {

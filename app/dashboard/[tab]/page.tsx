@@ -1309,7 +1309,7 @@ export default function DashboardPage() {
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
-  const freeQuotaExceeded = isFreeTier && totalLifetimeRenders >= 1
+  const freeQuotaExceeded = isFreeTier && totalRenderSeconds >= 60
   const isProPlan = userPlan === 'top' && realSubStatus === 'active'
 
   const renderCapMin = userPlan === 'top' ? 60 : 25
