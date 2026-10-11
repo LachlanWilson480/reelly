@@ -165,7 +165,7 @@ export default function PlansPage() {
                 </button>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                To upgrade, downgrade, or cancel your plan, click <strong>Manage billing</strong> — you'll be taken to the Stripe customer portal.
+                To upgrade, downgrade, or cancel your plan, click <strong>Manage billing</strong> to open the Stripe customer portal.
               </p>
             </div>
 
@@ -353,7 +353,7 @@ export default function PlansPage() {
               </button>
             </div>
             {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
-            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>✓ {discountPercent}% off applied!</p>}
+            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>{discountPercent}% off applied!</p>}
           </div>
 
                     <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px 32px' }}>

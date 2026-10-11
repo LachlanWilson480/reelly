@@ -342,7 +342,7 @@ export default function SignUpPage() {
 
             {message === 'check-email' ? (
               <div style={{ padding: '8px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12, textAlign: 'center' }}>📬</div>
+                
                 <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#F1EFE8', textAlign: 'center' }}>Check your email</h2>
                 <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
                   We sent a 6-digit code to <strong>{email}</strong>

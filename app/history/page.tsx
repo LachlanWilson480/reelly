@@ -129,7 +129,7 @@ export default function HistoryPage() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                       <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>
-                        {idea.saved && '★ '}{idea.title}
+                        {idea.title}
                       </p>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {formatDate(idea.created_at)}

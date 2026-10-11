@@ -1417,7 +1417,7 @@ export default function DashboardPage() {
           {deletionScheduledAt && (
             <div style={{ background: 'rgba(216,90,48,0.1)', border: '1px solid var(--coral)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <p style={{ fontSize: 13, color: 'var(--ink)' }}>
-                Your account data is scheduled for deletion on <strong>{new Date(deletionScheduledAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Download a copy of your data or resubscribe before then to keep it.
+                Your account data is scheduled for deletion on <strong>{new Date(deletionScheduledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Download a copy of your data or resubscribe before then to keep it.
               </p>
               <a href="/settings" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 Go to Settings
@@ -1641,7 +1641,7 @@ export default function DashboardPage() {
                         const now = new Date()
                         const daysUntilMonday = (8 - now.getDay()) % 7 || 7
                         const nextMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday)
-                        return nextMonday.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+                        return nextMonday.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
                       })()}
                     </span>
                   </p>
@@ -1723,7 +1723,7 @@ export default function DashboardPage() {
                         color: savedIds.has(idea.id) ? 'var(--coral)' : 'var(--text-muted)',
                       }}
                     >
-                      {savedIds.has(idea.id) ? '★' : '☆'}
+                      {savedIds.has(idea.id) ? 'Saved' : 'Save'}
                     </button>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -1781,7 +1781,7 @@ export default function DashboardPage() {
                           onClick={() => setRefiningId(idea.id)}
                           style={{ marginTop: 10, background: "none", border: "1px dashed rgba(128,128,128,0.35)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "var(--text-secondary)", cursor: "pointer" }}
                         >
-                          ✎ Refine this idea
+                          Refine this idea
                         </button>
                       )
                     )}                  </div>
@@ -2071,7 +2071,7 @@ export default function DashboardPage() {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {item.prep.map((p, i) => (
                               <span key={i} style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.18)', borderRadius: 20, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                <span style={{ color: 'var(--coral)', fontSize: 10 }}>✓</span> {p}
+                                {p}
                               </span>
                             ))}
                           </div>
@@ -2438,7 +2438,7 @@ export default function DashboardPage() {
                           style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', cursor: 'pointer', width: '100%' }}
                         >
                           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{s.topic}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.length ? `${s.length}` : ''}{s.style ? ` · ${s.style}` : ''} · {new Date(s.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.length ? `${s.length}` : ''}{s.style ? ` · ${s.style}` : ''} · {new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                         </button>
                       ))}
                     </div>
@@ -2530,7 +2530,7 @@ export default function DashboardPage() {
                         />
                         {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {uploadSlotFiles[slotId].name}</p>
+                            <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
@@ -2612,19 +2612,19 @@ export default function DashboardPage() {
                         <Tooltip text="Browse our royalty-free music library" position="bottom">
                           <button type="button" onClick={() => setShowMusicLibrary('upload')}
                             style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                            {libraryMusicName ? `♪ ${libraryMusicName}` : '♪ Library'}
+                            {libraryMusicName ? `${libraryMusicName}` : 'Library'}
                           </button>
                         </Tooltip>
                         <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
                           <button type="button" onClick={() => musicInputRef.current?.click()}
                             style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                            {musicFile ? `♪ ${musicFile.name}` : 'Upload'}
+                            {musicFile ? `${musicFile.name}` : 'Upload'}
                           </button>
                         </Tooltip>
                         <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
                           <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
                             style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                            {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : 'Sound from video'}
+                            {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
                           </button>
                         </Tooltip>
                       </div>
@@ -2698,7 +2698,7 @@ export default function DashboardPage() {
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
                 style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
-                {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
+                {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
               </button>
 
               {/* ── Result ── */}
@@ -2787,7 +2787,7 @@ export default function DashboardPage() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {stepUploads[0] ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {stepUploads[0].name}</p>
+                                  <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                 </div>
                               ) : (
@@ -2826,7 +2826,7 @@ export default function DashboardPage() {
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {stepUploads[i]?.name || stepUploadNames[i]}</p>
+                                    <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                   </div>
                                 ) : (
@@ -2896,19 +2896,19 @@ export default function DashboardPage() {
                               <Tooltip text="Browse our royalty-free music library" position="bottom">
                                 <button type="button" onClick={() => setShowMusicLibrary('ai')}
                                   style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                                  {libraryMusicName ? `♪ ${libraryMusicName}` : '♪ Library'}
+                                  {libraryMusicName ? `${libraryMusicName}` : 'Library'}
                                 </button>
                               </Tooltip>
                               <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
                                 <button type="button" onClick={() => musicInputRef.current?.click()}
                                   style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                                  {musicFile ? `♪ ${musicFile.name}` : 'Upload'}
+                                  {musicFile ? `${musicFile.name}` : 'Upload'}
                                 </button>
                               </Tooltip>
                               <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
                                 <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
                                   style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                                  {extractingAudio ? 'Extracting...' : extractedMusicPath ? '♪ Audio extracted' : 'Sound from video'}
+                                  {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
                                 </button>
                               </Tooltip>
                             </div>
@@ -2976,7 +2976,7 @@ export default function DashboardPage() {
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
                       style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(216,90,48,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
-                      {freeQuotaExceeded ? 'Upgrade to render more videos' : aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : '✦ Create video'}
+                      {freeQuotaExceeded ? 'Upgrade to render more videos' : aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
                     </button>
 
                     {aiRenderId && (

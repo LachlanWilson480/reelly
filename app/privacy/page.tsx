@@ -60,7 +60,7 @@ export default function PrivacyPage() {
       <p style={{ marginBottom: 24 }}>Reelezy uses essential cookies only for authentication and session management. We do not use tracking or advertising cookies.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Contact</h2>
-            <p style={{ marginBottom: 48 }}>Email: privacy@reelezy.com</p>
+            <p style={{ marginBottom: 48 }}>Email: lachlan@reelezy.com</p>
 
       <p style={{ fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: 24 }}>
         This privacy policy is intended to comply with applicable privacy and data protection laws.
