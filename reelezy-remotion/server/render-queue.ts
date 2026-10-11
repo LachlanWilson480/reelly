@@ -5,6 +5,8 @@ import { stitchClips } from "./stitch-clips";
 import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
 import { transcribeVideo } from "./transcribe";
+import { correctTranscript } from "./correct-transcript";
+import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
 
 type ClipInput = {
@@ -127,13 +129,23 @@ export const makeRenderQueue = ({
         setProgress(jobId, 55, job.data, cancel);
         console.info(`[${jobId}] Step 4: transcribing audio`);
         const words = await transcribeVideo(stitchedLocalPath);
+        // Correct proper nouns using user profile
+        let properNouns: string[] = [];
+        if (userId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+            const { data: profile } = await sb.from("business_profiles").select("business_name, suburb").eq("user_id", userId).maybeSingle();
+            if (profile) properNouns = [profile.business_name, profile.suburb].filter(Boolean);
+          } catch {}
+        }
+        const correctedWords = correctTranscript(words, properNouns);
         if (cancelled) throw new Error('Cancelled');
 
         setProgress(jobId, 70, job.data, cancel);
         console.info(`[${jobId}] Step 5: burning captions`);
         const { outputPath, cleanup } = await burnCaptions(
           stitchedLocalPath,
-          words,
+          correctedWords,
           captionStyle,
           outputWidth,
           outputHeight
