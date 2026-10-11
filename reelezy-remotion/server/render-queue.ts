@@ -156,27 +156,6 @@ export const makeRenderQueue = ({
         if (cancelled) throw new Error('Cancelled');
       }
 
-      // Watermark step (free plan)
-      if (watermark) {
-        const { execFile } = require('node:child_process');
-        const { promisify } = require('node:util');
-        const { randomUUID } = require('node:crypto');
-        const path = require('node:path');
-        const execFileAsync = promisify(execFile);
-        const FFMPEG_PATH = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
-        const watermarkedPath = path.join(path.resolve('renders'), `${randomUUID()}-watermarked.mp4`);
-        const wmText = 'reelezy.com';
-        const drawtext = `drawtext=text='${wmText}':fontsize=36:fontcolor=white@0.5:borderw=2:bordercolor=black@0.5:x=(w-text_w)/2:y=(h-text_h)/2`;
-        await execFileAsync(FFMPEG_PATH, [
-          '-y', '-i', finalPath,
-          '-vf', drawtext,
-          '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
-          '-c:a', 'copy', '-movflags', '+faststart',
-          watermarkedPath,
-        ]);
-        tmpCleanups.push(() => { try { require('node:fs').unlinkSync(finalPath); } catch {} });
-        finalPath = watermarkedPath;
-      }
 
       // Measure duration
       const durationSeconds = await getVideoDuration(finalPath);
