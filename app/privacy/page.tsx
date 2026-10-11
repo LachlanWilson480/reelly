@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 1 October 2026</p>
 
-      <p style={{ marginBottom: 24 }}>Reelezy (ABN 76 182 998 115) operates reelezy.com. This policy explains how we collect, use and protect your personal information in accordance with applicable privacy laws.</p>
+      <p style={{ marginBottom: 24 }}>Reelezy operates reelezy.com. This policy explains how we collect, use and protect your personal information in accordance with applicable privacy laws.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>What we collect</h2>
       <ul style={{ paddingLeft: 24, marginBottom: 24 }}>
@@ -60,8 +60,7 @@ export default function PrivacyPage() {
       <p style={{ marginBottom: 24 }}>Reelezy uses essential cookies only for authentication and session management. We do not use tracking or advertising cookies.</p>
 
       <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 }}>Contact</h2>
-      <p style={{ marginBottom: 8 }}>Reelezy: ABN 76 182 998 115</p>
-      <p style={{ marginBottom: 48 }}>Email: privacy@reelezy.com</p>
+            <p style={{ marginBottom: 48 }}>Email: privacy@reelezy.com</p>
 
       <p style={{ fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.2)', paddingTop: 24 }}>
         This privacy policy is intended to comply with applicable privacy and data protection laws.
