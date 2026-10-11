@@ -17,7 +17,7 @@ const PADDING = 0.5; // seconds to keep around each silent segment
 async function detectSilence(inputPath: string): Promise<Segment[]> {
   const { stderr } = await execFileAsync(FFMPEG_PATH, [
     '-i', inputPath,
-    '-af', 'silencedetect=noise=-35dB:d=2.0',
+    '-af', 'silencedetect=noise=-28dB:d=1.5',
     '-f', 'null',
     '-',
   ]).catch((e) => ({ stderr: e.stderr as string }));
