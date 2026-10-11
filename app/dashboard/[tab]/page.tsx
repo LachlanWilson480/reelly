@@ -2087,7 +2087,7 @@ export default function DashboardPage() {
                                       {timeRange}
                                     </span>
                                   )}
-                                  <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{instruction}</p>
+                                  <p style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{instruction}</p>
                                 </div>
                               </div>
                             )
@@ -2812,7 +2812,7 @@ export default function DashboardPage() {
                               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>{i + 1}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
-                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{instruction}</p>
+                                <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
