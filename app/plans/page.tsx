@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
@@ -113,9 +114,7 @@ export default function PlansPage() {
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-          <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
-            Reelezy
-          </Link>
+          <Link href="/"><ReelezyLogo size={44} /></Link>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>

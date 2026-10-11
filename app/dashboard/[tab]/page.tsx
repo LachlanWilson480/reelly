@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { useEffect, useState, useRef } from 'react'
@@ -1392,9 +1393,7 @@ export default function DashboardPage() {
       )}
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-          <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
-            Reelezy
-          </span>
+          <ReelezyLogo size={44} />
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />

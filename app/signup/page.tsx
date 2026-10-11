@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -132,7 +133,7 @@ export default function SignUpPage() {
               textDecoration: 'none',
             }}
           >
-            Reelezy
+            <ReelezyLogo size={44} />
           </Link>
 
           <div

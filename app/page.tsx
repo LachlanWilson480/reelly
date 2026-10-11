@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 import { supabase } from '@/lib/supabase'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 
 export default function HomePage() {
   const router = useRouter()
@@ -93,7 +94,7 @@ export default function HomePage() {
       <div style={{ marginLeft: 0 }}>
 
         <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 64px' }}>
-          <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, letterSpacing: -0.2 }}>Reelezy</span>
+          <ReelezyLogo size={44} />
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <Link href="/login" style={{ color: 'var(--text-secondary)', fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>Log in</Link>
             <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Sign up</Link>
@@ -269,7 +270,7 @@ export default function HomePage() {
         <footer style={{ padding: '56px 64px 48px', borderTop: '1px solid rgba(128,128,128,0.12)', marginTop: 64 }}>
           <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32 }}>
             <div>
-              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600 }}>Reelezy</span>
+              <ReelezyLogo size={44} />
               <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 220, lineHeight: 1.6 }}>AI-powered social content for personal-service businesses.</p>
             </div>
             <div style={{ display: 'flex', gap: 48 }}>

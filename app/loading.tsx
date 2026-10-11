@@ -1,3 +1,4 @@
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 export default function Loading() {
   return (
     <div
@@ -12,15 +13,7 @@ export default function Loading() {
         fontFamily: "'Inter', Arial, Helvetica, sans-serif",
       }}
     >
-      <div
-        style={{
-          fontFamily: "'Outfit', sans-serif",
-          fontSize: 22,
-          fontWeight: 600,
-        }}
-      >
-        Reelezy
-      </div>
+      <div style={{ display: "flex", justifyContent: "center" }}><ReelezyLogo size={44} /></div>
     </div>
   );
 }
