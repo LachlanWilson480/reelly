@@ -22,8 +22,14 @@ export default function PlansPage() {
         setUserEmail(user.email || null)
         const { data: profile } = await supabase.from('business_profiles').select('business_name').eq('user_id', user.id).maybeSingle()
         setBusinessName(profile?.business_name || user.email || null)
-        const { data: sub } = await supabase.from('subscriptions').select('plan, status').eq('user_id', user.id).maybeSingle()
-        setUserPlan(sub?.status === 'active' ? sub.plan : 'free')
+        const { data: sub } = await supabase.from('subscriptions').select('plan, status, billing_interval, stripe_subscription_id').eq('user_id', user.id).maybeSingle()
+        const activePlan = sub?.status === 'active' ? sub.plan : 'free'
+        setUserPlan(activePlan)
+        if (activePlan !== 'free' && sub) {
+          setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null })
+          const { data: bp } = await supabase.from('business_profiles').select('ideas_generated_this_week, scripts_generated_this_week, filming_generated_this_week').eq('user_id', user.id).maybeSingle()
+          setUsage({ ideas: bp?.ideas_generated_this_week || 0, scripts: bp?.scripts_generated_this_week || 0, filming: bp?.filming_generated_this_week || 0 })
+        }
       }
     }
     loadUser()
@@ -51,6 +57,9 @@ export default function PlansPage() {
   const [discountError, setDiscountError] = useState('')
   const [discountLoading, setDiscountLoading] = useState(false)
   const [discountPercent, setDiscountPercent] = useState<number | null>(null)
+  const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null } | null>(null)
+  const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number } | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   const pricing = [
     {
@@ -109,15 +118,101 @@ export default function PlansPage() {
     return `${p.symbol}${(num * (1 - discountPercent / 100)).toFixed(2)}`
   }
 
+  const openPortal = async () => {
+    setPortalLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/stripe-portal', { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token}` } })
+    const data = await res.json()
+    setPortalLoading(false)
+    if (data.url) window.location.href = data.url
+  }
+
+  const planLabel = userPlan === 'top' ? 'Pro' : userPlan === 'mid' ? 'Basic' : 'Free'
+  const usageLimits = {
+    ideas: userPlan === 'top' ? 210 : userPlan === 'mid' ? 95 : 24,
+    scripts: userPlan === 'top' ? 96 : userPlan === 'mid' ? 20 : 1,
+    filming: userPlan === 'top' ? 98 : userPlan === 'mid' ? 50 : 7,
+  }
+
+  if (userPlan && userPlan !== 'free' && subDetails) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+        <Sidebar />
+        <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
+          <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
+            <Link href="/"><ReelezyLogo size={44} /></Link>
+            <button onClick={openPortal} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
+          </nav>
+          <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
+            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32 }}>
+              {subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
+            </p>
+
+            {/* Plan card */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>Current plan</p>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--coral)' }}>{planLabel}</p>
+                </div>
+                <button
+                  onClick={openPortal}
+                  disabled={portalLoading}
+                  style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: portalLoading ? 0.6 : 1 }}
+                >
+                  {portalLoading ? 'Opening…' : 'Manage billing'}
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                To upgrade, downgrade, or cancel your plan, click <strong>Manage billing</strong> — you'll be taken to the Stripe customer portal.
+              </p>
+            </div>
+
+            {/* Weekly usage */}
+            {usage && (
+              <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>This week's usage</p>
+                {[
+                  { label: 'Content ideas', used: usage.ideas, limit: usageLimits.ideas },
+                  { label: 'Scripts', used: usage.scripts, limit: usageLimits.scripts },
+                  { label: 'Filming instructions', used: usage.filming, limit: usageLimits.filming },
+                ].map(({ label, used, limit }) => (
+                  <div key={label} style={{ marginBottom: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, color: 'var(--ink)' }}>{label}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{used} / {limit}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 99, background: 'rgba(128,128,128,0.12)' }}>
+                      <div style={{ height: 6, borderRadius: 99, background: 'var(--coral)', width: `${Math.min(100, (used / limit) * 100)}%`, transition: 'width 0.4s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Switch plan link */}
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
+              Want to see other plans?{' '}
+              <button onClick={() => setSubDetails(null)} style={{ color: 'var(--coral)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                View pricing
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
+        <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/"><ReelezyLogo size={44} /></Link>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>
+              <div className="plans-nav-badge" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
                 <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{businessName || userEmail}</span>
                 {userPlan && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {userPlan === 'free' ? 'Free Plan' : userPlan === 'top' ? 'Pro' : 'Basic'}</span>}
@@ -174,7 +269,7 @@ export default function PlansPage() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 48 }}>
+          <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 48 }}>
             {pricing.map((tier) => (
               <div
                 key={tier.id}

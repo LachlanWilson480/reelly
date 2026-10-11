@@ -1395,7 +1395,7 @@ export default function DashboardPage() {
         <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <ReelezyLogo size={44} />
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="/settings?section=billing" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
+            <a href="/settings?section=billing" className="plan-badge" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 999, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
               {realSubPlan && realSubStatus !== 'active'
                 ? `${realSubPlan === "top" ? "Pro" : realSubPlan === "mid" ? "Basic" : "Basic"} Plan (${realSubStatus})`
@@ -1413,7 +1413,7 @@ export default function DashboardPage() {
           </div>
         </nav>
 
-        <div style={{ padding: '0 48px 100px' }}>
+        <div className="dashboard-content" style={{ padding: '0 48px 100px' }}>
           {deletionScheduledAt && (
             <div style={{ background: 'rgba(216,90,48,0.1)', border: '1px solid var(--coral)', borderRadius: 16, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <p style={{ fontSize: 13, color: 'var(--ink)' }}>
@@ -1441,7 +1441,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', marginBottom: 28, borderBottom: '1px solid rgba(128,128,128,0.15)', gap: 16, position: 'relative' }} onClick={() => setOpenDropdown(null)}>
+          <div style={{ position: 'relative', marginBottom: 28 }}>
+            <div className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid rgba(128,128,128,0.15)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
             <button onClick={(e) => { e.stopPropagation(); setTab('overview'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
@@ -1484,6 +1485,11 @@ export default function DashboardPage() {
               Publish
             </button>
 
+            </div>
+            {/* Scroll arrow */}
+            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 1, width: 48, background: 'linear-gradient(to right, transparent, var(--background) 70%)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, pointerEvents: 'none' }}>
+              <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>›</span>
+            </div>
           </div>
 
           {/* Editor toggle - shown when on edit tab */}

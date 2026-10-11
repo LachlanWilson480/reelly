@@ -93,11 +93,11 @@ export default function HomePage() {
       <Sidebar />
       <div style={{ marginLeft: 0 }}>
 
-        <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 64px' }}>
-          <ReelezyLogo size={44} />
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <Link href="/login" style={{ color: 'var(--text-secondary)', fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>Log in</Link>
-            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '9px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Sign up</Link>
+        <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+          <ReelezyLogo size={36} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <Link href="/login" style={{ color: 'var(--text-secondary)', fontSize: 14, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Log in</Link>
+            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>Sign up</Link>
           </div>
         </nav>
 
@@ -106,7 +106,7 @@ export default function HomePage() {
             <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 50, fontWeight: 600, color: '#F1EFE8', maxWidth: 520, lineHeight: 1.1, letterSpacing: -0.5, margin: 0 }}>
               Content ideas, filmed and posted in minutes.
             </h1>
-            <p style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
+            <p className="hero-subtext" style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
               Reelezy helps personal-service businesses turn everyday work into social media content. AI-powered ideas, simple filming guides, automatic editing, and scheduling in one place.
             </p>
             <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
@@ -164,11 +164,11 @@ export default function HomePage() {
           <style>{`@keyframes heroFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </section>
 
-        <section style={{ padding: '48px 64px 0', textAlign: 'center' }}>
+        <section style={{ padding: '24px 64px 0', textAlign: 'center' }}>
           <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for small businesses</p>
         </section>
 
-        <section style={{ padding: '96px 64px 0' }}>
+        <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>How it works</h2>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>From setup to your first posted video in under an hour.</p>
@@ -191,7 +191,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section style={{ padding: '96px 64px 0' }}>
+        <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>Everything you need to post consistently</h2>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>Built so you can go from idea to scheduled post without opening a single other app.</p>
@@ -217,7 +217,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section style={{ padding: '96px 64px 0' }}>
+        <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 }}>Pricing</h2>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 44 }}>Priced by render minutes per month. Full details at checkout.</p>
@@ -244,7 +244,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section style={{ padding: '96px 64px 0' }}>
+        <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 640, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 36, textAlign: 'center', letterSpacing: -0.3 }}>Common questions</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

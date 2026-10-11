@@ -218,3 +218,78 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: #F1EFE8 !important;
   caret-color: #F1EFE8;
 }
+
+/* ── Mobile fixes ── */
+
+/* Dashboard nav: stack on small screens */
+@media (max-width: 640px) {
+  .dashboard-nav {
+    padding: 12px 16px 12px 64px !important;
+    gap: 8px;
+  }
+  .dashboard-nav .plan-badge {
+    display: none !important;
+  }
+}
+
+/* Dashboard content padding */
+@media (max-width: 640px) {
+  .dashboard-content {
+    padding: 0 16px 80px !important;
+  }
+}
+
+/* Dashboard tabs: shrink padding and font */
+@media (max-width: 768px) {
+  .dashboard-tabs-scroll button {
+    padding: 10px 16px !important;
+    font-size: 13px !important;
+  }
+  .dashboard-tabs-scroll > div > button {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Landing page nav */
+@media (max-width: 640px) {
+  .site-nav {
+    padding: 12px 16px 12px 64px !important;
+  }
+  .site-nav .logo-img {
+    height: 36px !important;
+  }
+}
+
+/* Landing hero h1 */
+@media (max-width: 480px) {
+  .hero-section h1 {
+    font-size: 28px !important;
+  }
+}
+
+/* Plans cards stack */
+@media (max-width: 640px) {
+  .plans-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ReelezyLogo smaller on mobile */
+@media (max-width: 640px) {
+  .reelezy-logo img {
+    height: 32px !important;
+    width: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-subtext {
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .plans-nav { padding: 12px 20px 12px 64px !important; }
+  .plans-nav-badge { display: none !important; }
+}
