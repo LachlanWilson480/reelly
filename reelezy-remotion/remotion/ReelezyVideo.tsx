@@ -3,8 +3,8 @@ import { z } from "zod";
 
 export const clipSchema = z.object({
   src: z.string(),
-  startFrom: z.number().optional(),   // trimStart in seconds → converted to frames
-  endAt: z.number().optional(),       // trimStart + trimLength in seconds → converted to frames
+  startFrom: z.number().optional(),
+  endAt: z.number().optional(),
   volume: z.number().optional(),
   speed: z.number().optional(),
   fit: z.enum(["crop", "cover", "contain"]).optional(),
@@ -13,7 +13,7 @@ export const clipSchema = z.object({
   flipH: z.boolean().optional(),
   flipV: z.boolean().optional(),
   letterbox: z.boolean().optional(),
-  durationInSeconds: z.number(),      // effective clip length (already trimmed)
+  durationInSeconds: z.number(),
 });
 
 export const reelezySchema = z.object({
@@ -21,6 +21,7 @@ export const reelezySchema = z.object({
   musicSrc: z.string().optional(),
   width: z.number(),
   height: z.number(),
+  watermark: z.boolean().optional(),
 });
 
 export type ReelezyProps = z.infer<typeof reelezySchema>;
@@ -42,10 +43,9 @@ const getObjectFit = (fit?: string): "cover" | "contain" | "fill" => {
   return "cover";
 };
 
-export const ReelezyVideo: React.FC<ReelezyProps> = ({ clips, musicSrc }) => {
+export const ReelezyVideo: React.FC<ReelezyProps> = ({ clips, musicSrc, watermark }) => {
   const { fps } = useVideoConfig();
 
-  // Build cumulative start times in frames
   const clipStartFrames: number[] = [];
   let cursor = 0;
   for (const clip of clips) {
@@ -74,7 +74,6 @@ export const ReelezyVideo: React.FC<ReelezyProps> = ({ clips, musicSrc }) => {
             from={clipStartFrames[i]}
             durationInFrames={durationInFrames}
           >
-            {/* Letterbox blurred background */}
             {clip.letterbox && (
               <AbsoluteFill>
                 <Video
@@ -93,7 +92,6 @@ export const ReelezyVideo: React.FC<ReelezyProps> = ({ clips, musicSrc }) => {
               </AbsoluteFill>
             )}
 
-            {/* Main clip */}
             <AbsoluteFill>
               <Video
                 src={clip.src}
@@ -114,13 +112,38 @@ export const ReelezyVideo: React.FC<ReelezyProps> = ({ clips, musicSrc }) => {
         );
       })}
 
-      {/* Background music */}
       {musicSrc && (
         <Audio
           src={musicSrc}
           volume={MUSIC_VOLUME}
           startFrom={0}
         />
+      )}
+
+      {/* Watermark overlay — free plan preview only */}
+      {watermark && (
+        <AbsoluteFill
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "sans-serif",
+              fontSize: 36,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.45)",
+              textShadow: "0 1px 4px rgba(0,0,0,0.6)",
+              letterSpacing: 1,
+              userSelect: "none",
+            }}
+          >
+            reelezy.com
+          </span>
+        </AbsoluteFill>
       )}
     </AbsoluteFill>
   );
