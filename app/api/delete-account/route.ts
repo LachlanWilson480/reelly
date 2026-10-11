@@ -1,3 +1,4 @@
+import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
