@@ -173,6 +173,7 @@ export default function DashboardPage() {
   const [postsThisWeek, setPostsThisWeek] = useState(0)
   const [scriptsThisWeek, setScriptsThisWeek] = useState(0)
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
+  const [totalLifetimeRenders, setTotalLifetimeRenders] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
   const [currentBatch, setCurrentBatch] = useState(0)
@@ -224,6 +225,8 @@ export default function DashboardPage() {
     setTotalRenders(renders || 0)
     const { data: renderRows } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).not('duration_seconds', 'is', null)
     setTotalRenderSeconds((renderRows || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
+    const { count: lifetimeRenderCount } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+    setTotalLifetimeRenders(lifetimeRenderCount || 0)
   }
 
   useEffect(() => {
@@ -1306,7 +1309,7 @@ export default function DashboardPage() {
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
-  const freeQuotaExceeded = isFreeTier && totalRenderSeconds >= 60
+  const freeQuotaExceeded = isFreeTier && totalLifetimeRenders >= 1
   const isProPlan = userPlan === 'top' && realSubStatus === 'active'
 
   const renderCapMin = userPlan === 'top' ? 60 : 25
