@@ -107,7 +107,7 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: 'var(--card-bg)', borderRadius: 20, padding: '32px', maxWidth: 440, width: '100%' }}
+        style={{ background: 'var(--card-bg)', borderRadius: 20, padding: '32px', maxWidth: 440, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
       >
         <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
           Subscribe to {planLabel}
