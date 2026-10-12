@@ -38,6 +38,7 @@ export default function OnboardingPage() {
   const [customerDescription, setCustomerDescription] = useState('')
   const [keySellingPoint, setKeySellingPoint] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
+  const [filmingStyles, setFilmingStyles] = useState<string[]>([])
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [locationType, setLocationType] = useState('fixed')
   const [website, setWebsite] = useState('')
@@ -71,7 +72,7 @@ export default function OnboardingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!businessName.trim() || !industry.trim() || !suburb.trim() || !coreServices.trim()) {
-      setMessage('Please fill in your business name, industry, suburb and core services.')
+      setMessage('Please fill in your business name, industry, location and core services.')
       return
     }
     setMessage('')
@@ -94,7 +95,7 @@ export default function OnboardingPage() {
       tone,
       target_audience: customerDescription,
       key_selling_point: keySellingPoint,
-      filming_comfort: filmingComfort,
+      filming_comfort: [filmingStyles.length ? 'Preferred styles: ' + filmingStyles.join(', ') : '', filmingComfort].filter(Boolean).join(' | '),
       on_camera_people: onCameraPeople,
       location_type: locationType,
       website,
@@ -177,8 +178,8 @@ export default function OnboardingPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Suburb / City *</label>
-                  <input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. Newtown" style={inputStyle} />
+                  <label style={labelStyle}>Business location(s) *</label>
+                  <input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. London, Manchester" style={inputStyle} />
                 </div>
               </div>
             </div>
@@ -202,7 +203,18 @@ export default function OnboardingPage() {
                 <Field label="What sells your business best?" value={keySellingPoint} onChange={setKeySellingPoint} placeholder="e.g. award-winning chef, handmade pasta, 20 years experience" textarea />
 
                 <p style={sectionTitle}>Filming setup</p>
-                <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. just my phone, have a tripod and ring light" />
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Preferred filming styles</label>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, marginTop: -4 }}>Select all that apply — filming instructions will be tailored to these</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {['Talking head', 'Behind the scenes', 'Walk & talk', 'B-roll only', 'Tutorial / how-to', 'Product showcase', 'Day in the life', 'Customer testimonial'].map((style) => (
+                      <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 8, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: filmingStyles.includes(style) ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                        {style}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Field label="Equipment & setup notes" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. iPhone only, have a tripod and ring light, always film solo" />
                 <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names or roles" />
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Do customers come to you, or do you travel to them?</label>
