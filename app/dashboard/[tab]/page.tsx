@@ -61,7 +61,7 @@ type Idea = {
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
-const FONT_OPTIONS = ['Sans', 'Sans Bold', 'Serif', 'Serif Bold', 'Mono', 'Mono Bold', 'Narrow', 'Narrow Bold']
+const FONT_OPTIONS = ['Montserrat ExtraBold', 'Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Roboto Bold', 'Open Sans Bold', 'Lato Bold']
 
 const CAPTION_PRESETS = [
   { id: 'word_by_word', label: 'Word by Word', desc: 'One word at a time as it is spoken' },
@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [tab, setTabState] = useState<Tab>('overview')
   const [editorMode, setEditorMode] = useState<'ai' | 'any'>('ai')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const createBtnRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const setTab = (t: Tab) => {
     setTabState(t)
@@ -201,8 +202,8 @@ export default function DashboardPage() {
   const [captionPreset, setCaptionPreset] = useState('word_by_word')
   const [captionBorderColor, setCaptionBorderColor] = useState('#000000')
   const [showAdvancedCaptions, setShowAdvancedCaptions] = useState(true)
-  const [captionFontSize, setCaptionFontSize] = useState<number | string>(50)
-  const [captionFontFamily, setCaptionFontFamily] = useState('Montserrat ExtraBold')
+  const [captionFontSize, setCaptionFontSize] = useState<number | string>(60)
+  const [captionFontFamily, setCaptionFontFamily] = useState('Sans Bold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const musicInputRef = useRef<HTMLInputElement>(null)
@@ -210,7 +211,7 @@ export default function DashboardPage() {
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
-  const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('bottom')
+  const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
 
   const refreshStats = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -468,8 +469,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => { const target = e.target as HTMLElement; if (!target.closest('[data-dropdown]')) setOpenDropdown(null) }
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
   useEffect(() => {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
@@ -1453,12 +1454,12 @@ export default function DashboardPage() {
             </button>
 
             {/* Create dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div ref={createBtnRef} style={{ position: 'relative' }}>
               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'create' ? null : 'create') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['ideas','script'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['ideas','script'].includes(tab) ? 600 : 500, color: ['ideas','script'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                 Create <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
               </button>
               {openDropdown === 'create' && (
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: createBtnRef.current?.getBoundingClientRect().left ?? 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
                   {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'script', label: 'Script Generator' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
                     <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
                       {item.label}{(item as {pro?: boolean}).pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)' }}>Pro</span> : ''}
@@ -1835,7 +1836,7 @@ export default function DashboardPage() {
                         >
                           Remove
                         </button>
-                        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 50 }}>
+                        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 90 }}>
                           {idea.title}
                         </h3>
                         <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
@@ -2643,6 +2644,9 @@ export default function DashboardPage() {
                       </label>
                       {uploadAddCaptions && (
                         <>
+                          <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
+                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
+                          </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
                             {CAPTION_PRESETS.map((preset) => (
                               <button key={preset.id} onClick={() => setCaptionPreset(preset.id)}

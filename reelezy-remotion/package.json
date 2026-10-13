@@ -2,7 +2,7 @@
   "name": "reelezy-remotion",
   "version": "1.0.0",
   "scripts": {
-    "dev": "tsx watch server",
+    "dev": "node --env-file=.env ./node_modules/.bin/tsx watch server",
     "build": "tsc",
     "start": "node dist/server/index.js",
     "lint": "eslint . && tsc"

@@ -152,6 +152,14 @@ export async function burnCaptions(
     'Mono Bold': '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf',
     'Narrow': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Regular.ttf',
     'Narrow Bold': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
+    'Montserrat ExtraBold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    'Impact': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
+    'Anton': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
+    'Bebas Neue': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
+    'Oswald': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Regular.ttf',
+    'Roboto Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    'Open Sans Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    'Lato Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
   };
   const fontFilePath = captionStyle.fontFamily ? fontMap[captionStyle.fontFamily] : null;
   const fontFilePart = fontFilePath && require('node:fs').existsSync(fontFilePath)
