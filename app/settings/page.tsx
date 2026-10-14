@@ -601,13 +601,13 @@ export default function SettingsPage() {
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
-              <div style={{ position: 'relative', marginBottom: 0 }}>
+              <div style={{ position: 'relative', marginBottom: 14 }}>
                 <input
                   type={showNewPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="New password"
-                  style={{ ...inputStyle, padding: '12px 44px 12px 14px' }}
+                  style={{ ...inputStyle, padding: '12px 44px 12px 14px', marginBottom: 0 }}
                 />
                 <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                   {showNewPassword ? (
