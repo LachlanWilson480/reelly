@@ -59,7 +59,7 @@ type Idea = {
   source?: string
 }
 
-type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
+type FilmingItem = Idea & { checklist: string[] | 'film'; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Roboto Bold', 'Open Sans Bold', 'Lato Bold']
 
@@ -145,6 +145,14 @@ export default function DashboardPage() {
   const [savingCarousel, setSavingCarousel] = useState(false)
   const [carouselError, setCarouselError] = useState('')
   const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
+  const [filmScript, setFilmScript] = useState('')
+  const [filmScrollSpeed, setFilmScrollSpeed] = useState(3)
+  const [filmIsRecording, setFilmIsRecording] = useState(false)
+  const [filmCountdown, setFilmCountdown] = useState<number | null>(null)
+  const [filmUploading, setFilmUploading] = useState(false)
+  const filmVideoRef = useRef<HTMLVideoElement>(null)
+  const filmStreamRef = useRef<MediaStream | null>(null)
+  const filmMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -784,7 +792,63 @@ export default function DashboardPage() {
     await downloadZip(allFiles, 'all-carousels.zip')
   }
 
-  const togglePreviewTrack = (trackId: string, url: string) => {
+  useEffect(() => {
+    if (tab === 'film') {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+        .then(stream => {
+          filmStreamRef.current = stream
+          if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
+        })
+        .catch(err => console.error('Camera access denied:', err))
+    } else {
+      filmStreamRef.current?.getTracks().forEach(t => t.stop())
+      filmStreamRef.current = null
+      if (filmVideoRef.current) filmVideoRef.current.srcObject = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  const startFilmRecording = async () => {
+    if (!filmStreamRef.current) return
+    setFilmCountdown(3)
+    await new Promise(r => setTimeout(r, 1000))
+    setFilmCountdown(2)
+    await new Promise(r => setTimeout(r, 1000))
+    setFilmCountdown(1)
+    await new Promise(r => setTimeout(r, 1000))
+    setFilmCountdown(null)
+    const chunks: Blob[] = []
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm'
+    const recorder = new MediaRecorder(filmStreamRef.current, { mimeType })
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'video/webm' })
+      setFilmUploading(true)
+      const path = `film/filmed-${userId}-${Date.now()}.webm`
+      const { data, error } = await supabase.storage.from('video-uploads').upload(path, blob, { contentType: 'video/webm', upsert: true })
+      if (!error && data) {
+        setUploadSlotPaths({ 0: data.path })
+        setUploadSlots([0])
+        setTab('uploads')
+      } else {
+        alert('Upload failed — please try again.')
+      }
+      setFilmUploading(false)
+    }
+    recorder.start()
+    filmMediaRecorderRef.current = recorder
+    setFilmIsRecording(true)
+  }
+
+  const stopFilmRecording = () => {
+    filmMediaRecorderRef.current?.stop()
+    filmStreamRef.current?.getTracks().forEach(t => t.stop())
+    filmStreamRef.current = null
+    if (filmVideoRef.current) filmVideoRef.current.srcObject = null
+    setFilmIsRecording(false)
+  }
+
+    const togglePreviewTrack = (trackId: string, url: string) => {
     if (previewingTrackId === trackId) {
       previewAudioRef.current?.pause()
       setPreviewingTrackId(null)
@@ -1474,9 +1538,14 @@ export default function DashboardPage() {
               My Ideas{savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
             </button>
 
-            {/* Filming tab */}
+            {/* Instructions tab */}
             <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('filming') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'filming' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'filming' ? 600 : 500, color: tab === 'filming' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              Filming
+              Instructions
+            </button>
+
+            {/* Film tab */}
+            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('film') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'film' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'film' ? 600 : 500, color: tab === 'film' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Film
             </button>
 
             {/* Edit dropdown */}
@@ -2751,7 +2820,64 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {tab === 'aiuploads' && (
+                        {/* Film tab */}
+              {tab === 'film' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520, margin: '32px auto', padding: '0 16px' }}>
+                  <div>
+                    <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Read your script on screen while your camera rolls — saved straight to the editor when done.</p>
+                  </div>
+                  <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: 0.5 }}>Script</p>
+                    {savedScripts.length > 0 && (
+                      <select onChange={(e) => { const s = savedScripts.find(sc => sc.id === e.target.value); if (s) setFilmScript(s.script) }} defaultValue="" style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                        <option value="">— Load a saved script —</option>
+                        {savedScripts.map(s => <option key={s.id} value={s.id}>{s.topic}</option>)}
+                      </select>
+                    )}
+                    <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} placeholder="Paste your script here or load a saved one above…" rows={5} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
+                    <video ref={filmVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
+                    {filmScript.trim() && (
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '48px 20px 24px', background: 'linear-gradient(transparent, rgba(0,0,0,0.88))' }}>
+                        <p style={{ color: '#fff', fontSize: 20, lineHeight: 1.7, textAlign: 'center', fontWeight: 500, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmScript}</p>
+                      </div>
+                    )}
+                    {filmCountdown !== null && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
+                        <span style={{ fontSize: 100, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{filmCountdown}</span>
+                      </div>
+                    )}
+                    {filmIsRecording && (
+                      <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
+                        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
+                      </div>
+                    )}
+                    {!filmIsRecording && filmCountdown === null && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, pointerEvents: 'none' }}>
+                        <span style={{ fontSize: 40 }}>📷</span>
+                        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center', margin: 0 }}>Allow camera access to start</p>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{filmScrollSpeed}x</span>
+                      </div>
+                      <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => setFilmScrollSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
+                    </div>
+                    <button onClick={filmIsRecording ? stopFilmRecording : startFilmRecording} disabled={filmCountdown !== null || filmUploading} style={{ flexShrink: 0, padding: '13px 28px', borderRadius: 50, border: 'none', background: filmIsRecording ? '#ff3b30' : 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmCountdown !== null || filmUploading ? 'not-allowed' : 'pointer', opacity: filmCountdown !== null ? 0.7 : 1, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                      {filmUploading ? 'Saving…' : filmIsRecording ? '⏹  Stop' : '⏺  Record'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+{tab === 'aiuploads' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── Select idea ── */}
