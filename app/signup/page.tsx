@@ -25,7 +25,7 @@ export default function SignUpPage() {
     if (isSigningUp) return
 
     if (!agreedToTerms) {
-      setMessage('Please confirm you agree to the Terms of Service.')
+      setMessage('Please agree to the Privacy Policy to continue.')
       return
     }
 
@@ -65,7 +65,7 @@ export default function SignUpPage() {
       container,
       onCredential: async (idToken, rawNonce) => {
         if (!agreedRef.current) {
-          setMessage('Please confirm you agree to the Terms of Service.')
+          setMessage('Please agree to the Privacy Policy to continue.')
           return
         }
         setMessage('')
@@ -202,7 +202,7 @@ export default function SignUpPage() {
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', opacity: agreedToTerms ? 1 : 0.5, transition: 'opacity 0.15s ease' }} />
               {!agreedToTerms && (
                 <div
-                  onClick={() => setMessage('Please confirm you agree to the Terms of Service.')}
+                  onClick={() => setMessage('Please agree to the Privacy Policy to continue.')}
                   style={{ position: 'absolute', inset: 0, cursor: 'not-allowed' }}
                 />
               )}
@@ -210,7 +210,7 @@ export default function SignUpPage() {
             <p style={{ fontSize: 13, color: '#D3D1C7', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
               {agreedToTerms
                 ? 'Continue with Google, or use your email below.'
-                : 'Agree to the Terms of Service below to continue with Google.'}
+                : 'Agree to the Privacy Policy below to continue with Google.'}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
@@ -297,15 +297,6 @@ export default function SignUpPage() {
                 />
                 <span>
                   I agree to the{' '}
-                  <Link
-                    href="/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: 'var(--coral)', fontWeight: 600 }}
-                  >
-                    Terms of Service
-                  </Link>
-                  {' '}and{' '}
                   <Link
                     href="/privacy"
                     target="_blank"
