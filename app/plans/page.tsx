@@ -81,7 +81,7 @@ export default function PlansPage() {
       yearlyPrice: `${p.symbol}${p.basicYearly}`,
       yearlyPerMonth: `${p.symbol}${p.basicPerMonth}`,
       desc: '~40 reels per month',
-      features: ['~40 reels/month (25 render minutes)', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
+      features: ['~40 reels/month (25 render minutes)', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', '1080p video rendering', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
     },
     {
       id: 'top',
