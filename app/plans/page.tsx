@@ -361,14 +361,7 @@ export default function PlansPage() {
             {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>{discountPercent}% off applied!</p>}
           </div>
 
-                    <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px 32px' }}>
-            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-              What happens if I go over my render minutes?
-            </h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Overage renders are billed monthly at a flat fee of {p.symbol}0.50/minute over. You'll always see a confirmation before any render over your monthly limit, and you'll be charged on the 1st of every month.
-            </p>
-          </div>
+          
         </div>
       </div>
 
