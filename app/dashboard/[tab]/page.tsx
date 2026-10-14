@@ -59,7 +59,7 @@ type Idea = {
   source?: string
 }
 
-type FilmingItem = Idea & { checklist: string[] | 'film'; prep?: string[]; caption?: string; script?: string; directions?: string[] }
+type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Roboto Bold', 'Open Sans Bold', 'Lato Bold']
 
