@@ -33,7 +33,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
 
   return (
     <div style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
+      <div className="render-card-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
         <div style={{ background: '#000' }}>
           {render.output_url ? (
             <video
@@ -53,16 +53,6 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
               </p>
               {render.title && <p style={{ fontSize: 14, fontWeight: 600 }}>{render.title}</p>}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              {render.output_url && (
-                <button onClick={() => onDownload(render.output_url!)} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                  Download
-                </button>
-              )}
-              <button onClick={() => onClear(render.id)} style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
-                Remove
-              </button>
-            </div>
           </div>
           {fullCaption ? (
             <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
@@ -77,6 +67,16 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
           ) : (
             <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption · generate filming instructions for this idea to get a suggested caption.</p>
           )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {render.output_url && (
+              <button onClick={() => onDownload(render.output_url!)} style={{ flex: 1, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Download
+              </button>
+            )}
+            <button onClick={() => onClear(render.id)} style={{ flex: 1, background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
+              Remove
+            </button>
+          </div>
           {tags && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <p style={{ fontSize: 12, color: 'var(--coral)', flex: 1 }}>{tags}</p>
@@ -212,7 +212,7 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {carousels.map((c) => (
               <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
+                <div className="render-card-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
                   <div style={{ background: '#000' }}>
                     {carouselThumbs[c.id] ? (
                       <img src={carouselThumbs[c.id]} alt="Carousel" style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 200, display: 'block' }} />

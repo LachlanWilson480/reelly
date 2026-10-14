@@ -296,3 +296,9 @@ input:-webkit-autofill:focus {
   .plans-nav { padding: 12px 20px 12px 64px !important; }
   .plans-nav-badge { display: none !important; }
 }
+
+@media (max-width: 640px) {
+  .render-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
