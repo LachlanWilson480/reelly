@@ -46,7 +46,7 @@ type Profile = {
   customer_source: string | null
   filming_comfort: string | null}
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler'
 
 type Idea = {
   id: string
@@ -815,12 +815,12 @@ export default function DashboardPage() {
   useEffect(() => {
     if (filmIsRecording) {
       filmScrollPosRef.current = 0
-      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateY(0)'
+      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateX(0)'
       const speed = filmScrollSpeed * 0.35
       const scroll = () => {
         filmScrollPosRef.current += speed
         if (filmTeleprompterInnerRef.current) {
-          filmTeleprompterInnerRef.current.style.transform = `translateY(-${filmScrollPosRef.current}px)`
+          filmTeleprompterInnerRef.current.style.transform = `translateX(-${filmScrollPosRef.current}px)`
         }
         filmRafRef.current = requestAnimationFrame(scroll)
       }
@@ -828,7 +828,7 @@ export default function DashboardPage() {
     } else {
       if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
       filmScrollPosRef.current = 0
-      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateY(0)'
+      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateX(0)'
     }
     return () => { if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null } }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -868,9 +868,6 @@ export default function DashboardPage() {
 
   const stopFilmRecording = () => {
     filmMediaRecorderRef.current?.stop()
-    filmStreamRef.current?.getTracks().forEach(t => t.stop())
-    filmStreamRef.current = null
-    if (filmVideoRef.current) filmVideoRef.current.srcObject = null
     setFilmIsRecording(false)
   }
 
@@ -2884,8 +2881,8 @@ export default function DashboardPage() {
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
                     <video ref={filmVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
                     {filmScript.trim() && (
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200, overflow: 'hidden', background: 'linear-gradient(transparent, rgba(0,0,0,0.92))', padding: '0 24px' }}>
-                        <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, lineHeight: 1.85, textAlign: 'center', fontWeight: 500, margin: 0, paddingTop: 48, textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform' }}>{filmScript}</p>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.75)', padding: '14px 0' }}>
+                        <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmScript}</p>
                       </div>
                     )}
                     {filmCountdown !== null && (
