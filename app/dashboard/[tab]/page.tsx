@@ -2855,12 +2855,7 @@ export default function DashboardPage() {
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
                     )}
-                    {!filmIsRecording && filmCountdown === null && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, pointerEvents: 'none' }}>
-                        <span style={{ fontSize: 40 }}>📷</span>
-                        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center', margin: 0 }}>Allow camera access to start</p>
-                      </div>
-                    )}
+
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ flex: 1 }}>
