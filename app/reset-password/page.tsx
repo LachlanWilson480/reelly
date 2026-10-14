@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -52,6 +53,7 @@ export default function ResetPasswordPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, padding: '48px 40px', maxWidth: 400, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+        <Link href="/" style={{ display: 'inline-block', marginBottom: 24 }}><ReelezyLogo size={44} /></Link>
         <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 26, fontWeight: 600, color: '#F1EFE8', marginBottom: 8 }}>
           Set a new password
         </h1>

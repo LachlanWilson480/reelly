@@ -2931,6 +2931,9 @@ export default function DashboardPage() {
                             </label>
                             {aiAddCaptions && (
                               <>
+                                <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
+                                  <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
+                                </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
                                   {CAPTION_PRESETS.map((preset) => (
                                     <button key={preset.id} onClick={() => setAiCaptionPreset(preset.id)}
