@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [tab, setTabState] = useState<Tab>('overview')
   const [editorMode, setEditorMode] = useState<'ai' | 'any'>('ai')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const editBtnRef = useRef<HTMLDivElement>(null)
   const createBtnRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const setTab = (t: Tab) => {
@@ -125,8 +126,8 @@ export default function DashboardPage() {
   const [aiLandscapeSteps, setAiLandscapeSteps] = useState<Set<number>>(new Set())
   const [showSpeechWarning, setShowSpeechWarning] = useState(false)
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
-  const [aiResolution, setAiResolution] = useState<'high' | 'low'>('high')
-  const [uploadResolution, setUploadResolution] = useState<'high' | 'low'>('high')
+  const [aiResolution, setAiResolution] = useState<'high' | 'low' | '4k'>('high')
+  const [uploadResolution, setUploadResolution] = useState<'high' | 'low' | '4k'>('high')
   const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
   const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
   const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
@@ -1479,10 +1480,21 @@ export default function DashboardPage() {
               Filming
             </button>
 
-            {/* Edit tab with toggle inside */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab(editorMode === 'ai' ? 'aiuploads' : 'uploads') }} style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              Edit
-            </button>
+            {/* Edit dropdown */}
+            <div ref={editBtnRef} style={{ position: 'relative' }}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'edit' ? null : 'edit') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Edit <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+              </button>
+              {openDropdown === 'edit' && (
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: editBtnRef.current?.getBoundingClientRect().left ?? 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                  {[{ id: 'aiuploads', label: 'AI Editor' }, { id: 'uploads', label: 'Editor For Any Video' }].map((item) => (
+                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(216,90,48,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Publish button */}
             <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
@@ -1496,21 +1508,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Editor toggle - shown when on edit tab */}
-          {(tab === 'aiuploads' || tab === 'uploads') && (
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              <Tooltip text="Upload clips from your AI-generated filming instructions" position="bottom">
-                <button onClick={() => { setEditorMode('ai'); setTab('aiuploads') }} style={{ padding: '8px 18px', borderRadius: 8, border: editorMode === 'ai' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'ai' ? 'var(--coral)' : 'var(--card-bg)', fontSize: 13, fontWeight: 600, color: editorMode === 'ai' ? '#fff' : 'var(--ink)', cursor: 'pointer' }}>
-                  AI Editor
-                </button>
-              </Tooltip>
-              <Tooltip text="Upload and edit any video clips you have filmed" position="bottom">
-                <button onClick={() => { setEditorMode('any'); setTab('uploads') }} style={{ padding: '8px 18px', borderRadius: 8, border: editorMode === 'any' ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: editorMode === 'any' ? 'var(--coral)' : 'var(--card-bg)', fontSize: 13, fontWeight: 600, color: editorMode === 'any' ? '#fff' : 'var(--ink)', cursor: 'pointer' }}>
-                  Editor For Any Video
-                </button>
-              </Tooltip>
-            </div>
-          )}
+
 
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
@@ -2669,14 +2667,25 @@ export default function DashboardPage() {
                       )}
                     </div>
                     {/* Quality + Smart Trim */}
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Smart Trim</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {([['high', '1080p', 'Fast renders, great for everyday Reels'] , ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
+                            <button key={val} onClick={() => setUploadResolution(val)} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: uploadResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
+                              <p style={{ fontSize: 12, fontWeight: 700, color: uploadResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}</p>
+                              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Smart Trim</p>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '10px 14px' }}>
                           <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
                           <div>
-                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Auto-remove silence</p>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cuts 2s+ quiet gaps</p>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Smart Trim</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
                           </div>
                         </label>
                       </div>
@@ -2956,6 +2965,18 @@ export default function DashboardPage() {
                             )}
                           </div>
 
+                          {/* Video Quality row */}
+                          <div style={{ padding: '10px 20px' }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {([['high', '1080p', 'Fast renders, great for everyday Reels'], ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
+                                <button key={val} onClick={() => setAiResolution(val)} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: aiResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
+                                  <p style={{ fontSize: 12, fontWeight: 700, color: aiResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}</p>
+                                  <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                           {/* Smart Trim row */}
                           <div style={{ padding: '10px 20px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 9, padding: '9px 14px' }}>
