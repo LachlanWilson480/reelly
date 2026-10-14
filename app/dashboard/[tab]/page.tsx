@@ -157,6 +157,7 @@ export default function DashboardPage() {
   const filmTeleprompterInnerRef = useRef<HTMLParagraphElement>(null)
   const filmScrollPosRef = useRef(0)
   const filmRafRef = useRef<number | null>(null)
+  const [filmCameraActive, setFilmCameraActive] = useState(false)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -796,18 +797,24 @@ export default function DashboardPage() {
     await downloadZip(allFiles, 'all-carousels.zip')
   }
 
+  const startFilmCamera = () => {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+      .then(stream => {
+        filmStreamRef.current = stream
+        if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
+        setFilmCameraActive(true)
+      })
+      .catch(err => console.error('Camera access denied:', err))
+  }
+
   useEffect(() => {
     if (tab === 'film') {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
-        .then(stream => {
-          filmStreamRef.current = stream
-          if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
-        })
-        .catch(err => console.error('Camera access denied:', err))
+      startFilmCamera()
     } else {
       filmStreamRef.current?.getTracks().forEach(t => t.stop())
       filmStreamRef.current = null
       if (filmVideoRef.current) filmVideoRef.current.srcObject = null
+      setFilmCameraActive(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
@@ -2888,6 +2895,12 @@ export default function DashboardPage() {
                     {filmCountdown !== null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
                         <span style={{ fontSize: 100, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{filmCountdown}</span>
+                      </div>
+                    )}
+                    {!filmCameraActive && !filmIsRecording && filmCountdown === null && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(0,0,0,0.5)' }}>
+                        <button onClick={startFilmCamera} style={{ padding: '12px 28px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>📷 Enable Camera</button>
+                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, margin: 0 }}>Click to start your camera</p>
                       </div>
                     )}
                     {filmIsRecording && (
