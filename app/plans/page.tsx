@@ -28,7 +28,10 @@ export default function PlansPage() {
         if (activePlan !== 'free' && sub) {
           setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null })
           const { data: bp } = await supabase.from('business_profiles').select('ideas_generated_this_week, scripts_generated_this_week, filming_generated_this_week').eq('user_id', user.id).maybeSingle()
-          setUsage({ ideas: bp?.ideas_generated_this_week || 0, scripts: bp?.scripts_generated_this_week || 0, filming: bp?.filming_generated_this_week || 0 })
+          const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+          const { data: monthRenders } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).gte('created_at', monthStart)
+          const usedSeconds = (monthRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+          setUsage({ ideas: bp?.ideas_generated_this_week || 0, scripts: bp?.scripts_generated_this_week || 0, filming: bp?.filming_generated_this_week || 0, renderMinutes: usedSeconds })
         }
       }
     }
@@ -58,7 +61,7 @@ export default function PlansPage() {
   const [discountLoading, setDiscountLoading] = useState(false)
   const [discountPercent, setDiscountPercent] = useState<number | null>(null)
   const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null } | null>(null)
-  const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number } | null>(null)
+  const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number; renderMinutes: number } | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
   const pricing = [
@@ -128,6 +131,7 @@ export default function PlansPage() {
   }
 
   const planLabel = userPlan === 'top' ? 'Pro' : userPlan === 'mid' ? 'Basic' : 'Free'
+  const renderMinuteLimit = userPlan === 'top' ? 3600 : userPlan === 'mid' ? 3600 : 1500
   const usageLimits = {
     ideas: userPlan === 'top' ? 210 : userPlan === 'mid' ? 95 : 24,
     scripts: userPlan === 'top' ? 96 : userPlan === 'mid' ? 20 : 1,
@@ -177,11 +181,12 @@ export default function PlansPage() {
                   { label: 'Content ideas', used: usage.ideas, limit: usageLimits.ideas },
                   { label: 'Scripts', used: usage.scripts, limit: usageLimits.scripts },
                   { label: 'Filming instructions', used: usage.filming, limit: usageLimits.filming },
+                  { label: 'Render minutes (this month)', used: usage.renderMinutes, limit: renderMinuteLimit },
                 ].map(({ label, used, limit }) => (
                   <div key={label} style={{ marginBottom: 14 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: 13, color: 'var(--ink)' }}>{label}</span>
-                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{used} / {limit}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label === 'Render minutes (this month)' ? `${String(Math.floor(used/60)).padStart(2,'0')}:${String(Math.floor(used%60)).padStart(2,'0')} / ${String(Math.floor(limit/60)).padStart(2,'0')}:00` : `${used} / ${limit}`}</span>
                     </div>
                     <div style={{ height: 6, borderRadius: 99, background: 'rgba(128,128,128,0.12)' }}>
                       <div style={{ height: 6, borderRadius: 99, background: 'var(--coral)', width: `${Math.min(100, (used / limit) * 100)}%`, transition: 'width 0.4s ease' }} />
