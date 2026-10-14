@@ -135,11 +135,10 @@ export default function DashboardPage() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const MUSIC_LIBRARY_TRACKS = [
-    { id: 'placeholder-1', name: 'Upbeat Corporate', mood: 'Energetic', url: '' },
-    { id: 'placeholder-2', name: 'Chill Lo-fi', mood: 'Relaxed', url: '' },
-    { id: 'placeholder-3', name: 'Cinematic Build', mood: 'Dramatic', url: '' },
-    { id: 'placeholder-4', name: 'Acoustic Warmth', mood: 'Cozy', url: '' },
-    { id: 'placeholder-5', name: 'Trending Pop', mood: 'Fun', url: '' },
+    { id: 'track-1', name: 'Upbeat Corporate', mood: 'Energetic', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/upbeat-corporate.mp3' },
+    { id: 'track-2', name: 'Chill Lo-fi', mood: 'Relaxed', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/chill-lofi.mp3' },
+    { id: 'track-3', name: 'Cinematic Build', mood: 'Dramatic', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/cinematic.mp3' },
+    { id: 'track-4', name: 'Trending Pop', mood: 'Fun', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/trending-pop.mp3' },
   ]
   const [carouselFiles, setCarouselFiles] = useState<File[]>([])
   const [carouselCaption, setCarouselCaption] = useState('')
