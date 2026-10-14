@@ -88,6 +88,7 @@ export default function SettingsPage() {
   const [showOptional, setShowOptional] = useState(false)
 
   const [newPassword, setNewPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [changingEmail, setChangingEmail] = useState(false)
   const [emailMessage, setEmailMessage] = useState('')
@@ -600,13 +601,18 @@ export default function SettingsPage() {
               <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password"
-                style={inputStyle}
-              />
+              <div style={{ position: 'relative', marginBottom: 0 }}>
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  style={{ ...inputStyle, padding: '12px 44px 12px 14px' }}
+                />
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer' }}>
+                  {showNewPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
               <button
                 onClick={handleChangePassword}
                 disabled={changingPassword || !newPassword}
@@ -728,23 +734,6 @@ export default function SettingsPage() {
 
             {subPlan && subStatus === 'active' && (
               <>
-                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px', marginBottom: 20 }}>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
-                    Change Plan
-                  </h3>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {(['basic', 'mid', 'top'] as const).filter((p) => p !== subPlan).map((p) => (
-                      <a
-                        key={p}
-                        href="/plans"
-                        style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid var(--coral)', color: 'var(--coral)', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                      >
-                        {`Switch to ${p === 'top' ? 'Pro' : p === 'mid' ? 'Basic' : 'Basic'}`}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     Cancel Subscription
