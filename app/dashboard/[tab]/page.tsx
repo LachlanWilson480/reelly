@@ -801,11 +801,17 @@ export default function DashboardPage() {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
       .then(stream => {
         filmStreamRef.current = stream
-        if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
       })
       .catch(err => console.error('Camera access denied:', err))
   }
+
+  useEffect(() => {
+    if (filmCameraActive && filmStreamRef.current && filmVideoRef.current) {
+      filmVideoRef.current.srcObject = filmStreamRef.current
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filmCameraActive])
 
   useEffect(() => {
     if (tab === 'film') {
