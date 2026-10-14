@@ -469,7 +469,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = params.tab as Tab | undefined
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "script", "uploads", "aiuploads", "carousel", "scheduler"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "film", "script", "uploads", "aiuploads", "carousel", "scheduler"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
