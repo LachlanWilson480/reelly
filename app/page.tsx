@@ -93,7 +93,7 @@ export default function HomePage() {
       <Sidebar />
       <div style={{ marginLeft: 0 }}>
 
-        <nav className="site-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+        <nav className="site-nav landing-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
           <ReelezyLogo size={36} />
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <Link href="/login" style={{ color: 'var(--text-secondary)', fontSize: 14, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Log in</Link>

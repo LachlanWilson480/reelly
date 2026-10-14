@@ -259,6 +259,9 @@ input:-webkit-autofill:focus {
   .site-nav .logo-img {
     height: 36px !important;
   }
+  .site-nav.landing-nav {
+    padding: 12px 16px !important;
+  }
 }
 
 /* Landing hero h1 */
