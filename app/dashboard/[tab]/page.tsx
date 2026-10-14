@@ -850,7 +850,7 @@ export default function DashboardPage() {
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'video/webm' })
       setFilmUploading(true)
-      const path = `film/filmed-${userId}-${Date.now()}.webm`
+      const path = `${userId}/film/filmed-${Date.now()}.webm`
       const { data, error } = await supabase.storage.from('video-uploads').upload(path, blob, { contentType: 'video/webm', upsert: true })
       if (!error && data) {
         setUploadSlotPaths({ 0: data.path })
