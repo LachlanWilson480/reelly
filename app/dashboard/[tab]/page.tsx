@@ -153,6 +153,7 @@ export default function DashboardPage() {
   const filmVideoRef = useRef<HTMLVideoElement>(null)
   const filmStreamRef = useRef<MediaStream | null>(null)
   const filmMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const [filmSelectedId, setFilmSelectedId] = useState<string | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -2827,15 +2828,33 @@ export default function DashboardPage() {
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Read your script on screen while your camera rolls — saved straight to the editor when done.</p>
                   </div>
-                  <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: 0.5 }}>Script</p>
-                    {savedScripts.length > 0 && (
-                      <select onChange={(e) => { const s = savedScripts.find(sc => sc.id === e.target.value); if (s) setFilmScript(s.script) }} defaultValue="" style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
-                        <option value="">— Load a saved script —</option>
-                        {savedScripts.map(s => <option key={s.id} value={s.id}>{s.topic}</option>)}
-                      </select>
+                  <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16 }}>
+                    <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: savedScripts.length > 0 ? 0 : 4 }}>
+                      {savedIdeas.map((idea) => (
+                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === idea.id ? '1.5px solid var(--coral)' : '1.5px solid transparent', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) { setFilmSelectedId(idea.id); setFilmScript([idea.hook, idea.description].filter(Boolean).join('\n\n')) } else { setFilmSelectedId(null); setFilmScript('') } }} style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--coral)' }} />
+                          <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
+                        </label>
+                      ))}
+                      {savedScripts.length > 0 && (
+                        <>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
+                          {savedScripts.map((s) => (
+                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === `script-${s.id}` ? '1.5px solid var(--coral)' : '1.5px solid transparent', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) { setFilmSelectedId(`script-${s.id}`); setFilmScript(s.script) } else { setFilmSelectedId(null); setFilmScript('') } }} style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--coral)' }} />
+                              <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    {filmScript && (
+                      <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} rows={4} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
                     )}
-                    <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} placeholder="Paste your script here or load a saved one above…" rows={5} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
+                    {savedIdeas.length === 0 && savedScripts.length === 0 && (
+                      <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} placeholder="Paste your script here…" rows={5} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
+                    )}
                   </div>
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
                     <video ref={filmVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
