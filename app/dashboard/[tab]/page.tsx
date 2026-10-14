@@ -154,6 +154,9 @@ export default function DashboardPage() {
   const filmStreamRef = useRef<MediaStream | null>(null)
   const filmMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const [filmSelectedId, setFilmSelectedId] = useState<string | null>(null)
+  const filmTeleprompterInnerRef = useRef<HTMLParagraphElement>(null)
+  const filmScrollPosRef = useRef(0)
+  const filmRafRef = useRef<number | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -809,7 +812,29 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
-  const startFilmRecording = async () => {
+  useEffect(() => {
+    if (filmIsRecording) {
+      filmScrollPosRef.current = 0
+      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateY(0)'
+      const speed = filmScrollSpeed * 0.35
+      const scroll = () => {
+        filmScrollPosRef.current += speed
+        if (filmTeleprompterInnerRef.current) {
+          filmTeleprompterInnerRef.current.style.transform = `translateY(-${filmScrollPosRef.current}px)`
+        }
+        filmRafRef.current = requestAnimationFrame(scroll)
+      }
+      filmRafRef.current = requestAnimationFrame(scroll)
+    } else {
+      if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
+      filmScrollPosRef.current = 0
+      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateY(0)'
+    }
+    return () => { if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null } }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filmIsRecording, filmScrollSpeed])
+
+    const startFilmRecording = async () => {
     if (!filmStreamRef.current) return
     setFilmCountdown(3)
     await new Promise(r => setTimeout(r, 1000))
@@ -2859,8 +2884,8 @@ export default function DashboardPage() {
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
                     <video ref={filmVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
                     {filmScript.trim() && (
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '48px 20px 24px', background: 'linear-gradient(transparent, rgba(0,0,0,0.88))' }}>
-                        <p style={{ color: '#fff', fontSize: 20, lineHeight: 1.7, textAlign: 'center', fontWeight: 500, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmScript}</p>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200, overflow: 'hidden', background: 'linear-gradient(transparent, rgba(0,0,0,0.92))', padding: '0 24px' }}>
+                        <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, lineHeight: 1.85, textAlign: 'center', fontWeight: 500, margin: 0, paddingTop: 48, textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform' }}>{filmScript}</p>
                       </div>
                     )}
                     {filmCountdown !== null && (
