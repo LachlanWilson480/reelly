@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, consumeRecoveryFlag } from '@/lib/supabase'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -16,6 +16,7 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
+    consumeRecoveryFlag()
     // Supabase handles the token from the URL hash automatically
     supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {

@@ -2,13 +2,17 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, consumeRecoveryFlag } from '@/lib/supabase'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
     const handleCallback = async () => {
+      if (consumeRecoveryFlag()) {
+        router.replace('/reset-password')
+        return
+      }
       const { data: sessionData } = await supabase.auth.getSession()
       const user = sessionData.session?.user
 

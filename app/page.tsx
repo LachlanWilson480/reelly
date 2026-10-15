@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
-import { supabase } from '@/lib/supabase'
+import { supabase, consumeRecoveryFlag } from '@/lib/supabase'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 
 export default function HomePage() {
@@ -23,6 +23,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const check = async () => {
+      if (consumeRecoveryFlag()) {
+        router.replace('/reset-password')
+        return
+      }
       if (searchParams.get('stay')) {
         setChecking(false)
         return
