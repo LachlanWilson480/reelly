@@ -393,6 +393,9 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
       : locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
       : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok but not assumed, vary the setting'
       : 'FIXED shop/studio — customers visit; showing space is fine'
+    const locationRule = locationType === 'online'
+      ? '\nHARD RULE (overrides the services list): this business sells ONLINE. Treat services as products. Every idea must be about products, orders, or the brand. NO walk-in customers, appointments, on-site service, shop tours or customer visits. Use: product demos, unboxing, packing orders, new arrivals/restocks, founder story, customer results/reviews, how-to-use, sourcing/making behind the scenes.'
+      : ''
 
     // Seasonal — major + micro, only what's actually upcoming
     const { major: majorEvent, micro: microEvent } = getUpcomingEvents(profile.country)
@@ -447,7 +450,7 @@ Return exactly ${batchSize} ideas. Each must have: title (catchy), hook (1 sente
 BUSINESS:
 ${profileBrief}
 ${crewLine}
-Location: ${locationBrief}
+Location: ${locationBrief}${locationRule}
 ${seasonalBlock && !objectivesBlock ? `\n${seasonalBlock}` : ''}
 ${keyEventsContext && !objectivesBlock ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}

@@ -149,6 +149,9 @@ export async function POST(req: NextRequest) {
       : locationType === 'mobile' ? 'MOBILE — travels to customers; no shop/storefront steps; use van/tools/surroundings'
       : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok if it fits, not assumed'
       : 'FIXED shop/studio — filming there is fine'
+    const locationRule = locationType === 'online'
+      ? '\nHARD RULE: this business sells ONLINE. Every step must be filmable with products at a desk, stockroom, home or studio. NO customers visiting, shop floor, appointments or on-site service steps. Use products, packaging, parcels, close-ups of the item in use.'
+      : ''
 
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
@@ -198,7 +201,7 @@ STRICT RULES:
 BUSINESS:
 ${profileBrief}
 ${crewGuidance}
-Location: ${locationBrief}
+Location: ${locationBrief}${locationRule}
 ${customNote}${styleNote}
 
 IDEA:
