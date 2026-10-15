@@ -801,13 +801,36 @@ export default function DashboardPage() {
     await downloadZip(allFiles, 'all-carousels.zip')
   }
 
+  const filmWantedRef = useRef(false)
+  const [filmCameraError, setFilmCameraError] = useState('')
+
   const startFilmCamera = () => {
+    setFilmCameraError('')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
+      return
+    }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
       .then(stream => {
+        if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
+        filmStreamRef.current?.getTracks().forEach(t => t.stop())
         filmStreamRef.current = stream
+        const vt = stream.getVideoTracks()[0]
+        if (vt) vt.onended = () => setFilmCameraActive(false)
+        if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
       })
-      .catch(err => console.error('Camera access denied:', err))
+      .catch(err => {
+        console.error('Camera error:', err)
+        setFilmCameraActive(false)
+        const name = err && err.name
+        setFilmCameraError(
+          name === 'NotAllowedError' ? 'Camera or microphone is blocked. Click the camera icon in your browser address bar, allow access, then press Enable Camera again.'
+          : name === 'NotFoundError' ? 'No camera or microphone was found.'
+          : name === 'NotReadableError' ? 'Your camera is being used by another tab or app. Close it, then press Enable Camera again.'
+          : 'Could not start the camera. Please try again.'
+        )
+      })
   }
 
   useEffect(() => {
@@ -818,6 +841,7 @@ export default function DashboardPage() {
   }, [filmCameraActive])
 
   useEffect(() => {
+    filmWantedRef.current = tab === 'film'
     if (tab === 'film') {
       startFilmCamera()
     } else {
@@ -825,6 +849,7 @@ export default function DashboardPage() {
       filmStreamRef.current = null
       if (filmVideoRef.current) filmVideoRef.current.srcObject = null
       setFilmCameraActive(false)
+      setFilmCameraError('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
@@ -3029,7 +3054,7 @@ export default function DashboardPage() {
                     {!filmCameraActive && !filmIsRecording && filmCountdown === null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(0,0,0,0.5)' }}>
                         <button onClick={startFilmCamera} style={{ padding: '12px 28px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>📷 Enable Camera</button>
-                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, margin: 0 }}>Click to start your camera</p>
+                        <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: 0, padding: '0 24px', textAlign: 'center', lineHeight: 1.5 }}>{filmCameraError || 'Click to start your camera'}</p>
                       </div>
                     )}
                     {filmIsRecording && (
