@@ -25,6 +25,7 @@ type IncomingClip = {
 
 function setupApp() {
   const app = express();
+  if (!RENDER_SERVER_SECRET) console.error("RENDER_SERVER_SECRET is not set: all API requests will be rejected");
   const rendersDir = path.resolve("renders");
   const tmpDir = path.resolve("tmp");
 
@@ -37,19 +38,16 @@ function setupApp() {
     rendersDir,
   });
 
-  app.use(cors());
+  app.use(cors({ origin: false }));
   app.use("/renders", express.static(rendersDir));
   app.use("/tmp", express.static(tmpDir));
   app.use(express.json({ limit: "10mb" }));
 
   app.use((req, res, next) => {
     if (req.path === "/health") return next();
-    if (RENDER_SERVER_SECRET) {
-      const key = req.headers["x-api-key"];
-      if (key !== RENDER_SERVER_SECRET) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
+    if (!RENDER_SERVER_SECRET || req.headers["x-api-key"] !== RENDER_SERVER_SECRET) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
     }
     next();
   });

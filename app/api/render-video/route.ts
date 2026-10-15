@@ -54,6 +54,10 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
+    if (resolution === '4k' && plan !== 'top') {
+      return NextResponse.json({ error: '4K export is available on the Top plan.' }, { status: 403 })
+    }
+
     // Free plan: 60s total lifetime render time across all accounts with same email
     const FREE_CAP_SECONDS = 60
     if (plan === 'free') {
