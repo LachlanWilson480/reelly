@@ -158,6 +158,10 @@ export default function DashboardPage() {
   const filmScrollPosRef = useRef(0)
   const filmRafRef = useRef<number | null>(null)
   const [filmCameraActive, setFilmCameraActive] = useState(false)
+  const [filmAutoRender, setFilmAutoRender] = useState(false)
+  const [filmLineIdx, setFilmLineIdx] = useState(0)
+  const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string }[]>([])
+  const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
@@ -825,30 +829,67 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
+  const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
+  const filmCurrentLine = filmLines[filmLineIdx] || ''
+
   useEffect(() => {
-    if (filmIsRecording) {
-      filmScrollPosRef.current = 0
-      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateX(0)'
-      const speed = filmScrollSpeed * 0.35
-      const scroll = () => {
-        filmScrollPosRef.current += speed
-        if (filmTeleprompterInnerRef.current) {
-          filmTeleprompterInnerRef.current.style.transform = `translateX(-${filmScrollPosRef.current}px)`
-        }
-        filmRafRef.current = requestAnimationFrame(scroll)
-      }
-      filmRafRef.current = requestAnimationFrame(scroll)
-    } else {
+    const el = filmTeleprompterInnerRef.current
+    if (!filmIsRecording || !el) {
       if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
-      filmScrollPosRef.current = 0
-      if (filmTeleprompterInnerRef.current) filmTeleprompterInnerRef.current.style.transform = 'translateX(0)'
+      if (el) el.style.transform = 'translateX(0)'
+      return
     }
-    return () => { if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null } }
+    const words = filmCurrentLine.split(/\s+/).filter(Boolean).length
+    const secs = Math.max(2, words / (2.3 * (filmScrollSpeed / 3)))
+    const distance = el.scrollWidth
+    const startTime = performance.now()
+    let stopTimer: ReturnType<typeof setTimeout> | null = null
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / (secs * 1000), 1)
+      el.style.transform = `translateX(-${distance * progress}px)`
+      if (progress < 1) {
+        filmRafRef.current = requestAnimationFrame(tick)
+      } else {
+        stopTimer = setTimeout(() => stopFilmRecording(), 1500)
+      }
+    }
+    filmRafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
+      if (stopTimer) clearTimeout(stopTimer)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filmIsRecording, filmScrollSpeed])
 
-    const startFilmRecording = async () => {
-    if (!filmStreamRef.current) return
+    const cleanFilmLine = (s: string) => s.trim().replace(/^say:\s*/i, '').replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g, '').trim()
+
+  const splitFilmText = (text: string): string[] => {
+    const byLine = text.split(/\n+/).map(cleanFilmLine).filter(Boolean)
+    if (byLine.length > 1) return byLine
+    const sentences = (text.match(/[^.!?]+[.!?]*/g) || []).map(cleanFilmLine).filter(Boolean)
+    return sentences.length > 1 ? sentences : byLine
+  }
+
+  const getFilmLines = (item: FilmingItem): string[] => {
+    const script = item.script || ''
+    const byLine = script.split(/\n+/).map(cleanFilmLine).filter(Boolean)
+    if (byLine.length > 1) return byLine
+    const fromSteps = (item.checklist || []).map((st: string) => cleanFilmLine((st.match(/Say:\s*(.*)$/i) || [])[1] || '')).filter(Boolean)
+    if (fromSteps.length > 1) return fromSteps
+    return splitFilmText(script)
+  }
+
+  const selectFilmSource = (id: string | null, lines: string[]) => {
+    setFilmSelectedId(id)
+    setFilmScript(lines.join('\n'))
+    setFilmLineIdx(0)
+    setFilmClips([])
+    if (filmPending) URL.revokeObjectURL(filmPending.url)
+    setFilmPending(null)
+  }
+
+  const startFilmRecording = async () => {
+    if (!filmStreamRef.current || !filmCurrentLine) return
     setFilmCountdown(3)
     await new Promise(r => setTimeout(r, 1000))
     setFilmCountdown(2)
@@ -856,33 +897,89 @@ export default function DashboardPage() {
     setFilmCountdown(1)
     await new Promise(r => setTimeout(r, 1000))
     setFilmCountdown(null)
-    const chunks: Blob[] = []
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm'
-    const recorder = new MediaRecorder(filmStreamRef.current, { mimeType })
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
-    recorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'video/webm' })
-      setFilmUploading(true)
-      const path = `${userId}/film/filmed-${Date.now()}.webm`
-      const { data, error } = await supabase.storage.from('video-uploads').upload(path, blob, { contentType: 'video/webm', upsert: true })
-      if (!error && data) {
-        setUploadSlotPaths({ 0: data.path })
-        setUploadSlots([0])
-        setTab('uploads')
-      } else {
-        alert('Upload failed — please try again.')
+    try {
+      const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+      const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || ''
+      const recorder = mimeType ? new MediaRecorder(filmStreamRef.current, { mimeType }) : new MediaRecorder(filmStreamRef.current)
+      const baseType = (recorder.mimeType || mimeType || 'video/webm').split(';')[0]
+      const ext = baseType.includes('mp4') ? 'mp4' : 'webm'
+      const chunks: Blob[] = []
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: baseType })
+        if (blob.size === 0) { alert('Nothing was recorded. Please try again.'); return }
+        setFilmPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
       }
-      setFilmUploading(false)
+      recorder.start(1000)
+      filmMediaRecorderRef.current = recorder
+      setFilmIsRecording(true)
+    } catch (err) {
+      console.error('Recording failed:', err)
+      alert('Could not start recording on this browser.')
     }
-    recorder.start()
-    filmMediaRecorderRef.current = recorder
-    setFilmIsRecording(true)
   }
 
   const stopFilmRecording = () => {
-    filmMediaRecorderRef.current?.stop()
+    if (filmMediaRecorderRef.current && filmMediaRecorderRef.current.state !== 'inactive') filmMediaRecorderRef.current.stop()
     setFilmIsRecording(false)
   }
+
+  const redoFilmClip = () => {
+    if (filmPending) URL.revokeObjectURL(filmPending.url)
+    setFilmPending(null)
+  }
+
+  const finishFilm = async (clips: { blob: Blob; ext: string; type: string }[]) => {
+    setFilmUploading(true)
+    try {
+      const stamp = Date.now()
+      const results = await Promise.all(clips.map(async (cl, i) => {
+        const filePath = `${userId}/film/filmed-${stamp}-${i}.${cl.ext}`
+        const { data, error } = await supabase.storage.from('video-uploads').upload(filePath, cl.blob, { contentType: cl.type, upsert: true })
+        if (error || !data) throw new Error('upload failed')
+        return { path: data.path, file: new File([cl.blob], `filmed-${stamp}-${i}.${cl.ext}`, { type: cl.type }) }
+      }))
+      const slots = results.map((_, i) => i)
+      const filesMap: Record<number, File> = {}
+      const pathsMap: Record<number, string> = {}
+      results.forEach((r, i) => { filesMap[i] = r.file; pathsMap[i] = r.path })
+      setUploadSlots(slots)
+      setUploadSlotFiles(filesMap)
+      setUploadSlotPaths(pathsMap)
+      setUploadSpeechSlots(new Set(slots))
+      setUploadLandscapeSlots(new Set())
+      setFilmClips([])
+      setFilmLineIdx(0)
+      setFilmAutoRender(true)
+      setTab('uploads')
+    } catch (err) {
+      console.error('Film upload failed:', err)
+      alert('Upload failed. Your clips are kept, press Retry upload.')
+    }
+    setFilmUploading(false)
+  }
+
+  const saveFilmClip = async () => {
+    if (!filmPending) return
+    const clip = { blob: filmPending.blob, ext: filmPending.ext, type: filmPending.type }
+    URL.revokeObjectURL(filmPending.url)
+    setFilmPending(null)
+    const clips = [...filmClips, clip]
+    setFilmClips(clips)
+    if (filmLineIdx + 1 < filmLines.length) {
+      setFilmLineIdx(filmLineIdx + 1)
+    } else {
+      await finishFilm(clips)
+    }
+  }
+
+  useEffect(() => {
+    if (filmAutoRender && uploadSlotFiles[0]) {
+      setFilmAutoRender(false)
+      runUploadAndRender()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filmAutoRender, uploadSlotFiles])
 
     const togglePreviewTrack = (trackId: string, url: string) => {
     if (previewingTrackId === trackId) {
@@ -1093,8 +1190,18 @@ export default function DashboardPage() {
       const video = document.createElement("video")
       video.preload = "metadata"
       video.onloadedmetadata = () => {
-        URL.revokeObjectURL(video.src)
-        resolve(video.duration || 5)
+        if (!isFinite(video.duration)) {
+          // Browser-recorded video reports no duration until seeked to the end
+          video.currentTime = 1e101
+          video.ontimeupdate = () => {
+            video.ontimeupdate = null
+            URL.revokeObjectURL(video.src)
+            resolve(isFinite(video.duration) && video.duration > 0 ? video.duration : 5)
+          }
+        } else {
+          URL.revokeObjectURL(video.src)
+          resolve(video.duration || 5)
+        }
       }
       video.onerror = () => resolve(5)
       video.src = URL.createObjectURL(file)
@@ -1813,6 +1920,12 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {ideas.length > 0 && (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 14px' }}>
+                  ☆ Star an idea to save and get filming instructions
+                </p>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                 {ideas.map((idea) => (
                   <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 16, padding: '22px', position: 'relative' }}>
@@ -1829,7 +1942,7 @@ export default function DashboardPage() {
                         color: savedIds.has(idea.id) ? 'var(--coral)' : 'var(--text-muted)',
                       }}
                     >
-                      {savedIds.has(idea.id) ? 'Saved' : 'Save'}
+                      {savedIds.has(idea.id) ? '★' : '☆'}
                     </button>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -2861,14 +2974,14 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520, margin: '32px auto', padding: '0 16px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Read your script on screen while your camera rolls — saved straight to the editor when done.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Each line of your script is one clip. Film a line, redo it if you need to, then save and move on. After the last clip your video renders automatically.</p>
                   </div>
                   <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16 }}>
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: savedScripts.length > 0 ? 0 : 4 }}>
-                      {savedIdeas.map((idea) => (
-                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === idea.id ? '1.5px solid var(--coral)' : '1.5px solid transparent', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) { setFilmSelectedId(idea.id); setFilmScript([idea.hook, idea.description].filter(Boolean).join('\n\n')) } else { setFilmSelectedId(null); setFilmScript('') } }} style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--coral)' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {filmingItems.map((idea) => (
+                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === idea.id ? '1px solid var(--coral)' : '1px solid transparent', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) selectFilmSource(idea.id, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 3, cursor: 'pointer' }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
@@ -2876,27 +2989,37 @@ export default function DashboardPage() {
                         <>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
                           {savedScripts.map((s) => (
-                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === `script-${s.id}` ? '1.5px solid var(--coral)' : '1.5px solid transparent', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) { setFilmSelectedId(`script-${s.id}`); setFilmScript(s.script) } else { setFilmSelectedId(null); setFilmScript('') } }} style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--coral)' }} />
+                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid transparent', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, splitFilmText(s.script)); else selectFilmSource(null, []) }} style={{ marginTop: 3, cursor: 'pointer' }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                             </label>
                           ))}
                         </>
                       )}
                     </div>
-                    {filmScript && (
-                      <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} rows={4} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
+                    {filmingItems.length === 0 && savedScripts.length === 0 && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
-                    {savedIdeas.length === 0 && savedScripts.length === 0 && (
-                      <textarea value={filmScript} onChange={(e) => setFilmScript(e.target.value)} placeholder="Paste your script here…" rows={5} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6, width: '100%', boxSizing: 'border-box' }} />
-                    )}
+                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]) }} placeholder="One line per clip" rows={5} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmLines.length} {filmLines.length === 1 ? 'clip' : 'clips'}, one per line</p>
                   </div>
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
-                    {filmScript.trim() && (
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.75)', padding: '14px 0' }}>
-                        <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmScript}</p>
+                    {filmLines.length > 0 && (
+                      <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                        Clip {Math.min(filmLineIdx + 1, filmLines.length)} of {filmLines.length}
                       </div>
+                    )}
+                    {filmCurrentLine && !filmPending && (
+                      filmIsRecording ? (
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.75)', padding: '14px 0' }}>
+                          <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
+                        </div>
+                      ) : (
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.75)', padding: '14px 16px' }}>
+                          <p style={{ color: '#fff', fontSize: 16, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{filmCurrentLine}</p>
+                        </div>
+                      )
                     )}
                     {filmCountdown !== null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
@@ -2915,7 +3038,9 @@ export default function DashboardPage() {
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
                     )}
-
+                    {filmPending && (
+                      <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ flex: 1 }}>
@@ -2925,9 +3050,18 @@ export default function DashboardPage() {
                       </div>
                       <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => setFilmScrollSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
                     </div>
-                    <button onClick={filmIsRecording ? stopFilmRecording : startFilmRecording} disabled={filmCountdown !== null || filmUploading} style={{ flexShrink: 0, padding: '13px 28px', borderRadius: 50, border: 'none', background: filmIsRecording ? '#ff3b30' : 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmCountdown !== null || filmUploading ? 'not-allowed' : 'pointer', opacity: filmCountdown !== null ? 0.7 : 1, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
-                      {filmUploading ? 'Saving…' : filmIsRecording ? '⏹  Stop' : '⏺  Record'}
-                    </button>
+                    {filmPending ? (
+                      <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                        <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
+                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmLineIdx + 1 >= filmLines.length ? '✓ Save & finish' : '✓ Save & next'}</button>
+                      </div>
+                    ) : filmClips.length > 0 && filmClips.length >= filmLines.length ? (
+                      <button onClick={() => finishFilm(filmClips)} disabled={filmUploading} style={{ flexShrink: 0, padding: '13px 24px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Retry upload'}</button>
+                    ) : (
+                      <button onClick={filmIsRecording ? stopFilmRecording : startFilmRecording} disabled={filmCountdown !== null || filmUploading || filmLines.length === 0} style={{ flexShrink: 0, padding: '13px 24px', borderRadius: 50, border: 'none', background: filmIsRecording ? '#ff3b30' : 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 0.6 : 1, fontFamily: 'Inter, sans-serif' }}>
+                        {filmUploading ? 'Saving…' : filmIsRecording ? '⏹  Stop' : `⏺  Record clip ${Math.min(filmLineIdx + 1, Math.max(filmLines.length, 1))}`}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
