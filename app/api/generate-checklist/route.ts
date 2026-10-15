@@ -156,8 +156,9 @@ export async function POST(req: NextRequest) {
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
-    const isMultiPerson = effectivePeopleCount > 1
-    const crewGuidance = isMultiPerson
+    const noOne = peopleCountOverride === 0
+    const isMultiPerson = !noOne && effectivePeopleCount > 1
+    const crewGuidance = noOne ? 'NO PEOPLE on camera. Faceless: hands-only, product close-ups, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
       ? `${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — label each step with who is on camera and use every person at least once; include handoffs, reactions or back-and-forth`
       : 'Films ALONE on phone, no crew — never mention or require a second person'
 

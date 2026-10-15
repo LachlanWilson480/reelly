@@ -425,9 +425,10 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const onCameraPeople = (profile.on_camera_people || '').trim()
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
-    const isMultiPerson = effectivePeopleCount > 1
+    const noOne = peopleCountOverride === 0
+    const isMultiPerson = !noOne && effectivePeopleCount > 1
     const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
-    const crewLine = isMultiPerson
+    const crewLine = noOne ? 'Camera: NO PEOPLE on screen. Faceless content only: hands-only, product or close-up shots, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
       ? `Camera: ${effectivePeopleCount} people available${namesForPrompt ? ` (${namesForPrompt})` : ''} — at least half the ideas MUST have 2+ people on screen together (e.g. one demonstrates, one reacts or asks); the rest can be solo`
       : 'Camera: films ALONE on phone — every idea must work with ONE person on screen, no one else'
 

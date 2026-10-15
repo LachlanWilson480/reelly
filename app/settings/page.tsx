@@ -134,7 +134,7 @@ export default function SettingsPage() {
         setFilmingComfort(data.filming_comfort || '')
         setLocationType(data.location_type || 'fixed')
         setOnCameraPeople(data.on_camera_people || '')
-        setVideoPeopleCount(data.video_people_count || 1)
+        setVideoPeopleCount(data.video_people_count ?? 1)
         setWebsite(data.website || '')
         setInstagramHandle(data.instagram_handle || '')
         setTiktokHandle(data.tiktok_handle || '')
@@ -498,10 +498,10 @@ export default function SettingsPage() {
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
 
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>People in video: {videoPeopleCount}</label>
+              <label style={labelStyle}>People in video: {videoPeopleCount === 0 ? 'No one (faceless)' : videoPeopleCount}</label>
               <input
                 type="range"
-                min={1}
+                min={0}
                 max={4}
                 step={1}
                 value={videoPeopleCount}
