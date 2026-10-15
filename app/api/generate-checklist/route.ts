@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     const locationBrief =
       locationType === 'online' ? 'ONLINE STORE — sells online; no shop/storefront steps or customer visits; film products, packing orders, workspace/stockroom, unboxing, demos'
       : locationType === 'mobile' ? 'MOBILE — travels to customers; no shop/storefront steps; use van/tools/surroundings'
-      : locationType === 'both' ? 'BOTH fixed + mobile — shop ok if it fits, not assumed'
+      : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok if it fits, not assumed'
       : 'FIXED shop/studio — filming there is fine'
 
     const onCameraPeople = (profile.on_camera_people || '').trim()

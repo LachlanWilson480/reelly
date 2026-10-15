@@ -391,7 +391,7 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const locationBrief =
       locationType === 'online' ? 'ONLINE STORE — sells online, no storefront and no customer visits; focus on products, packing/shipping orders, behind-the-scenes, unboxing, workspace/stockroom; never suggest customers visiting'
       : locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
-      : locationType === 'both' ? 'BOTH fixed + mobile — shop ok but not assumed'
+      : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok but not assumed, vary the setting'
       : 'FIXED shop/studio — customers visit; showing space is fine'
 
     // Seasonal — major + micro, only what's actually upcoming
