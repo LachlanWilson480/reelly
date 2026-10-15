@@ -68,10 +68,11 @@ function setupApp() {
       }
 
       const isLow = resolution === "low";
-      const crf = isLow ? 32 : 28;
+      const is4K = resolution === "4k";
+      const crf = is4K ? 24 : isLow ? 32 : 28;
       const isLandscape = outputOrientation === "landscape";
-      let outputWidth = isLandscape ? (isLow ? 960 : 1920) : (isLow ? 540 : 1080);
-      let outputHeight = isLandscape ? (isLow ? 540 : 1080) : (isLow ? 960 : 1920);
+      let outputWidth = isLandscape ? (is4K ? 3840 : isLow ? 960 : 1920) : (is4K ? 2160 : isLow ? 540 : 1080);
+      let outputHeight = isLandscape ? (is4K ? 2160 : isLow ? 540 : 1080) : (is4K ? 3840 : isLow ? 960 : 1920);
 
       const mappedClips = (clips as IncomingClip[]).map((clip) => {
         const trimStart = clip.trimStart ?? 0;
