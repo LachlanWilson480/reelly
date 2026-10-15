@@ -42,6 +42,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState('')
 
   const [logoUrl, setLogoUrl] = useState('')
@@ -302,6 +303,7 @@ export default function SettingsPage() {
 
     setSaving(false)
     setMessage(error ? 'Something went wrong saving your profile.' : 'Saved.')
+    if (!error) setDirty(false)
   }
 
   const handleChangePassword = async () => {
@@ -442,7 +444,10 @@ export default function SettingsPage() {
         </div>
 
         {section === 'profile' && (
-          <div>
+          <div
+            onChange={(e) => { if ((e.target as HTMLInputElement).type !== 'file') setDirty(true) }}
+            onClick={(e) => { if ((e.target as HTMLElement).closest('button[type="button"]')) setDirty(true) }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
               <div style={{ width: 64, height: 64, borderRadius: 12, background: 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                 {logoUrl ? (
@@ -560,6 +565,13 @@ export default function SettingsPage() {
 
                 <p style={sectionTitle}>Notes</p>
                 <Field label="Anything else" value={notes} onChange={setNotes} textarea />
+              </div>
+            )}
+
+            {dirty && !saving && (
+              <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'var(--sand)', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 12, padding: '12px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 14, fontSize: 13 }}>
+                <span>You have unsaved changes. Save them so they apply to your ideas.</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handleSaveProfile() }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save now</button>
               </div>
             )}
 
