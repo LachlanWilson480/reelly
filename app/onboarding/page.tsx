@@ -217,7 +217,7 @@ export default function OnboardingPage() {
                 <Field label="Equipment & setup notes" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. iPhone only, have a tripod and ring light, always film solo" />
                 <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names or roles" />
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Do customers come to you, or do you travel to them?</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>How do you serve your customers?</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'online', label: 'Online store' }, { value: 'both', label: 'All of the above' }].map((opt) => (
                       <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>

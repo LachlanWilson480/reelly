@@ -470,7 +470,7 @@ export default function SettingsPage() {
             <Field label="Ideal customer" value={targetAudience} onChange={setTargetAudience} textarea />
             <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
             <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>Do customers come to you, or do you travel to them?</label>
+              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>How do you serve your customers?</label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {[
                   { value: "fixed", label: "Fixed location (shop/studio)" },
