@@ -389,7 +389,8 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     // Location
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
-      locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
+      locationType === 'online' ? 'ONLINE STORE — sells online, no storefront and no customer visits; focus on products, packing/shipping orders, behind-the-scenes, unboxing, workspace/stockroom; never suggest customers visiting'
+      : locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
       : locationType === 'both' ? 'BOTH fixed + mobile — shop ok but not assumed'
       : 'FIXED shop/studio — customers visit; showing space is fine'
 

@@ -476,6 +476,7 @@ export default function SettingsPage() {
                   { value: "fixed", label: "Fixed location (shop/studio)" },
                   { value: "mobile", label: "Mobile (I travel to customers)" },
                   { value: "both", label: "Both" },
+                  { value: "online", label: "Online store" },
                 ].map((opt) => (
                   <button
                     key={opt.value}
