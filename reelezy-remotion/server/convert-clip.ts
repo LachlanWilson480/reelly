@@ -39,12 +39,12 @@ function getRotation(inputPath: string): Promise<number> {
   });
 }
 
-function convertToMp4(inputPath: string, outputPath: string, rotation: number): Promise<void> {
+function convertToMp4(inputPath: string, outputPath: string, rotation: number, recorded = false): Promise<void> {
   return new Promise((resolve, reject) => {
     const outputOptions = [
       '-c:v libx264',
       '-preset fast',
-      '-crf 0',
+      recorded ? '-crf 20' : '-crf 0',
       '-c:a aac',
       '-movflags +faststart',
       '-pix_fmt yuv420p',
@@ -60,6 +60,10 @@ function convertToMp4(inputPath: string, outputPath: string, rotation: number): 
     else if (rotation === 270) vf = 'transpose=2';
 
     outputOptions.push(`-vf ${vf}`);
+    if (recorded) {
+      // Browser recordings are variable frame rate: force constant 30fps and clean audio timing
+      outputOptions.push('-vsync cfr', '-r 30', '-af aresample=async=1:first_pts=0', '-ar 48000');
+    }
 
     ffmpeg(inputPath)
       .inputOptions(inputOptions)
@@ -72,9 +76,13 @@ function convertToMp4(inputPath: string, outputPath: string, rotation: number): 
   });
 }
 
+function isRecordedClip(url: string): boolean {
+  return url.toLowerCase().split('?')[0].includes('/film/filmed-');
+}
+
 function needsConversion(url: string): boolean {
   const lower = url.toLowerCase().split('?')[0];
-  return lower.endsWith('.mov') || lower.endsWith('.avi') || lower.endsWith('.wmv') || lower.endsWith('.mkv');
+  return lower.endsWith('.mov') || lower.endsWith('.avi') || lower.endsWith('.wmv') || lower.endsWith('.mkv') || lower.endsWith('.webm') || isRecordedClip(url);
 }
 
 export async function ensureMp4(url: string, port: number | string = 3000): Promise<{ localPath: string; cleanup: () => void }> {
@@ -92,7 +100,7 @@ export async function ensureMp4(url: string, port: number | string = 3000): Prom
   await downloadFile(url, downloadPath);
   const rotation = await getRotation(downloadPath);
   console.info(`Detected rotation: ${rotation}°`);
-  await convertToMp4(downloadPath, outputPath, rotation);
+  await convertToMp4(downloadPath, outputPath, rotation, isRecordedClip(url));
 
   fs.unlinkSync(downloadPath);
 
