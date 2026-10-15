@@ -158,8 +158,8 @@ export async function POST(req: NextRequest) {
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
     const isMultiPerson = effectivePeopleCount > 1
     const crewGuidance = isMultiPerson
-      ? `Up to ${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — choreograph handoffs where it fits; many steps can still be one person`
-      : 'Films ALONE on phone, no crew'
+      ? `${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — label each step with who is on camera and use every person at least once; include handoffs, reactions or back-and-forth`
+      : 'Films ALONE on phone, no crew — never mention or require a second person'
 
     const existingScript = idea.script ? idea.script.trim() : null
     const notesLine = idea.notes ? ` Owner notes: ${idea.notes}` : ''

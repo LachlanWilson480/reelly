@@ -428,8 +428,8 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const isMultiPerson = effectivePeopleCount > 1
     const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
     const crewLine = isMultiPerson
-      ? `Camera: up to ${effectivePeopleCount} people${namesForPrompt ? ` (${namesForPrompt})` : ''} — multi-person ideas ok where natural`
-      : 'Camera: films ALONE on phone'
+      ? `Camera: ${effectivePeopleCount} people available${namesForPrompt ? ` (${namesForPrompt})` : ''} — at least half the ideas MUST have 2+ people on screen together (e.g. one demonstrates, one reacts or asks); the rest can be solo`
+      : 'Camera: films ALONE on phone — every idea must work with ONE person on screen, no one else'
 
     const profileBrief = compressProfile(profile)
 
