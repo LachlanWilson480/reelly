@@ -164,6 +164,9 @@ export default function DashboardPage() {
   const [filmReview, setFilmReview] = useState(false)
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
+  const [filmOrientation, setFilmOrientation] = useState<'portrait' | 'landscape'>('portrait')
+  const filmOrientationRef = useRef<'portrait' | 'landscape'>('portrait')
+  const filmOutputOrientationRef = useRef<'portrait' | 'landscape' | null>(null)
   const filmRenderContextRef = useRef<{ ideaId: string | null; source: string; title: string | null; caption: string | null; tags: string | null } | null>(null)
   const [navAtEnd, setNavAtEnd] = useState(true)
   const navScrollRef = useRef<HTMLDivElement | null>(null)
@@ -828,7 +831,7 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: filmFacingRef.current }, audio: true })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: filmFacingRef.current, width: { ideal: filmOrientationRef.current === 'landscape' ? 1920 : 1080 }, height: { ideal: filmOrientationRef.current === 'landscape' ? 1080 : 1920 } }, audio: true })
       .then(stream => {
         if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
         filmStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -859,6 +862,18 @@ export default function DashboardPage() {
     filmStreamRef.current = null
     setFilmCameraActive(false)
     startFilmCamera()
+  }
+
+  const changeFilmOrientation = (o: 'portrait' | 'landscape') => {
+    if (o === filmOrientationRef.current || filmIsRecording || filmClips.length > 0 || filmPending) return
+    filmOrientationRef.current = o
+    setFilmOrientation(o)
+    if (filmStreamRef.current) {
+      filmStreamRef.current.getTracks().forEach(t => t.stop())
+      filmStreamRef.current = null
+      setFilmCameraActive(false)
+      startFilmCamera()
+    }
   }
 
   useEffect(() => {
@@ -1000,6 +1015,17 @@ export default function DashboardPage() {
     setFilmReview(true)
   }
 
+  const getVideoSize = (file: File) => new Promise<{ w: number; h: number } | null>((resolve) => {
+    const v = document.createElement('video')
+    const url = URL.createObjectURL(file)
+    const done = (r: { w: number; h: number } | null) => { URL.revokeObjectURL(url); resolve(r) }
+    v.preload = 'metadata'
+    v.onloadedmetadata = () => done({ w: v.videoWidth, h: v.videoHeight })
+    v.onerror = () => done(null)
+    setTimeout(() => done(null), 4000)
+    v.src = url
+  })
+
   const finishFilm = async (clips: { blob: Blob; ext: string; type: string; url: string }[], renderNow = true) => {
     setFilmUploading(true)
     try {
@@ -1011,6 +1037,7 @@ export default function DashboardPage() {
         : filmScriptRow
         ? { ideaId: null, source: 'script', title: filmScriptRow.topic, caption: null, tags: null }
         : null
+      filmOutputOrientationRef.current = filmOrientationRef.current
       const stamp = Date.now()
       const results = await Promise.all(clips.map(async (cl, i) => {
         const filePath = `${userId}/film/filmed-${stamp}-${i}.${cl.ext}`
@@ -1026,7 +1053,12 @@ export default function DashboardPage() {
       setUploadSlotFiles(filesMap)
       setUploadSlotPaths(pathsMap)
       setUploadSpeechSlots(new Set(slots))
-      setUploadLandscapeSlots(new Set())
+      const wideSlots = new Set<number>()
+      if (filmOrientationRef.current === 'portrait') {
+        const sizes = await Promise.all(results.map((r) => getVideoSize(r.file)))
+        sizes.forEach((s, i) => { if (s && s.w > s.h) wideSlots.add(i) })
+      }
+      setUploadLandscapeSlots(wideSlots)
       clips.forEach((cl) => URL.revokeObjectURL(cl.url))
       setFilmClips([])
       setFilmLineIdx(0)
@@ -1477,6 +1509,9 @@ export default function DashboardPage() {
       const clipSettings: { letterbox?: boolean }[] = []
       const speechIndices: number[] = []
       let anyLandscape = false
+      const isFilmRender = slotIds.every((id) => (uploadSlotPaths[id] || '').includes('/film/filmed-'))
+      const filmCtx = isFilmRender ? filmRenderContextRef.current : null
+      const filmLandscapeOut = isFilmRender && filmOutputOrientationRef.current === 'landscape'
 
       // Upload all clips in parallel
       const uploadResults = await Promise.all(slotIds.map(async (slotId) => {
@@ -1504,7 +1539,7 @@ export default function DashboardPage() {
         clipPaths.push(result.path)
         if (uploadSpeechSlots.has(result.slotId)) speechIndices.push(clipPaths.length - 1)
         clipTrims.push({ duration: result.duration })
-        if (result.isLandscape) {
+        if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
           clipSettings.push({ letterbox: true })
         } else {
@@ -1521,7 +1556,7 @@ export default function DashboardPage() {
         if (!musicError) musicPath = mPath
       }
 
-      const outputOrientation = undefined  // always portrait output
+      const outputOrientation = filmLandscapeOut ? 'landscape' : undefined
 
       const captionStyle = uploadAddCaptions
         ? {
@@ -1537,7 +1572,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmRenderContextRef.current?.ideaId ?? null, ideaSource: filmRenderContextRef.current?.source ?? 'upload', ideaTitle: filmRenderContextRef.current?.title ?? null, ideaCaption: filmRenderContextRef.current?.caption ?? null, ideaTags: filmRenderContextRef.current?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -1547,6 +1582,7 @@ export default function DashboardPage() {
       setRenderStatus('queued')
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
       filmRenderContextRef.current = null
+      filmOutputOrientationRef.current = null
       setUploadSlots([0])
       setUploadSlotFiles({})
       setUploadSlotPaths({})
@@ -3099,13 +3135,31 @@ export default function DashboardPage() {
                   </div>
                   {!filmReview && (
                   <>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['portrait', 'landscape'] as const).map((o) => {
+                      const locked = filmIsRecording || filmClips.length > 0 || !!filmPending
+                      const active = filmOrientation === o
+                      return (
+                        <button
+                          key={o}
+                          type="button"
+                          onClick={() => changeFilmOrientation(o)}
+                          disabled={locked}
+                          title={locked && !active ? 'Finish or clear your clips to change orientation' : undefined}
+                          style={{ flex: 1, padding: '9px 12px', borderRadius: 20, border: active ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: active ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1 }}
+                        >
+                          {o === 'portrait' ? '▯ Portrait' : '▭ Landscape'}
+                        </button>
+                      )
+                    })}
+                  </div>
                   {filmRedoIdx !== null && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(216,90,48,0.1)', border: '1px solid var(--coral)' }}>
                       <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Re-recording clip {filmRedoIdx + 1}</p>
                       <button type="button" onClick={cancelFilmRedo} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to review</button>
                     </div>
                   )}
-                  <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
+                  <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                     {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmFacing === 'user' ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
@@ -3173,7 +3227,7 @@ export default function DashboardPage() {
                         <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
                       </div>
-                      <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
+                      <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                         {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
