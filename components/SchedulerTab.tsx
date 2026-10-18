@@ -22,12 +22,13 @@ type Carousel = {
   created_at: string
 }
 
-function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
+function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
   render: Render
   copied: string | null
   onCopy: (text: string, key: string) => void
   onDownload: (url: string) => void
   onClear: (id: string) => void
+  isFree?: boolean
 }) {
   const caption = render.caption || ''
   const tags = render.tags || ''
@@ -41,7 +42,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
             <video
               src={render.output_url}
               style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 280, display: 'block' }}
-              loop controls
+              loop controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFree) e.preventDefault() }}
               onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
               onMouseLeave={(e) => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0 }}
             />
@@ -70,11 +71,15 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
             <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No caption · generate filming instructions for this idea to get a suggested caption.</p>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {render.output_url && (
+            {render.output_url && (isFree ? (
+              <a href="/plans" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--coral)', color: '#fff', borderRadius: 8, padding: '10px 16px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                Upgrade to download
+              </a>
+            ) : (
               <button onClick={() => onDownload(render.output_url!)} style={{ flex: 1, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 Download
               </button>
-            )}
+            ))}
             <button onClick={() => onClear(render.id)} style={{ flex: 1, background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
               Remove
             </button>
@@ -119,7 +124,7 @@ function Folder({ id, title, count, noun, open, onToggle, children }: {
   )
 }
 
-export default function SchedulerTab({ userId, carousels }: { userId: string | null; carousels: Carousel[] }) {
+export default function SchedulerTab({ userId, carousels, isFree = false }: { userId: string | null; carousels: Carousel[]; isFree?: boolean }) {
   const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
@@ -262,7 +267,7 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
         {scriptRenders.length === 0
           ? emptyNote('No finished videos from your scripts yet.')
           : scriptRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
             ))}
       </Folder>
 
@@ -270,7 +275,7 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
         {ideaRenders.length === 0
           ? emptyNote('No finished videos from your content ideas yet.')
           : ideaRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
             ))}
       </Folder>
 
@@ -312,7 +317,7 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
       {otherRenders.length > 0 && (
         <Folder id="folder-other" title="Other renders" count={otherRenders.length} noun="video" open={isOpen('other')} onToggle={() => toggleFolder('other')}>
           {otherRenders.map((render) => (
-            <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
+            <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
           ))}
         </Folder>
       )}

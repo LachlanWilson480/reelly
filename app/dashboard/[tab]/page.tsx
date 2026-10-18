@@ -3047,7 +3047,7 @@ export default function DashboardPage() {
                   )}
                   {renderStatus === 'done' && outputUrl && (
                     <>
-                      <video controls src={outputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
+                      <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} src={outputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
                       {renderOverQuota ? (
                         <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                           Upgrade to download ↗
@@ -3106,6 +3106,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
+                    {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmFacing === 'user' ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmLines.length > 0 && (
@@ -3142,7 +3143,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmPending && (
-                      <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+                      <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -3173,7 +3174,8 @@ export default function DashboardPage() {
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
                       </div>
                       <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
-                        <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
+                    <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
                       </div>
                       <button type="button" onClick={() => setFilmPlayIdx(0)} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 20, padding: '7px 16px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>▶ Play from the start</button>
@@ -3468,7 +3470,7 @@ export default function DashboardPage() {
                         {aiRenderStatus === 'failed' && <p style={{ fontSize: 13, color: 'var(--coral)' }}>Something went wrong rendering your video. Please try again.</p>}
                         {aiRenderStatus === 'done' && aiOutputUrl && (
                           <>
-                            <video controls src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
+                            <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 12, marginTop: 12 }} />
                             {aiRenderOverQuota ? (
                               <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                                 Upgrade to download ↗
@@ -3487,7 +3489,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} carousels={savedCarousels} />
+          <SchedulerTab userId={userId} carousels={savedCarousels} isFree={isFreeTier} />
           )}
         </div>
       </div>
