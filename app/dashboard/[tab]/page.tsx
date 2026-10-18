@@ -159,8 +159,26 @@ export default function DashboardPage() {
   const filmRafRef = useRef<number | null>(null)
   const [filmCameraActive, setFilmCameraActive] = useState(false)
   const [filmAutoRender, setFilmAutoRender] = useState(false)
+  const [filmFacing, setFilmFacing] = useState<'user' | 'environment'>('user')
+  const filmFacingRef = useRef<'user' | 'environment'>('user')
+  const [filmReview, setFilmReview] = useState(false)
+  const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
+  const [filmPlayIdx, setFilmPlayIdx] = useState(0)
+  const filmRenderContextRef = useRef<{ ideaId: string | null; source: string; title: string | null; caption: string | null; tags: string | null } | null>(null)
+  const [navAtEnd, setNavAtEnd] = useState(true)
+  const navScrollRef = useRef<HTMLDivElement | null>(null)
+  const checkNavEnd = () => {
+    const el = navScrollRef.current
+    if (!el) return
+    setNavAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
+  }
+  useEffect(() => {
+    window.addEventListener('resize', checkNavEnd)
+    return () => window.removeEventListener('resize', checkNavEnd)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [filmLineIdx, setFilmLineIdx] = useState(0)
-  const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string }[]>([])
+  const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
   const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
@@ -810,7 +828,7 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: filmFacingRef.current }, audio: true })
       .then(stream => {
         if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
         filmStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -831,6 +849,16 @@ export default function DashboardPage() {
           : 'Could not start the camera. Please try again.'
         )
       })
+  }
+
+  const flipFilmCamera = () => {
+    if (filmIsRecording) return
+    filmFacingRef.current = filmFacingRef.current === 'user' ? 'environment' : 'user'
+    setFilmFacing(filmFacingRef.current)
+    filmStreamRef.current?.getTracks().forEach(t => t.stop())
+    filmStreamRef.current = null
+    setFilmCameraActive(false)
+    startFilmCamera()
   }
 
   useEffect(() => {
@@ -908,7 +936,10 @@ export default function DashboardPage() {
     setFilmSelectedId(id)
     setFilmScript(lines.join('\n'))
     setFilmLineIdx(0)
+    filmClips.forEach((cl) => URL.revokeObjectURL(cl.url))
     setFilmClips([])
+    setFilmReview(false)
+    setFilmRedoIdx(null)
     if (filmPending) URL.revokeObjectURL(filmPending.url)
     setFilmPending(null)
   }
@@ -954,9 +985,32 @@ export default function DashboardPage() {
     setFilmPending(null)
   }
 
-  const finishFilm = async (clips: { blob: Blob; ext: string; type: string }[]) => {
+  const startRedoFilmClip = (i: number) => {
+    setFilmRedoIdx(i)
+    setFilmLineIdx(i)
+    setFilmReview(false)
+  }
+
+  const cancelFilmRedo = () => {
+    if (filmPending) URL.revokeObjectURL(filmPending.url)
+    setFilmPending(null)
+    setFilmRedoIdx(null)
+    setFilmLineIdx(0)
+    setFilmPlayIdx(0)
+    setFilmReview(true)
+  }
+
+  const finishFilm = async (clips: { blob: Blob; ext: string; type: string; url: string }[], renderNow = true) => {
     setFilmUploading(true)
     try {
+      const filmItem = filmingItems.find((f) => f.id === filmSelectedId)
+      const filmScriptRow = savedScripts.find((s) => `script-${s.id}` === filmSelectedId)
+      const isScriptSource = !!filmSelectedId && filmSelectedId.startsWith('script-')
+      filmRenderContextRef.current = filmItem
+        ? { ideaId: isScriptSource ? null : filmItem.id, source: isScriptSource ? 'script' : 'idea', title: filmItem.title || null, caption: filmItem.caption || null, tags: filmItem.tags || null }
+        : filmScriptRow
+        ? { ideaId: null, source: 'script', title: filmScriptRow.topic, caption: null, tags: null }
+        : null
       const stamp = Date.now()
       const results = await Promise.all(clips.map(async (cl, i) => {
         const filePath = `${userId}/film/filmed-${stamp}-${i}.${cl.ext}`
@@ -973,9 +1027,11 @@ export default function DashboardPage() {
       setUploadSlotPaths(pathsMap)
       setUploadSpeechSlots(new Set(slots))
       setUploadLandscapeSlots(new Set())
+      clips.forEach((cl) => URL.revokeObjectURL(cl.url))
       setFilmClips([])
       setFilmLineIdx(0)
-      setFilmAutoRender(true)
+      setFilmReview(false)
+      if (renderNow) setFilmAutoRender(true)
       setTab('uploads')
     } catch (err) {
       console.error('Film upload failed:', err)
@@ -984,17 +1040,28 @@ export default function DashboardPage() {
     setFilmUploading(false)
   }
 
-  const saveFilmClip = async () => {
+  const saveFilmClip = () => {
     if (!filmPending) return
-    const clip = { blob: filmPending.blob, ext: filmPending.ext, type: filmPending.type }
-    URL.revokeObjectURL(filmPending.url)
+    const clip = { blob: filmPending.blob, ext: filmPending.ext, type: filmPending.type, url: filmPending.url }
     setFilmPending(null)
+    if (filmRedoIdx !== null) {
+      const next = [...filmClips]
+      if (next[filmRedoIdx]) URL.revokeObjectURL(next[filmRedoIdx].url)
+      next[filmRedoIdx] = clip
+      setFilmClips(next)
+      setFilmRedoIdx(null)
+      setFilmLineIdx(0)
+      setFilmPlayIdx(0)
+      setFilmReview(true)
+      return
+    }
     const clips = [...filmClips, clip]
     setFilmClips(clips)
     if (filmLineIdx + 1 < filmLines.length) {
       setFilmLineIdx(filmLineIdx + 1)
     } else {
-      await finishFilm(clips)
+      setFilmPlayIdx(0)
+      setFilmReview(true)
     }
   }
 
@@ -1372,6 +1439,7 @@ export default function DashboardPage() {
           resolution: aiResolution,
           
           ideaId: selectedFilmingId || null,
+          ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
           ideaCaption: filmingItems.find((f) => f.id === selectedFilmingId)?.caption || null,
           ideaTags: filmingItems.find((f) => f.id === selectedFilmingId)?.tags || null,
@@ -1469,7 +1537,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: null, ideaTitle: null, ideaCaption: null, ideaTags: null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmRenderContextRef.current?.ideaId ?? null, ideaSource: filmRenderContextRef.current?.source ?? 'upload', ideaTitle: filmRenderContextRef.current?.title ?? null, ideaCaption: filmRenderContextRef.current?.caption ?? null, ideaTags: filmRenderContextRef.current?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -1478,6 +1546,7 @@ export default function DashboardPage() {
       setRenderId(data.renderId)
       setRenderStatus('queued')
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
+      filmRenderContextRef.current = null
       setUploadSlots([0])
       setUploadSlotFiles({})
       setUploadSlotPaths({})
@@ -1678,7 +1747,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ position: 'relative', marginBottom: 28 }}>
-            <div className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid rgba(128,128,128,0.15)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
+            <div ref={(el) => { navScrollRef.current = el; if (el) setTimeout(checkNavEnd, 0) }} onScroll={checkNavEnd} className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid rgba(128,128,128,0.15)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
             <button onClick={(e) => { e.stopPropagation(); setTab('overview'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
@@ -1739,7 +1808,7 @@ export default function DashboardPage() {
 
             </div>
             {/* Scroll arrow */}
-            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 1, width: 48, background: 'linear-gradient(to right, transparent, var(--background) 70%)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 1, width: 48, background: 'linear-gradient(to right, transparent, var(--background) 70%)', display: navAtEnd ? 'none' : 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, pointerEvents: 'none' }}>
               <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>›</span>
             </div>
           </div>
@@ -1799,7 +1868,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
 
                 {/* Row 1: objectives + generate button + arrows */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div className="ideas-row" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
@@ -1814,7 +1883,7 @@ export default function DashboardPage() {
                       />
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
+                  <div className="ideas-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
                     <button
                       onClick={generateIdeas}
                       disabled={generatingIdeas}
@@ -1831,11 +1900,11 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Row 2: seasonal mode + tone - full width */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div className="ideas-row2" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   {/* Seasonal */}
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Content style</p>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="ideas-style-cards" style={{ display: 'flex', gap: 6 }}>
                       {([
                         { id: 'seasonal', label: 'Seasonal', desc: 'Tied to upcoming dates & events', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg> },
                         { id: 'mix', label: 'Mix', desc: 'Seasonal + timeless blend', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5" fill="currentColor" fillOpacity="0.15"/><line x1="7" y1="1.5" x2="7" y2="12.5"/></svg> },
@@ -1849,7 +1918,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   {/* Tone */}
-                  <div style={{ flexShrink: 0 }}>
+                  <div className="ideas-tone" style={{ flexShrink: 0 }}>
                     <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Tone</p>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {([
@@ -3025,23 +3094,32 @@ export default function DashboardPage() {
                     {filmingItems.length === 0 && savedScripts.length === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
-                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]) }} placeholder="One line per clip" rows={5} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="One line per clip" rows={5} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmLines.length} {filmLines.length === 1 ? 'clip' : 'clips'}, one per line</p>
                   </div>
+                  {!filmReview && (
+                  <>
+                  {filmRedoIdx !== null && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(216,90,48,0.1)', border: '1px solid var(--coral)' }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Re-recording clip {filmRedoIdx + 1}</p>
+                      <button type="button" onClick={cancelFilmRedo} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to review</button>
+                    </div>
+                  )}
                   <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
-                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
+                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmFacing === 'user' ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                    <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmLines.length > 0 && (
-                      <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                      <div style={{ position: 'absolute', bottom: 14, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
                         Clip {Math.min(filmLineIdx + 1, filmLines.length)} of {filmLines.length}
                       </div>
                     )}
                     {filmCurrentLine && !filmPending && (
                       filmIsRecording ? (
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.75)', padding: '14px 0' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.55)', padding: '12px 0' }}>
                           <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
                         </div>
                       ) : (
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.75)', padding: '14px 16px' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '12px 16px' }}>
                           <p style={{ color: '#fff', fontSize: 16, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{filmCurrentLine}</p>
                         </div>
                       )
@@ -3058,7 +3136,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmIsRecording && (
-                      <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
+                      <div style={{ position: 'absolute', bottom: 14, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
@@ -3078,16 +3156,43 @@ export default function DashboardPage() {
                     {filmPending ? (
                       <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
                         <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
-                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmLineIdx + 1 >= filmLines.length ? '✓ Save & finish' : '✓ Save & next'}</button>
+                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmLines.length ? '✓ Review video' : '✓ Save & next'}</button>
                       </div>
-                    ) : filmClips.length > 0 && filmClips.length >= filmLines.length ? (
-                      <button onClick={() => finishFilm(filmClips)} disabled={filmUploading} style={{ flexShrink: 0, padding: '13px 24px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Retry upload'}</button>
                     ) : (
                       <button onClick={filmIsRecording ? stopFilmRecording : startFilmRecording} disabled={filmCountdown !== null || filmUploading || filmLines.length === 0} style={{ flexShrink: 0, padding: '13px 24px', borderRadius: 50, border: 'none', background: filmIsRecording ? '#ff3b30' : 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 0.6 : 1, fontFamily: 'Inter, sans-serif' }}>
                         {filmUploading ? 'Saving…' : filmIsRecording ? '⏹  Stop' : `⏺  Record clip ${Math.min(filmLineIdx + 1, Math.max(filmLines.length, 1))}`}
                       </button>
                     )}
                   </div>
+                  </>
+                  )}
+                  {filmReview && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
+                      </div>
+                      <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: '9 / 16', width: '100%' }}>
+                        <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
+                      </div>
+                      <button type="button" onClick={() => setFilmPlayIdx(0)} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 20, padding: '7px 16px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>▶ Play from the start</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {filmClips.map((cl, i) => (
+                          <div key={cl.url} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: filmPlayIdx === i ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmPlayIdx === i ? '1px solid var(--coral)' : '1px solid transparent' }}>
+                            <button type="button" onClick={() => setFilmPlayIdx(i)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{i + 1}</button>
+                            <p style={{ flex: 1, fontSize: 13, lineHeight: 1.4, margin: 0 }}>{filmLines[i] || `Clip ${i + 1}`}</p>
+                            <button type="button" onClick={() => startRedoFilmClip(i)} disabled={filmUploading} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', flexShrink: 0 }}>↺ Redo</button>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button onClick={() => finishFilm(filmClips, true)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Render video'}</button>
+                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>Edit settings first</button>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Edit settings first opens your clips in the editor, where you can change captions, music, resolution and clip order before you render.</p>
+                    </div>
+                  )}
                 </div>
               )}
 

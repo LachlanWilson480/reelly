@@ -11,6 +11,8 @@ type Render = {
   title?: string | null
   caption?: string | null
   tags?: string | null
+  idea_id?: string | null
+  source?: string | null
 }
 
 type Carousel = {
@@ -91,23 +93,55 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear }: {
   )
 }
 
+function Folder({ id, title, count, noun, open, onToggle, children }: {
+  id: string
+  title: string
+  count: number
+  noun: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div id={id} style={{ scrollMarginTop: 80 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+      >
+        <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', color: 'var(--text-muted)' }}>›</span>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>{count} {noun}{count === 1 ? '' : 's'}</span>
+      </button>
+      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>{children}</div>}
+    </div>
+  )
+}
+
 export default function SchedulerTab({ userId, carousels }: { userId: string | null; carousels: Carousel[] }) {
   const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
   const [carouselThumbs, setCarouselThumbs] = useState<Record<string, string>>({})
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (!userId) return
     const load = async () => {
       setLoading(true)
-      const { data } = await supabase
+      const query = (cols: string) => supabase
         .from('renders')
-        .select('id, output_url, status, created_at, title, caption, tags')
+        .select(cols)
         .eq('user_id', userId)
         .eq('status', 'done')
         .order('created_at', { ascending: false })
-      setRenders(data || [])
+      let result = await query('id, output_url, status, created_at, title, caption, tags, idea_id, source')
+      if (result.error) {
+        // `source` column not added yet, fall back to the original columns
+        result = await query('id, output_url, status, created_at, title, caption, tags, idea_id')
+      }
+      setRenders((result.data as unknown as Render[]) || [])
       setLoading(false)
     }
     load()
@@ -150,10 +184,36 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
     setRenders((prev) => prev.filter((r) => r.id !== renderId))
   }
 
-  const ideaRenders = renders.filter((r) => r.title)
-  const freeRenders = renders.filter((r) => !r.title)
+  const kindOf = (r: Render): 'script' | 'idea' | 'other' => {
+    if (r.source === 'script') return 'script'
+    if (r.source === 'idea') return 'idea'
+    if (r.source === 'upload') return 'other'
+    if (r.idea_id && r.idea_id.startsWith('script-')) return 'script'
+    return r.title ? 'idea' : 'other'
+  }
+  const scriptRenders = renders.filter((r) => kindOf(r) === 'script')
+  const ideaRenders = renders.filter((r) => kindOf(r) === 'idea')
+  const otherRenders = renders.filter((r) => kindOf(r) === 'other')
+
+  const counts: Record<string, number> = { script: scriptRenders.length, idea: ideaRenders.length, reel: carousels.length, other: otherRenders.length }
+  const defaultOpen = ['script', 'idea', 'reel', 'other'].find((k) => counts[k] > 0)
+  const isOpen = (k: string) => openFolders[k] ?? k === defaultOpen
+  const toggleFolder = (k: string) => setOpenFolders((p) => ({ ...p, [k]: !isOpen(k) }))
+  const jumpTo = (k: string) => {
+    setOpenFolders((p) => ({ ...p, [k]: true }))
+    setTimeout(() => document.getElementById(`folder-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
+  const shortcuts = [
+    { key: 'script', label: 'Scripts' },
+    { key: 'idea', label: 'Premade ideas' },
+    { key: 'reel', label: 'Image reels' },
+  ]
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
+
+  const emptyNote = (text: string) => (
+    <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '4px 2px', margin: 0 }}>{text}</p>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -184,32 +244,39 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
         </div>
       )}
 
-      {ideaRenders.length > 0 && (
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>From your ideas</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {ideaRenders.map((render) => (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {shortcuts.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => jumpTo(s.key)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 20, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            {s.label}
+            <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{counts[s.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      <Folder id="folder-script" title="Scripts" count={scriptRenders.length} noun="video" open={isOpen('script')} onToggle={() => toggleFolder('script')}>
+        {scriptRenders.length === 0
+          ? emptyNote('No finished videos from your scripts yet.')
+          : scriptRenders.map((render) => (
               <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
             ))}
-          </div>
-        </div>
-      )}
+      </Folder>
 
-      {freeRenders.length > 0 && (
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Other renders</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {freeRenders.map((render) => (
+      <Folder id="folder-idea" title="Premade ideas" count={ideaRenders.length} noun="video" open={isOpen('idea')} onToggle={() => toggleFolder('idea')}>
+        {ideaRenders.length === 0
+          ? emptyNote('No finished videos from your content ideas yet.')
+          : ideaRenders.map((render) => (
               <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
             ))}
-          </div>
-        </div>
-      )}
+      </Folder>
 
-      {carousels.length > 0 && (
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Carousel posts</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Folder id="folder-reel" title="Image reels" count={carousels.length} noun="carousel" open={isOpen('reel')} onToggle={() => toggleFolder('reel')}>
+        {carousels.length === 0 ? emptyNote('No image reels yet.') : (
+          <>
             {carousels.map((c) => (
               <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
                 <div className="render-card-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
@@ -238,8 +305,16 @@ export default function SchedulerTab({ userId, carousels }: { userId: string | n
                 </div>
               </div>
             ))}
-          </div>
-        </div>
+          </>
+        )}
+      </Folder>
+
+      {otherRenders.length > 0 && (
+        <Folder id="folder-other" title="Other renders" count={otherRenders.length} noun="video" open={isOpen('other')} onToggle={() => toggleFolder('other')}>
+          {otherRenders.map((render) => (
+            <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} />
+          ))}
+        </Folder>
       )}
 
     </div>

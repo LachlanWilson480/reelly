@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`ai:${userId}`, 5, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -167,6 +167,12 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (dbError) return NextResponse.json({ error: 'Failed to save render record' }, { status: 500 })
+
+    // Remember whether this render came from a script, a premade idea or a plain upload.
+    // Best-effort: ignored if the `source` column has not been added yet.
+    if (['idea', 'script', 'upload'].includes(ideaSource)) {
+      await supabaseAdmin.from('renders').update({ source: ideaSource }).eq('id', renderRow.id)
+    }
 
     // Calculate free plan quota (across all accounts with same email)
     let overQuota = false

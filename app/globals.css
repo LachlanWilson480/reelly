@@ -302,3 +302,20 @@ input:-webkit-autofill:focus {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* mobile content ideas */
+@media (max-width: 640px) {
+  .ideas-row, .ideas-row2 { flex-direction: column !important; align-items: stretch !important; }
+  .ideas-actions { padding-top: 0 !important; flex-wrap: wrap; width: 100%; }
+  .ideas-actions > button:first-child { flex: 1 1 100%; }
+  .ideas-style-cards { flex-wrap: wrap; }
+  .ideas-style-cards > button { flex: 1 1 28% !important; min-width: 96px; }
+  .ideas-tone { flex-shrink: 1 !important; width: 100%; }
+}
+
+
+/* film flip button */
+@media (hover: hover) and (pointer: fine) {
+  .film-flip { display: none !important; }
+}
