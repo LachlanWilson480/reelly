@@ -97,7 +97,8 @@ export const makeRenderQueue = ({
       setProgress(jobId, 20, job.data, cancel);
       const readyClips = await Promise.all(
         convertedClips.map(async (clip) => {
-          if (!cutDeadSpace) return clip;
+          // A clip the user trimmed by hand keeps their exact trim, so skip Smart Trim for it
+          if (!cutDeadSpace || clip.trimStart || clip.trimLength) return clip;
           console.info(`[${jobId}] Step 2: cutting silence from clip`);
           const { outputPath, cleanup } = await cutSilence(clip.localPath);
           tmpCleanups.push(cleanup);

@@ -70,6 +70,159 @@ const CAPTION_PRESETS = [
   { id: 'typewriter', label: 'Typewriter', desc: 'Clean Arial, 4 words at a time' },
 ]
 
+type ClipTrimRange = { start: number; end: number; total: number; file: File }
+
+const fmtTrimTime = (s: number) => {
+  const m = Math.floor(s / 60)
+  const sec = s - m * 60
+  return `${m}:${sec.toFixed(1).padStart(4, '0')}`
+}
+
+const trimButtonLabel = (t: ClipTrimRange | undefined, file: File | undefined) =>
+  t && file && t.file === file ? `Trimmed · ${(t.end - t.start).toFixed(1)}s` : 'Trim'
+
+function ClipTrimPanel({ file, trim, onChange, onClose }: {
+  file: File
+  trim: ClipTrimRange | undefined
+  onChange: (t: ClipTrimRange | null) => void
+  onClose: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const probing = useRef(false)
+  // The panel is re-created (via key) when the clip changes, so one preview URL per mount is enough
+  const [url] = useState(() => URL.createObjectURL(file))
+  const [total, setTotal] = useState(0)
+  const [cur, setCur] = useState(0)
+  const [playing, setPlaying] = useState(false)
+
+  const t = trim && trim.file === file ? trim : undefined
+  const start = t ? t.start : 0
+  const end = t ? t.end : total
+
+  const emit = (s: number, e: number) => {
+    if (s <= 0.05 && e >= total - 0.05) onChange(null)
+    else onChange({ start: s, end: e, total, file })
+  }
+  const seek = (time: number) => {
+    const v = videoRef.current
+    if (v) { try { v.pause(); v.currentTime = Math.max(0, time) } catch {} }
+  }
+
+  // Drive the bar every frame while playing, so it moves smoothly in every browser
+  useEffect(() => {
+    if (!playing) return
+    let raf = 0
+    const tick = () => {
+      const v = videoRef.current
+      if (v) {
+        if (end > 0 && v.currentTime >= end - 0.03) { v.pause(); v.currentTime = end }
+        setCur(v.currentTime)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playing, end])
+
+  const togglePlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.paused) {
+      if (v.currentTime < start - 0.05 || v.currentTime >= end - 0.05) v.currentTime = start
+      v.play().then(() => setPlaying(true)).catch(() => {})
+    } else { v.pause(); setPlaying(false) }
+  }
+
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', minWidth: 74 }
+  const timeStyle: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', minWidth: 52, textAlign: 'right' }
+
+  return (
+    <div style={{ marginTop: 6, background: 'rgba(128,128,128,0.07)', borderRadius: 12, padding: 14, border: '1px solid rgba(128,128,128,0.12)' }}>
+      {url && (
+        <video
+          ref={videoRef}
+          src={url}
+          playsInline
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget
+            if (!isFinite(v.duration)) {
+              // Browser-recorded video reports no duration until seeked to the end
+              probing.current = true
+              v.currentTime = 1e101
+            } else if (v.duration > 0) {
+              setTotal(v.duration)
+            }
+          }}
+          onTimeUpdate={(e) => {
+            const v = e.currentTarget
+            if (probing.current) {
+              probing.current = false
+              if (isFinite(v.duration) && v.duration > 0) setTotal(v.duration)
+              v.currentTime = 0
+              setCur(0)
+              return
+            }
+            if (!v.paused && total > 0) {
+              if (v.currentTime < start - 0.05) v.currentTime = start
+              else if (v.currentTime >= end - 0.05) { v.pause(); v.currentTime = end }
+            }
+            setCur(v.currentTime)
+          }}
+          onSeeked={(e) => { if (!probing.current) setCur(e.currentTarget.currentTime) }}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onClick={togglePlay}
+          style={{ width: '100%', maxHeight: 240, borderRadius: 10, background: '#000', display: 'block' }}
+        />
+      )}
+      {total > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+          <button type="button" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>{playing ? '❚❚' : '▶'}</button>
+          <input
+            type="range" min={start} max={end} step={0.05} value={Math.min(end, Math.max(start, cur))}
+            onChange={(e) => { const v = videoRef.current; if (v) { v.currentTime = Number(e.target.value); setCur(v.currentTime) } }}
+            style={{ flex: 1, accentColor: '#D85A30', minWidth: 0 }}
+          />
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtTrimTime(Math.max(0, Math.min(end, cur) - start))} / {fmtTrimTime(end - start)}</span>
+        </div>
+      )}
+      {total <= 0 ? (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>Loading clip…</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            <span style={labelStyle}>Start</span>
+            <input
+              type="range" min={0} max={total} step={0.1} value={start}
+              onChange={(e) => { const s = Math.min(Number(e.target.value), Math.max(0, end - 0.5)); emit(s, end); seek(s) }}
+              style={{ flex: 1, accentColor: '#D85A30', minWidth: 0 }}
+            />
+            <span style={timeStyle}>{fmtTrimTime(start)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <span style={labelStyle}>End</span>
+            <input
+              type="range" min={0} max={total} step={0.1} value={end}
+              onChange={(e) => { const en = Math.min(total, Math.max(Number(e.target.value), start + 0.5)); emit(start, en); seek(start) }}
+              style={{ flex: 1, accentColor: '#D85A30', minWidth: 0 }}
+            />
+            <span style={timeStyle}>{fmtTrimTime(end)}</span>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '10px 0 0' }}>
+            Keeping {(end - start).toFixed(1)}s of {total.toFixed(1)}s
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => { const v = videoRef.current; if (v) { v.currentTime = start; v.play().catch(() => {}) } }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Preview trim</button>
+            <button type="button" onClick={() => { onChange(null); seek(0) }} style={{ background: 'none', color: 'var(--text-muted)', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer' }}>Reset</button>
+            <button type="button" onClick={onClose} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', marginLeft: 'auto' }}>Done</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -186,6 +339,9 @@ export default function DashboardPage() {
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
+  const [uploadTrims, setUploadTrims] = useState<Record<number, ClipTrimRange>>({})
+  const [aiTrims, setAiTrims] = useState<Record<number, ClipTrimRange>>({})
+  const [trimOpen, setTrimOpen] = useState<string | null>(null)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
@@ -1554,7 +1710,7 @@ export default function DashboardPage() {
       const stepIndices = Array.from(allStepIndices).sort((a, b) => a - b)
       const clipPaths: string[] = []
       const speechIndices: number[] = []
-      const clipTrims: { duration: number }[] = []
+      const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
       const clipSettings: { letterbox?: boolean }[] = []
       let anyLandscape = false
 
@@ -1576,14 +1732,18 @@ export default function DashboardPage() {
         const file2 = stepUploads[stepIndex]
         const duration = file2 ? await getVideoDuration(file2) : 0
         const isLandscape = aiLandscapeSteps.has(stepIndex)
-        return { path, stepIndex, duration, isLandscape }
+        const aiTrim = aiTrims[stepIndex]
+        const aiTrimOk = !!aiTrim && !!file2 && aiTrim.file === file2
+        const trimStart = aiTrimOk && aiTrim.start > 0.05 ? aiTrim.start : undefined
+        const trimLength = aiTrimOk && aiTrim.end < aiTrim.total - 0.05 ? Math.max(0.1, aiTrim.end - aiTrim.start) : (aiTrimOk && trimStart ? Math.max(0.1, aiTrim.total - aiTrim.start) : undefined)
+        return { path, stepIndex, duration, isLandscape, trimStart, trimLength }
       }))
 
       for (const result of uploadResults) {
         if (!result) continue
         clipPaths.push(result.path)
         if (aiSpeechSteps.has(result.stepIndex)) speechIndices.push(clipPaths.length - 1)
-        clipTrims.push({ duration: result.duration })
+        clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
           clipSettings.push({ letterbox: true })
@@ -1664,7 +1824,7 @@ export default function DashboardPage() {
 
     try {
       const clipPaths: string[] = []
-      const clipTrims: { duration: number }[] = []
+      const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
       const clipSettings: { letterbox?: boolean }[] = []
       const speechIndices: number[] = []
       let anyLandscape = false
@@ -1690,14 +1850,18 @@ export default function DashboardPage() {
         const uploadFile = uploadSlotFiles[slotId]
         const duration = uploadFile ? await getVideoDuration(uploadFile) : 0
         const isLandscape = uploadLandscapeSlots.has(slotId)
-        return { path, slotId, duration, isLandscape }
+        const upTrim = uploadTrims[slotId]
+        const upTrimOk = !!upTrim && !!uploadFile && upTrim.file === uploadFile
+        const trimStart = upTrimOk && upTrim.start > 0.05 ? upTrim.start : undefined
+        const trimLength = upTrimOk && upTrim.end < upTrim.total - 0.05 ? Math.max(0.1, upTrim.end - upTrim.start) : (upTrimOk && trimStart ? Math.max(0.1, upTrim.total - upTrim.start) : undefined)
+        return { path, slotId, duration, isLandscape, trimStart, trimLength }
       }))
 
       for (const result of uploadResults) {
         if (!result) continue
         clipPaths.push(result.path)
         if (uploadSpeechSlots.has(result.slotId)) speechIndices.push(clipPaths.length - 1)
-        clipTrims.push({ duration: result.duration })
+        clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
           clipSettings.push({ letterbox: true })
@@ -3067,7 +3231,7 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-
+                        {uploadSlotFiles[slotId] && <button type="button" onClick={() => setTrimOpen((p) => p === `u${slotId}` ? null : `u${slotId}`)} style={{ fontSize: 11, color: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId])}</button>}
                         {uploadSlots.length > 1 && (
                           <button onClick={() => {
                             setUploadSlots((prev) => prev.filter((id) => id !== slotId))
@@ -3078,6 +3242,15 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
+                    {trimOpen === `u${slotId}` && uploadSlotFiles[slotId] && (
+                      <ClipTrimPanel
+                        key={`${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}-${uploadSlotFiles[slotId].lastModified}`}
+                        file={uploadSlotFiles[slotId]}
+                        trim={uploadTrims[slotId]}
+                        onChange={(t) => setUploadTrims((prev) => { const n = { ...prev }; if (t) n[slotId] = t; else delete n[slotId]; return n })}
+                        onClose={() => setTrimOpen(null)}
+                      />
+                    )}
                     </div>
                   ))}
                 </div>
@@ -3413,9 +3586,19 @@ export default function DashboardPage() {
                             </div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
+                              {stepUploads[0] && <button type="button" onClick={() => setTrimOpen((p) => p === 'a0' ? null : 'a0')} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[0], stepUploads[0])}</button>}
                               {stepUploads[0] && <button type="button" onClick={() => setStepUploads({})} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
                             </div>
                           </div>
+                          {trimOpen === 'a0' && stepUploads[0] && (
+                            <ClipTrimPanel
+                              key={`${stepUploads[0].name}-${stepUploads[0].size}-${stepUploads[0].lastModified}`}
+                              file={stepUploads[0]}
+                              trim={aiTrims[0]}
+                              onChange={(t) => setAiTrims((prev) => { const n = { ...prev }; if (t) n[0] = t; else delete n[0]; return n })}
+                              onClose={() => setTrimOpen(null)}
+                            />
+                          )}
                         </div>
                       ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -3456,7 +3639,7 @@ export default function DashboardPage() {
                                 )}
                               </div>
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-
+                                {stepUploads[i] && <button type="button" onClick={() => setTrimOpen((p) => p === `a${i}` ? null : `a${i}`)} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[i], stepUploads[i])}</button>}
                                 {(stepUploads[i] || stepUploadNames[i]) && (
                                   <button type="button" onClick={async () => {
                                     setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
@@ -3467,6 +3650,15 @@ export default function DashboardPage() {
                                 )}
                               </div>
                             </div>
+                            {trimOpen === `a${i}` && stepUploads[i] && (
+                              <ClipTrimPanel
+                                key={`${stepUploads[i].name}-${stepUploads[i].size}-${stepUploads[i].lastModified}`}
+                                file={stepUploads[i]}
+                                trim={aiTrims[i]}
+                                onChange={(t) => setAiTrims((prev) => { const n = { ...prev }; if (t) n[i] = t; else delete n[i]; return n })}
+                                onClose={() => setTrimOpen(null)}
+                              />
+                            )}
                             </React.Fragment>
                           )
                         })}
