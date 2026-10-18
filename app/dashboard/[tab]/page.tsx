@@ -876,6 +876,21 @@ export default function DashboardPage() {
     }
   }
 
+  // On phones and tablets, follow the way the device is held
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const touch = window.matchMedia('(pointer: coarse)')
+    const landscape = window.matchMedia('(orientation: landscape)')
+    const sync = () => {
+      if (tab !== 'film' || !touch.matches) return
+      changeFilmOrientation(landscape.matches ? 'landscape' : 'portrait')
+    }
+    sync()
+    landscape.addEventListener('change', sync)
+    return () => landscape.removeEventListener('change', sync)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, filmIsRecording, filmClips.length, filmPending])
+
   useEffect(() => {
     if (filmCameraActive && filmStreamRef.current && filmVideoRef.current) {
       filmVideoRef.current.srcObject = filmStreamRef.current
