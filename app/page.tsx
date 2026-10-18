@@ -58,7 +58,7 @@ export default function HomePage() {
   const faqs = [
     { q: 'Do I need to edit my videos?', a: 'No. Reelezy edits your videos automatically based on your filming script. Captions, trimming, and music are all handled. No editing skills or software required.' },
     { q: "What if I don't post often?", a: "That's exactly who Reelezy is built for. Content ideas and filming steps are designed to take minutes, not hours, so posting consistently becomes realistic even with a full schedule." },
-    { q: 'Is my business data safe?', a: 'Your business information is used only to personalise your experience and generate relevant content. We never sell your data. Full details in the Terms of Service.' },
+    { q: 'Is my business data safe?', a: 'Your business information is used only to personalise your experience and generate relevant content. We never sell your data. Full details in the Privacy Policy.' },
     { q: 'Do I need filming or editing experience?', a: 'No. Reelezy gives you step-by-step filming instructions and handles all editing, captions, and sound automatically.' },
     { q: 'Can I use my own phone to film?', a: 'Yes. Reelezy is built around filming on your phone.' },
   ]
@@ -289,7 +289,6 @@ export default function HomePage() {
               <div>
                 <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>Company</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  <Link href="/terms" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms of Service</Link>
                   <Link href="/privacy" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Privacy Policy</Link>
                   <a href="mailto:hello@reelezy.com" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>Contact</a>
                 </div>
