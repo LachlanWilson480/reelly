@@ -70,6 +70,7 @@ export default function HomePage() {
   ]
 
   const pricing = [
+    { name: 'Free', price: '$0', period: '', desc: 'Try Reelezy, no card needed', features: ['24 ideas per week', '7 filming guides per week', '3 scripts per week', '1 minute of video, with a Reelezy watermark'], highlight: false },
     { name: 'Basic', price: '$35', period: '/mo', desc: '25 render minutes per month', features: ['5 ideas per batch, 98 per week', 'Full video scheduler', 'Sound library and video analytics', 'Limited Script Generator access'], highlight: false },
     { name: 'Pro', price: '$69', period: '/mo', desc: '60 render minutes per month', features: ['Everything in Basic', '7 ideas per batch, 210 per week', 'Full Script Generator access', 'Competitor analytics and dual accounts'], highlight: true },
   ]
@@ -81,14 +82,20 @@ export default function HomePage() {
   ]
 
   const mockFilmingSteps = [
-    '0:00-0:08 - Standing at the counter, introduce yourself',
-    '0:08-0:17 - Show the product up close, explain the benefit',
-    '0:17-0:25 - End with a smile, invite them to book',
+    "Hi, I'm Mia, and I'm about to fix a fringe.",
+    "Here's the mistake I see every week.",
+    'Book in and I will show you the fix.',
+  ]
+
+  const phoneLines = [
+    "Hi, I'm Mia, and I'm about to fix a fringe.",
+    "Here's the mistake I see every week.",
+    'Book in and I will show you the fix.',
   ]
 
   const heroSteps = [
     { label: 'Generate ideas' },
-    { label: 'Filming guide' },
+    { label: 'Film with a script' },
     { label: 'Auto-edited video' },
   ]
 
@@ -111,11 +118,12 @@ export default function HomePage() {
               Content ideas, filmed and posted in minutes.
             </h1>
             <p className="hero-subtext" style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
-              Reelezy helps personal-service businesses turn everyday work into social media content. AI-powered ideas, simple filming guides, automatic editing, and scheduling in one place.
+              Reelezy gives personal-service businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
             </p>
             <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
               Get started free
             </Link>
+            <p style={{ fontSize: 13, color: '#B8B5AE', margin: 0 }}>No credit card required.</p>
           </div>
 
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -127,49 +135,90 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <div style={{ width: 380, height: 236, boxSizing: 'border-box', background: '#16151c', borderRadius: '12px 12px 3px 3px', padding: '14px 14px 28px', boxShadow: '0 24px 48px rgba(0,0,0,0.45)', border: '4px solid #2a2833', transform: 'perspective(900px) rotateX(4deg)' }}>
-              <div style={{ background: '#0d0c11', borderRadius: 6, padding: 14, display: 'flex', flexDirection: 'column', gap: 8, height: '100%', justifyContent: 'center', overflow: 'hidden' }}>
+            <div className="hp-phone" aria-hidden="true">
+              <div className="hp-notch" />
+              <div className="hp-screen">
                 {heroStep === 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: 'heroFadeIn 0.4s ease' }}>
-                    {mockIdeas.map((idea) => (
-                      <div key={idea.title} style={{ background: '#232129', borderRadius: 8, padding: '9px 11px' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#F1EFE8', lineHeight: 1.3, marginBottom: 3 }}>{idea.title}</p>
-                        <p style={{ fontSize: 12, color: 'var(--coral)', margin: 0 }}>{idea.tag}</p>
+                  <div className="hp-s hp-ideas" key="ideas">
+                    <p className="hp-title">Ideas for this week</p>
+                    {mockIdeas.map((idea, i) => (
+                      <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
+                        <div>
+                          <p className="hp-idea-t">{idea.title}</p>
+                          <p className="hp-idea-h">{idea.tag}</p>
+                        </div>
+                        <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {heroStep === 1 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9, animation: 'heroFadeIn 0.4s ease' }}>
-                    {mockFilmingSteps.map((step) => (
-                      <div key={step} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                        <span style={{ color: 'var(--coral)', fontSize: 14, flexShrink: 0, marginTop: 1 }}>&#10003;</span>
-                        <p style={{ fontSize: 13, color: '#F1EFE8', lineHeight: 1.45, margin: 0 }}>{step}</p>
-                      </div>
-                    ))}
+                  <div className="hp-s hp-film" key="film">
+                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-prompter">
+                      {phoneLines.map((line, i) => (
+                        <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
+                      ))}
+                    </div>
+                    <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
+                    <div className="hp-clips">Clip 2 of 3</div>
+                    <div className="hp-shutter"><span /></div>
                   </div>
                 )}
                 {heroStep === 2 && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, animation: 'heroFadeIn 0.4s ease' }}>
-                    <div style={{ width: 90, height: 156, background: '#232129', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ width: 0, height: 0, borderTop: '10px solid transparent', borderBottom: '10px solid transparent', borderLeft: '16px solid #F1EFE8' }} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: '#F1EFE8', marginBottom: 4 }}>Render complete</p>
-                      <p style={{ fontSize: 13, color: 'var(--coral)', margin: 0 }}>Captions and music added</p>
-                    </div>
+                  <div className="hp-s hp-film" key="edit">
+                    <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-done">Render complete</div>
+                    <div className="hp-caption">Booking slots <b>open</b> this week</div>
+                    <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
+                    <div className="hp-progress"><span /></div>
                   </div>
                 )}
               </div>
             </div>
-            <div style={{ width: 416, height: 14, background: '#2a2833', borderRadius: '0 0 8px 8px' }} />
-            <div style={{ width: 52, height: 4, background: '#3a3743', borderRadius: 3, marginTop: -10 }} />
           </div>
-          <style>{`@keyframes heroFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <style>{`@keyframes heroFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.hp-phone { position: relative; width: 262px; height: 530px; border-radius: 40px; background: #0b0a10; padding: 8px; box-shadow: 0 0 0 1.5px #4a4483, 0 28px 56px rgba(8,6,30,.5); }
+.hp-notch { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 76px; height: 20px; border-radius: 11px; background: #0b0a10; z-index: 6; }
+.hp-screen { position: relative; width: 100%; height: 100%; border-radius: 32px; overflow: hidden; background: #17151f; }
+.hp-s { position: absolute; inset: 0; animation: hpIn .45s ease; }
+@keyframes hpIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hpUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes hpPulse { 50% { opacity: .25; } }
+@keyframes hpBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.hp-ideas { padding: 54px 14px 14px; display: flex; flex-direction: column; gap: 9px; }
+.hp-title { font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 18px; margin: 0 0 4px; color: #F1EFE8; }
+.hp-idea { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #26232f; border-radius: 13px; padding: 12px; animation: hpUp .45s ease both; }
+.hp-idea-t { font-size: 13px; font-weight: 600; line-height: 1.3; color: #F1EFE8; margin: 0; }
+.hp-idea-h { font-size: 11px; margin: 4px 0 0; color: #ff8a63; }
+.hp-star { font-size: 16px; color: #4b4757; }
+.hp-star-on { color: #f2b83c; }
+.hp-film { background: #2c2766; }
+.hp-subject { position: absolute; inset: 0; }
+.hp-head { position: absolute; left: 50%; top: 40%; width: 86px; height: 86px; margin-left: -43px; border-radius: 50%; background: #5a4f94; }
+.hp-shoulders { position: absolute; left: 50%; top: 60%; width: 206px; height: 320px; margin-left: -103px; border-radius: 103px 103px 0 0; background: #463d7d; }
+.hp-dim .hp-head { background: #4d4484; }
+.hp-dim .hp-shoulders { background: #3b3470; }
+.hp-prompter { position: absolute; top: 0; left: 0; right: 0; padding: 44px 16px 12px; background: rgba(8,6,24,.62); display: flex; flex-direction: column; gap: 5px; }
+.hp-line { font-size: 12.5px; line-height: 1.35; color: rgba(241,239,232,.45); margin: 0; }
+.hp-line-on { color: #fff; font-weight: 700; font-size: 14.5px; }
+.hp-rec { position: absolute; left: 12px; bottom: 88px; display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: .06em; color: #fff; background: rgba(8,6,24,.6); padding: 4px 9px; border-radius: 20px; }
+.hp-rec-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff3b30; animation: hpPulse 1.1s ease-in-out infinite; }
+.hp-clips { position: absolute; right: 12px; bottom: 88px; font-size: 10px; font-weight: 700; color: #fff; background: rgba(8,6,24,.6); padding: 4px 9px; border-radius: 20px; }
+.hp-shutter { position: absolute; left: 50%; bottom: 20px; margin-left: -26px; width: 52px; height: 52px; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; }
+.hp-shutter span { width: 22px; height: 22px; border-radius: 6px; background: #ff3b30; }
+.hp-done { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #0c2a20; background: #3ecf9b; padding: 5px 12px; border-radius: 20px; white-space: nowrap; }
+.hp-caption { position: absolute; left: 16px; right: 16px; bottom: 108px; text-align: center; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 20px; line-height: 1.15; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.hp-caption b { color: #ffb36b; font-weight: 600; }
+.hp-chips { position: absolute; left: 0; right: 0; bottom: 52px; display: flex; justify-content: center; gap: 5px; }
+.hp-chips span { font-size: 10px; font-weight: 600; color: #fff; background: rgba(8,6,24,.55); padding: 4px 9px; border-radius: 20px; }
+.hp-progress { position: absolute; left: 16px; right: 16px; bottom: 26px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25); overflow: hidden; }
+.hp-progress span { display: block; height: 100%; width: 100%; background: #fff; transform-origin: left; animation: hpBar 3s linear both; }
+@media (prefers-reduced-motion: reduce) { .hp-s, .hp-idea, .hp-rec-dot, .hp-progress span { animation: none !important; } }`}</style>
         </section>
 
         <section style={{ padding: '24px 64px 0', textAlign: 'center' }}>
-          <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for small businesses</p>
+          <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for hair, beauty, barbering, fitness and other personal-service businesses</p>
         </section>
 
         <section style={{ padding: '48px 64px 0' }}>
@@ -203,7 +252,8 @@ export default function HomePage() {
               {[
                 { title: 'AI content ideas', desc: 'Get:', points: ['Hyperlocal video ideas', 'Titles and hashtags', 'Step-by-step filming checklists'] },
                 { title: 'Automatic editing', desc: 'Reelezy handles:', points: ['Stitching your clips together', 'Captions', 'Pause removal', 'Sound'] },
-                { title: 'Scheduling', desc: 'Stay consistent by:', points: ['Planning content ahead of time', 'Keeping your accounts active', 'Not having to remember to post'] },
+                { title: 'Film with a teleprompter', desc: 'When you film:', points: ['Your script scrolls on screen', 'One clip at a time', 'Redo any clip before you render'] },
+                { title: 'Plan your week', desc: 'Stay consistent by:', points: ['Lining up ideas ahead of time', 'Filming steps ready to go', 'Never staring at a blank page'] },
               ].map((f) => (
                 <div key={f.title} style={{ background: 'var(--sand)', borderRadius: 14, padding: '28px 24px', border: '1px solid rgba(128,128,128,0.1)' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{f.title}</h3>
@@ -225,7 +275,7 @@ export default function HomePage() {
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 }}>Pricing</h2>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 44 }}>Priced by render minutes per month. Full details at checkout.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, maxWidth: 640, margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, maxWidth: 960, margin: '0 auto' }}>
               {pricing.map((tier) => (
                 <div key={tier.name} style={{ background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)', borderRadius: 14, padding: '32px 24px', border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{tier.name}</h3>
