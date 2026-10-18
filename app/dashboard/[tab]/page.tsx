@@ -986,12 +986,51 @@ export default function DashboardPage() {
     try {
       const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
       const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || ''
-      const recorder = mimeType ? new MediaRecorder(filmStreamRef.current, { mimeType }) : new MediaRecorder(filmStreamRef.current)
+      // Record exactly 9:16 (portrait) or 16:9 (landscape). If the camera gives a different shape
+      // (a laptop webcam in portrait, say), crop the centre of every frame to the right shape.
+      let recordStream: MediaStream = filmStreamRef.current
+      let stopCanvas: (() => void) | null = null
+      const vid = filmVideoRef.current
+      const target = filmOrientationRef.current === 'landscape' ? 16 / 9 : 9 / 16
+      if (vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
+        const vw = vid.videoWidth
+        const vh = vid.videoHeight
+        let sw = vw
+        let sh = vh
+        if (vw / vh > target) sw = vh * target
+        else sh = vw / target
+        const sx = (vw - sw) / 2
+        const sy = (vh - sh) / 2
+        const scale = Math.min(1, 1920 / Math.max(sw, sh))
+        const outW = Math.max(2, Math.round((sw * scale) / 2) * 2)
+        const outH = Math.max(2, Math.round((sh * scale) / 2) * 2)
+        const canvas = document.createElement('canvas')
+        canvas.width = outW
+        canvas.height = outH
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          let raf = 0
+          const draw = () => {
+            ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, outW, outH)
+            raf = requestAnimationFrame(draw)
+          }
+          draw()
+          const cs = canvas.captureStream(30)
+          filmStreamRef.current.getAudioTracks().forEach((t) => cs.addTrack(t))
+          recordStream = cs
+          stopCanvas = () => {
+            cancelAnimationFrame(raf)
+            cs.getVideoTracks().forEach((t) => t.stop())
+          }
+        }
+      }
+      const recorder = mimeType ? new MediaRecorder(recordStream, { mimeType }) : new MediaRecorder(recordStream)
       const baseType = (recorder.mimeType || mimeType || 'video/webm').split(';')[0]
       const ext = baseType.includes('mp4') ? 'mp4' : 'webm'
       const chunks: Blob[] = []
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
       recorder.onstop = () => {
+        if (stopCanvas) stopCanvas()
         const blob = new Blob(chunks, { type: baseType })
         if (blob.size === 0) { alert('Nothing was recorded. Please try again.'); return }
         setFilmPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
@@ -1029,6 +1068,111 @@ export default function DashboardPage() {
     setFilmPlayIdx(0)
     setFilmReview(true)
   }
+
+  const filmBezelStyle = {
+    background: '#0b0a10',
+    borderRadius: filmOrientation === 'landscape' ? 28 : 42,
+    padding: 8,
+    boxShadow: '0 0 0 1.5px #4a4483, 0 24px 48px rgba(8,6,30,0.35)',
+    width: '100%',
+    maxWidth: filmOrientation === 'landscape' ? 720 : 340,
+    margin: '0 auto',
+    position: 'relative' as const,
+  }
+  const filmNotch = filmOrientation === 'portrait'
+    ? <div aria-hidden="true" style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', width: 76, height: 20, borderRadius: 11, background: '#0b0a10', zIndex: 6, pointerEvents: 'none' }} />
+    : null
+
+  const renderPreferencesFields = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+                    {/* Music */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
+                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Tooltip text="Browse our royalty-free music library" position="bottom">
+                          <button type="button" onClick={() => setShowMusicLibrary('upload')}
+                            style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
+                            {libraryMusicName ? `${libraryMusicName}` : 'Library'}
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
+                          <button type="button" onClick={() => musicInputRef.current?.click()}
+                            style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
+                            {musicFile ? `${musicFile.name}` : 'Upload'}
+                          </button>
+                        </Tooltip>
+                        <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
+                          <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
+                            style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
+                            {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
+                          </button>
+                        </Tooltip>
+                      </div>
+                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
+                    </div>
+
+                    {/* Captions */}
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
+                      <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: uploadAddCaptions ? 14 : 0, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
+                        Add captions to my video
+                      </label>
+                      {uploadAddCaptions && (
+                        <>
+                          <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
+                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
+                            {CAPTION_PRESETS.map((preset) => (
+                              <button key={preset.id} onClick={() => setCaptionPreset(preset.id)}
+                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                          <details>
+                            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                            </div>
+                          </details>
+                        </>
+                      )}
+                    </div>
+                    {/* Quality + Smart Trim */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {([['high', '1080p', 'Fast renders, great for everyday Reels'] , ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
+                            <button key={val} onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setUploadResolution(val) }} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: uploadResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
+                              <p style={{ fontSize: 12, fontWeight: 700, color: uploadResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}{val === '4k' && userPlan !== 'top' ? <span style={{ fontSize: 10, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}</p>
+                              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Smart Trim</p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+                          <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Smart Trim</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+    </div>
+  )
 
   const getVideoSize = (file: File) => new Promise<{ w: number; h: number } | null>((resolve) => {
     const v = document.createElement('video')
@@ -2965,94 +3109,8 @@ export default function DashboardPage() {
                 </button>
 
                 {showAdvancedCaptions && (
-                  <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-                    {/* Music */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
-                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Tooltip text="Browse our royalty-free music library" position="bottom">
-                          <button type="button" onClick={() => setShowMusicLibrary('upload')}
-                            style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                            {libraryMusicName ? `${libraryMusicName}` : 'Library'}
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
-                          <button type="button" onClick={() => musicInputRef.current?.click()}
-                            style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                            {musicFile ? `${musicFile.name}` : 'Upload'}
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
-                          <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
-                            style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                            {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
-                          </button>
-                        </Tooltip>
-                      </div>
-                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
-                    </div>
-
-                    {/* Captions */}
-                    <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
-                      <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, marginBottom: uploadAddCaptions ? 14 : 0, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={uploadAddCaptions} onChange={(e) => setUploadAddCaptions(e.target.checked)} />
-                        Add captions to my video
-                      </label>
-                      {uploadAddCaptions && (
-                        <>
-                          <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
-                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 10 }}>
-                            {CAPTION_PRESETS.map((preset) => (
-                              <button key={preset.id} onClick={() => setCaptionPreset(preset.id)}
-                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: captionPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: captionPreset === preset.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
-                                <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: captionPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
-                                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.desc}</p>
-                              </button>
-                            ))}
-                          </div>
-                          <details>
-                            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
-                            </div>
-                          </details>
-                        </>
-                      )}
-                    </div>
-                    {/* Quality + Smart Trim */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {([['high', '1080p', 'Fast renders, great for everyday Reels'] , ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
-                            <button key={val} onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setUploadResolution(val) }} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: uploadResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
-                              <p style={{ fontSize: 12, fontWeight: 700, color: uploadResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}{val === '4k' && userPlan !== 'top' ? <span style={{ fontSize: 10, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}</p>
-                              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Smart Trim</p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: cutDeadSpace ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '10px 14px' }}>
-                          <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
-                          <div>
-                            <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Smart Trim</p>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-
+                  <div style={{ padding: '0 24px 24px' }}>
+                    {renderPreferencesFields()}
                   </div>
                 )}
               </div>
@@ -3116,7 +3174,7 @@ export default function DashboardPage() {
 
                         {/* Film tab */}
               {tab === 'film' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520, margin: '32px auto', padding: '0 16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmReview ? 'none' : 520, margin: filmReview ? '32px 0' : '32px auto', padding: filmReview ? 0 : '0 16px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Each line of your script is one clip. Film a line, redo it if you need to, then save and move on. After the last clip your video renders automatically.</p>
@@ -3174,25 +3232,28 @@ export default function DashboardPage() {
                       <button type="button" onClick={cancelFilmRedo} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to review</button>
                     </div>
                   )}
-                  <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
+                  <div style={filmBezelStyle}>
+                  <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                     {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmFacing === 'user' ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmLines.length > 0 && (
-                      <div style={{ position: 'absolute', bottom: 14, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                      <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
                         Clip {Math.min(filmLineIdx + 1, filmLines.length)} of {filmLines.length}
                       </div>
                     )}
                     {filmCurrentLine && !filmPending && (
-                      filmIsRecording ? (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', background: 'rgba(0,0,0,0.55)', padding: '12px 0' }}>
-                          <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
-                        </div>
-                      ) : (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '12px 16px' }}>
-                          <p style={{ color: '#fff', fontSize: 16, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{filmCurrentLine}</p>
-                        </div>
-                      )
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(8,6,24,0.62)', padding: filmOrientation === 'landscape' ? '12px 18px' : '46px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {filmLines[filmLineIdx - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx - 1]}</p>}
+                        {filmIsRecording ? (
+                          <div style={{ overflow: 'hidden' }}>
+                            <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
+                          </div>
+                        ) : (
+                          <p style={{ color: '#fff', fontSize: 17, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{filmCurrentLine}</p>
+                        )}
+                        {filmLines[filmLineIdx + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx + 1]}</p>}
+                      </div>
                     )}
                     {filmCountdown !== null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
@@ -3206,14 +3267,27 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmIsRecording && (
-                      <div style={{ position: 'absolute', bottom: 14, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
+                      <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
                     )}
+                    {!filmPending && (filmCameraActive || filmIsRecording) && (
+                      <button
+                        type="button"
+                        onClick={filmIsRecording ? stopFilmRecording : startFilmRecording}
+                        disabled={filmCountdown !== null || filmUploading || filmLines.length === 0}
+                        aria-label={filmIsRecording ? 'Stop recording' : 'Start recording'}
+                        style={{ position: 'absolute', left: '50%', bottom: 18, marginLeft: -29, width: 58, height: 58, borderRadius: '50%', border: '3px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 3, cursor: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 0.5 : 1 }}
+                      >
+                        <span style={{ width: filmIsRecording ? 22 : 40, height: filmIsRecording ? 22 : 40, borderRadius: filmIsRecording ? 6 : '50%', background: '#ff3b30', transition: 'all 0.15s ease' }} />
+                      </button>
+                    )}
                     {filmPending && (
                       <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
                     )}
+                  </div>
+                  {filmNotch}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ flex: 1 }}>
@@ -3228,11 +3302,7 @@ export default function DashboardPage() {
                         <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
                         <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmLines.length ? '✓ Review video' : '✓ Save & next'}</button>
                       </div>
-                    ) : (
-                      <button onClick={filmIsRecording ? stopFilmRecording : startFilmRecording} disabled={filmCountdown !== null || filmUploading || filmLines.length === 0} style={{ flexShrink: 0, padding: '13px 24px', borderRadius: 50, border: 'none', background: filmIsRecording ? '#ff3b30' : 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 0.6 : 1, fontFamily: 'Inter, sans-serif' }}>
-                        {filmUploading ? 'Saving…' : filmIsRecording ? '⏹  Stop' : `⏺  Record clip ${Math.min(filmLineIdx + 1, Math.max(filmLines.length, 1))}`}
-                      </button>
-                    )}
+                    ) : null}
                   </div>
                   </>
                   )}
@@ -3242,10 +3312,13 @@ export default function DashboardPage() {
                         <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
                       </div>
-                      <div style={{ position: 'relative', background: '#111', borderRadius: 16, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
+                      <div style={filmBezelStyle}>
+                      <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                         {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
+                        <div style={{ position: 'absolute', top: filmOrientation === 'landscape' ? 12 : 44, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
+                      </div>
+                      {filmNotch}
                       </div>
                       <button type="button" onClick={() => setFilmPlayIdx(0)} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 20, padding: '7px 16px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>▶ Play from the start</button>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -3257,11 +3330,15 @@ export default function DashboardPage() {
                           </div>
                         ))}
                       </div>
+                      <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '20px 24px 24px' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 18px' }}>Preferences</p>
+                        {renderPreferencesFields()}
+                      </div>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => finishFilm(filmClips, true)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Render video'}</button>
-                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>Edit settings first</button>
+                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>Open in full editor</button>
                       </div>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Edit settings first opens your clips in the editor, where you can change captions, music, resolution and clip order before you render.</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
                     </div>
                   )}
                 </div>
