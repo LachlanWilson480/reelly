@@ -257,6 +257,187 @@ function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange 
   )
 }
 
+const previewDurations = new Map<string, number>()
+const previewUrls = new Map<string, string>()
+const previewFileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`
+const previewUrlFor = (f: File) => {
+  const k = previewFileKey(f)
+  let u = previewUrls.get(k)
+  if (!u) { u = URL.createObjectURL(f); previewUrls.set(k, u) }
+  return u
+}
+const fmtClock = (s: number) => {
+  const t = Math.max(0, Math.floor(s))
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+}
+
+// Plays the user's clips back to back (respecting trims) with their voiceover, so they can
+// check the edit before rendering. Music, captions and transitions are added at render time.
+function EditorPreviewInner({ segments, voiceover, muteOriginal }: {
+  segments: VoiceoverSegment[]
+  voiceover: Blob | null
+  muteOriginal: boolean
+}) {
+  const [durations, setDurations] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {}
+    segments.forEach((s) => { const d = previewDurations.get(previewFileKey(s.file)); if (d) init[previewFileKey(s.file)] = d })
+    return init
+  })
+  const [index, setIndex] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [localTime, setLocalTime] = useState(0)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const voUrl = useMemo(() => (voiceover ? URL.createObjectURL(voiceover) : null), [voiceover])
+
+  // Read each clip's length once so the timeline knows the total
+  useEffect(() => {
+    segments.forEach((s) => {
+      const k = previewFileKey(s.file)
+      if (previewDurations.has(k)) return
+      const probe = document.createElement('video')
+      probe.preload = 'metadata'
+      probe.onloadedmetadata = () => {
+        if (Number.isFinite(probe.duration)) {
+          previewDurations.set(k, probe.duration)
+          setDurations((prev) => ({ ...prev, [k]: probe.duration }))
+        }
+      }
+      probe.src = previewUrlFor(s.file)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const lengths = segments.map((s) => {
+    const d = durations[previewFileKey(s.file)] || 0
+    const end = s.end != null ? Math.min(s.end, d || s.end) : d
+    return Math.max(0, end - s.start)
+  })
+  const total = lengths.reduce((a, b) => a + b, 0)
+  const before = lengths.slice(0, index).reduce((a, b) => a + b, 0)
+  const globalTime = Math.min(total, before + localTime)
+
+  const load = (i: number, offset: number, autoplay: boolean) => {
+    const v = videoRef.current
+    const seg = segments[i]
+    if (!v || !seg) return
+    setIndex(i)
+    const src = previewUrlFor(seg.file)
+    const go = () => {
+      v.currentTime = seg.start + offset
+      setLocalTime(offset)
+      if (autoplay) void v.play().catch(() => {})
+    }
+    if (v.getAttribute('data-src') !== src) {
+      v.setAttribute('data-src', src)
+      v.src = src
+      v.onloadedmetadata = () => { v.onloadedmetadata = null; go() }
+    } else go()
+  }
+
+  const syncAudio = (t: number, play: boolean) => {
+    const a = audioRef.current
+    if (!a) return
+    if (t >= 0 && Number.isFinite(t)) { try { a.currentTime = t } catch {} }
+    if (play) void a.play().catch(() => {}); else a.pause()
+  }
+
+  const seekTo = (t: number) => {
+    let acc = 0
+    for (let i = 0; i < segments.length; i++) {
+      if (t <= acc + lengths[i] || i === segments.length - 1) {
+        load(i, Math.max(0, t - acc), playing)
+        syncAudio(t, playing)
+        return
+      }
+      acc += lengths[i]
+    }
+  }
+
+  const toggle = () => {
+    const v = videoRef.current
+    if (!v || segments.length === 0) return
+    if (playing) {
+      v.pause(); audioRef.current?.pause(); setPlaying(false)
+      return
+    }
+    const atEnd = total > 0 && globalTime >= total - 0.1
+    if (!v.getAttribute('data-src') || atEnd) {
+      load(0, 0, true)
+      syncAudio(0, true)
+    } else {
+      void v.play().catch(() => {})
+      syncAudio(globalTime, true)
+    }
+    setPlaying(true)
+  }
+
+  const advance = () => {
+    if (index + 1 >= segments.length) {
+      videoRef.current?.pause(); audioRef.current?.pause(); setPlaying(false)
+      setLocalTime(lengths[index] || 0)
+    } else {
+      load(index + 1, 0, true)
+    }
+  }
+
+  const seg = segments[index]
+  const hasVoice = !!voUrl
+  const vol = hasVoice ? (muteOriginal ? 0 : 0.35) : 1
+
+  useEffect(() => { if (videoRef.current) videoRef.current.volume = vol }, [vol, index])
+
+  return (
+    <div>
+      <div style={{ width: 'min(100%, calc((100vh - 260px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
+        <video
+          ref={videoRef}
+          playsInline
+          onTimeUpdate={(e) => {
+            const v = e.currentTarget
+            if (!seg) return
+            setLocalTime(Math.max(0, v.currentTime - seg.start))
+            if (seg.end != null && v.currentTime >= seg.end - 0.03) advance()
+          }}
+          onEnded={advance}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        />
+        {!playing && segments.length > 0 && (
+          <button type="button" onClick={toggle} aria-label="Play preview"
+            style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}>▶</button>
+        )}
+        {segments.length === 0 && (
+          <p style={{ position: 'absolute', inset: 0, margin: 'auto', height: 'fit-content', padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>Add a clip to see your video here.</p>
+        )}
+      </div>
+      {hasVoice && <audio ref={audioRef} src={voUrl || undefined} preload="auto" />}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+        <button type="button" onClick={toggle} disabled={segments.length === 0}
+          style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: segments.length === 0 ? 'default' : 'pointer', opacity: segments.length === 0 ? 0.4 : 1, flexShrink: 0 }}>
+          {playing ? '❚❚' : '▶'}
+        </button>
+        <input type="range" min={0} max={Math.max(total, 0.1)} step={0.05} value={globalTime} disabled={segments.length === 0 || total === 0}
+          onChange={(e) => seekTo(Number(e.target.value))} style={{ flex: 1, accentColor: 'var(--coral)' }} aria-label="Preview position" />
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', minWidth: 74, textAlign: 'right' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+        Plays your clips in order with your trims{hasVoice ? ' and voiceover' : ''}. Music, captions and transitions are added when you create the video.
+      </p>
+    </div>
+  )
+}
+
+function EditorPreview({ segments, voiceover, muteOriginal }: { segments: VoiceoverSegment[]; voiceover: Blob | null; muteOriginal: boolean }) {
+  // Start fresh whenever the clips, trims or voiceover change
+  const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|') + (voiceover ? `|vo${voiceover.size}` : '') + (muteOriginal ? '|m' : '')
+  return (
+    <div className="ed-preview" style={{ background: 'var(--sand)', borderRadius: 20, padding: 20 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
+      <EditorPreviewInner key={key} segments={segments} voiceover={voiceover} muteOriginal={muteOriginal} />
+    </div>
+  )
+}
+
 function ClipTrimPanel({ file, trim, onChange, onClose }: {
   file: File
   trim: ClipTrimRange | undefined
@@ -2259,6 +2440,11 @@ export default function DashboardPage() {
           border-color: rgba(216,90,48,0.3);
           border-top-color: var(--coral);
         }
+        @media (min-width: 1024px) {
+          .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
+          .ed-split > * { grid-column: 2; margin-bottom: 24px; min-width: 0; }
+          .ed-split > .ed-preview { grid-column: 1; grid-row: 1 / span 40; position: sticky; top: 24px; align-self: start; margin-bottom: 0; }
+        }
       `}</style>
       {showOverageModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -3408,7 +3594,7 @@ export default function DashboardPage() {
             </div>
           )}
           {tab === 'uploads' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── CLIPS ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '24px' }}>
@@ -3597,6 +3783,11 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              <EditorPreview
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                voiceover={voiceoverBlob}
+                muteOriginal={voiceoverMute}
+              />
             </div>
           )}
 
@@ -3786,7 +3977,7 @@ export default function DashboardPage() {
               )}
 
 {tab === 'aiuploads' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── Select idea ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
@@ -4102,6 +4293,11 @@ export default function DashboardPage() {
                   </>
                 )
               })()}
+              <EditorPreview
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                voiceover={voiceoverBlob}
+                muteOriginal={voiceoverMute}
+              />
             </div>
           )}
 
