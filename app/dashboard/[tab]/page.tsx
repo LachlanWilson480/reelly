@@ -438,6 +438,23 @@ function EditorPreview({ segments, voiceover, muteOriginal }: { segments: Voiceo
   )
 }
 
+type ClipUploadState = 'uploading' | 'done' | 'error' | 'toolarge'
+
+// In-flight clip uploads, kept outside React so a re-render never loses track of one
+const clipUploadPromises = new Map<string, Promise<string | null>>()
+
+function ClipUploadBadge({ status, onRetry }: { status: ClipUploadState | undefined; onRetry: () => void }) {
+  if (!status) return null
+  if (status === 'uploading') {
+    return <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}><span className="rly-spinner rly-spinner-coral" style={{ marginRight: 5 }} />Uploading</span>
+  }
+  if (status === 'done') return <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>Ready</span>
+  if (status === 'toolarge') return <span style={{ fontSize: 11, color: 'var(--coral)', whiteSpace: 'nowrap', flexShrink: 0 }}>Over 500MB, pick a smaller clip</span>
+  return (
+    <button type="button" onClick={onRetry} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid var(--coral)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>Upload failed. Retry</button>
+  )
+}
+
 function ClipTrimPanel({ file, trim, onChange, onClose }: {
   file: File
   trim: ClipTrimRange | undefined
@@ -2097,6 +2114,65 @@ export default function DashboardPage() {
     }
   }
 
+  // Clips start uploading the moment they are picked, so "Create video" only has to wait for
+  // whatever is still in flight instead of uploading everything from scratch.
+  const [clipUploadStatus, setClipUploadStatus] = useState<Record<string, ClipUploadState>>({})
+
+  const startClipUpload = (kind: 'u' | 'a', idx: number, file: File) => {
+    if (!userId) return
+    const key = `${kind}${idx}`
+    const setPaths = kind === 'u' ? setUploadSlotPaths : setStepUploadPaths
+    // The old path belongs to the previous file, so never let a render use it
+    setPaths((prev) => { const n = { ...prev }; delete n[idx]; return n })
+    if (file.size > 500 * 1024 * 1024) {
+      clipUploadPromises.delete(key)
+      setClipUploadStatus((prev) => ({ ...prev, [key]: 'toolarge' }))
+      return
+    }
+    setClipUploadStatus((prev) => ({ ...prev, [key]: 'uploading' }))
+    const safeName = file.name.replace(/[^\w.-]+/g, '_')
+    const path = `${userId}/drafts/${kind === 'u' ? 'upload' : 'ai'}-${idx}-${Date.now()}-${safeName}`
+    const p: Promise<string | null> = supabase.storage.from('video-uploads').upload(path, file)
+      .then(({ error }) => {
+        const latest = clipUploadPromises.get(key) === p
+        if (error) {
+          if (latest) setClipUploadStatus((prev) => ({ ...prev, [key]: 'error' }))
+          return null
+        }
+        if (latest) {
+          setPaths((prev) => ({ ...prev, [idx]: path }))
+          setClipUploadStatus((prev) => ({ ...prev, [key]: 'done' }))
+        }
+        return path
+      })
+      .catch(() => {
+        if (clipUploadPromises.get(key) === p) setClipUploadStatus((prev) => ({ ...prev, [key]: 'error' }))
+        return null
+      })
+    clipUploadPromises.set(key, p)
+  }
+
+  const forgetClipUpload = (kind: 'u' | 'a', idx: number) => {
+    const key = `${kind}${idx}`
+    clipUploadPromises.delete(key)
+    setClipUploadStatus((prev) => { const n = { ...prev }; delete n[key]; return n })
+  }
+
+  const resetAiClipUploads = () => {
+    Array.from(clipUploadPromises.keys()).filter((k) => k.startsWith('a')).forEach((k) => clipUploadPromises.delete(k))
+    setClipUploadStatus((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => !k.startsWith('a'))) as Record<string, ClipUploadState>)
+    setStepUploadPaths({})
+  }
+
+  // Warn before the page is closed while anything is still uploading
+  const anyClipUploading = uploading || aiUploading || Object.values(clipUploadStatus).some((s) => s === 'uploading')
+  useEffect(() => {
+    if (!anyClipUploading) return
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [anyClipUploading])
+
   const runAiEditorUploads = async () => {
     if (!userId) return
     const selectedItem = filmingItems.find((f) => f.id === selectedFilmingId)
@@ -2121,8 +2197,11 @@ export default function DashboardPage() {
         let path: string | null = null
         if (stepUploads[stepIndex]) {
           const file = stepUploads[stepIndex]
-          path = stepUploadPaths[stepIndex] || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
-          if (!stepUploadPaths[stepIndex]) {
+          const inFlight = clipUploadPromises.get(`a${stepIndex}`)
+          const pendingPath = inFlight ? await inFlight : null
+          const knownPath = pendingPath || stepUploadPaths[stepIndex]
+          path = knownPath || `${userId}/${Date.now()}-step${stepIndex}-${file.name}`
+          if (!knownPath) {
             if (file && file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from("video-uploads").upload(path, file)
             if (error) throw new Error(`Upload failed: ${error.message}`)
@@ -2250,8 +2329,11 @@ export default function DashboardPage() {
         let path: string | null = null
         if (uploadSlotFiles[slotId]) {
           const file = uploadSlotFiles[slotId]
-          path = uploadSlotPaths[slotId] || `${userId}/${Date.now()}-${file.name}`
-          if (!uploadSlotPaths[slotId]) {
+          const inFlight = clipUploadPromises.get(`u${slotId}`)
+          const pendingPath = inFlight ? await inFlight : null
+          const knownPath = pendingPath || uploadSlotPaths[slotId]
+          path = knownPath || `${userId}/${Date.now()}-${file.name}`
+          if (!knownPath) {
             if (file && file.size > 500 * 1024 * 1024) throw new Error(`${file.name} is too large. Max file size is 500MB.`)
             const { error } = await supabase.storage.from('video-uploads').upload(path, file)
             if (error) throw new Error(`Upload failed: ${error.message}`)
@@ -3635,15 +3717,14 @@ export default function DashboardPage() {
                             const sid = parseInt(e.target.dataset.slotid || '0')
                             if (!file || !userId) return
                             setUploadSlotFiles((prev) => ({ ...prev, [sid]: file }))
-                              const path = `${userId}/drafts/upload-${sid}-${Date.now()}-${file.name}`
-                            const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-                            if (!error) setUploadSlotPaths((prev) => ({ ...prev, [sid]: path }))
+                            startClipUpload('u', sid, file)
                           }}
                           style={{ display: 'none' }}
                         />
                         {uploadSlotFiles[slotId] ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
+                            <ClipUploadBadge status={clipUploadStatus[`u${slotId}`]} onRetry={() => startClipUpload('u', slotId, uploadSlotFiles[slotId])} />
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
@@ -3658,9 +3739,7 @@ export default function DashboardPage() {
                               const file = e.dataTransfer.files?.[0]
                               if (!file || !userId) return
                               setUploadSlotFiles((prev) => ({ ...prev, [slotId]: file }))
-                              const path = `${userId}/drafts/upload-${slotId}-${Date.now()}-${file.name}`
-                              const { error } = await supabase.storage.from('video-uploads').upload(path, file)
-                              if (!error) setUploadSlotPaths((prev) => ({ ...prev, [slotId]: path }))
+                              startClipUpload('u', slotId, file)
                             }}
                             style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
                           >
@@ -3677,6 +3756,8 @@ export default function DashboardPage() {
                           <button onClick={() => {
                             setUploadSlots((prev) => prev.filter((id) => id !== slotId))
                             setUploadSlotFiles((prev) => { const n = { ...prev }; delete n[slotId]; return n })
+                            setUploadSlotPaths((prev) => { const n = { ...prev }; delete n[slotId]; return n })
+                            forgetClipUpload('u', slotId)
                             setUploadSpeechSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
                             setUploadLandscapeSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
                           }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
@@ -3989,7 +4070,7 @@ export default function DashboardPage() {
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()) }}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()) }}
                         style={{ padding: '8px 14px', borderRadius: 8, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -4021,6 +4102,7 @@ export default function DashboardPage() {
                             const file = e.target.files?.[0]
                             if (!file) return
                             setStepUploads({ 0: file })
+                            startClipUpload('a', 0, file)
                           }} style={{ display: 'none' }} />
                           <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 20, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
@@ -4028,6 +4110,7 @@ export default function DashboardPage() {
                               {stepUploads[0] ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
+                                  <ClipUploadBadge status={clipUploadStatus['a0']} onRetry={() => startClipUpload('a', 0, stepUploads[0])} />
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                 </div>
                               ) : (
@@ -4046,7 +4129,7 @@ export default function DashboardPage() {
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
                               {stepUploads[0] && <button type="button" onClick={() => setTrimOpen((p) => p === 'a0' ? null : 'a0')} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[0], stepUploads[0])}</button>}
-                              {stepUploads[0] && <button type="button" onClick={() => setStepUploads({})} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
+                              {stepUploads[0] && <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
                             </div>
                           </div>
                           {trimOpen === 'a0' && stepUploads[0] && (
@@ -4073,10 +4156,11 @@ export default function DashboardPage() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(216,90,48,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
                                 <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
-                                <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })) } }} style={{ display: 'none' }} />
+                                <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
+                                    <ClipUploadBadge status={clipUploadStatus[`a${i}`]} onRetry={() => { const f = stepUploads[i]; if (f) startClipUpload('a', i, f) }} />
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                   </div>
                                 ) : (
@@ -4088,7 +4172,7 @@ export default function DashboardPage() {
                                       e.preventDefault(); e.stopPropagation()
                                       e.currentTarget.style.borderColor = 'transparent'
                                       const file = e.dataTransfer.files?.[0]
-                                      if (file) setStepUploads((prev) => ({ ...prev, [i]: file }))
+                                      if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) }
                                     }}
                                     style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 7, padding: '2px', transition: 'border-color 0.15s' }}
                                   >
@@ -4100,11 +4184,12 @@ export default function DashboardPage() {
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                                 {stepUploads[i] && <button type="button" onClick={() => setTrimOpen((p) => p === `a${i}` ? null : `a${i}`)} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[i], stepUploads[i])}</button>}
                                 {(stepUploads[i] || stepUploadNames[i]) && (
-                                  <button type="button" onClick={async () => {
+                                  <button type="button" onClick={() => {
                                     setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
                                     setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    forgetClipUpload('a', i)
                                     setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
-                                    await authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
+                                    void authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
                                   }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
                                 )}
                               </div>
