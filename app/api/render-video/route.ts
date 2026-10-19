@@ -1,4 +1,5 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { getMonthStartISO } from '@/lib/billingMonth'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     const capMin = plan === 'top' ? PREMIUM_CAP_MIN : plan === 'mid' ? PRO_CAP_MIN : BASIC_CAP_MIN
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+    const monthStart = getMonthStartISO()
     const { data: monthRenders } = plan !== 'free' ? await supabaseAdmin
       .from('renders')
       .select('duration_seconds')

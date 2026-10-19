@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
 import { supabase } from '@/lib/supabase'
+import { getMonthStartISO } from '@/lib/billingMonth'
 
 export default function PlansPage() {
   const router = useRouter()
@@ -28,7 +29,7 @@ export default function PlansPage() {
         if (activePlan !== 'free' && sub) {
           setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null })
           const { data: bp } = await supabase.from('business_profiles').select('ideas_generated_this_week, scripts_generated_this_week, filming_generated_this_week').eq('user_id', user.id).maybeSingle()
-          const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+          const monthStart = getMonthStartISO()
           const { data: monthRenders } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).gte('created_at', monthStart)
           const usedSeconds = (monthRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
           setUsage({ ideas: bp?.ideas_generated_this_week || 0, scripts: bp?.scripts_generated_this_week || 0, filming: bp?.filming_generated_this_week || 0, renderMinutes: usedSeconds })

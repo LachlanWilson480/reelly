@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { useParams } from 'next/navigation'
 import JSZip from 'jszip'
+import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 type Profile = {
@@ -370,6 +371,7 @@ export default function DashboardPage() {
   const [postsThisWeek, setPostsThisWeek] = useState(0)
   const [scriptsThisWeek, setScriptsThisWeek] = useState(0)
   const [totalRenderSeconds, setTotalRenderSeconds] = useState(0)
+  const [lifetimeRenderSeconds, setLifetimeRenderSeconds] = useState(0)
   const [totalLifetimeRenders, setTotalLifetimeRenders] = useState(0)
   const [showOverageModal, setShowOverageModal] = useState(false)
   const [pendingRenderAction, setPendingRenderAction] = useState<(() => void) | null>(null)
@@ -420,10 +422,10 @@ export default function DashboardPage() {
     setFilmingThisWeek((ideasRows || []).filter((r) => r.checklist).length)
     const { count: renders } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
     setTotalRenders(renders || 0)
-    let renderQuery = supabase.from('renders').select('duration_seconds').eq('user_id', user.id).not('duration_seconds', 'is', null)
-    if (!isFreeTier) renderQuery = renderQuery.gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-    const { data: renderRows } = await renderQuery
-    setTotalRenderSeconds((renderRows || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
+    const { data: renderRows } = await supabase.from('renders').select('duration_seconds, created_at').eq('user_id', user.id).not('duration_seconds', 'is', null)
+    const monthStartMs = Date.parse(getMonthStartISO())
+    setLifetimeRenderSeconds((renderRows || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
+    setTotalRenderSeconds((renderRows || []).filter((r) => Date.parse(r.created_at) >= monthStartMs).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
     const { count: lifetimeRenderCount } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
     setTotalLifetimeRenders(lifetimeRenderCount || 0)
   }
@@ -481,7 +483,7 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .order("batch_number", { ascending: false })
 
-      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      const monthStart = getMonthStartISO()
 
       const { count: ideaCount } = await supabase
         .from("generated_ideas")
@@ -518,12 +520,12 @@ export default function DashboardPage() {
 
       const { data: durationRows } = await supabase
         .from("renders")
-        .select("duration_seconds")
+        .select("duration_seconds, created_at")
         .eq("user_id", user.id)
-        .gte("created_at", monthStart)
         .not("duration_seconds", "is", null)
-      const summedSeconds = (durationRows || []).reduce((sum, row) => sum + (row.duration_seconds || 0), 0)
-      setTotalRenderSeconds(summedSeconds)
+      const monthStartMs = Date.parse(monthStart)
+      setLifetimeRenderSeconds((durationRows || []).reduce((sum, row) => sum + (row.duration_seconds || 0), 0))
+      setTotalRenderSeconds((durationRows || []).filter((row) => Date.parse(row.created_at) >= monthStartMs).reduce((sum, row) => sum + (row.duration_seconds || 0), 0))
       if (allIdeas && allIdeas.length > 0) {
         const toIdea = (row: Record<string, unknown>): Idea => ({
           id: row.id as string,
@@ -2000,7 +2002,7 @@ export default function DashboardPage() {
   ]
 
   const isFreeTier = !realSubPlan || realSubStatus !== 'active'
-  const freeQuotaExceeded = isFreeTier && totalRenderSeconds >= 60
+  const freeQuotaExceeded = isFreeTier && lifetimeRenderSeconds >= 60
   const isProPlan = userPlan === 'top' && realSubStatus === 'active'
 
   const renderCapMin = userPlan === 'top' ? 60 : 25
@@ -2011,7 +2013,7 @@ export default function DashboardPage() {
     { label: 'Reels made', value: String(totalRenders) },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render time used', value: isFreeTier ? (() => {
-      const usedSec = totalRenderSeconds
+      const usedSec = lifetimeRenderSeconds
       return `${usedSec}s / 60s`
     })() : (() => {
       const usedMin = Math.floor(totalRenderSeconds / 60)
