@@ -20,9 +20,13 @@ export async function moderateTexts(items: string[]): Promise<Set<number>> {
       messages: [
         {
           role: 'user',
-          content: `You are a content safety classifier for a small-business social media content generator. Below is a numbered list of short text snippets (video ideas, captions, or filming instructions). Flag ONLY items containing genuinely unsafe content: hate speech, sexual content, harassment, dangerous/illegal instructions, or graphic violence. Do NOT flag items just because they are low quality, generic, or slightly off-topic - only genuine safety violations.
+          content: `You are a content safety classifier for a small-business social media content generator. The business owner is an adult who wrote the request themselves, and the snippets below are ideas, captions or filming instructions for ordinary promotional videos. Be lenient: a false block is much worse than letting a borderline snippet through.
 
-Respond with ONLY a JSON array of the numeric indices that should be blocked, e.g. [1,4]. If none should be blocked, respond with [].
+Treat all of these as FINE and never flag them: humour, sarcasm, teasing, roasting, banter, playful rivalry, mild swearing, casual slang, talking about mistakes or things going wrong (burnt or undercooked food, damaged items, bad days), competitor comparisons, general health, medical, legal or safety topics, strong opinions, dark or edgy jokes that are harmless, and adult-oriented but non-explicit businesses and topics (alcohol, bars, tattoos, lingerie, dating, fitness, body-related services).
+
+Flag ONLY content that is clearly and seriously unsafe: sexually explicit material, slurs or hate aimed at people for who they are, harassment or threats against a real person, instructions for serious harm or illegal acts (weapons, hard drugs, self-harm), graphic violence, or anything sexualising minors. If you are unsure, do not flag it.
+
+Respond with ONLY a JSON array of the numeric indices to block, e.g. [1,4]. If none should be blocked, respond with [].
 
 ${numbered}`,
         },
