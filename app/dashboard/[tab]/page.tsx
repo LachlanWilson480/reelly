@@ -96,10 +96,12 @@ const voiceoverExt = (b: Blob) => {
 
 // Records a voiceover from the microphone while the user's clips play (muted) in order,
 // or lets them upload a finished audio file. The recording stays in the parent until render.
-function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange }: {
+function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange, uploadStatus, onRetry }: {
   segments: VoiceoverSegment[]
   blob: Blob | null
   onBlob: (b: Blob | null) => void
+  uploadStatus?: ClipUploadState
+  onRetry?: () => void
   muteOriginal: boolean
   onMuteChange: (v: boolean) => void
 }) {
@@ -194,13 +196,13 @@ function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange 
     streamRef.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
-  const card = { background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', fontWeight: 600 } as const
+  const card = choiceBtn()
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Voiceover</p>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Record over clips you already filmed</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional. Talk over clips you have already filmed.</span>
       </div>
 
       {hasClips && (
@@ -223,12 +225,18 @@ function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange 
       {!recording && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={startRecording}
-            style={{ ...card, background: blob ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: blob ? '1px solid var(--coral)' : card.border, color: blob ? 'var(--coral)' : 'var(--ink)' }}>
+            style={choiceBtn(!!blob)}>
             {blob ? 'Record again' : hasClips ? 'Record over my clips' : 'Record voiceover'}
           </button>
-          <button type="button" onClick={() => fileInputRef.current?.click()} style={card}>Upload audio</button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} style={card}>Upload a recording</button>
           {blob && <button type="button" onClick={() => onBlob(null)} style={card}>Remove</button>}
         </div>
+      )}
+
+      {!blob && !recording && (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+          {hasClips ? 'Press record and talk. Your clips play silently on screen so you can talk along with them.' : 'Add a clip first, then press record and talk along with it. You can also upload a recording you made elsewhere.'}
+        </p>
       )}
 
       {recording && (
@@ -242,7 +250,10 @@ function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange 
 
       {playUrl && !recording && (
         <div style={{ marginTop: 10 }}>
-          <audio key={playUrl} src={playUrl} controls style={{ width: '100%', maxWidth: 360, height: 36 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <audio key={playUrl} src={playUrl} controls style={{ width: '100%', maxWidth: 360, height: 36 }} />
+            {onRetry && <ClipUploadBadge status={uploadStatus} onRetry={onRetry} />}
+          </div>
           <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={!muteOriginal} onChange={(e) => onMuteChange(!e.target.checked)} />
             Keep the original sound of my clips quietly underneath
@@ -452,6 +463,68 @@ function ClipUploadBadge({ status, onRetry }: { status: ClipUploadState | undefi
   if (status === 'toolarge') return <span style={{ fontSize: 11, color: 'var(--coral)', whiteSpace: 'nowrap', flexShrink: 0 }}>Over 500MB, pick a smaller clip</span>
   return (
     <button type="button" onClick={onRetry} style={{ fontSize: 11, color: 'var(--coral)', background: 'none', border: '1px solid var(--coral)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>Upload failed. Retry</button>
+  )
+}
+
+const uploadStamp = () => Date.now()
+
+// One look for every choice button in the Music and Voiceover sections
+const choiceBtn = (active = false, disabled = false) => ({
+  background: active ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)',
+  border: active ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)',
+  borderRadius: 8,
+  padding: '9px 14px',
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--ink)',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  opacity: disabled ? 0.6 : 1,
+}) as const
+
+function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extractError, uploadStatus, onOpenLibrary, onPickFile, onExtract, onClear, onRetry }: {
+  libraryName: string | null
+  musicFile: File | null
+  extractedPath: string | null
+  extracting: boolean
+  extractError: string
+  uploadStatus: ClipUploadState | undefined
+  onOpenLibrary: () => void
+  onPickFile: (f: File | null) => void
+  onExtract: (f: File) => void
+  onClear: () => void
+  onRetry: () => void
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  const videoRef = useRef<HTMLInputElement | null>(null)
+  const chosen = libraryName ? `${libraryName} (from the library)` : musicFile ? musicFile.name : extractedPath ? 'Sound taken from your video' : null
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional. Adds a song behind your video.</span>
+      </div>
+      <input ref={fileRef} type="file" accept="audio/*" onChange={(e) => { onPickFile(e.target.files?.[0] || null); e.target.value = '' }} style={{ display: 'none' }} />
+      <input ref={videoRef} type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onExtract(f); e.target.value = '' }} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Browse the library</button>
+        <button type="button" onClick={() => fileRef.current?.click()} style={choiceBtn(!!musicFile && !libraryName)}>Upload a song</button>
+        <button type="button" onClick={() => videoRef.current?.click()} disabled={extracting} style={choiceBtn(!!extractedPath && !libraryName && !musicFile, extracting)}>
+          {extracting ? 'Getting the sound...' : 'Use sound from a video'}
+        </button>
+      </div>
+      {chosen ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>Using: {chosen}</span>
+          {musicFile && !libraryName && <ClipUploadBadge status={uploadStatus} onRetry={onRetry} />}
+          <button type="button" onClick={onClear} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Remove</button>
+        </div>
+      ) : (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+          Pick a free song from our library, upload your own MP3 or WAV, or borrow the sound from another video. Skip this to keep your clips&apos; own sound.
+        </p>
+      )}
+      {extractError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractError}</p>}
+    </div>
   )
 }
 
@@ -778,9 +851,8 @@ export default function DashboardPage() {
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [voiceoverBlob, setVoiceoverBlob] = useState<Blob | null>(null)
   const [voiceoverMute, setVoiceoverMute] = useState(true)
+  const [assetPaths, setAssetPaths] = useState<{ m?: string; v?: string }>({})
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
-  const musicInputRef = useRef<HTMLInputElement>(null)
-  const audioExtractInputRef = useRef<HTMLInputElement>(null)
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
@@ -1650,38 +1722,27 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
 
                     {/* Music */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
-                      <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                      <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Tooltip text="Browse our royalty-free music library" position="bottom">
-                          <button type="button" onClick={() => setShowMusicLibrary('upload')}
-                            style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                            {libraryMusicName ? `${libraryMusicName}` : 'Library'}
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
-                          <button type="button" onClick={() => musicInputRef.current?.click()}
-                            style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                            {musicFile ? `${musicFile.name}` : 'Upload'}
-                          </button>
-                        </Tooltip>
-                        <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
-                          <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
-                            style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                            {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
-                          </button>
-                        </Tooltip>
-                      </div>
-                      {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
-                    </div>
+                    <MusicPicker
+                      libraryName={libraryMusicName}
+                      musicFile={musicFile}
+                      extractedPath={extractedMusicPath}
+                      extracting={extractingAudio}
+                      extractError={extractAudioError}
+                      uploadStatus={clipUploadStatus['m']}
+                      onOpenLibrary={() => setShowMusicLibrary('upload')}
+                      onPickFile={pickMusicFile}
+                      onExtract={handleExtractAudio}
+                      onClear={clearMusic}
+                      onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
+                    />
 
                     {/* Voiceover */}
                     <VoiceoverRecorder
                       segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                       blob={voiceoverBlob}
-                      onBlob={setVoiceoverBlob}
+                      onBlob={pickVoiceover}
+                      uploadStatus={clipUploadStatus['v']}
+                      onRetry={() => { if (voiceoverBlob) startAssetUpload('v', voiceoverBlob, 'voiceover') }}
                       muteOriginal={voiceoverMute}
                       onMuteChange={setVoiceoverMute}
                     />
@@ -1859,7 +1920,7 @@ export default function DashboardPage() {
     setLibraryMusicUrl(url)
     setLibraryMusicName(name)
     setMusicFile(null)
-    setVoiceoverBlob(null)
+    setExtractedMusicPath(null)
     setShowMusicLibrary(null)
   }
 
@@ -2164,6 +2225,65 @@ export default function DashboardPage() {
     setStepUploadPaths({})
   }
 
+  // Music and voiceover files upload in the background too ('m' = music file, 'v' = voiceover)
+  const startAssetUpload = (key: 'm' | 'v', blob: Blob, fileName: string) => {
+    if (!userId) return
+    setAssetPaths((prev) => { const n = { ...prev }; delete n[key]; return n })
+    setClipUploadStatus((prev) => ({ ...prev, [key]: 'uploading' }))
+    const safeName = fileName.replace(/[^\w.-]+/g, '_')
+    const path = key === 'm' ? `${userId}/music-${uploadStamp()}-${safeName}` : `${userId}/voiceover-${uploadStamp()}.${voiceoverExt(blob)}`
+    const p: Promise<string | null> = supabase.storage.from('video-uploads').upload(path, blob, blob.type ? { contentType: blob.type } : undefined)
+      .then(({ error }) => {
+        const latest = clipUploadPromises.get(key) === p
+        if (error) {
+          if (latest) setClipUploadStatus((prev) => ({ ...prev, [key]: 'error' }))
+          return null
+        }
+        if (latest) {
+          setAssetPaths((prev) => ({ ...prev, [key]: path }))
+          setClipUploadStatus((prev) => ({ ...prev, [key]: 'done' }))
+        }
+        return path
+      })
+      .catch(() => {
+        if (clipUploadPromises.get(key) === p) setClipUploadStatus((prev) => ({ ...prev, [key]: 'error' }))
+        return null
+      })
+    clipUploadPromises.set(key, p)
+  }
+
+  const forgetAsset = (key: 'm' | 'v') => {
+    clipUploadPromises.delete(key)
+    setClipUploadStatus((prev) => { const n = { ...prev }; delete n[key]; return n })
+    setAssetPaths((prev) => { const n = { ...prev }; delete n[key]; return n })
+  }
+
+  const pickMusicFile = (file: File | null) => {
+    setMusicFile(file)
+    if (file) {
+      // One music choice at a time
+      setLibraryMusicUrl(null)
+      setLibraryMusicName(null)
+      setExtractedMusicPath(null)
+      startAssetUpload('m', file, file.name)
+    } else forgetAsset('m')
+  }
+
+  const clearMusic = () => {
+    setLibraryMusicUrl(null)
+    setLibraryMusicName(null)
+    setMusicFile(null)
+    setExtractedMusicPath(null)
+    setExtractAudioError('')
+    forgetAsset('m')
+  }
+
+  const pickVoiceover = (b: Blob | null) => {
+    setVoiceoverBlob(b)
+    if (b) startAssetUpload('v', b, 'voiceover')
+    else forgetAsset('v')
+  }
+
   // Warn before the page is closed while anything is still uploading
   const anyClipUploading = uploading || aiUploading || Object.values(clipUploadStatus).some((s) => s === 'uploading')
   useEffect(() => {
@@ -2237,17 +2357,25 @@ export default function DashboardPage() {
 
       let voiceoverPath: string | null = null
       if (voiceoverBlob) {
-        const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
-        const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
-        if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
-        voiceoverPath = vPath
+        const inFlightVo = clipUploadPromises.get('v')
+        voiceoverPath = (inFlightVo ? await inFlightVo : null) || assetPaths.v || null
+        if (!voiceoverPath) {
+          const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
+          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+          if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
+          voiceoverPath = vPath
+        }
       }
 
       let musicPath: string | null = extractedMusicPath
       if (!musicPath && musicFile) {
-        const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
-        const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
-        if (!musicError) musicPath = mPath
+        const inFlightMusic = clipUploadPromises.get('m')
+        musicPath = (inFlightMusic ? await inFlightMusic : null) || assetPaths.m || null
+        if (!musicPath) {
+          const mPath = `${userId}/music-${Date.now()}-${musicFile.name.replace(/[^\w.-]+/g, '_')}`
+          const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
+          if (!musicError) musicPath = mPath
+        }
       }
 
       const outputOrientation = undefined  // always portrait output
@@ -2369,17 +2497,25 @@ export default function DashboardPage() {
 
       let voiceoverPath: string | null = null
       if (voiceoverBlob) {
-        const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
-        const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
-        if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
-        voiceoverPath = vPath
+        const inFlightVo = clipUploadPromises.get('v')
+        voiceoverPath = (inFlightVo ? await inFlightVo : null) || assetPaths.v || null
+        if (!voiceoverPath) {
+          const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
+          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+          if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
+          voiceoverPath = vPath
+        }
       }
 
       let musicPath: string | null = extractedMusicPath
       if (!musicPath && musicFile) {
-        const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
-        const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
-        if (!musicError) musicPath = mPath
+        const inFlightMusic = clipUploadPromises.get('m')
+        musicPath = (inFlightMusic ? await inFlightMusic : null) || assetPaths.m || null
+        if (!musicPath) {
+          const mPath = `${userId}/music-${Date.now()}-${musicFile.name.replace(/[^\w.-]+/g, '_')}`
+          const { error: musicError } = await supabase.storage.from('video-uploads').upload(mPath, musicFile)
+          if (!musicError) musicPath = mPath
+        }
       }
 
       const outputOrientation = filmLandscapeOut ? 'landscape' : undefined
@@ -2434,7 +2570,8 @@ export default function DashboardPage() {
     setExtractAudioError('')
     setExtractedMusicPath(null)
     setMusicFile(null)
-    setVoiceoverBlob(null)
+    setLibraryMusicUrl(null)
+    setLibraryMusicName(null)
 
     try {
       const path = `${userId}/${Date.now()}-extract-source-${file.name}`
@@ -4230,33 +4367,21 @@ export default function DashboardPage() {
 
                       {showAdvancedCaptions && (
                         <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)' }}>
-                          <input ref={musicInputRef} type="file" accept="audio/*" onChange={(e) => setMusicFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                          <input ref={audioExtractInputRef} type="file" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleExtractAudio(file) }} style={{ display: 'none' }} />
-
                           {/* Music row */}
                           <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}><p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No selection plays original audio</span></div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <Tooltip text="Browse our royalty-free music library" position="bottom">
-                                <button type="button" onClick={() => setShowMusicLibrary('ai')}
-                                  style={{ background: libraryMusicName ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: libraryMusicName ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: libraryMusicName ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: libraryMusicName ? 600 : 400 }}>
-                                  {libraryMusicName ? `${libraryMusicName}` : 'Library'}
-                                </button>
-                              </Tooltip>
-                              <Tooltip text="Upload your own audio file (MP3, WAV etc)" position="bottom">
-                                <button type="button" onClick={() => musicInputRef.current?.click()}
-                                  style={{ background: musicFile ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: musicFile ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: musicFile ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: musicFile ? 600 : 400 }}>
-                                  {musicFile ? `${musicFile.name}` : 'Upload'}
-                                </button>
-                              </Tooltip>
-                              <Tooltip text="Extract sound from another video to overlay onto your reel" position="bottom">
-                                <button type="button" onClick={() => audioExtractInputRef.current?.click()} disabled={extractingAudio}
-                                  style={{ background: extractedMusicPath ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: extractedMusicPath ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: extractedMusicPath ? 'var(--coral)' : 'var(--ink)', cursor: extractingAudio ? 'not-allowed' : 'pointer', opacity: extractingAudio ? 0.6 : 1 }}>
-                                  {extractingAudio ? 'Extracting...' : extractedMusicPath ? 'Audio extracted' : 'Sound from video'}
-                                </button>
-                              </Tooltip>
-                            </div>
-                            {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
+                            <MusicPicker
+                      libraryName={libraryMusicName}
+                      musicFile={musicFile}
+                      extractedPath={extractedMusicPath}
+                      extracting={extractingAudio}
+                      extractError={extractAudioError}
+                      uploadStatus={clipUploadStatus['m']}
+                      onOpenLibrary={() => setShowMusicLibrary('ai')}
+                      onPickFile={pickMusicFile}
+                      onExtract={handleExtractAudio}
+                      onClear={clearMusic}
+                      onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
+                    />
                           </div>
 
                           {/* Voiceover row */}
@@ -4264,7 +4389,9 @@ export default function DashboardPage() {
                             <VoiceoverRecorder
                               segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                               blob={voiceoverBlob}
-                              onBlob={setVoiceoverBlob}
+                              onBlob={pickVoiceover}
+                      uploadStatus={clipUploadStatus['v']}
+                      onRetry={() => { if (voiceoverBlob) startAssetUpload('v', voiceoverBlob, 'voiceover') }}
                               muteOriginal={voiceoverMute}
                               onMuteChange={setVoiceoverMute}
                             />
