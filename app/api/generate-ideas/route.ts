@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
+import { cleanAiText } from '@/lib/cleanText'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -128,7 +129,7 @@ const US_EVENTS: SeasonalEvent[] = [
   { name: 'Christmas', type: 'fixed', month: 12, day: 25, windowDays: 35 },
 ]
 
-// Micro/social days — global, relevant across all countries
+// Micro/social days - global, relevant across all countries
 // micro: true means tighter window and lower priority (only surface if no major event active)
 const MICRO_EVENTS: SeasonalEvent[] = [
   { name: 'Pancake Day (Shrove Tuesday)', type: 'easterOffset', offsetDays: -47, windowDays: 7, micro: true },
@@ -194,7 +195,7 @@ function pickAngles(pool: string[], count: number): string[] {
 function compressProfile(profile: Record<string, string | null | undefined>): string {
   const lines: string[] = []
 
-  // Core identity — always present
+  // Core identity - always present
   const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
@@ -381,7 +382,7 @@ Create ideas that directly fulfil this instruction, tailored to this account:
 - Tone of voice: ${profile.tone || 'not specified'}
 - Core services/products: ${profile.core_services || 'not specified'}
 
-Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, hook, description, tags. Do not add advice, tips, commentary or meta-analysis — just the ideas themselves.` : ''
+Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, hook, description, tags. Do not add advice, tips, commentary or meta-analysis - just the ideas themselves.` : ''
     const objectivesBlock = customOverridePrompt
     const anglePool = (plan === 'mid' || plan === 'top') ? [...BASIC_ANGLES, ...MID_EXTRA_ANGLES] : BASIC_ANGLES
     const angles = pickAngles(anglePool, batchSize)
@@ -390,15 +391,15 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     // Location
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
-      locationType === 'online' ? 'ONLINE STORE — sells online, no storefront and no customer visits; focus on products, packing/shipping orders, behind-the-scenes, unboxing, workspace/stockroom; never suggest customers visiting'
-      : locationType === 'mobile' ? 'MOBILE — travels to customers, no storefront; use van/tools/expertise'
-      : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok but not assumed, vary the setting'
-      : 'FIXED shop/studio — customers visit; showing space is fine'
+      locationType === 'online' ? 'ONLINE STORE - sells online, no storefront and no customer visits; focus on products, packing/shipping orders, behind-the-scenes, unboxing, workspace/stockroom; never suggest customers visiting'
+      : locationType === 'mobile' ? 'MOBILE - travels to customers, no storefront; use van/tools/expertise'
+      : locationType === 'both' ? 'ALL OF THE ABOVE - mix of fixed shop, mobile and online store; shop ok but not assumed, vary the setting'
+      : 'FIXED shop/studio - customers visit; showing space is fine'
     const locationRule = locationType === 'online'
       ? '\nHARD RULE (overrides the services list): this business sells ONLINE. Treat services as products. Every idea must be about products, orders, or the brand. NO walk-in customers, appointments, on-site service, shop tours or customer visits. Use: product demos, unboxing, packing orders, new arrivals/restocks, founder story, customer results/reviews, how-to-use, sourcing/making behind the scenes.'
       : ''
 
-    // Seasonal — major + micro, only what's actually upcoming
+    // Seasonal - major + micro, only what's actually upcoming
     const { major: majorEvent, micro: microEvent } = getUpcomingEvents(profile.country)
     const filteredOwnerSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
     const countryLabel = ({ UK: 'UK', US: 'US', NZ: 'NZ', IE: 'Ireland', CA: 'Canada', ZA: 'South Africa', SG: 'Singapore' } as Record<string, string>)[profile.country || ''] || 'AU'
@@ -411,15 +412,15 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const effectiveSeasonalMode = seasonalMode || 'mix'
     const seasonalBlock = (() => {
       if (effectiveSeasonalMode === 'evergreen') {
-        return 'SEASONAL: User wants EVERGREEN ideas only — do NOT reference any seasonal events or dates in any idea. All ideas must work year-round.'
+        return 'SEASONAL: User wants EVERGREEN ideas only - do NOT reference any seasonal events or dates in any idea. All ideas must work year-round.'
       }
       if (effectiveSeasonalMode === 'seasonal') {
-        if (seasonalParts.length === 0) return 'SEASONAL: User wants seasonal ideas but no major events are currently upcoming — do your best to tie ideas to the current time of year (season, weather, back-to-school, end of financial year etc) where it feels natural.'
-        return `SEASONAL: User wants ideas tied to upcoming dates — actively use these in as many ideas as naturally fits:\n${seasonalParts.join('\n')}`
+        if (seasonalParts.length === 0) return 'SEASONAL: User wants seasonal ideas but no major events are currently upcoming - do your best to tie ideas to the current time of year (season, weather, back-to-school, end of financial year etc) where it feels natural.'
+        return `SEASONAL: User wants ideas tied to upcoming dates - actively use these in as many ideas as naturally fits:\n${seasonalParts.join('\n')}`
       }
       // mix (default)
       if (seasonalParts.length === 0) return ''
-      return `SEASONAL (mix — use for AT MOST 1-2 ideas where it fits naturally, rest stay evergreen):\n${seasonalParts.join('\n')}`
+      return `SEASONAL (mix - use for AT MOST 1-2 ideas where it fits naturally, rest stay evergreen):\n${seasonalParts.join('\n')}`
     })()
 
     // People on camera
@@ -430,8 +431,8 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const isMultiPerson = !noOne && effectivePeopleCount > 1
     const namesForPrompt = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 && peopleList.length !== effectivePeopleCount ? '' : onCameraPeople
     const crewLine = noOne ? 'Camera: NO PEOPLE on screen. Faceless content only: hands-only, product or close-up shots, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
-      ? `Camera: ${effectivePeopleCount} people available${namesForPrompt ? ` (${namesForPrompt})` : ''} — at least half the ideas MUST have 2+ people on screen together (e.g. one demonstrates, one reacts or asks); the rest can be solo`
-      : 'Camera: films ALONE on phone — every idea must work with ONE person on screen, no one else'
+      ? `Camera: ${effectivePeopleCount} people available${namesForPrompt ? ` (${namesForPrompt})` : ''} - at least half the ideas MUST have 2+ people on screen together (e.g. one demonstrates, one reacts or asks); the rest can be solo`
+      : 'Camera: films ALONE on phone - every idea must work with ONE person on screen, no one else'
 
     const profileBrief = compressProfile(profile)
 
@@ -446,7 +447,7 @@ Create ideas that directly fulfil this instruction, tailored to this account:
 - Tone: ${profile.tone || 'authentic, relatable'}
 - Services: ${profile.core_services || ''}
 
-Return exactly ${batchSize} ideas. Each must have: title (catchy), hook (1 sentence), description (1-2 sentences), tags (3-5 hashtags). Do not add advice or commentary — just the ideas.`
+Return exactly ${batchSize} ideas. Each must have: title (catchy), hook (1 sentence), description (1-2 sentences), tags (3-5 hashtags). Do not add advice or commentary - just the ideas.`
       : `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
 
 BUSINESS:
@@ -456,7 +457,7 @@ Location: ${locationBrief}${locationRule}
 ${seasonalBlock && !objectivesBlock ? `\n${seasonalBlock}` : ''}
 ${keyEventsContext && !objectivesBlock ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
-${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch — let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
+${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch - let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
 HOW TO USE THE BRIEF:
 - Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea
@@ -468,13 +469,14 @@ HOW TO USE THE BRIEF:
 
 HARD RULES:
 - Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
-- Never state specific technical facts or diagnoses yourself — set up the topic and let the owner explain in their own words
+- Never use emojis or em dashes anywhere in the output
+- Never state specific technical facts or diagnoses yourself - set up the topic and let the owner explain in their own words
 - 15-30 sec per video, one take, phone, no extra setup beyond normal workspace
-- Title must reference a real business detail — no generic templates ("Behind the scenes", "Day in the life" unless content genuinely is that)
+- Title must reference a real business detail - no generic templates ("Behind the scenes", "Day in the life" unless content genuinely is that)
 - Keep each field brief: title <10 words, hook <20 words, description <25 words
 - Use single quotes inside strings, never double quotes
 
-ANGLES — assign exactly one per idea, in this order:
+ANGLES - assign exactly one per idea, in this order:
 ${angleLines}
 
 Output ONLY a valid JSON array, no markdown, no code fences:
@@ -512,7 +514,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
-    return NextResponse.json({ ideas: safeIdeas, plan, usage: usageInfo })
+    return NextResponse.json({ ideas: cleanAiText(safeIdeas), plan, usage: usageInfo })
   } catch (error) {
     console.error('generate-ideas error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to generate ideas' }, { status: 500 })

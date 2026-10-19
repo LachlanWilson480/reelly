@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
 )
 
 // This route is called by Vercel Cron every minute
-// Currently stubs out — will post to Instagram/TikTok once OAuth is connected
+// Currently stubs out - will post to Instagram/TikTok once OAuth is connected
 export async function GET(req: NextRequest) {
   try {
     // Verify this is a legitimate cron call

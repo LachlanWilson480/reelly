@@ -13,11 +13,11 @@ const supabase = createClient(
 
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: '▦' },
-  { id: 'ideas', label: 'Content Ideas', icon: '✎' },
+  { id: 'ideas', label: 'Content Ideas', icon: '◈' },
   { id: 'myideas', label: 'My Ideas', icon: '★' },
-  { id: 'filming', label: 'Filming', icon: '✂' },
-  { id: 'uploads', label: 'Uploads', icon: '⬆' },
-  { id: 'aiuploads', label: 'AI Editor Uploads', icon: '⚡' },
+  { id: 'filming', label: 'Filming', icon: '◉' },
+  { id: 'uploads', label: 'Uploads', icon: '▲' },
+  { id: 'aiuploads', label: 'AI Editor Uploads', icon: '◆' },
 ]
 
 export default function Sidebar() {
@@ -56,7 +56,7 @@ export default function Sidebar() {
 
   const bottomNavItems = [
     { href: "/privacy", label: "Privacy Policy", icon: "§" },
-    { href: "/settings", label: "Settings", icon: "⚙" },
+    { href: "/settings", label: "Settings", icon: "◎" },
   ]
   const isOnDashboard = pathname === '/dashboard'
   const currentTab = searchParams.get('tab') || 'overview'

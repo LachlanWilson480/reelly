@@ -3461,7 +3461,7 @@ export default function DashboardPage() {
                     )}
                     {!filmCameraActive && !filmIsRecording && filmCountdown === null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(0,0,0,0.5)' }}>
-                        <button onClick={startFilmCamera} style={{ padding: '12px 28px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>📷 Enable Camera</button>
+                        <button onClick={startFilmCamera} style={{ padding: '12px 28px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>Enable Camera</button>
                         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: 0, padding: '0 24px', textAlign: 'center', lineHeight: 1.5 }}>{filmCameraError || 'Click to start your camera'}</p>
                       </div>
                     )}
@@ -3909,7 +3909,7 @@ export default function DashboardPage() {
                     onClick={() => togglePreviewTrack(track.id, track.url)}
                     style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "var(--coral)", color: "#fff", fontSize: 14, cursor: "pointer", flexShrink: 0 }}
                   >
-                    {previewingTrackId === track.id ? "⏸" : "▶"}
+                    {previewingTrackId === track.id ? "❚❚" : "▶"}
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</p>

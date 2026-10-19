@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
+import { cleanAiText } from '@/lib/cleanText'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       const currentCount = needsReset ? 0 : (usageRow?.scripts_generated_this_week || 0)
 
       if (plan === 'free') {
-        // Free plan: lifetime limit of 1 script — check total scripts_generated_this_week across all time
+        // Free plan: lifetime limit of 1 script - check total scripts_generated_this_week across all time
         const { data: allUsage } = await supabaseAdmin
           .from('user_usage')
           .select('scripts_generated_this_week')
@@ -124,6 +125,7 @@ Requirements:
 - It must sound like a real person talking out loud (contractions, natural phrasing) - never like a formal ad or a written essay.
 - Give it a clear structure: a strong opening line that hooks attention in the first sentence, a middle that delivers on the topic, and a closing line with a natural call-to-action or takeaway.
 - Never invent specific technical, medical, legal, or safety claims - keep any expert-specific claims general or hand them off conversationally (e.g. "ask your provider about...").
+- Never use emojis or em dashes anywhere in the output
 - Never use a double-quote character inside the script text - use single quotes instead.
 
 Respond ONLY with valid JSON, no markdown, no code fences, no other text before or after. Use this exact structure:
@@ -152,7 +154,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
-    return NextResponse.json({ script })
+    return NextResponse.json({ script: cleanAiText(script) })
   } catch (error) {
     console.error('generate-script error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to generate script' }, { status: 500 })

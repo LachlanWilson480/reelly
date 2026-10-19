@@ -160,7 +160,7 @@ export async function stitchClips(
   let stitchedPath: string;
 
   if (!hasTransitions) {
-    // Simple concat — fast path
+    // Simple concat - fast path
     const concatListPath = path.join(tmpDir, `${randomUUID()}-list.txt`);
     const concatContent = processedPaths.map(p => `file '${p}'`).join('\n');
     fs.writeFileSync(concatListPath, concatContent);

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
+import { cleanAiText } from '@/lib/cleanText'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -54,6 +55,8 @@ The business owner's instruction for how to change this idea: "${instruction}"
 
 Apply the same realism constraints as before: nothing that depends on a specific fictional customer/job happening live, no invented technical/regulatory facts (hand those off to the owner to explain themselves), 15-30 second video, filmable alone on a phone.
 
+Never use emojis or em dashes anywhere in the output.
+
 IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere inside any string value (use single quotes ' ' instead). This is critical for valid JSON output.
 Respond ONLY with valid JSON, no markdown, no code fences, in this exact structure:
 { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }`
@@ -78,7 +81,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
-    return NextResponse.json({ idea: refined })
+    return NextResponse.json({ idea: cleanAiText(refined) })
   } catch (error) {
     console.error('refine-idea error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to refine idea' }, { status: 500 })

@@ -11,7 +11,7 @@ export async function uploadRenderToSupabase(filePath: string, userId: string, r
   const fileName = `${userId}/renders/${renderId}.mp4`;
   const fileBuffer = fs.readFileSync(filePath);
 
-  // Upload using raw fetch — no WebSocket dependency
+  // Upload using raw fetch - no WebSocket dependency
   const uploadRes = await fetch(
     `${supabaseUrl}/storage/v1/object/video-uploads/${fileName}`,
     {

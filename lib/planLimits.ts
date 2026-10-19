@@ -1,4 +1,4 @@
-// Plan limits — single source of truth for frontend and backend
+// Plan limits - single source of truth for frontend and backend
 export const PLAN_LIMITS = {
   basic: {
     ideasPerWeek: 95,

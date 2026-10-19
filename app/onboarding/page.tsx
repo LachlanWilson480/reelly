@@ -211,7 +211,7 @@ export default function OnboardingPage() {
                 <p style={sectionTitle}>Filming setup</p>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Preferred filming styles</label>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, marginTop: -4 }}>Select all that apply — filming instructions will be tailored to these</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, marginTop: -4 }}>Select all that apply - filming instructions will be tailored to these</p>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {['Talking head', 'Behind the scenes', 'Walk & talk', 'B-roll only', 'Tutorial / how-to', 'Product showcase', 'Day in the life', 'Customer testimonial'].map((style) => (
                       <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 8, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: filmingStyles.includes(style) ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>

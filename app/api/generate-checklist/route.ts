@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
+import { cleanAiText } from '@/lib/cleanText'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -25,12 +26,12 @@ async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | '
   return 'mid'
 }
 
-// Only the fields relevant to HOW to film — not business strategy or content history.
+// Only the fields relevant to HOW to film - not business strategy or content history.
 // Keeps the checklist prompt lean while retaining everything that affects delivery.
 function compressProfileForChecklist(profile: Record<string, string | null | undefined>): string {
   const lines: string[] = []
 
-  // Identity — sets tone and context for the filming coach
+  // Identity - sets tone and context for the filming coach
   const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
@@ -41,7 +42,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
     if (v?.trim()) lines.push(`${k}: ${v.trim()}`)
   }
 
-  // Voice & brand — shapes how dialogue is written
+  // Voice & brand - shapes how dialogue is written
   const brand: Array<[string, string | null | undefined]> = [
     ['Brand personality', profile.brand_personality],
     ['Avoid', profile.words_to_avoid],
@@ -50,7 +51,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
   const brandLines = brand.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
   if (brandLines.length) lines.push('BRAND: ' + brandLines.join(' | '))
 
-  // Filming logistics — directly affects step instructions
+  // Filming logistics - directly affects step instructions
   const film: Array<[string, string | null | undefined]> = [
     ['Gear', profile.equipment],
     ['Comfort', profile.filming_comfort],
@@ -59,7 +60,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
   const filmLines = film.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
   if (filmLines.length) lines.push('FILMING: ' + filmLines.join(' | '))
 
-  // Signature service — useful for closing CTAs
+  // Signature service - useful for closing CTAs
   if (profile.signature_service?.trim()) lines.push(`Signature: ${profile.signature_service.trim()}`)
   if (profile.current_promotions?.trim()) lines.push(`Promos: ${profile.current_promotions.trim()}`)
 
@@ -145,10 +146,10 @@ export async function POST(req: NextRequest) {
 
     const locationType = profile.location_type || 'fixed'
     const locationBrief =
-      locationType === 'online' ? 'ONLINE STORE — sells online; no shop/storefront steps or customer visits; film products, packing orders, workspace/stockroom, unboxing, demos'
-      : locationType === 'mobile' ? 'MOBILE — travels to customers; no shop/storefront steps; use van/tools/surroundings'
-      : locationType === 'both' ? 'ALL OF THE ABOVE — mix of fixed shop, mobile and online store; shop ok if it fits, not assumed'
-      : 'FIXED shop/studio — filming there is fine'
+      locationType === 'online' ? 'ONLINE STORE - sells online; no shop/storefront steps or customer visits; film products, packing orders, workspace/stockroom, unboxing, demos'
+      : locationType === 'mobile' ? 'MOBILE - travels to customers; no shop/storefront steps; use van/tools/surroundings'
+      : locationType === 'both' ? 'ALL OF THE ABOVE - mix of fixed shop, mobile and online store; shop ok if it fits, not assumed'
+      : 'FIXED shop/studio - filming there is fine'
     const locationRule = locationType === 'online'
       ? '\nHARD RULE: this business sells ONLINE. Every step must be filmable with products at a desk, stockroom, home or studio. NO customers visiting, shop floor, appointments or on-site service steps. Use products, packaging, parcels, close-ups of the item in use.'
       : ''
@@ -159,8 +160,8 @@ export async function POST(req: NextRequest) {
     const noOne = peopleCountOverride === 0
     const isMultiPerson = !noOne && effectivePeopleCount > 1
     const crewGuidance = noOne ? 'NO PEOPLE on camera. Faceless: hands-only, product close-ups, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
-      ? `${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} — label each step with who is on camera and use every person at least once; include handoffs, reactions or back-and-forth`
-      : 'Films ALONE on phone, no crew — never mention or require a second person'
+      ? `${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} - label each step with who is on camera and use every person at least once; include handoffs, reactions or back-and-forth`
+      : 'Films ALONE on phone, no crew - never mention or require a second person'
 
     const existingScript = idea.script ? idea.script.trim() : null
     const notesLine = idea.notes ? ` Owner notes: ${idea.notes}` : ''
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
     const lengthNote = videoLength ? `\nVIDEO LENGTH: Target ${videoLength} seconds total. Adjust number of steps and timing accordingly.` : ''
 
     const filmingModeNote = filmingMode === 'single'
-      ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement — no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
+      ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement - no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
       : filmingMode === 'multi'
       ? `\nFILMING MODE: Multi-shot showcase reel.
 STRICT RULES:
@@ -180,8 +181,8 @@ STRICT RULES:
 - Each clip is 2 seconds long, NO exceptions
 - Each step = one single camera shot only (one angle, one subject, one movement)
 - 80% of clips are silent b-roll: close-ups, details, textures, actions, reactions, products
-- Only 20% of clips have spoken words — keep those under 6 words each
-- Dialogue carries across multiple clips as voiceover — the camera keeps cutting while person talks
+- Only 20% of clips have spoken words - keep those under 6 words each
+- Dialogue carries across multiple clips as voiceover - the camera keeps cutting while person talks
 - NO long sentences in any single clip
 - Think: high-energy Instagram reel, fast cuts, mostly visual
 - Total video = exactly ${videoLength || 30} seconds`
@@ -212,13 +213,14 @@ Payoff: ${idea.description}${notesLine}
 
 RULES:
 - IMPORTANT: Do NOT reference any seasonal events, holidays or dates (Halloween, Christmas, etc.) unless the idea itself explicitly mentions them. Keep all dialogue and directions evergreen and specific to this business only.
-- Continue the opening line naturally — don't invent a new one
-- Dialogue sounds like a real person talking (contractions, casual, short sentences) — never like an ad
+- Continue the opening line naturally - don't invent a new one
+- Dialogue sounds like a real person talking (contractions, casual, short sentences) - never like an ad
 - Pace generously: ~2 words/sec + 1-2 sec buffer per movement. 12-word line = 7-8 sec minimum. Total: 20-45 sec
-- Camera must move or change in most steps — not a static talking head throughout
-- Common-sense observations fine to state directly. Specific technical/regulatory facts — hand off to owner to say in their own words
-- Never use double quotes inside strings — use single quotes instead
-${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above — do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
+- Camera must move or change in most steps - not a static talking head throughout
+- Common-sense observations fine to state directly. Specific technical/regulatory facts - hand off to owner to say in their own words
+- Never use emojis or em dashes anywhere in the output
+- Never use double quotes inside strings - use single quotes instead
+${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above - do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
 - Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 
 Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say: G'day, it's Jake from Jake's Plumbing, and mate, if your hot water system is making a weird banging noise, you're not going crazy."
@@ -276,7 +278,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
-    return NextResponse.json(result)
+    return NextResponse.json(cleanAiText(result))
   } catch (error) {
     console.error('generate-checklist error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to generate checklist' }, { status: 500 })
