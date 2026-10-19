@@ -420,7 +420,9 @@ export default function DashboardPage() {
     setFilmingThisWeek((ideasRows || []).filter((r) => r.checklist).length)
     const { count: renders } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
     setTotalRenders(renders || 0)
-    const { data: renderRows } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).not('duration_seconds', 'is', null)
+    let renderQuery = supabase.from('renders').select('duration_seconds').eq('user_id', user.id).not('duration_seconds', 'is', null)
+    if (!isFreeTier) renderQuery = renderQuery.gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+    const { data: renderRows } = await renderQuery
     setTotalRenderSeconds((renderRows || []).reduce((sum, r) => sum + (r.duration_seconds || 0), 0))
     const { count: lifetimeRenderCount } = await supabase.from('renders').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
     setTotalLifetimeRenders(lifetimeRenderCount || 0)
@@ -679,6 +681,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setRenderStatus(data.status)
+      if (data.status === 'done') refreshStats()
       if (data.overQuota) setRenderOverQuota(true)
       if (typeof data.progress === 'number') setRenderProgress(data.progress)
       if (data.error) setRenderError(data.error)
@@ -699,6 +702,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setAiRenderStatus(data.status)
+      if (data.status === 'done') refreshStats()
       if (data.overQuota) setAiRenderOverQuota(true)
       if (typeof data.progress === 'number') setAiRenderProgress(data.progress)
       if (data.outputUrl) setAiOutputUrl(data.outputUrl)
@@ -3547,8 +3551,9 @@ export default function DashboardPage() {
                         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 18px' }}>Preferences</p>
                         {renderPreferencesFields()}
                       </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                        <button onClick={() => finishFilm(filmClips, true)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Render video'}</button>
+                        <button onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } gateRenderAction(() => { finishFilm(filmClips, true) }) }} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>{filmUploading ? 'Saving…' : freeQuotaExceeded ? 'Upgrade to render' : 'Render video'}</button>
                         <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'Inter, sans-serif' }}>Open in full editor</button>
                       </div>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
