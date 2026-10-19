@@ -172,9 +172,15 @@ export default function OnboardingPage() {
                 <div>
                   <label style={labelStyle}>Country *</label>
                   <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
-                    <option value="AU">Australia</option>
-                    <option value="UK">United Kingdom</option>
-                    <option value="US">United States</option>
+                    <option value="AU" style={{ color: '#1a1a1a', background: '#ffffff' }}>Australia</option>
+                    <option value="NZ" style={{ color: '#1a1a1a', background: '#ffffff' }}>New Zealand</option>
+                    <option value="UK" style={{ color: '#1a1a1a', background: '#ffffff' }}>United Kingdom</option>
+                    <option value="IE" style={{ color: '#1a1a1a', background: '#ffffff' }}>Ireland</option>
+                    <option value="US" style={{ color: '#1a1a1a', background: '#ffffff' }}>United States</option>
+                    <option value="CA" style={{ color: '#1a1a1a', background: '#ffffff' }}>Canada</option>
+                    <option value="ZA" style={{ color: '#1a1a1a', background: '#ffffff' }}>South Africa</option>
+                    <option value="SG" style={{ color: '#1a1a1a', background: '#ffffff' }}>Singapore</option>
+                    <option value="OTHER" style={{ color: '#1a1a1a', background: '#ffffff' }}>Other</option>
                   </select>
                 </div>
                 <div>

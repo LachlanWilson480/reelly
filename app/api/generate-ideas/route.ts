@@ -145,7 +145,8 @@ const MICRO_EVENTS: SeasonalEvent[] = [
 ]
 
 function getEventsForCountry(country: string | null | undefined): SeasonalEvent[] {
-  const major = country === 'UK' ? UK_EVENTS : country === 'US' ? US_EVENTS : AU_EVENTS
+  // Only countries we have dates for get national events. Others get the universal social days only.
+  const major = country === 'UK' || country === 'IE' ? UK_EVENTS : country === 'US' ? US_EVENTS : country === 'AU' || country === 'NZ' || !country ? AU_EVENTS : []
   return [...major, ...MICRO_EVENTS]
 }
 
@@ -400,7 +401,7 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     // Seasonal — major + micro, only what's actually upcoming
     const { major: majorEvent, micro: microEvent } = getUpcomingEvents(profile.country)
     const filteredOwnerSeasonal = filterSeasonalContext(profile.local_seasonal_context, profile.country)
-    const countryLabel = profile.country === 'UK' ? 'UK' : profile.country === 'US' ? 'US' : 'AU'
+    const countryLabel = ({ UK: 'UK', US: 'US', NZ: 'NZ', IE: 'Ireland', CA: 'Canada', ZA: 'South Africa', SG: 'Singapore' } as Record<string, string>)[profile.country || ''] || 'AU'
 
     const seasonalParts: string[] = []
     if (majorEvent) seasonalParts.push(`Major: ${majorEvent} (${countryLabel})`)
