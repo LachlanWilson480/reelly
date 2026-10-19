@@ -1526,7 +1526,7 @@ export default function DashboardPage() {
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          {([['high', '1080p', 'Fast renders, great for everyday Reels'] , ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
+                          {([['high', '1080p', 'Great for everyday Reels. Included in Basic and Pro.'] , ['4k', '4K', 'Sharper detail for big screens. Pro plan only, takes longer to render.']] as const).map(([val, label, desc]) => (
                             <button key={val} onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setUploadResolution(val) }} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: uploadResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: uploadResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
                               <p style={{ fontSize: 12, fontWeight: 700, color: uploadResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}{val === '4k' && userPlan !== 'top' ? <span style={{ fontSize: 10, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}</p>
                               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>
@@ -4032,7 +4032,7 @@ export default function DashboardPage() {
                           <div style={{ padding: '10px 20px' }}>
                             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video Quality</p>
                             <div style={{ display: 'flex', gap: 6 }}>
-                              {([['high', '1080p', 'Fast renders, great for everyday Reels'], ['4k', '4K', 'High quality production videos']] as const).map(([val, label, desc]) => (
+                              {([['high', '1080p', 'Great for everyday Reels. Included in Basic and Pro.'], ['4k', '4K', 'Sharper detail for big screens. Pro plan only, takes longer to render.']] as const).map(([val, label, desc]) => (
                                 <button key={val} onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setAiResolution(val) }} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: aiResolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: aiResolution === val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
                                   <p style={{ fontSize: 12, fontWeight: 700, color: aiResolution === val ? 'var(--coral)' : 'var(--ink)', marginBottom: 2 }}>{label}{val === '4k' && userPlan !== 'top' ? <span style={{ fontSize: 10, color: 'var(--coral)', marginLeft: 6 }}>Pro</span> : ''}</p>
                                   <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{desc}</p>

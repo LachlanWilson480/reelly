@@ -144,7 +144,10 @@ export async function stitchClips(
     if (audioFilters.length > 0) args.push('-af', audioFilters.join(','));
     if (speed !== 1) args.push('-filter:v', `setpts=${1/speed}*PTS`);
 
-    args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
+    // 4K is much heavier: encode a little faster and cap the bitrate so the file stays a size we can upload
+    const is4K = Math.max(outputWidth, outputHeight) >= 3840;
+    args.push('-c:v', 'libx264', '-preset', is4K ? 'veryfast' : 'fast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
+    if (is4K) args.push('-maxrate', '16M', '-bufsize', '32M');
     args.push('-c:a', 'aac');
     args.push('-pix_fmt', 'yuv420p');
     args.push('-movflags', '+faststart');

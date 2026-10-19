@@ -130,7 +130,11 @@ export async function burnCaptions(
   const presetKey = captionStyle.preset || 'word_by_word';
   const preset = PRESETS[presetKey] || PRESETS.word_by_word;
 
-  const fontSize = Math.max(MIN_FONT_SIZE, captionStyle.fontSize || preset.fontSize);
+  // Caption sizes are designed for a 1080 wide video, so scale them with the output size
+  const sizeScale = Math.max(0.5, Math.min(outputWidth, outputHeight) / 1080);
+  const is4K = Math.max(outputWidth, outputHeight) >= 3840;
+  const fontSize = Math.round(Math.max(MIN_FONT_SIZE, captionStyle.fontSize || preset.fontSize) * sizeScale);
+  const borderW = Math.max(1, Math.round(preset.borderWidth * sizeScale));
   const fontColor = captionStyle.color || preset.fontColor;
   const borderColor = captionStyle.borderColor || preset.borderColor;
   const uppercase = preset.uppercase;
@@ -181,11 +185,11 @@ export async function burnCaptions(
       .replace(/\[/g, "\\[")
       .replace(/\]/g, "\\]");
 
-    const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=10` : '';
+    const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '';
     const adjStart = Math.max(0, group.start);
     const adjEnd = nextGroup ? Math.min(group.end, nextGroup.start) : group.end;
 
-    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${preset.borderWidth}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
+    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
   });
 
   // Split into batches of 50 to avoid OS argument length limits
@@ -208,8 +212,9 @@ export async function burnCaptions(
       '-i', currentInput,
       '-vf', batches[b].join(','),
       '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '18',
+      '-preset', is4K ? 'veryfast' : 'fast',
+      '-crf', is4K ? '22' : '18',
+      ...(is4K ? ['-maxrate', '16M', '-bufsize', '32M'] : []),
       '-c:a', 'copy',
       '-movflags', '+faststart',
       batchOutput,

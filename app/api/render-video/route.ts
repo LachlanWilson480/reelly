@@ -58,8 +58,11 @@ export async function POST(req: NextRequest) {
 
     const plan = await getPlan(userId)
 
+    if (resolution != null && resolution !== 'high' && resolution !== 'low' && resolution !== '4k') {
+      return NextResponse.json({ error: 'Unknown video quality.' }, { status: 400 })
+    }
     if (resolution === '4k' && plan !== 'top') {
-      return NextResponse.json({ error: '4K export is available on the Top plan.' }, { status: 403 })
+      return NextResponse.json({ error: '4K export is only available on the Pro plan. Basic includes 1080p.' }, { status: 403 })
     }
 
     // Free plan: 60s total lifetime render time across all accounts with same email
