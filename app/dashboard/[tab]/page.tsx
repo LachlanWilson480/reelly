@@ -314,6 +314,8 @@ export default function DashboardPage() {
   const [filmAutoRender, setFilmAutoRender] = useState(false)
   const [filmFacing, setFilmFacing] = useState<'user' | 'environment'>('user')
   const filmFacingRef = useRef<'user' | 'environment'>('user')
+  const filmDeviceIdRef = useRef<string | null>(null)
+  const [filmMirrored, setFilmMirrored] = useState(true)
   const [filmReview, setFilmReview] = useState(false)
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
@@ -987,18 +989,31 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: filmFacingRef.current, width: { ideal: filmOrientationRef.current === 'landscape' ? 1920 : 1080 }, height: { ideal: filmOrientationRef.current === 'landscape' ? 1080 : 1920 } }, audio: true })
+    const filmSize = { width: { ideal: filmOrientationRef.current === 'landscape' ? 1920 : 1080 }, height: { ideal: filmOrientationRef.current === 'landscape' ? 1080 : 1920 } }
+    const filmCamera = filmDeviceIdRef.current ? { deviceId: { exact: filmDeviceIdRef.current } } : { facingMode: filmFacingRef.current }
+    navigator.mediaDevices.getUserMedia({ video: { ...filmCamera, ...filmSize }, audio: true })
       .then(stream => {
         if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
         filmStreamRef.current?.getTracks().forEach(t => t.stop())
         filmStreamRef.current = stream
         const vt = stream.getVideoTracks()[0]
         if (vt) vt.onended = () => setFilmCameraActive(false)
+        if (vt) {
+          // Only mirror the preview for a front-facing camera (selfie view); never for the back camera
+          const facing = vt.getSettings?.().facingMode
+          setFilmMirrored(facing ? facing === 'user' : !/back|rear|environment/i.test(vt.label || ''))
+        }
         if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
       })
       .catch(err => {
         console.error('Camera error:', err)
+        if (filmDeviceIdRef.current && err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
+          // The remembered camera is gone, fall back to the default one
+          filmDeviceIdRef.current = null
+          startFilmCamera()
+          return
+        }
         setFilmCameraActive(false)
         const name = err && err.name
         setFilmCameraError(
@@ -1010,10 +1025,21 @@ export default function DashboardPage() {
       })
   }
 
-  const flipFilmCamera = () => {
+  const flipFilmCamera = async () => {
     if (filmIsRecording) return
-    filmFacingRef.current = filmFacingRef.current === 'user' ? 'environment' : 'user'
-    setFilmFacing(filmFacingRef.current)
+    const currentId = filmStreamRef.current?.getVideoTracks()[0]?.getSettings?.().deviceId
+    let cams: MediaDeviceInfo[] = []
+    try { cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput') } catch {}
+    if (cams.length < 2) { alert('Only one camera was found on this device, so there is nothing to switch to.'); return }
+    const next = filmFacingRef.current === 'user' ? 'environment' : 'user'
+    // Prefer a camera whose name says front/back, otherwise just move to the next camera in the list
+    const wanted = next === 'environment' ? /back|rear|environment/i : /front|user|facetime/i
+    const byName = cams.find((d) => d.deviceId !== currentId && wanted.test(d.label))
+    const idx = cams.findIndex((d) => d.deviceId === currentId)
+    const pick = byName || cams[(idx + 1) % cams.length]
+    filmFacingRef.current = next
+    setFilmFacing(next)
+    filmDeviceIdRef.current = pick.deviceId
     filmStreamRef.current?.getTracks().forEach(t => t.stop())
     filmStreamRef.current = null
     setFilmCameraActive(false)
@@ -3408,7 +3434,7 @@ export default function DashboardPage() {
                   <div style={filmBezelStyle}>
                   <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                     {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Outfit', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmFacing === 'user' ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmLines.length > 0 && (
                       <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
