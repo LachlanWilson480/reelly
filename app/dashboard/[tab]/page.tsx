@@ -2654,20 +2654,20 @@ export default function DashboardPage() {
                       </>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 24, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
-                    <div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
+                    <div style={{ maxWidth: '100%' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video length</p>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
-                          <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                          <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 8, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             {opt.label}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div>
+                    <div style={{ maxWidth: '100%' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {[
                           { id: 'default', label: 'Standard', tip: 'Best for most reels - balanced mix of shots, clear instructions, works for any business.' },
                           { id: 'multi', label: 'Multi-shot', tip: 'Lots of fast cuts - great for real estate, tutorials, or product showcases with high production value.' },
@@ -2675,7 +2675,7 @@ export default function DashboardPage() {
                           { id: 'quick', label: 'Limited time', tip: 'Busy? 2-3 simple steps, 15-25 seconds total. Grab your phone and film in under 2 minutes.' },
                         ].map((mode) => (
                           <Tooltip key={mode.id} text={mode.tip} position="bottom">
-                            <button type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer' }}>
+                            <button type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 8, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {mode.label}
                             </button>
                           </Tooltip>
