@@ -37,7 +37,10 @@ export async function POST(req: NextRequest) {
 
     const priceId = interval === 'yearly' ? YEARLY_PRICE_MAP[plan] : MONTHLY_PRICE_MAP[plan]
     if (!priceId) {
-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+      const suffix = interval === 'yearly' ? '_YEARLY' : ''
+      const varName = `STRIPE_PRICE_${String(plan).toUpperCase() === 'MID' ? 'MID' : String(plan).toUpperCase()}${suffix}`
+      console.error(`create-subscription: no Stripe price configured for plan "${plan}" (${interval}). Check the ${varName} environment variable.`)
+      return NextResponse.json({ error: `This plan isn't available for ${interval} billing right now. Try the other billing option or contact support.` }, { status: 400 })
     }
 
     const { data: existingSub } = await supabaseAdmin
