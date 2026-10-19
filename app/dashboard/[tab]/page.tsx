@@ -2003,7 +2003,7 @@ export default function DashboardPage() {
 
   const stats = [
     { label: 'Ideas this week', value: isFreeTier ? `${ideasThisWeek} / 24` : `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
-    { label: 'Filming instructions', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}` },
+    { label: 'Filming instructions', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}`, tab: 'film' as Tab },
     { label: 'Reels made', value: String(totalRenders) },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render time used', value: isFreeTier ? (() => {
@@ -2123,10 +2123,23 @@ export default function DashboardPage() {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
               {stats.map((s) => (
+                s.tab ? (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => { setTab(s.tab); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                    aria-label={`${s.label}: ${s.value}. Open the ${s.tab} tab`}
+                    style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+                  >
+                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8', margin: 0, textDecoration: 'underline', textDecorationColor: 'rgba(241,239,232,0.35)', textUnderlineOffset: 4 }}>{s.value}</p>
+                    <p style={{ fontSize: 12, color: '#D3D1C7', margin: 0 }}>{s.label}</p>
+                  </button>
+                ) : (
                 <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px' }}>
                   <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: '#F1EFE8' }}>{s.value}</p>
                   <p style={{ fontSize: 12, color: '#D3D1C7' }}>{s.label}</p>
                 </div>
+                )
               ))}
             </div>
           </div>
