@@ -116,7 +116,7 @@ export async function stitchClips(
   outputHeight: number,
   port: number | string,
   crf: number = 28,
-  voiceover?: { takes?: { url: string; start: number; duration: number }[]; muteOriginal?: boolean }
+  voiceover?: { takes?: { url: string; start: number; duration: number; volume?: number }[]; originalVolume?: number; musicVolume?: number }
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
@@ -226,9 +226,9 @@ export async function stitchClips(
 
     // Original clip sound sits low under the voiceover (or is removed completely if the user chose that),
     // music sits lower again, the voiceover stays at full volume.
-    const parts: string[] = [`[0:a]volume=${voiceover.muteOriginal ? 0 : 0.35}[orig]`];
+    const parts: string[] = [`[0:a]volume=${Math.min(1, Math.max(0, voiceover.originalVolume ?? 0.35)).toFixed(2)}[orig]`];
     const labels = ['[orig]'];
-    if (musicIdx > 0) { parts.push(`[${musicIdx}:a]volume=0.3[mus]`); labels.push('[mus]'); }
+    if (musicIdx > 0) { parts.push(`[${musicIdx}:a]volume=${Math.min(1, Math.max(0, voiceover.musicVolume ?? 0.3)).toFixed(2)}[mus]`); labels.push('[mus]'); }
 
     // Each take is placed where the user recorded it. A take recorded later replaces an
     // earlier one wherever they overlap, so the earlier take is silenced for that stretch.
@@ -242,7 +242,8 @@ export async function stitchClips(
         if (b > a) silenced.push(`volume=0:enable='between(t,${a.toFixed(3)},${Number.isFinite(b) ? b.toFixed(3) : '1000000'})'`);
       }
       // apad keeps every take running to the end so amix does not change the levels when one finishes
-      parts.push(`[${takeIdx[i]}:a]adelay=${ms}|${ms},${silenced.length ? silenced.join(',') + ',' : ''}apad[vo${i}]`);
+      const gain = Math.min(1, Math.max(0, t.volume ?? 1)).toFixed(2);
+      parts.push(`[${takeIdx[i]}:a]adelay=${ms}|${ms},volume=${gain},${silenced.length ? silenced.join(',') + ',' : ''}apad[vo${i}]`);
       labels.push(`[vo${i}]`);
     });
     // amix divides each input by the input count, so multiply back up and guard against clipping
@@ -267,7 +268,7 @@ export async function stitchClips(
       '-y',
       '-i', stitchedPath,
       '-i', musicUrl,
-      '-filter_complex', '[0:a][1:a]amix=inputs=2:duration=first:weights=1 0.6[aout]',
+      '-filter_complex', `[0:a]volume=${Math.min(1, Math.max(0, voiceover?.originalVolume ?? 1)).toFixed(2)}[a0];[1:a]volume=${Math.min(1, Math.max(0, voiceover?.musicVolume ?? 0.35)).toFixed(2)}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=0,volume=2,alimiter=limit=0.95[aout]`,
       '-map', '0:v',
       '-map', '[aout]',
       '-c:v', 'copy',

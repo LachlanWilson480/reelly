@@ -38,7 +38,8 @@ type JobData = {
   clips: ClipInput[];
   musicSrc?: string;
   voiceovers?: { url: string; start: number; duration: number }[];
-  muteOriginalAudio?: boolean;
+  originalVolume?: number;
+  musicVolume?: number;
   outputWidth: number;
   outputHeight: number;
   cutDeadSpace?: boolean;
@@ -81,7 +82,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, muteOriginalAudio, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -114,13 +115,13 @@ export const makeRenderQueue = ({
       console.info(`[${jobId}] Step 3: stitching clips`);
       const { httpUrl, cleanup: stitchCleanup } = await stitchClips(
         readyClips,
-        captionStyle ? undefined : musicSrc, // don't mix music yet if captions needed
+        musicSrc, // mixed in here so the music is not lost when captions are on
         outputWidth,
         outputHeight,
         port,
         undefined,
         // Voiceover is mixed in before captions are transcribed, so the captions include it
-        { takes: voiceovers, muteOriginal: muteOriginalAudio }
+        { takes: voiceovers, originalVolume, musicVolume }
       );
       if (cancelled) throw new Error('Cancelled');
 

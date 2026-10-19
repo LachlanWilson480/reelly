@@ -58,7 +58,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, muteOriginalAudio, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -122,9 +122,10 @@ function setupApp() {
           ? voiceovers
               .filter((v: { url?: unknown }) => v && typeof v.url === 'string' && v.url)
               .slice(0, 30)
-              .map((v: { url: string; start?: unknown; duration?: unknown }) => ({ url: v.url, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0) }))
+              .map((v: { url: string; start?: unknown; duration?: unknown; volume?: unknown }) => ({ url: v.url, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0), volume: Number.isFinite(Number(v.volume)) ? Math.min(1, Math.max(0, Number(v.volume))) : 1 }))
           : undefined,
-        muteOriginalAudio: muteOriginalAudio === true,
+        originalVolume: typeof originalVolume === 'number' && Number.isFinite(originalVolume) ? Math.min(1, Math.max(0, originalVolume)) : undefined,
+        musicVolume: typeof musicVolume === 'number' && Number.isFinite(musicVolume) ? Math.min(1, Math.max(0, musicVolume)) : undefined,
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,
