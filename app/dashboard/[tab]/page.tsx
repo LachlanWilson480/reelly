@@ -1376,11 +1376,10 @@ export default function DashboardPage() {
   const finishFilm = async (clips: { blob: Blob; ext: string; type: string; url: string }[], renderNow = true) => {
     setFilmUploading(true)
     try {
-      const filmItem = filmingItems.find((f) => f.id === filmSelectedId)
+      const filmItem = filmSelectedId?.startsWith('idea:') ? filmingItems.find((f) => f.id === filmSelectedId.slice(5)) : undefined
       const filmScriptRow = savedScripts.find((s) => `script-${s.id}` === filmSelectedId)
-      const isScriptSource = !!filmSelectedId && filmSelectedId.startsWith('script-')
       filmRenderContextRef.current = filmItem
-        ? { ideaId: isScriptSource ? null : filmItem.id, source: isScriptSource ? 'script' : 'idea', title: filmItem.title || null, caption: filmItem.caption || null, tags: filmItem.tags || null }
+        ? { ideaId: filmItem.id.startsWith('script-') ? null : filmItem.id, source: 'idea', title: filmItem.title || null, caption: filmItem.caption || null, tags: filmItem.tags || null }
         : filmScriptRow
         ? { ideaId: null, source: 'script', title: filmScriptRow.topic, caption: null, tags: null }
         : null
@@ -2904,7 +2903,7 @@ export default function DashboardPage() {
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => { selectFilmSource(item.id, getFilmLines(item)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          onClick={() => { selectFilmSource(`idea:${item.id}`, getFilmLines(item)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                         >
                           Film & edit this
@@ -3401,8 +3400,8 @@ export default function DashboardPage() {
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.map((idea) => (
-                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === idea.id ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) selectFilmSource(idea.id, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#D85A30', flexShrink: 0 }} />
+                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(216,90,48,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#D85A30', flexShrink: 0 }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
