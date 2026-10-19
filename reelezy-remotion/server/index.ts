@@ -58,7 +58,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceoverSrc, muteOriginalAudio, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
+      const { clips, musicSrc, voiceovers, muteOriginalAudio, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -118,7 +118,12 @@ function setupApp() {
       const jobId = queue.createJob({
         clips: mappedClips,
         musicSrc,
-        voiceoverSrc: typeof voiceoverSrc === 'string' && voiceoverSrc ? voiceoverSrc : undefined,
+        voiceovers: Array.isArray(voiceovers)
+          ? voiceovers
+              .filter((v: { url?: unknown }) => v && typeof v.url === 'string' && v.url)
+              .slice(0, 30)
+              .map((v: { url: string; start?: unknown; duration?: unknown }) => ({ url: v.url, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0) }))
+          : undefined,
         muteOriginalAudio: muteOriginalAudio === true,
         outputWidth,
         outputHeight,

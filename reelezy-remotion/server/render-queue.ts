@@ -37,7 +37,7 @@ type CaptionStyle = {
 type JobData = {
   clips: ClipInput[];
   musicSrc?: string;
-  voiceoverSrc?: string;
+  voiceovers?: { url: string; start: number; duration: number }[];
   muteOriginalAudio?: boolean;
   outputWidth: number;
   outputHeight: number;
@@ -81,7 +81,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceoverSrc, muteOriginalAudio, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, muteOriginalAudio, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -120,7 +120,7 @@ export const makeRenderQueue = ({
         port,
         undefined,
         // Voiceover is mixed in before captions are transcribed, so the captions include it
-        { url: voiceoverSrc, muteOriginal: muteOriginalAudio }
+        { takes: voiceovers, muteOriginal: muteOriginalAudio }
       );
       if (cancelled) throw new Error('Cancelled');
 

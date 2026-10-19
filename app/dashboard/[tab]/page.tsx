@@ -94,179 +94,9 @@ const voiceoverExt = (b: Blob) => {
   return 'webm'
 }
 
-// Records a voiceover from the microphone while the user's clips play (muted) in order,
-// or lets them upload a finished audio file. The recording stays in the parent until render.
-function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange, uploadStatus, onRetry }: {
-  segments: VoiceoverSegment[]
-  blob: Blob | null
-  onBlob: (b: Blob | null) => void
-  uploadStatus?: ClipUploadState
-  onRetry?: () => void
-  muteOriginal: boolean
-  onMuteChange: (v: boolean) => void
-}) {
-  const [recording, setRecording] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
-  const [error, setError] = useState('')
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const segIndexRef = useRef(0)
-  const urlsRef = useRef<string[]>([])
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const playUrl = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
+type VoiceTake = { id: string; blob: Blob; url: string; start: number; duration: number }
 
-  const hasClips = segments.length > 0
-
-  const stopTracks = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-  }
-
-  const stopRecording = () => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-    const rec = recorderRef.current
-    if (rec && rec.state !== 'inactive') rec.stop()
-    videoRef.current?.pause()
-    setRecording(false)
-  }
-
-  const playSegment = (i: number) => {
-    const v = videoRef.current
-    const seg = segments[i]
-    if (!v || !seg) { stopRecording(); return }
-    segIndexRef.current = i
-    if (!urlsRef.current[i]) urlsRef.current[i] = URL.createObjectURL(seg.file)
-    v.muted = true
-    v.src = urlsRef.current[i]
-    const begin = () => { v.currentTime = seg.start; void v.play().catch(() => {}) }
-    if (v.readyState >= 1) begin()
-    else v.onloadedmetadata = () => { v.onloadedmetadata = null; begin() }
-  }
-
-  const nextSegment = () => {
-    const next = segIndexRef.current + 1
-    if (next >= segments.length) stopRecording()
-    else playSegment(next)
-  }
-
-  const startRecording = async () => {
-    setError('')
-    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setError('Recording is not supported in this browser. Upload an audio file instead.')
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-      streamRef.current = stream
-      const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
-      const mimeType = preferred.find((m) => MediaRecorder.isTypeSupported(m))
-      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
-      chunksRef.current = []
-      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      rec.onstop = () => {
-        stopTracks()
-        const out = new Blob(chunksRef.current, { type: rec.mimeType || mimeType || 'audio/webm' })
-        if (out.size > 0) onBlob(out)
-      }
-      recorderRef.current = rec
-      rec.start()
-      setElapsed(0)
-      setRecording(true)
-      const started = Date.now()
-      timerRef.current = setInterval(() => setElapsed((Date.now() - started) / 1000), 200)
-      if (hasClips) playSegment(0)
-    } catch (e) {
-      stopTracks()
-      const name = (e as { name?: string })?.name
-      setError(name === 'NotAllowedError' || name === 'SecurityError'
-        ? 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.'
-        : name === 'NotFoundError'
-          ? 'No microphone found. Plug one in or upload an audio file instead.'
-          : 'Could not start recording. Try again or upload an audio file instead.')
-    }
-  }
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    const rec = recorderRef.current
-    if (rec && rec.state !== 'inactive') { rec.onstop = null; rec.stop() }
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-  }, [])
-
-  const card = choiceBtn()
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Voiceover</p>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional. Talk over clips you have already filmed.</span>
-      </div>
-
-      {hasClips && (
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          onEnded={nextSegment}
-          onTimeUpdate={(e) => {
-            const seg = segments[segIndexRef.current]
-            if (recording && seg && seg.end != null && e.currentTarget.currentTime >= seg.end) nextSegment()
-          }}
-          style={{ display: recording ? 'block' : 'none', width: '100%', maxWidth: 220, maxHeight: 300, borderRadius: 10, background: '#000', marginBottom: 10, objectFit: 'contain' }}
-        />
-      )}
-
-      <input ref={fileInputRef} type="file" accept="audio/*" style={{ display: 'none' }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { onBlob(f); setError('') } e.target.value = '' }} />
-
-      {!recording && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={startRecording}
-            style={choiceBtn(!!blob)}>
-            {blob ? 'Record again' : hasClips ? 'Record over my clips' : 'Record voiceover'}
-          </button>
-          <button type="button" onClick={() => fileInputRef.current?.click()} style={card}>Upload a recording</button>
-          {blob && <button type="button" onClick={() => onBlob(null)} style={card}>Remove</button>}
-        </div>
-      )}
-
-      {!blob && !recording && (
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          {hasClips ? 'Press record and talk. Your clips play silently on screen so you can talk along with them.' : 'Add a clip first, then press record and talk along with it. You can also upload a recording you made elsewhere.'}
-        </p>
-      )}
-
-      {recording && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" onClick={stopRecording}
-            style={{ ...card, background: '#d92d20', border: '1px solid #d92d20', color: '#fff' }}>Stop recording</button>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#d92d20', fontVariantNumeric: 'tabular-nums' }}>● {fmtTrimTime(elapsed)}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{hasClips ? 'Your clips play silently while you talk. It stops when they finish.' : 'Speak now.'}</span>
-        </div>
-      )}
-
-      {playUrl && !recording && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <audio key={playUrl} src={playUrl} controls style={{ width: '100%', maxWidth: 360, height: 36 }} />
-            {onRetry && <ClipUploadBadge status={uploadStatus} onRetry={onRetry} />}
-          </div>
-          <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!muteOriginal} onChange={(e) => onMuteChange(!e.target.checked)} />
-            Keep the original sound of my clips quietly underneath
-          </label>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-            {muteOriginal ? 'Original clip sound will be removed. Only your voiceover (and music) plays.' : 'Original clip sound will play at a low volume under your voice.'}
-          </p>
-        </div>
-      )}
-      {error && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{error}</p>}
-    </div>
-  )
-}
+const newTakeId = () => Math.random().toString(36).slice(2, 9)
 
 const previewDurations = new Map<string, number>()
 const previewUrls = new Map<string, string>()
@@ -282,12 +112,64 @@ const fmtClock = (s: number) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
 }
 
-// Plays the user's clips back to back (respecting trims) with their voiceover, so they can
-// check the edit before rendering. Music, captions and transitions are added at render time.
-function EditorPreviewInner({ segments, voiceover, muteOriginal }: {
-  segments: VoiceoverSegment[]
-  voiceover: Blob | null
+// Voiceover settings: explains how it works, adds an uploaded recording, lists and removes takes.
+// Recording itself happens under the preview so it can start wherever the preview was paused.
+function VoiceoverPanel({ takes, muteOriginal, onMuteChange, onAddFile, onRemoveTake, statuses, onRetry }: {
+  takes: VoiceTake[]
   muteOriginal: boolean
+  onMuteChange: (v: boolean) => void
+  onAddFile: (file: File) => void
+  onRemoveTake: (id: string) => void
+  statuses: Record<string, ClipUploadState>
+  onRetry: (id: string) => void
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Voiceover</p>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional. Talk over clips you have already filmed.</span>
+      </div>
+      <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" style={choiceBtn()}
+          onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Go to the preview to record</button>
+        <button type="button" style={choiceBtn()} onClick={() => fileRef.current?.click()}>Upload a recording</button>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+        Pause the preview where you want to start talking, then press Record voiceover under it. Your clips play silently while you talk. You can record as many parts as you like. An uploaded recording starts at the beginning of the video.
+      </p>
+      {takes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+          {takes.map((t, i) => (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, color: 'var(--ink)' }}>Voiceover {i + 1}: starts at {fmtClock(t.start)}{t.duration > 0 ? `, ${Math.round(t.duration)}s long` : ''}</span>
+              <ClipUploadBadge status={statuses[`v:${t.id}`]} onRetry={() => onRetry(t.id)} />
+              <button type="button" onClick={() => onRemoveTake(t.id)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Remove</button>
+            </div>
+          ))}
+          <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!muteOriginal} onChange={(e) => onMuteChange(!e.target.checked)} />
+            Keep the original sound of my clips quietly underneath
+          </label>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+            {muteOriginal ? 'The original sound of your clips will be removed. Only your voiceover (and music) plays.' : 'The original sound of your clips plays at a low volume under your voice.'}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
+// parts, and records new voiceover starting wherever the preview was paused.
+function EditorPreviewInner({ segments, takes, muteOriginal, onAddTake, onRemoveTake }: {
+  segments: VoiceoverSegment[]
+  takes: VoiceTake[]
+  muteOriginal: boolean
+  onAddTake: (blob: Blob, start: number, duration: number) => void
+  onRemoveTake: (id: string) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -297,9 +179,18 @@ function EditorPreviewInner({ segments, voiceover, muteOriginal }: {
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [localTime, setLocalTime] = useState(0)
+  const [recording, setRecording] = useState(false)
+  const [recFrom, setRecFrom] = useState(0)
+  const [micError, setMicError] = useState('')
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const voUrl = useMemo(() => (voiceover ? URL.createObjectURL(voiceover) : null), [voiceover])
+  const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
+  const trackRef = useRef<HTMLDivElement | null>(null)
+  const draggingRef = useRef(false)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const recStartRef = useRef(0)
+  const recWallRef = useRef(0)
 
   // Read each clip's length once so the timeline knows the total
   useEffect(() => {
@@ -316,6 +207,18 @@ function EditorPreviewInner({ segments, voiceover, muteOriginal }: {
       }
       probe.src = previewUrlFor(s.file)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Show the first frame straight away
+  useEffect(() => {
+    const v = videoRef.current
+    const first = segments[0]
+    if (!v || !first) return
+    const src = previewUrlFor(first.file)
+    v.setAttribute('data-src', src)
+    v.src = src
+    v.onloadedmetadata = () => { v.onloadedmetadata = null; v.currentTime = first.start }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -346,105 +249,273 @@ function EditorPreviewInner({ segments, voiceover, muteOriginal }: {
     } else go()
   }
 
-  const syncAudio = (t: number, play: boolean) => {
-    const a = audioRef.current
-    if (!a) return
-    if (t >= 0 && Number.isFinite(t)) { try { a.currentTime = t } catch {} }
-    if (play) void a.play().catch(() => {}); else a.pause()
-  }
-
-  const seekTo = (t: number) => {
+  const seekGlobal = (t: number, autoplay: boolean) => {
+    if (segments.length === 0) return
     let acc = 0
     for (let i = 0; i < segments.length; i++) {
       if (t <= acc + lengths[i] || i === segments.length - 1) {
-        load(i, Math.max(0, t - acc), playing)
-        syncAudio(t, playing)
+        load(i, Math.max(0, t - acc), autoplay)
         return
       }
       acc += lengths[i]
     }
   }
 
-  const toggle = () => {
-    const v = videoRef.current
-    if (!v || segments.length === 0) return
-    if (playing) {
-      v.pause(); audioRef.current?.pause(); setPlaying(false)
-      return
-    }
-    const atEnd = total > 0 && globalTime >= total - 0.1
-    if (!v.getAttribute('data-src') || atEnd) {
-      load(0, 0, true)
-      syncAudio(0, true)
-    } else {
-      void v.play().catch(() => {})
-      syncAudio(globalTime, true)
-    }
-    setPlaying(true)
+  const pauseTakes = () => { Object.values(audioEls.current).forEach((a) => a?.pause()) }
+
+  const stopTracks = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }
+
+  const stopRecording = () => {
+    const rec = recorderRef.current
+    if (rec && rec.state !== 'inactive') rec.stop()
+    else stopTracks()
+    videoRef.current?.pause()
+    pauseTakes()
+    setPlaying(false)
+    setRecording(false)
   }
 
   const advance = () => {
     if (index + 1 >= segments.length) {
-      videoRef.current?.pause(); audioRef.current?.pause(); setPlaying(false)
+      videoRef.current?.pause()
+      pauseTakes()
+      setPlaying(false)
       setLocalTime(lengths[index] || 0)
+      if (recording) stopRecording()
     } else {
       load(index + 1, 0, true)
     }
   }
 
-  const seg = segments[index]
-  const hasVoice = !!voUrl
-  const vol = hasVoice ? (muteOriginal ? 0 : 0.35) : 1
+  // The animation loop below runs from a stale closure, so it reads the latest values from here
+  const latest = useRef({ segments, lengths, index, takes, recording, playing, before, advance })
+  useEffect(() => { latest.current = { segments, lengths, index, takes, recording, playing, before, advance } })
 
+  // Keep the playhead moving smoothly, end clips on their trim point and keep voiceover in step
+  useEffect(() => {
+    if (!playing) return
+    let raf = 0
+    const tick = () => {
+      const v = videoRef.current
+      const L = latest.current
+      const seg = L.segments[L.index]
+      if (v && seg) {
+        setLocalTime(Math.max(0, v.currentTime - seg.start))
+        if (seg.end != null && v.currentTime >= seg.end - 0.03) L.advance()
+        const g = L.before + Math.max(0, v.currentTime - seg.start)
+        L.takes.forEach((t, i) => {
+          const el = audioEls.current[t.id]
+          if (!el) return
+          const end = t.duration > 0 ? t.start + t.duration : Infinity
+          el.muted = L.takes.slice(i + 1).some((o) => g >= o.start && g < (o.duration > 0 ? o.start + o.duration : Infinity))
+          if (L.recording || g < t.start || g >= end) { if (!el.paused) el.pause(); return }
+          const want = g - t.start
+          if (el.paused) { try { el.currentTime = want } catch {} void el.play().catch(() => {}) }
+          else if (Math.abs(el.currentTime - want) > 0.35) { try { el.currentTime = want } catch {} }
+        })
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playing])
+
+  const vol = recording ? 0 : takes.length > 0 ? (muteOriginal ? 0 : 0.35) : 1
   useEffect(() => { if (videoRef.current) videoRef.current.volume = vol }, [vol, index])
+
+  // Stop the microphone if the preview goes away mid recording
+  useEffect(() => () => {
+    const rec = recorderRef.current
+    if (rec && rec.state !== 'inactive') { rec.onstop = null; rec.stop() }
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
+
+  const toggle = () => {
+    const v = videoRef.current
+    if (!v || segments.length === 0 || recording) return
+    if (playing) {
+      v.pause(); pauseTakes(); setPlaying(false)
+      return
+    }
+    if (total > 0 && globalTime >= total - 0.1) seekGlobal(0, true)
+    else void v.play().catch(() => {})
+    setPlaying(true)
+  }
+
+  const startRecording = async () => {
+    setMicError('')
+    if (segments.length === 0 || recording) return
+    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setMicError('Recording is not supported in this browser. Use Upload a recording instead.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+      streamRef.current = stream
+      const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+      const mimeType = preferred.find((m) => MediaRecorder.isTypeSupported(m))
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      chunksRef.current = []
+      // Recording starts where the preview was paused (or at the start if it was at the very end)
+      const startAt = total > 0 && globalTime >= total - 0.2 ? 0 : globalTime
+      recStartRef.current = startAt
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      rec.onstop = () => {
+        stopTracks()
+        const out = new Blob(chunksRef.current, { type: rec.mimeType || mimeType || 'audio/webm' })
+        const secs = Math.max(0.3, (uploadStamp() - recWallRef.current) / 1000)
+        if (out.size > 0) onAddTake(out, recStartRef.current, secs)
+      }
+      recorderRef.current = rec
+      pauseTakes()
+      setRecFrom(startAt)
+      setRecording(true)
+      setPlaying(true)
+      // Start the microphone at the moment the video actually starts moving so they line up
+      const v = videoRef.current
+      let began = false
+      const begin = () => {
+        if (began || rec.state !== 'inactive') return
+        began = true
+        recWallRef.current = uploadStamp()
+        rec.start()
+      }
+      v?.addEventListener('playing', begin, { once: true })
+      window.setTimeout(begin, 1500)
+      seekGlobal(startAt, true)
+    } catch (e) {
+      stopTracks()
+      const name = (e as { name?: string })?.name
+      setMicError(name === 'NotAllowedError' || name === 'SecurityError'
+        ? 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.'
+        : name === 'NotFoundError'
+          ? 'No microphone found. Plug one in or use Upload a recording instead.'
+          : 'Could not start recording. Try again or use Upload a recording instead.')
+    }
+  }
+
+  const pct = (t: number) => `${total > 0 ? Math.min(100, Math.max(0, (t / total) * 100)) : 0}%`
+  const timeAt = (clientX: number) => {
+    const r = trackRef.current?.getBoundingClientRect()
+    if (!r || total <= 0 || r.width <= 0) return 0
+    return Math.min(total, Math.max(0, ((clientX - r.left) / r.width) * total))
+  }
+
+  const hasClips = segments.length > 0
 
   return (
     <div>
-      <div style={{ width: 'min(100%, calc((100vh - 260px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
-        <video
-          ref={videoRef}
-          playsInline
-          onTimeUpdate={(e) => {
-            const v = e.currentTarget
-            if (!seg) return
-            setLocalTime(Math.max(0, v.currentTime - seg.start))
-            if (seg.end != null && v.currentTime >= seg.end - 0.03) advance()
-          }}
-          onEnded={advance}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-        />
-        {!playing && segments.length > 0 && (
+      <div style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
+        <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+        {!playing && hasClips && (
           <button type="button" onClick={toggle} aria-label="Play preview"
             style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}>▶</button>
         )}
-        {segments.length === 0 && (
+        {recording && (
+          <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 10px' }}>● Recording</span>
+        )}
+        {!hasClips && (
           <p style={{ position: 'absolute', inset: 0, margin: 'auto', height: 'fit-content', padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>Add a clip to see your video here.</p>
         )}
       </div>
-      {hasVoice && <audio ref={audioRef} src={voUrl || undefined} preload="auto" />}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-        <button type="button" onClick={toggle} disabled={segments.length === 0}
-          style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: segments.length === 0 ? 'default' : 'pointer', opacity: segments.length === 0 ? 0.4 : 1, flexShrink: 0 }}>
+      {takes.map((t) => (
+        <audio key={t.id} ref={(el) => { audioEls.current[t.id] = el }} src={t.url} preload="auto" />
+      ))}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+        <button type="button" onClick={toggle} disabled={!hasClips || recording}
+          style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: !hasClips || recording ? 'default' : 'pointer', opacity: !hasClips || recording ? 0.4 : 1, flexShrink: 0 }}>
           {playing ? '❚❚' : '▶'}
         </button>
-        <input type="range" min={0} max={Math.max(total, 0.1)} step={0.05} value={globalTime} disabled={segments.length === 0 || total === 0}
-          onChange={(e) => seekTo(Number(e.target.value))} style={{ flex: 1, accentColor: 'var(--coral)' }} aria-label="Preview position" />
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', minWidth: 74, textAlign: 'right' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
+        <span style={{ flex: 1 }} />
+        {!recording ? (
+          <button type="button" onClick={startRecording} disabled={!hasClips}
+            style={{ ...choiceBtn(false, !hasClips), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
+            Record voiceover
+          </button>
+        ) : (
+          <button type="button" onClick={stopRecording}
+            style={{ ...choiceBtn(), background: '#d92d20', border: '1px solid #d92d20', color: '#fff' }}>Stop recording</button>
+        )}
       </div>
+
+      <div style={{ marginTop: 12 }}>
+        <div
+          ref={trackRef}
+          role="slider"
+          tabIndex={0}
+          aria-label="Video timeline"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(total)}
+          aria-valuenow={Math.round(globalTime)}
+          onPointerDown={(e) => { if (recording || total <= 0) return; draggingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekGlobal(timeAt(e.clientX), playing) }}
+          onPointerMove={(e) => { if (draggingRef.current) seekGlobal(timeAt(e.clientX), playing) }}
+          onPointerUp={() => { draggingRef.current = false }}
+          onPointerCancel={() => { draggingRef.current = false }}
+          onKeyDown={(e) => {
+            if (recording || total <= 0) return
+            if (e.key === 'ArrowRight') { e.preventDefault(); seekGlobal(Math.min(total, globalTime + 1), playing) }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); seekGlobal(Math.max(0, globalTime - 1), playing) }
+          }}
+          style={{ position: 'relative', height: 62, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
+        >
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 24, display: 'flex', borderRadius: 6, overflow: 'hidden', background: 'rgba(128,128,128,0.15)' }}>
+            {lengths.map((len, i) => (
+              <div key={i} style={{ flex: len > 0 ? len : 1, background: i % 2 ? 'rgba(128,128,128,0.32)' : 'rgba(128,128,128,0.2)', fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', paddingLeft: 6, overflow: 'hidden' }}>{i + 1}</div>
+            ))}
+          </div>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 32, height: 26, borderRadius: 6, background: 'rgba(128,128,128,0.08)', overflow: 'hidden' }}>
+            {takes.map((t) => (
+              <div key={t.id} title={`Voiceover from ${fmtClock(t.start)}`}
+                style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? pct(Math.min(t.duration, Math.max(0, total - t.start))) : `calc(100% - ${pct(t.start)})`, background: 'rgba(216,90,48,0.85)', border: '1px solid var(--coral)', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', boxSizing: 'border-box', overflow: 'hidden' }}>
+                <button type="button" aria-label="Remove this voiceover part"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onRemoveTake(t.id) }}
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: '0 6px' }}>×</button>
+              </div>
+            ))}
+            {recording && (
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: pct(recFrom), width: pct(Math.max(0, globalTime - recFrom)), background: 'rgba(217,45,32,0.9)', borderRadius: 5 }} />
+            )}
+          </div>
+          <div style={{ position: 'absolute', top: -3, bottom: -3, left: pct(globalTime), width: 2, marginLeft: -1, background: 'var(--ink)', borderRadius: 1, pointerEvents: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+          <span>Top bar: your clips</span>
+          <span>Bottom bar: your voiceover</span>
+        </div>
+      </div>
+
       <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-        Plays your clips in order with your trims{hasVoice ? ' and voiceover' : ''}. Music, captions and transitions are added when you create the video.
+        {recording
+          ? 'Recording. Your clips play silently while you talk. Press Stop recording when you are done.'
+          : takes.length === 0
+            ? 'Drag the timeline or press play, pause where you want to start talking, then press Record voiceover. Music, captions and transitions are added when you create the video.'
+            : 'Pause where you want the next part to start and press Record voiceover again. A new recording replaces the old one where they overlap.'}
       </p>
+      {micError && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '6px 0 0' }}>{micError}</p>}
     </div>
   )
 }
 
-function EditorPreview({ segments, voiceover, muteOriginal }: { segments: VoiceoverSegment[]; voiceover: Blob | null; muteOriginal: boolean }) {
-  // Start fresh whenever the clips, trims or voiceover change
-  const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|') + (voiceover ? `|vo${voiceover.size}` : '') + (muteOriginal ? '|m' : '')
+function EditorPreview({ segments, takes, muteOriginal, onAddTake, onRemoveTake }: {
+  segments: VoiceoverSegment[]
+  takes: VoiceTake[]
+  muteOriginal: boolean
+  onAddTake: (blob: Blob, start: number, duration: number) => void
+  onRemoveTake: (id: string) => void
+}) {
+  // Start fresh when the clips or trims change (voiceover changes keep the playhead where it is)
+  const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|')
   return (
     <div className="ed-preview" style={{ background: 'var(--sand)', borderRadius: 20, padding: 20 }}>
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
-      <EditorPreviewInner key={key} segments={segments} voiceover={voiceover} muteOriginal={muteOriginal} />
+      <EditorPreviewInner key={key} segments={segments} takes={takes} muteOriginal={muteOriginal} onAddTake={onAddTake} onRemoveTake={onRemoveTake} />
     </div>
   )
 }
@@ -849,9 +920,9 @@ export default function DashboardPage() {
   const [captionFontSize, setCaptionFontSize] = useState<number | string>(60)
   const [captionFontFamily, setCaptionFontFamily] = useState('Sans Bold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
-  const [voiceoverBlob, setVoiceoverBlob] = useState<Blob | null>(null)
+  const [voiceTakes, setVoiceTakes] = useState<VoiceTake[]>([])
   const [voiceoverMute, setVoiceoverMute] = useState(true)
-  const [assetPaths, setAssetPaths] = useState<{ m?: string; v?: string }>({})
+  const [assetPaths, setAssetPaths] = useState<Record<string, string>>({})
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
@@ -1737,14 +1808,14 @@ export default function DashboardPage() {
                     />
 
                     {/* Voiceover */}
-                    <VoiceoverRecorder
-                      segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
-                      blob={voiceoverBlob}
-                      onBlob={pickVoiceover}
-                      uploadStatus={clipUploadStatus['v']}
-                      onRetry={() => { if (voiceoverBlob) startAssetUpload('v', voiceoverBlob, 'voiceover') }}
+                    <VoiceoverPanel
+                      takes={voiceTakes}
                       muteOriginal={voiceoverMute}
                       onMuteChange={setVoiceoverMute}
+                      onAddFile={addVoiceFile}
+                      onRemoveTake={removeVoiceTake}
+                      statuses={clipUploadStatus}
+                      onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
                     />
 
                     {/* Captions */}
@@ -2225,13 +2296,13 @@ export default function DashboardPage() {
     setStepUploadPaths({})
   }
 
-  // Music and voiceover files upload in the background too ('m' = music file, 'v' = voiceover)
-  const startAssetUpload = (key: 'm' | 'v', blob: Blob, fileName: string) => {
+  // Music and voiceover files upload in the background too ('m' = music file, 'v:<id>' = a voiceover part)
+  const startAssetUpload = (key: string, blob: Blob, fileName: string) => {
     if (!userId) return
     setAssetPaths((prev) => { const n = { ...prev }; delete n[key]; return n })
     setClipUploadStatus((prev) => ({ ...prev, [key]: 'uploading' }))
     const safeName = fileName.replace(/[^\w.-]+/g, '_')
-    const path = key === 'm' ? `${userId}/music-${uploadStamp()}-${safeName}` : `${userId}/voiceover-${uploadStamp()}.${voiceoverExt(blob)}`
+    const path = key === 'm' ? `${userId}/music-${uploadStamp()}-${safeName}` : `${userId}/voiceover-${uploadStamp()}-${key.slice(2)}.${voiceoverExt(blob)}`
     const p: Promise<string | null> = supabase.storage.from('video-uploads').upload(path, blob, blob.type ? { contentType: blob.type } : undefined)
       .then(({ error }) => {
         const latest = clipUploadPromises.get(key) === p
@@ -2252,7 +2323,7 @@ export default function DashboardPage() {
     clipUploadPromises.set(key, p)
   }
 
-  const forgetAsset = (key: 'm' | 'v') => {
+  const forgetAsset = (key: string) => {
     clipUploadPromises.delete(key)
     setClipUploadStatus((prev) => { const n = { ...prev }; delete n[key]; return n })
     setAssetPaths((prev) => { const n = { ...prev }; delete n[key]; return n })
@@ -2278,10 +2349,29 @@ export default function DashboardPage() {
     forgetAsset('m')
   }
 
-  const pickVoiceover = (b: Blob | null) => {
-    setVoiceoverBlob(b)
-    if (b) startAssetUpload('v', b, 'voiceover')
-    else forgetAsset('v')
+  // Each recording is a "take" placed on the video timeline at the moment it was started
+  const addVoiceTake = (blob: Blob, start: number, duration: number) => {
+    const id = newTakeId()
+    setVoiceTakes((prev) => [...prev, { id, blob, url: URL.createObjectURL(blob), start, duration }])
+    startAssetUpload(`v:${id}`, blob, 'voiceover')
+  }
+
+  const addVoiceFile = (file: File) => {
+    const probe = new Audio()
+    probe.preload = 'metadata'
+    probe.onloadedmetadata = () => addVoiceTake(file, 0, Number.isFinite(probe.duration) ? probe.duration : 0)
+    probe.onerror = () => addVoiceTake(file, 0, 0)
+    probe.src = URL.createObjectURL(file)
+  }
+
+  const removeVoiceTake = (id: string) => {
+    setVoiceTakes((prev) => prev.filter((t) => t.id !== id))
+    forgetAsset(`v:${id}`)
+  }
+
+  const clearVoiceTakes = () => {
+    voiceTakes.forEach((t) => forgetAsset(`v:${t.id}`))
+    setVoiceTakes([])
   }
 
   // Warn before the page is closed while anything is still uploading
@@ -2355,16 +2445,17 @@ export default function DashboardPage() {
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
-      let voiceoverPath: string | null = null
-      if (voiceoverBlob) {
-        const inFlightVo = clipUploadPromises.get('v')
-        voiceoverPath = (inFlightVo ? await inFlightVo : null) || assetPaths.v || null
-        if (!voiceoverPath) {
-          const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
-          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+      const voiceovers: { path: string; start: number; duration: number }[] = []
+      for (const take of voiceTakes) {
+        const inFlightVo = clipUploadPromises.get(`v:${take.id}`)
+        let takePath: string | null = (inFlightVo ? await inFlightVo : null) || assetPaths[`v:${take.id}`] || null
+        if (!takePath) {
+          const vPath = `${userId}/voiceover-${Date.now()}-${take.id}.${voiceoverExt(take.blob)}`
+          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, take.blob, { contentType: take.blob.type || 'audio/webm' })
           if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
-          voiceoverPath = vPath
+          takePath = vPath
         }
+        voiceovers.push({ path: takePath, start: take.start, duration: take.duration })
       }
 
       let musicPath: string | null = extractedMusicPath
@@ -2399,7 +2490,7 @@ export default function DashboardPage() {
           clipPaths,
           captionStyle: aiCaptionStyle,
           musicPath,
-          voiceoverPath,
+          voiceovers,
           muteOriginalAudio: voiceoverMute,
           musicUrl: libraryMusicUrl,
           speechClipIndices: speechIndices,
@@ -2423,7 +2514,7 @@ export default function DashboardPage() {
       setAiRenderStatus("queued")
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'ai', ts: Date.now() }))
       setMusicFile(null)
-      setVoiceoverBlob(null)
+      clearVoiceTakes()
       setExtractedMusicPath(null)
     } catch (err) {
       setAiEditorError(err instanceof Error ? err.message : 'Something went wrong uploading your clips. Check file sizes and try again.')
@@ -2495,16 +2586,17 @@ export default function DashboardPage() {
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
-      let voiceoverPath: string | null = null
-      if (voiceoverBlob) {
-        const inFlightVo = clipUploadPromises.get('v')
-        voiceoverPath = (inFlightVo ? await inFlightVo : null) || assetPaths.v || null
-        if (!voiceoverPath) {
-          const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
-          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+      const voiceovers: { path: string; start: number; duration: number }[] = []
+      for (const take of voiceTakes) {
+        const inFlightVo = clipUploadPromises.get(`v:${take.id}`)
+        let takePath: string | null = (inFlightVo ? await inFlightVo : null) || assetPaths[`v:${take.id}`] || null
+        if (!takePath) {
+          const vPath = `${userId}/voiceover-${Date.now()}-${take.id}.${voiceoverExt(take.blob)}`
+          const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, take.blob, { contentType: take.blob.type || 'audio/webm' })
           if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
-          voiceoverPath = vPath
+          takePath = vPath
         }
+        voiceovers.push({ path: takePath, start: take.start, duration: take.duration })
       }
 
       let musicPath: string | null = extractedMusicPath
@@ -2534,7 +2626,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceoverPath, muteOriginalAudio: voiceoverMute, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceovers, muteOriginalAudio: voiceoverMute, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -2551,7 +2643,7 @@ export default function DashboardPage() {
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
-      setVoiceoverBlob(null)
+      clearVoiceTakes()
       setExtractedMusicPath(null)
       authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
     } catch (err) {
@@ -4003,8 +4095,10 @@ export default function DashboardPage() {
 
               <EditorPreview
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
-                voiceover={voiceoverBlob}
+                takes={voiceTakes}
                 muteOriginal={voiceoverMute}
+                onAddTake={addVoiceTake}
+                onRemoveTake={removeVoiceTake}
               />
             </div>
           )}
@@ -4386,15 +4480,15 @@ export default function DashboardPage() {
 
                           {/* Voiceover row */}
                           <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <VoiceoverRecorder
-                              segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
-                              blob={voiceoverBlob}
-                              onBlob={pickVoiceover}
-                      uploadStatus={clipUploadStatus['v']}
-                      onRetry={() => { if (voiceoverBlob) startAssetUpload('v', voiceoverBlob, 'voiceover') }}
-                              muteOriginal={voiceoverMute}
-                              onMuteChange={setVoiceoverMute}
-                            />
+                            <VoiceoverPanel
+                      takes={voiceTakes}
+                      muteOriginal={voiceoverMute}
+                      onMuteChange={setVoiceoverMute}
+                      onAddFile={addVoiceFile}
+                      onRemoveTake={removeVoiceTake}
+                      statuses={clipUploadStatus}
+                      onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
+                    />
                           </div>
 
                           {/* Captions row */}
@@ -4507,8 +4601,10 @@ export default function DashboardPage() {
               })()}
               <EditorPreview
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
-                voiceover={voiceoverBlob}
+                takes={voiceTakes}
                 muteOriginal={voiceoverMute}
+                onAddTake={addVoiceTake}
+                onRemoveTake={removeVoiceTake}
               />
             </div>
           )}

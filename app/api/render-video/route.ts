@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`ai:${userId}`, 5, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceoverPath, muteOriginalAudio, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, muteOriginalAudio, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -52,8 +52,11 @@ export async function POST(req: NextRequest) {
     if (musicPath && !musicPath.startsWith(`${userId}/`)) {
       return NextResponse.json({ error: 'Invalid music path' }, { status: 403 })
     }
-    if (voiceoverPath && (typeof voiceoverPath !== 'string' || !voiceoverPath.startsWith(`${userId}/`))) {
-      return NextResponse.json({ error: 'Invalid voiceover path' }, { status: 403 })
+    const voiceoverList: { path: string; start: number; duration: number }[] = Array.isArray(voiceovers) ? voiceovers.slice(0, 30) : []
+    for (const v of voiceoverList) {
+      if (!v || typeof v.path !== 'string' || !v.path.startsWith(`${userId}/`)) {
+        return NextResponse.json({ error: 'Invalid voiceover path' }, { status: 403 })
+      }
     }
 
     const plan = await getPlan(userId)
@@ -118,10 +121,10 @@ export async function POST(req: NextRequest) {
       signedUrls.push(data.signedUrl)
     }
 
-    let voiceoverUrl: string | null = null
-    if (voiceoverPath) {
-      const { data: voData, error: voError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(voiceoverPath, 3600)
-      if (!voError && voData) voiceoverUrl = voData.signedUrl
+    const signedVoiceovers: { url: string; start: number; duration: number }[] = []
+    for (const v of voiceoverList) {
+      const { data: voData, error: voError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(v.path, 3600)
+      if (!voError && voData) signedVoiceovers.push({ url: voData.signedUrl, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0) })
     }
     let musicUrl: string | null = directMusicUrl || null
     if (!musicUrl && musicPath) {
@@ -217,7 +220,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         clips,
         musicSrc: musicUrl || undefined,
-        voiceoverSrc: voiceoverUrl || undefined,
+        voiceovers: signedVoiceovers.length > 0 ? signedVoiceovers : undefined,
         muteOriginalAudio: muteOriginalAudio === true,
         outputOrientation,
         resolution,

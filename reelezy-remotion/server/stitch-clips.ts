@@ -116,7 +116,7 @@ export async function stitchClips(
   outputHeight: number,
   port: number | string,
   crf: number = 28,
-  voiceover?: { url?: string; muteOriginal?: boolean }
+  voiceover?: { takes?: { url: string; start: number; duration: number }[]; muteOriginal?: boolean }
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
@@ -212,7 +212,8 @@ export async function stitchClips(
 
   // Step 3: mix voiceover and/or music if provided
   let finalPath = stitchedPath;
-  if (voiceover?.url) {
+  if (voiceover?.takes && voiceover.takes.length > 0) {
+    const takes = voiceover.takes;
     const mixedPath = path.join(tmpDir, `${randomUUID()}-voiceover.mp4`);
     cleanups.push(() => { try { fs.unlinkSync(mixedPath); } catch {} });
 
@@ -220,16 +221,30 @@ export async function stitchClips(
     let next = 1;
     let musicIdx = -1;
     if (musicUrl) { args.push('-i', musicUrl); musicIdx = next++; }
-    const voIdx = next++;
-    args.push('-i', voiceover.url);
+    const takeIdx: number[] = [];
+    for (const t of takes) { args.push('-i', t.url); takeIdx.push(next++); }
 
     // Original clip sound sits low under the voiceover (or is removed completely if the user chose that),
     // music sits lower again, the voiceover stays at full volume.
     const parts: string[] = [`[0:a]volume=${voiceover.muteOriginal ? 0 : 0.35}[orig]`];
     const labels = ['[orig]'];
     if (musicIdx > 0) { parts.push(`[${musicIdx}:a]volume=0.3[mus]`); labels.push('[mus]'); }
-    parts.push(`[${voIdx}:a]volume=1.0[vo]`);
-    labels.push('[vo]');
+
+    // Each take is placed where the user recorded it. A take recorded later replaces an
+    // earlier one wherever they overlap, so the earlier take is silenced for that stretch.
+    const endOf = (t: { start: number; duration: number }) => (t.duration > 0 ? t.start + t.duration : Infinity);
+    takes.forEach((t, i) => {
+      const ms = Math.max(0, Math.round(t.start * 1000));
+      const silenced: string[] = [];
+      for (const later of takes.slice(i + 1)) {
+        const a = Math.max(t.start, later.start);
+        const b = Math.min(endOf(t), endOf(later));
+        if (b > a) silenced.push(`volume=0:enable='between(t,${a.toFixed(3)},${Number.isFinite(b) ? b.toFixed(3) : '1000000'})'`);
+      }
+      // apad keeps every take running to the end so amix does not change the levels when one finishes
+      parts.push(`[${takeIdx[i]}:a]adelay=${ms}|${ms},${silenced.length ? silenced.join(',') + ',' : ''}apad[vo${i}]`);
+      labels.push(`[vo${i}]`);
+    });
     // amix divides each input by the input count, so multiply back up and guard against clipping
     parts.push(`${labels.join('')}amix=inputs=${labels.length}:duration=first:dropout_transition=0,volume=${labels.length},alimiter=limit=0.95[aout]`);
 
