@@ -1377,9 +1377,12 @@ export default function DashboardPage() {
     setFilmUploading(true)
     try {
       const filmItem = filmSelectedId?.startsWith('idea:') ? filmingItems.find((f) => f.id === filmSelectedId.slice(5)) : undefined
+      const filmSavedIdea = !filmItem && filmSelectedId?.startsWith('idea:') ? dbSavedIdeas.find((i) => i.id === filmSelectedId.slice(5)) : undefined
       const filmScriptRow = savedScripts.find((s) => `script-${s.id}` === filmSelectedId)
       filmRenderContextRef.current = filmItem
         ? { ideaId: filmItem.id.startsWith('script-') ? null : filmItem.id, source: 'idea', title: filmItem.title || null, caption: filmItem.caption || null, tags: filmItem.tags || null }
+        : filmSavedIdea
+        ? { ideaId: filmSavedIdea.id, source: 'idea', title: filmSavedIdea.title || null, caption: null, tags: filmSavedIdea.tags || null }
         : filmScriptRow
         ? { ideaId: null, source: 'script', title: filmScriptRow.topic, caption: null, tags: null }
         : null
@@ -3405,6 +3408,17 @@ export default function DashboardPage() {
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
+                      {dbSavedIdeas.filter((i) => !filmingItems.some((f) => f.id === i.id)).length > 0 && (
+                        <>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>My ideas</p>
+                          {dbSavedIdeas.filter((i) => !filmingItems.some((f) => f.id === i.id)).map((idea) => (
+                            <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(216,90,48,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, [idea.hook, ...splitFilmText(idea.description || '')].map(cleanFilmLine).filter(Boolean)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#D85A30', flexShrink: 0 }} />
+                              <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
                       {savedScripts.length > 0 && (
                         <>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
@@ -3417,7 +3431,7 @@ export default function DashboardPage() {
                         </>
                       )}
                     </div>
-                    {filmingItems.length === 0 && savedScripts.length === 0 && (
+                    {filmingItems.length === 0 && savedScripts.length === 0 && dbSavedIdeas.length === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
