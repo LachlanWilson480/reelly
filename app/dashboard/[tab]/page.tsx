@@ -2885,7 +2885,7 @@ export default function DashboardPage() {
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); setAiSpeechSteps(new Set()); setTab('aiuploads'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          onClick={() => { selectFilmSource(item.id, getFilmLines(item)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                         >
                           Film & edit this
@@ -3382,8 +3382,8 @@ export default function DashboardPage() {
                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.map((idea) => (
-                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === idea.id ? '1px solid var(--coral)' : '1px solid transparent', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) selectFilmSource(idea.id, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 3, cursor: 'pointer' }} />
+                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === idea.id ? 'rgba(216,90,48,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === idea.id ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={filmSelectedId === idea.id} onChange={(e) => { if (e.target.checked) selectFilmSource(idea.id, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#D85A30', flexShrink: 0 }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
@@ -3391,8 +3391,8 @@ export default function DashboardPage() {
                         <>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
                           {savedScripts.map((s) => (
-                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(216,90,48,0.08)' : 'var(--card-bg)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid transparent', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, splitFilmText(s.script)); else selectFilmSource(null, []) }} style={{ marginTop: 3, cursor: 'pointer' }} />
+                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(216,90,48,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, splitFilmText(s.script)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#D85A30', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                             </label>
                           ))}
@@ -3402,7 +3402,8 @@ export default function DashboardPage() {
                     {filmingItems.length === 0 && savedScripts.length === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
-                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="One line per clip" rows={5} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
+                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Pick an idea above or type your own. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmLines.length} {filmLines.length === 1 ? 'clip' : 'clips'}, one per line</p>
                   </div>
                   {!filmReview && (
