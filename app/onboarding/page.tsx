@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -140,8 +141,8 @@ export default function OnboardingPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-        <Link href="/" style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none' }}>
-          Reelezy
+        <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+          <ReelezyLogo size={44} />
         </Link>
       </nav>
 
