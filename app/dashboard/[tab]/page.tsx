@@ -4,7 +4,7 @@ import React from 'react'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
 import { PLAN_LIMITS } from '@/lib/planLimits'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -81,6 +81,181 @@ const fmtTrimTime = (s: number) => {
 
 const trimButtonLabel = (t: ClipTrimRange | undefined, file: File | undefined) =>
   t && file && t.file === file ? `Trimmed · ${(t.end - t.start).toFixed(1)}s` : 'Trim'
+
+type VoiceoverSegment = { file: File; start: number; end: number | null }
+
+const voiceoverExt = (b: Blob) => {
+  const t = (b.type || '').toLowerCase()
+  if (t.includes('webm')) return 'webm'
+  if (t.includes('mp4') || t.includes('m4a') || t.includes('aac')) return 'm4a'
+  if (t.includes('ogg')) return 'ogg'
+  if (t.includes('mpeg') || t.includes('mp3')) return 'mp3'
+  if (t.includes('wav')) return 'wav'
+  return 'webm'
+}
+
+// Records a voiceover from the microphone while the user's clips play (muted) in order,
+// or lets them upload a finished audio file. The recording stays in the parent until render.
+function VoiceoverRecorder({ segments, blob, onBlob, muteOriginal, onMuteChange }: {
+  segments: VoiceoverSegment[]
+  blob: Blob | null
+  onBlob: (b: Blob | null) => void
+  muteOriginal: boolean
+  onMuteChange: (v: boolean) => void
+}) {
+  const [recording, setRecording] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const [error, setError] = useState('')
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const segIndexRef = useRef(0)
+  const urlsRef = useRef<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const playUrl = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
+
+  const hasClips = segments.length > 0
+
+  const stopTracks = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }
+
+  const stopRecording = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    const rec = recorderRef.current
+    if (rec && rec.state !== 'inactive') rec.stop()
+    videoRef.current?.pause()
+    setRecording(false)
+  }
+
+  const playSegment = (i: number) => {
+    const v = videoRef.current
+    const seg = segments[i]
+    if (!v || !seg) { stopRecording(); return }
+    segIndexRef.current = i
+    if (!urlsRef.current[i]) urlsRef.current[i] = URL.createObjectURL(seg.file)
+    v.muted = true
+    v.src = urlsRef.current[i]
+    const begin = () => { v.currentTime = seg.start; void v.play().catch(() => {}) }
+    if (v.readyState >= 1) begin()
+    else v.onloadedmetadata = () => { v.onloadedmetadata = null; begin() }
+  }
+
+  const nextSegment = () => {
+    const next = segIndexRef.current + 1
+    if (next >= segments.length) stopRecording()
+    else playSegment(next)
+  }
+
+  const startRecording = async () => {
+    setError('')
+    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setError('Recording is not supported in this browser. Upload an audio file instead.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+      streamRef.current = stream
+      const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+      const mimeType = preferred.find((m) => MediaRecorder.isTypeSupported(m))
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      chunksRef.current = []
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      rec.onstop = () => {
+        stopTracks()
+        const out = new Blob(chunksRef.current, { type: rec.mimeType || mimeType || 'audio/webm' })
+        if (out.size > 0) onBlob(out)
+      }
+      recorderRef.current = rec
+      rec.start()
+      setElapsed(0)
+      setRecording(true)
+      const started = Date.now()
+      timerRef.current = setInterval(() => setElapsed((Date.now() - started) / 1000), 200)
+      if (hasClips) playSegment(0)
+    } catch (e) {
+      stopTracks()
+      const name = (e as { name?: string })?.name
+      setError(name === 'NotAllowedError' || name === 'SecurityError'
+        ? 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.'
+        : name === 'NotFoundError'
+          ? 'No microphone found. Plug one in or upload an audio file instead.'
+          : 'Could not start recording. Try again or upload an audio file instead.')
+    }
+  }
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    const rec = recorderRef.current
+    if (rec && rec.state !== 'inactive') { rec.onstop = null; rec.stop() }
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
+
+  const card = { background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer', fontWeight: 600 } as const
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Voiceover</p>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Record over clips you already filmed</span>
+      </div>
+
+      {hasClips && (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          onEnded={nextSegment}
+          onTimeUpdate={(e) => {
+            const seg = segments[segIndexRef.current]
+            if (recording && seg && seg.end != null && e.currentTarget.currentTime >= seg.end) nextSegment()
+          }}
+          style={{ display: recording ? 'block' : 'none', width: '100%', maxWidth: 220, maxHeight: 300, borderRadius: 10, background: '#000', marginBottom: 10, objectFit: 'contain' }}
+        />
+      )}
+
+      <input ref={fileInputRef} type="file" accept="audio/*" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) { onBlob(f); setError('') } e.target.value = '' }} />
+
+      {!recording && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" onClick={startRecording}
+            style={{ ...card, background: blob ? 'rgba(216,90,48,0.1)' : 'var(--card-bg)', border: blob ? '1px solid var(--coral)' : card.border, color: blob ? 'var(--coral)' : 'var(--ink)' }}>
+            {blob ? 'Record again' : hasClips ? 'Record over my clips' : 'Record voiceover'}
+          </button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} style={card}>Upload audio</button>
+          {blob && <button type="button" onClick={() => onBlob(null)} style={card}>Remove</button>}
+        </div>
+      )}
+
+      {recording && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" onClick={stopRecording}
+            style={{ ...card, background: '#d92d20', border: '1px solid #d92d20', color: '#fff' }}>Stop recording</button>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#d92d20', fontVariantNumeric: 'tabular-nums' }}>● {fmtTrimTime(elapsed)}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{hasClips ? 'Your clips play silently while you talk. It stops when they finish.' : 'Speak now.'}</span>
+        </div>
+      )}
+
+      {playUrl && !recording && (
+        <div style={{ marginTop: 10 }}>
+          <audio key={playUrl} src={playUrl} controls style={{ width: '100%', maxWidth: 360, height: 36 }} />
+          <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!muteOriginal} onChange={(e) => onMuteChange(!e.target.checked)} />
+            Keep the original sound of my clips quietly underneath
+          </label>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            {muteOriginal ? 'Original clip sound will be removed. Only your voiceover (and music) plays.' : 'Original clip sound will play at a low volume under your voice.'}
+          </p>
+        </div>
+      )}
+      {error && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{error}</p>}
+    </div>
+  )
+}
 
 function ClipTrimPanel({ file, trim, onChange, onClose }: {
   file: File
@@ -403,6 +578,8 @@ export default function DashboardPage() {
   const [captionFontSize, setCaptionFontSize] = useState<number | string>(60)
   const [captionFontFamily, setCaptionFontFamily] = useState('Sans Bold')
   const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [voiceoverBlob, setVoiceoverBlob] = useState<Blob | null>(null)
+  const [voiceoverMute, setVoiceoverMute] = useState(true)
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const musicInputRef = useRef<HTMLInputElement>(null)
   const audioExtractInputRef = useRef<HTMLInputElement>(null)
@@ -1302,6 +1479,15 @@ export default function DashboardPage() {
                       {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
                     </div>
 
+                    {/* Voiceover */}
+                    <VoiceoverRecorder
+                      segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                      blob={voiceoverBlob}
+                      onBlob={setVoiceoverBlob}
+                      muteOriginal={voiceoverMute}
+                      onMuteChange={setVoiceoverMute}
+                    />
+
                     {/* Captions */}
                     <div>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
@@ -1475,6 +1661,7 @@ export default function DashboardPage() {
     setLibraryMusicUrl(url)
     setLibraryMusicName(name)
     setMusicFile(null)
+    setVoiceoverBlob(null)
     setShowMusicLibrary(null)
   }
 
@@ -1788,6 +1975,14 @@ export default function DashboardPage() {
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
+      let voiceoverPath: string | null = null
+      if (voiceoverBlob) {
+        const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
+        const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+        if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
+        voiceoverPath = vPath
+      }
+
       let musicPath: string | null = extractedMusicPath
       if (!musicPath && musicFile) {
         const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
@@ -1816,6 +2011,8 @@ export default function DashboardPage() {
           clipPaths,
           captionStyle: aiCaptionStyle,
           musicPath,
+          voiceoverPath,
+          muteOriginalAudio: voiceoverMute,
           musicUrl: libraryMusicUrl,
           speechClipIndices: speechIndices,
           clipTrims,
@@ -1838,6 +2035,7 @@ export default function DashboardPage() {
       setAiRenderStatus("queued")
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'ai', ts: Date.now() }))
       setMusicFile(null)
+      setVoiceoverBlob(null)
       setExtractedMusicPath(null)
     } catch (err) {
       setAiEditorError(err instanceof Error ? err.message : 'Something went wrong uploading your clips. Check file sizes and try again.')
@@ -1906,6 +2104,14 @@ export default function DashboardPage() {
 
       if (clipPaths.length === 0) throw new Error("Upload at least one clip before creating your video.")
 
+      let voiceoverPath: string | null = null
+      if (voiceoverBlob) {
+        const vPath = `${userId}/voiceover-${Date.now()}.${voiceoverExt(voiceoverBlob)}`
+        const { error: voError } = await supabase.storage.from('video-uploads').upload(vPath, voiceoverBlob, { contentType: voiceoverBlob.type || 'audio/webm' })
+        if (voError) throw new Error(`Voiceover upload failed: ${voError.message}`)
+        voiceoverPath = vPath
+      }
+
       let musicPath: string | null = extractedMusicPath
       if (!musicPath && musicFile) {
         const mPath = `${userId}/music-${Date.now()}-${musicFile.name}`
@@ -1929,7 +2135,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceoverPath, muteOriginalAudio: voiceoverMute, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -1946,6 +2152,7 @@ export default function DashboardPage() {
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
       setMusicFile(null)
+      setVoiceoverBlob(null)
       setExtractedMusicPath(null)
       authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
     } catch (err) {
@@ -1964,6 +2171,7 @@ export default function DashboardPage() {
     setExtractAudioError('')
     setExtractedMusicPath(null)
     setMusicFile(null)
+    setVoiceoverBlob(null)
 
     try {
       const path = `${userId}/${Date.now()}-extract-source-${file.name}`
@@ -3773,6 +3981,17 @@ export default function DashboardPage() {
                               </Tooltip>
                             </div>
                             {extractAudioError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractAudioError}</p>}
+                          </div>
+
+                          {/* Voiceover row */}
+                          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
+                            <VoiceoverRecorder
+                              segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                              blob={voiceoverBlob}
+                              onBlob={setVoiceoverBlob}
+                              muteOriginal={voiceoverMute}
+                              onMuteChange={setVoiceoverMute}
+                            />
                           </div>
 
                           {/* Captions row */}

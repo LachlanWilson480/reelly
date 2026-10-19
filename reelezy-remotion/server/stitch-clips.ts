@@ -115,7 +115,8 @@ export async function stitchClips(
   outputWidth: number,
   outputHeight: number,
   port: number | string,
-  crf: number = 28
+  crf: number = 28,
+  voiceover?: { url?: string; muteOriginal?: boolean }
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
@@ -206,9 +207,41 @@ export async function stitchClips(
     stitchedPath = currentPath;
   }
 
-  // Step 3: mix music if provided
+  // Step 3: mix voiceover and/or music if provided
   let finalPath = stitchedPath;
-  if (musicUrl) {
+  if (voiceover?.url) {
+    const mixedPath = path.join(tmpDir, `${randomUUID()}-voiceover.mp4`);
+    cleanups.push(() => { try { fs.unlinkSync(mixedPath); } catch {} });
+
+    const args = ['-y', '-i', stitchedPath];
+    let next = 1;
+    let musicIdx = -1;
+    if (musicUrl) { args.push('-i', musicUrl); musicIdx = next++; }
+    const voIdx = next++;
+    args.push('-i', voiceover.url);
+
+    // Original clip sound sits low under the voiceover (or is removed completely if the user chose that),
+    // music sits lower again, the voiceover stays at full volume.
+    const parts: string[] = [`[0:a]volume=${voiceover.muteOriginal ? 0 : 0.35}[orig]`];
+    const labels = ['[orig]'];
+    if (musicIdx > 0) { parts.push(`[${musicIdx}:a]volume=0.3[mus]`); labels.push('[mus]'); }
+    parts.push(`[${voIdx}:a]volume=1.0[vo]`);
+    labels.push('[vo]');
+    // amix divides each input by the input count, so multiply back up and guard against clipping
+    parts.push(`${labels.join('')}amix=inputs=${labels.length}:duration=first:dropout_transition=0,volume=${labels.length},alimiter=limit=0.95[aout]`);
+
+    args.push(
+      '-filter_complex', parts.join(';'),
+      '-map', '0:v',
+      '-map', '[aout]',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-movflags', '+faststart',
+      mixedPath,
+    );
+    await execFileAsync(FFMPEG_PATH, args);
+    finalPath = mixedPath;
+  } else if (musicUrl) {
     const mixedPath = path.join(tmpDir, `${randomUUID()}-mixed.mp4`);
     cleanups.push(() => { try { fs.unlinkSync(mixedPath); } catch {} });
 
