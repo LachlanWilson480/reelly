@@ -969,6 +969,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [filmLineIdx, setFilmLineIdx] = useState(0)
+  const [filmActions, setFilmActions] = useState<string[]>([])
   const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
   const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
@@ -1739,6 +1740,7 @@ export default function DashboardPage() {
 
   const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
   const filmCurrentLine = filmLines[filmLineIdx] || ''
+  const filmCurrentAction = filmActions[filmLineIdx] || ''
 
   useEffect(() => {
     const el = filmTeleprompterInnerRef.current
@@ -1788,9 +1790,21 @@ export default function DashboardPage() {
     return splitFilmText(script)
   }
 
-  const selectFilmSource = (id: string | null, lines: string[]) => {
+  // What the person should physically do in each clip (camera position, hands, movement), lined up with the script lines
+  const getFilmActions = (item: FilmingItem, lineCount: number): string[] => {
+    const dirs = (item.directions || []).map((d: string) => d.trim()).filter(Boolean)
+    const fromSteps = (item.checklist || [])
+      .map((st: string) => st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '').replace(/[,;.]?\s*(?:and\s+)?say:.*$/i, '').trim())
+      .filter(Boolean)
+    const source = dirs.length > 0 ? dirs : fromSteps
+    if (source.length === 0 || lineCount === 0) return []
+    return Array.from({ length: lineCount }, (_, i) => source[Math.min(source.length - 1, Math.floor((i * source.length) / lineCount))])
+  }
+
+  const selectFilmSource = (id: string | null, lines: string[], actions: string[] = []) => {
     setFilmSelectedId(id)
     setFilmScript(lines.join('\n'))
+    setFilmActions(actions)
     setFilmLineIdx(0)
     filmClips.forEach((cl) => URL.revokeObjectURL(cl.url))
     setFilmClips([])
@@ -2563,6 +2577,7 @@ export default function DashboardPage() {
       swapped[i] = ls[j]
       swapped[j] = ls[i]
       setFilmScript(swapped.join('\n'))
+      setFilmActions((prev) => swapItems(prev, i, j))
     }
     setFilmPlayIdx(j)
   }
@@ -4321,7 +4336,7 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((idea) => (
                         <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, getFilmLines(idea)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
+                          <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, getFilmLines(idea), getFilmActions(idea, getFilmLines(idea).length)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
@@ -4341,7 +4356,7 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
                           {savedScripts.map((s) => (
                             <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, (() => { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); return fi ? getFilmLines(fi) : splitFilmText(s.script) })()); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
+                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, (() => { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); return fi ? getFilmLines(fi) : splitFilmText(s.script) })(), (() => { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); return fi ? getFilmActions(fi, getFilmLines(fi).length) : [] })()); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                             </label>
                           ))}
@@ -4352,7 +4367,7 @@ export default function DashboardPage() {
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Pick an idea above or type your own. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmActions([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Pick an idea above or type your own. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmLines.length} {filmLines.length === 1 ? 'clip' : 'clips'}, one per line</p>
                   </div>
                   {!filmReview && (
@@ -4387,7 +4402,7 @@ export default function DashboardPage() {
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmLines.length > 0 && (
-                      <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                      <div style={{ position: 'absolute', bottom: filmCurrentAction && !filmPending ? 158 : 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
                         Clip {Math.min(filmLineIdx + 1, filmLines.length)} of {filmLines.length}
                       </div>
                     )}
@@ -4404,6 +4419,12 @@ export default function DashboardPage() {
                         {filmLines[filmLineIdx + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx + 1]}</p>}
                       </div>
                     )}
+                    {filmCurrentAction && !filmPending && (
+                      <div style={{ position: 'absolute', left: 14, right: 14, bottom: 86, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: 66, overflow: 'hidden' }}>
+                        <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 2px' }}>Action</p>
+                        <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmCurrentAction}</p>
+                      </div>
+                    )}
                     {filmCountdown !== null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
                         <span style={{ fontSize: 100, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{filmCountdown}</span>
@@ -4416,7 +4437,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmIsRecording && (
-                      <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
+                      <div style={{ position: 'absolute', bottom: filmCurrentAction && !filmPending ? 158 : 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
