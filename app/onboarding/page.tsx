@@ -166,7 +166,7 @@ export default function OnboardingPage() {
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(241,239,232,0.5)', marginBottom: 20 }}>The essentials</p>
 
               <Field label="Business name *" value={businessName} onChange={setBusinessName} placeholder="e.g. Jake's Plumbing" />
-              <Field label="Industry *" value={industry} onChange={setIndustry} placeholder="e.g. hair salon, electrician, personal trainer" />
+              <Field label="Industry *" value={industry} onChange={setIndustry} placeholder="e.g. café, hair salon, electrician, market stall" />
               <Field label="Core services or products *" value={coreServices} onChange={setCoreServices} placeholder="e.g. cuts, colours, balayage, extensions" textarea />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

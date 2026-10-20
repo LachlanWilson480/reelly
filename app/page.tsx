@@ -6,6 +6,8 @@ import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 import { supabase, consumeRecoveryFlag } from '@/lib/supabase'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
+import { CURRENCY_PRICES, PLAN_COPY } from '@/lib/pricing'
+import { useCurrency } from '@/lib/useCurrency'
 
 export default function HomePage() {
   const router = useRouter()
@@ -13,6 +15,7 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [checking, setChecking] = useState(true)
   const [heroStep, setHeroStep] = useState(0)
+  const currency = useCurrency()
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,16 +72,17 @@ export default function HomePage() {
     { title: 'Post in minutes', desc: 'To finish a video:', points: ['Film clips on your phone', 'Upload them to Reelezy', 'Let the platform edit automatically', 'Or fine-tune it yourself in the editor'] },
   ]
 
+  const cp = CURRENCY_PRICES[currency ?? 'AUD']
   const pricing = [
-    { name: 'Free', price: '$0', period: '', desc: 'Try Reelezy, no card needed', features: ['24 ideas per week', '7 filming guides per week', '3 scripts per week', '1 minute of video, with a Reelezy watermark'], highlight: false },
-    { name: 'Basic', price: '$35', period: '/mo', desc: '25 render minutes per month', features: ['5 ideas per batch, 98 per week', 'Full video scheduler', 'Sound library and video analytics', 'Limited Script Generator access'], highlight: false },
-    { name: 'Pro', price: '$69', period: '/mo', desc: '60 render minutes per month', features: ['Everything in Basic', '7 ideas per batch, 210 per week', 'Full Script Generator access', 'Competitor analytics and dual accounts'], highlight: true },
+    { name: PLAN_COPY.free.name, price: `${cp.symbol}0`, period: '', note: '', desc: PLAN_COPY.free.desc, features: PLAN_COPY.free.features, highlight: false },
+    { name: PLAN_COPY.basic.name, price: `${cp.symbol}${cp.basic}`, period: '/mo', note: `or ${cp.symbol}${cp.basicYearly} a year (2 months free)`, desc: PLAN_COPY.basic.desc, features: PLAN_COPY.basic.features, highlight: false },
+    { name: PLAN_COPY.pro.name, price: `${cp.symbol}${cp.pro}`, period: '/mo', note: `or ${cp.symbol}${cp.proYearly} a year (2 months free)`, desc: PLAN_COPY.pro.desc, features: PLAN_COPY.pro.features, highlight: true },
   ]
 
   const mockIdeas = [
-    { title: 'Behind the chair: 3 quick tips', tag: '#hairsalon' },
+    { title: 'Behind the scenes: how it is made', tag: '#smallbusiness' },
     { title: 'Before and after reveal', tag: '#transformation' },
-    { title: 'Booking slots open this week', tag: '#comebookus' },
+    { title: 'Come and see us this weekend', tag: '#shoplocal' },
   ]
 
   const mockFilmingSteps = [
@@ -118,7 +122,7 @@ export default function HomePage() {
               Content ideas, filmed and posted in minutes.
             </h1>
             <p className="hero-subtext" style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
-              Reelezy gives personal-service businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
+              Reelezy gives small businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
             </p>
             <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
               Get started free
@@ -218,7 +222,7 @@ export default function HomePage() {
         </section>
 
         <section style={{ padding: '24px 64px 0', textAlign: 'center' }}>
-          <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for hair, beauty, barbering, fitness and other personal-service businesses</p>
+          <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for small businesses: cafés, salons, trades, makers and market stalls</p>
         </section>
 
         <section style={{ padding: '48px 64px 0' }}>
@@ -274,12 +278,14 @@ export default function HomePage() {
         <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 }}>Pricing</h2>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 44 }}>Priced by render minutes per month. Full details at checkout.</p>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 44 }}>Pick the plan that fits how many reels you make. Prices are in {currency ?? 'AUD'}. Full details at checkout.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, maxWidth: 960, margin: '0 auto' }}>
               {pricing.map((tier) => (
                 <div key={tier.name} style={{ background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)', borderRadius: 14, padding: '32px 24px', border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{tier.name}</h3>
-                  <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{tier.price}<span style={{ fontSize: 14, fontWeight: 400 }}>{tier.period}</span></p>
+                  <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{currency ? tier.price : '\u00a0'}<span style={{ fontSize: 14, fontWeight: 400 }}>{currency ? tier.period : ''}</span></p>
+                  <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, margin: '0 0 4px', color: tier.highlight ? '#B8B5AE' : 'var(--text-muted)', minHeight: 16 }}>{currency ?? ''}</p>
+                  {tier.note && <p style={{ fontSize: 12, margin: '0 0 8px', color: tier.highlight ? '#B8B5AE' : 'var(--text-muted)' }}>{currency ? tier.note : ''}</p>}
                   <p style={{ fontSize: 14, color: tier.highlight ? '#B8B5AE' : 'var(--text-secondary)', marginBottom: 20 }}>{tier.desc}</p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {tier.features.map((f) => (
@@ -325,7 +331,7 @@ export default function HomePage() {
           <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 32 }}>
             <div>
               <ReelezyLogo size={44} />
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 220, lineHeight: 1.6 }}>AI-powered social content for personal-service businesses.</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 220, lineHeight: 1.6 }}>AI-powered social content for small businesses.</p>
             </div>
             <div style={{ display: 'flex', gap: 48 }}>
               <div>

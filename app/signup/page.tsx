@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { mountGoogleButton } from '@/lib/googleSignIn'
+import { trackEvent } from '@/lib/track'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -48,26 +49,17 @@ export default function SignUpPage() {
       return
     }
 
+    trackEvent('signup', { method: 'email' })
     setMessage('check-email')
   }
 
   const googleButtonRef = useRef<HTMLDivElement>(null)
-  const agreedRef = useRef(false)
-
-  useEffect(() => {
-    agreedRef.current = agreedToTerms
-  }, [agreedToTerms])
-
   useEffect(() => {
     const container = googleButtonRef.current
     if (!container) return
     mountGoogleButton({
       container,
       onCredential: async (idToken, rawNonce) => {
-        if (!agreedRef.current) {
-          setMessage('Please agree to the Privacy Policy to continue.')
-          return
-        }
         setMessage('')
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
@@ -84,6 +76,7 @@ export default function SignUpPage() {
           .eq('user_id', data.user.id)
           .maybeSingle()
         localStorage.setItem('reelezy-has-logged-in', 'true')
+        trackEvent(profile ? 'google_login' : 'signup', { method: 'google' })
         router.push(profile ? '/dashboard' : '/onboarding')
       },
     }).catch((err) => setMessage(err instanceof Error ? err.message : 'Could not load Google sign-in.'))
@@ -198,19 +191,12 @@ export default function SignUpPage() {
             </p>
 
             {message !== 'check-email' && <>
-            <div style={{ position: 'relative', marginBottom: 8, minHeight: 44 }}>
-              <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', opacity: agreedToTerms ? 1 : 0.5, transition: 'opacity 0.15s ease' }} />
-              {!agreedToTerms && (
-                <div
-                  onClick={() => setMessage('Please agree to the Privacy Policy to continue.')}
-                  style={{ position: 'absolute', inset: 0, cursor: 'not-allowed' }}
-                />
-              )}
+            <div style={{ marginBottom: 8, minHeight: 44 }}>
+              <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
             </div>
-            <p style={{ fontSize: 13, color: '#D3D1C7', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
-              {agreedToTerms
-                ? 'Continue with Google, or use your email below.'
-                : 'Agree to the Privacy Policy below to continue with Google.'}
+            <p style={{ fontSize: 12, color: '#D3D1C7', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
+              By continuing with Google you agree to the{' '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Privacy Policy</a>.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />

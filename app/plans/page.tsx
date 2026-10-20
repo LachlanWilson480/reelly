@@ -8,11 +8,15 @@ import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
 import { supabase } from '@/lib/supabase'
 import { getMonthStartISO } from '@/lib/billingMonth'
+import { CURRENCY_PRICES, PLAN_COPY } from '@/lib/pricing'
+import { useCurrency } from '@/lib/useCurrency'
+import { trackEvent } from '@/lib/track'
 
 export default function PlansPage() {
   const router = useRouter()
 
-  const [currency, setCurrency] = useState<'AUD' | 'USD' | 'GBP'>('AUD')
+  const detectedCurrency = useCurrency()
+  const currency = detectedCurrency ?? 'AUD'
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
@@ -41,24 +45,7 @@ export default function PlansPage() {
     loadUser().catch(() => {}).finally(() => setAccountLoaded(true))
   }, [])
 
-  useEffect(() => {
-    const host = window.location.hostname
-    if (host.endsWith('.co.uk')) setCurrency('GBP')
-    else if (host.endsWith('.com.au') || host.endsWith('localhost')) setCurrency('AUD')
-    else setCurrency('USD')
-    // Where the visitor actually is wins over the domain they happened to open
-    fetch('/api/geo', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((g) => { if (g && (g.currency === 'AUD' || g.currency === 'USD' || g.currency === 'GBP')) setCurrency(g.currency) })
-      .catch(() => {})
-  }, [])
-
-  const prices = {
-    AUD: { symbol: 'A$', basic: 35, pro: 69, basicYearly: 350, proYearly: 690, basicPerMonth: '29.10', proPerMonth: '57.50' },
-    USD: { symbol: '$', basic: 23, pro: 45, basicYearly: 230, proYearly: 450, basicPerMonth: '19.10', proPerMonth: '37.50' },
-    GBP: { symbol: '£', basic: 19, pro: 37, basicYearly: 190, proYearly: 370, basicPerMonth: '15.80', proPerMonth: '30.80' },
-  }
-  const p = prices[currency]
+  const p = CURRENCY_PRICES[currency]
 
   const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
   const [success, setSuccess] = useState(false)
@@ -79,8 +66,8 @@ export default function PlansPage() {
       monthlyPrice: `${p.symbol}0`,
       yearlyPrice: `${p.symbol}0`,
       yearlyPerMonth: `${p.symbol}0`,
-      desc: 'Get started for free',
-      features: ['2 reels (1 min max each)', '3 ideas per batch (24 max ideas)', '1 custom script', '3 image posts', '7 filming instructions max'],
+      desc: PLAN_COPY.free.desc,
+      features: [...PLAN_COPY.free.features],
     },
     {
       id: 'mid',
@@ -88,8 +75,8 @@ export default function PlansPage() {
       monthlyPrice: `${p.symbol}${p.basic}`,
       yearlyPrice: `${p.symbol}${p.basicYearly}`,
       yearlyPerMonth: `${p.symbol}${p.basicPerMonth}`,
-      desc: '~40 reels per month',
-      features: ['~40 reels/month (25 render minutes)', '5 ideas per batch (95/week max)', '50 filming instructions/week max', '20 scripts per week', 'AI Editor and video uploads', '1080p video rendering', 'Sound library', 'Video scheduler', '5 GB of storage (app only)'],
+      desc: PLAN_COPY.basic.desc,
+      features: [...PLAN_COPY.basic.features],
     },
     {
       id: 'top',
@@ -97,8 +84,8 @@ export default function PlansPage() {
       monthlyPrice: `${p.symbol}${p.pro}`,
       yearlyPrice: `${p.symbol}${p.proYearly}`,
       yearlyPerMonth: `${p.symbol}${p.proPerMonth}`,
-      desc: '~90 reels per month',
-      features: ['~90 reels/month (60 render minutes)', '7 ideas per batch (210/week max)', '98 filming instructions/week max', '96 scripts per week', 'AI Editor and video uploads', '4K video rendering', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage (app only)'],
+      desc: PLAN_COPY.pro.desc,
+      features: [...PLAN_COPY.pro.features],
       highlight: true,
     },
   ]
@@ -146,7 +133,7 @@ export default function PlansPage() {
     filming: userPlan === 'top' ? 98 : userPlan === 'mid' ? 50 : 7,
   }
 
-  if (!accountLoaded) {
+  if (!accountLoaded || !detectedCurrency) {
     return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
   }
 
@@ -244,7 +231,7 @@ export default function PlansPage() {
             Plans built for how often you post
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
-            Every plan includes AI content ideas and filming checklists. Pricing scales with how many render minutes you need each week.
+            Every plan includes AI content ideas and filming checklists. Pricing scales with how many reels you make each month. All prices are in {currency}.
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 48 }}>
@@ -330,7 +317,7 @@ export default function PlansPage() {
                 </ul>
                 {tier.id !== 'free' && (
                   <button
-                    onClick={() => setCheckoutPlan({ id: tier.id, label: tier.name })}
+                    onClick={() => { trackEvent('checkout_started', { plan: tier.id, currency }); setCheckoutPlan({ id: tier.id, label: tier.name }) }}
                     style={{
                       display: 'block',
                       width: '100%',
