@@ -76,9 +76,9 @@ export default function PlansPage() {
     {
       id: 'free',
       name: 'Free',
-      monthlyPrice: '$0',
-      yearlyPrice: '$0',
-      yearlyPerMonth: '$0',
+      monthlyPrice: `${p.symbol}0`,
+      yearlyPrice: `${p.symbol}0`,
+      yearlyPerMonth: `${p.symbol}0`,
       desc: 'Get started for free',
       features: ['2 reels (1 min max each)', '3 ideas per batch (24 max ideas)', '1 custom script', '3 image posts', '7 filming instructions max'],
     },
@@ -310,6 +310,7 @@ export default function PlansPage() {
                   ) : (billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
                   <span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
                 </p>
+                <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, marginTop: -2, marginBottom: 6, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)' }}>{currency}</p>
                 {billingInterval === 'yearly' && (
                   <p style={{ fontSize: 12, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)', marginBottom: 8 }}>
                     Billed {tier.yearlyPrice} annually
