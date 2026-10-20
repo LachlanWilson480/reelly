@@ -4337,7 +4337,7 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              <EditorPreview
+              {(!renderId || renderStatus === 'failed') && <EditorPreview
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -4347,7 +4347,7 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
-              />
+              />}
             </div>
           )}
 
@@ -4875,7 +4875,7 @@ export default function DashboardPage() {
                   </>
                 )
               })()}
-              <EditorPreview
+              {(!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -4885,7 +4885,7 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
-              />
+              />}
             </div>
           )}
 
