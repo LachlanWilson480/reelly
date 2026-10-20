@@ -16,6 +16,7 @@ export default function PlansPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
+  const [accountLoaded, setAccountLoaded] = useState(false)
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -36,7 +37,8 @@ export default function PlansPage() {
         }
       }
     }
-    loadUser()
+    // Show the page only once the account has loaded, so subscribers never see the plan cards flash first
+    loadUser().catch(() => {}).finally(() => setAccountLoaded(true))
   }, [])
 
   useEffect(() => {
@@ -142,6 +144,10 @@ export default function PlansPage() {
     ideas: userPlan === 'top' ? 210 : userPlan === 'mid' ? 95 : 24,
     scripts: userPlan === 'top' ? 96 : userPlan === 'mid' ? 20 : 1,
     filming: userPlan === 'top' ? 98 : userPlan === 'mid' ? 50 : 7,
+  }
+
+  if (!accountLoaded) {
+    return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
   }
 
   if (userPlan && userPlan !== 'free' && subDetails) {
