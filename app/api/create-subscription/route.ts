@@ -3,6 +3,7 @@ import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { currencyForCountry } from '@/lib/pricing'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `This plan isn't available for ${interval} billing right now. Try the other billing option or contact support.` }, { status: 400 })
     }
 
+    // Charge in the currency for the account's country (from onboarding), or the visitor's location if there is none
+    const { data: profileRow } = await supabaseAdmin.from('business_profiles').select('country').eq('user_id', userId).maybeSingle()
+    const currency = (currencyForCountry(profileRow?.country) ?? currencyForCountry(req.headers.get('x-vercel-ip-country')) ?? 'AUD').toLowerCase()
+
     const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
       .select('stripe_customer_id')
@@ -55,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (customerId) {
       try {
         const existingCustomer = await stripe.customers.retrieve(customerId) as Stripe.Customer
-        if (existingCustomer.deleted || existingCustomer.metadata?.userId !== userId) {
+        if (existingCustomer.deleted || existingCustomer.metadata?.userId !== userId || (existingCustomer.currency && existingCustomer.currency !== currency)) {
           customerId = undefined
         }
       } catch {
@@ -96,6 +101,7 @@ export async function POST(req: NextRequest) {
 
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
+      currency,
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },

@@ -86,13 +86,18 @@ export async function POST(req: NextRequest) {
       billing_cycle_anchor: 'now',
     })
 
-    const newPriceObj = await stripe.prices.retrieve(newPriceId)
+    const subCurrency = (stripeSub.currency || 'aud').toLowerCase()
+    const newPriceObj = await stripe.prices.retrieve(newPriceId, { expand: ['currency_options'] })
+    const newAmount = newPriceObj.currency === subCurrency ? newPriceObj.unit_amount : newPriceObj.currency_options?.[subCurrency]?.unit_amount
+    if (newAmount == null) {
+      return NextResponse.json({ error: 'This plan has no price in your billing currency yet. Please contact support.' }, { status: 400 })
+    }
     const customerId = typeof updatedSub.customer === 'string' ? updatedSub.customer : updatedSub.customer.id
 
     await stripe.invoiceItems.create({
       customer: customerId,
-      amount: newPriceObj.unit_amount || 0,
-      currency: newPriceObj.currency,
+      amount: newAmount,
+      currency: subCurrency,
       description: `Plan change to ${newPlan}`,
     })
 

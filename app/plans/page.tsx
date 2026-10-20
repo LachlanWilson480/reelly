@@ -8,7 +8,7 @@ import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
 import { supabase } from '@/lib/supabase'
 import { getMonthStartISO } from '@/lib/billingMonth'
-import { CURRENCY_PRICES, PLAN_COPY } from '@/lib/pricing'
+import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
 
@@ -16,7 +16,9 @@ export default function PlansPage() {
   const router = useRouter()
 
   const detectedCurrency = useCurrency()
-  const currency = detectedCurrency ?? 'AUD'
+  const [profileCountry, setProfileCountry] = useState<string | null>(null)
+  const accountCurrency = currencyForCountry(profileCountry) ?? detectedCurrency
+  const currency = accountCurrency ?? 'AUD'
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
@@ -26,7 +28,8 @@ export default function PlansPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserEmail(user.email || null)
-        const { data: profile } = await supabase.from('business_profiles').select('business_name').eq('user_id', user.id).maybeSingle()
+        const { data: profile } = await supabase.from('business_profiles').select('business_name, country').eq('user_id', user.id).maybeSingle()
+        setProfileCountry(profile?.country || null)
         setBusinessName(profile?.business_name || user.email || null)
         const { data: sub } = await supabase.from('subscriptions').select('plan, status, billing_interval, stripe_subscription_id').eq('user_id', user.id).maybeSingle()
         const activePlan = sub?.status === 'active' ? sub.plan : 'free'
@@ -133,7 +136,7 @@ export default function PlansPage() {
     filming: userPlan === 'top' ? 98 : userPlan === 'mid' ? 50 : 7,
   }
 
-  if (!accountLoaded || !detectedCurrency) {
+  if (!accountLoaded || !accountCurrency) {
     return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
   }
 

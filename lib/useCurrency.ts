@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { Currency } from './pricing'
+import { CURRENCY_PRICES, type Currency } from './pricing'
 
-const valid = (c: unknown): c is Currency => c === 'AUD' || c === 'USD' || c === 'GBP'
+const valid = (c: unknown): c is Currency => typeof c === 'string' && c in CURRENCY_PRICES
 
 // Currency follows where the visitor is, not which domain they opened. Returns null until it is known,
 // so a price is never shown in the wrong currency first. If location is unavailable it falls back to the domain.
