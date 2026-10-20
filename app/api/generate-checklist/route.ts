@@ -232,7 +232,7 @@ Also provide:
 - prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed for this specific idea)
 - caption: ready-to-post social caption, maximum 100 characters total including hashtags, punchy and in the business's tone
 - script: full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud
-- directions: array of short camera-only instructions (one per checklist step), no dialogue, no quotes, just the physical action e.g. 'Hold phone at chest height facing the oven' or 'Close-up of hands shaping dough'
+- directions: the ACTIONS, an array with exactly one entry per checklist step, in the same order. Each says what the person physically does and where the camera is (hands, movement, what is in frame), with no spoken dialogue, e.g. 'Hold phone at chest height facing the oven' or 'Close-up of hands shaping dough'. If that step shows text on screen, end the action with: On-screen text: 'the text'
 
 Respond ONLY with valid JSON, no markdown, no code fences:
 { "prep": ["..."], "checklist": ["..."], "caption": "...", "script": "...", "directions": ["..."] }`

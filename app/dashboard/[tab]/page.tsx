@@ -1811,8 +1811,8 @@ export default function DashboardPage() {
     const fromSteps = (item.checklist || [])
       .map((st: string) => st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '').replace(/[,;.]?\s*(?:and\s+)?say:.*$/i, '').trim())
       .filter(Boolean)
-    const hasOnScreen = fromSteps.some((s: string) => /on-?screen text/i.test(s))
-    const source = hasOnScreen ? fromSteps : dirs.length > 0 ? dirs : fromSteps
+    const withText = (list: string[]) => list.some((s: string) => /on-?screen text/i.test(s))
+    const source = withText(dirs) ? dirs : withText(fromSteps) ? fromSteps : dirs.length > 0 ? dirs : fromSteps
     if (source.length === 0) return []
     const count = lineCount > 0 ? lineCount : source.length
     return Array.from({ length: count }, (_, i) => source[Math.min(source.length - 1, Math.floor((i * source.length) / count))])
@@ -4404,6 +4404,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
+                    {filmSelectedId && filmActions.length === 0 && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>This idea has no actions yet. Generate its filming instructions to fill the Actions box, or type your own.</p>
+                    )}
                   </div>
                   {!filmReview && (
                   <>
