@@ -119,18 +119,18 @@ export default function CheckoutModal({ plan, planLabel, currency = 'AUD', billi
         <div style={{ background: 'var(--sand)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{planLabel} plan · {billingInterval === 'yearly' ? 'billed annually' : 'billed monthly'}</p>
-            {discountCode && <p style={{ fontSize: 11, color: 'var(--coral)' }}>Discount applied</p>}
+            {discountCode && <p style={{ fontSize: 11, color: 'var(--coral)' }}>Discount applied{discountPercent ? ` (${discountPercent}% off)` : ''}</p>}
           </div>
           <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
             {(() => {
               const cp = CURRENCY_PRICES[currency]
               const isPro = planLabel === 'Pro'
-              const base = billingInterval === 'yearly'
-                ? Number(isPro ? cp.proPerMonth : cp.basicPerMonth)
-                : (isPro ? cp.pro : cp.basic)
+              const isYearly = billingInterval === 'yearly'
+              // Yearly shows the whole amount charged today; monthly shows the monthly price
+              const base = isYearly ? (isPro ? cp.proYearly : cp.basicYearly) : (isPro ? cp.pro : cp.basic)
               const final = discountPercent ? base * (1 - discountPercent / 100) : base
               return `${cp.symbol}${final.toFixed(2)}`
-            })()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>/mo {currency}</span>
+            })()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>{billingInterval === 'yearly' ? '/year' : '/mo'} {currency}</span>
           </p>
         </div>
 
