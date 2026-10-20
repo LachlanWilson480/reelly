@@ -2078,10 +2078,10 @@ export default function DashboardPage() {
         if (error || !data) throw new Error('upload failed')
         return { path: data.path, file: new File([cl.blob], `filmed-${stamp}-${i}.${cl.ext}`, { type: cl.type }) }
       }))
-      // Cut the first and last second of each filmed clip (screen taps). The trim tool can still change this.
+      // Cut the first and last 0.3 seconds of each filmed clip (screen taps). The trim tool can still change this.
       const filmDurs = await Promise.all(results.map((r) => getVideoDuration(r.file)))
       const filmTrims: Record<number, ClipTrimRange> = {}
-      results.forEach((r, i) => { const d = filmDurs[i]; if (d > 2.6 && d !== 5) filmTrims[i] = { start: 1, end: d - 1, total: d, file: r.file } })
+      results.forEach((r, i) => { const d = filmDurs[i]; if (d > 1.5 && d !== 5) filmTrims[i] = { start: 0.3, end: d - 0.3, total: d, file: r.file } })
       setUploadTrims(filmTrims)
       const slots = results.map((_, i) => i)
       const filesMap: Record<number, File> = {}
