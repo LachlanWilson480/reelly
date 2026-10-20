@@ -171,7 +171,8 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
       {takes.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
           {takes.map((t, i) => (
-            <div key={t.id} style={{ ...card, borderLeft: `4px solid ${takeColor(i)}` }}>
+            <div key={t.id} style={{ ...card, position: 'relative', paddingLeft: 18 }}>
+              <span aria-hidden style={{ position: 'absolute', left: 6, top: 14, bottom: 14, width: 4, borderRadius: 2, background: takeColor(i) }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ width: 26, height: 26, borderRadius: '50%', background: takeColor(i), color: '#fff', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
                 <div style={{ minWidth: 0 }}>
@@ -209,12 +210,13 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveTake }: {
+function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveTake, onMoveTake }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
+  onMoveTake: (id: string, start: number) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -231,6 +233,7 @@ function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveT
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
+  const dragTakeRef = useRef<{ id: string; grab: number } | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -517,9 +520,18 @@ function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveT
           </div>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 32, height: 26, borderRadius: 6, background: 'rgba(128,128,128,0.08)', overflow: 'hidden' }}>
             {takes.map((t, ti) => (
-              <div key={t.id} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}`}
-                style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? pct(Math.min(t.duration, Math.max(0, total - t.start))) : `calc(100% - ${pct(t.start)})`, background: takeColor(ti), border: '1px solid rgba(255,255,255,0.4)', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box', overflow: 'hidden' }}>
-                <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, paddingLeft: 7 }}>{ti + 1}</span>
+              <div key={t.id} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}. Drag to move it.`}
+                onPointerDown={(e) => { if (recording || total <= 0) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); dragTakeRef.current = { id: t.id, grab: timeAt(e.clientX) - t.start } }}
+                onPointerMove={(e) => {
+                  const d = dragTakeRef.current
+                  if (!d || d.id !== t.id) return
+                  const room = Math.max(0, total - (t.duration > 0 ? t.duration : 0))
+                  onMoveTake(t.id, Math.min(room, Math.max(0, timeAt(e.clientX) - d.grab)))
+                }}
+                onPointerUp={() => { dragTakeRef.current = null }}
+                onPointerCancel={() => { dragTakeRef.current = null }}
+                style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? pct(Math.min(t.duration, Math.max(0, total - t.start))) : `calc(100% - ${pct(t.start)})`, background: `${takeColor(ti)}B3`, border: `1.5px solid ${takeColor(ti)}`, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box', overflow: 'hidden', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+                <span style={{ color: '#fff', pointerEvents: 'none', fontSize: 11, fontWeight: 600, paddingLeft: 7 }}>{ti + 1}</span>
                 <button type="button" aria-label="Remove this voiceover part"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onRemoveTake(t.id) }}
@@ -534,7 +546,7 @@ function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveT
         </div>
         <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
           <span>Top bar: your clips</span>
-          <span>Bottom bar: your voiceover</span>
+          <span>Bottom bar: your voiceover (drag a block to move it)</span>
         </div>
       </div>
 
@@ -550,19 +562,20 @@ function EditorPreviewInner({ segments, takes, originalVol, onAddTake, onRemoveT
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, onAddTake, onRemoveTake }: {
+function EditorPreview({ segments, takes, originalVol, onAddTake, onRemoveTake, onMoveTake }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
+  onMoveTake: (id: string, start: number) => void
 }) {
   // Start fresh when the clips or trims change (voiceover changes keep the playhead where it is)
   const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|')
   return (
     <div className="ed-preview" style={{ background: 'var(--sand)', borderRadius: 20, padding: 20 }}>
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
-      <EditorPreviewInner key={key} segments={segments} takes={takes} originalVol={originalVol} onAddTake={onAddTake} onRemoveTake={onRemoveTake} />
+      <EditorPreviewInner key={key} segments={segments} takes={takes} originalVol={originalVol} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} />
     </div>
   )
 }
@@ -2450,6 +2463,8 @@ export default function DashboardPage() {
 
   const setTakeVolume = (id: string, volume: number) => setVoiceTakes((prev) => prev.map((t) => (t.id === id ? { ...t, volume } : t)))
 
+  const moveVoiceTake = (id: string, start: number) => setVoiceTakes((prev) => prev.map((t) => (t.id === id ? { ...t, start } : t)))
+
   const clearVoiceTakes = () => {
     voiceTakes.forEach((t) => forgetAsset(`v:${t.id}`))
     setVoiceTakes([])
@@ -4180,6 +4195,7 @@ export default function DashboardPage() {
                 originalVol={originalVol}
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
+                onMoveTake={moveVoiceTake}
               />
             </div>
           )}
@@ -4690,6 +4706,7 @@ export default function DashboardPage() {
                 originalVol={originalVol}
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
+                onMoveTake={moveVoiceTake}
               />
             </div>
           )}
