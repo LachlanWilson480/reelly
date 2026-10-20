@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import CheckoutModal from '@/components/CheckoutModal'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
@@ -380,7 +381,8 @@ export default function PlansPage() {
           onSuccess={() => {
             setCheckoutPlan(null)
             setSuccess(true)
-            setTimeout(() => router.push('/dashboard'), 1500)
+            // Ask Stripe for the final status so the plan is active straight away, then go to the dashboard
+            authFetch('/api/sync-subscription', { method: 'POST' }).catch(() => {}).finally(() => setTimeout(() => router.push('/dashboard'), 1500))
           }}
         />
       )}

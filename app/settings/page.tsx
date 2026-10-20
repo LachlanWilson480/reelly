@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import { authFetch } from '@/lib/authFetch'
 
 const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
@@ -173,9 +174,22 @@ export default function SettingsPage() {
         .maybeSingle()
 
       if (subRow) {
+        let status = subRow.status
+        let periodEnd = subRow.current_period_end
+        // Stripe's payment confirmation can arrive a moment late, so ask Stripe directly while the plan still shows as incomplete
+        if (status === 'incomplete') {
+          try {
+            const res = await authFetch('/api/sync-subscription', { method: 'POST' })
+            if (res.ok) {
+              const synced = await res.json()
+              status = synced.status || status
+              periodEnd = synced.current_period_end || periodEnd
+            }
+          } catch {}
+        }
         setSubPlan(subRow.plan)
-        setSubStatus(subRow.status)
-        setSubPeriodEnd(subRow.current_period_end)
+        setSubStatus(status)
+        setSubPeriodEnd(periodEnd)
       }
 
       setLoading(false)
