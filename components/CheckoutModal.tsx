@@ -1,5 +1,6 @@
 'use client'
 import { authFetch } from '@/lib/authFetch'
+import { CURRENCY_PRICES, type Currency } from '@/lib/pricing'
 
 import { useEffect, useRef, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
@@ -66,7 +67,7 @@ function PaymentForm({ onSuccess, onClose }: { onSuccess: () => void; onClose: (
   )
 }
 
-export default function CheckoutModal({ plan, planLabel, billingInterval, discountCode, discountPercent, onClose, onSuccess }: { plan: string; planLabel: string; billingInterval?: 'monthly' | 'yearly'; discountCode?: string; discountPercent?: number | null; onClose: () => void; onSuccess: () => void }) {
+export default function CheckoutModal({ plan, planLabel, currency = 'AUD', billingInterval, discountCode, discountPercent, onClose, onSuccess }: { plan: string; planLabel: string; currency?: Currency; billingInterval?: 'monthly' | 'yearly'; discountCode?: string; discountPercent?: number | null; onClose: () => void; onSuccess: () => void }) {
   const [clientSecret, setClientSecret] = useState('')
   const [error, setError] = useState('')
   const hasStarted = useRef(false)
@@ -122,12 +123,14 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
           </div>
           <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
             {(() => {
-              const base = planLabel === 'Pro'
-                ? (billingInterval === 'yearly' ? 57.50 : 69)
-                : (billingInterval === 'yearly' ? 29.17 : 35)
+              const cp = CURRENCY_PRICES[currency]
+              const isPro = planLabel === 'Pro'
+              const base = billingInterval === 'yearly'
+                ? Number(isPro ? cp.proPerMonth : cp.basicPerMonth)
+                : (isPro ? cp.pro : cp.basic)
               const final = discountPercent ? base * (1 - discountPercent / 100) : base
-              return `$${final.toFixed(2)}`
-            })()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>/mo</span>
+              return `${cp.symbol}${final.toFixed(2)}`
+            })()}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>/mo {currency}</span>
           </p>
         </div>
 

@@ -369,6 +369,7 @@ export default function PlansPage() {
         <CheckoutModal
           plan={checkoutPlan.id}
           planLabel={checkoutPlan.label}
+          currency={currency}
           billingInterval={billingInterval}
           discountCode={discountCode || undefined}
           discountPercent={discountPercent}
