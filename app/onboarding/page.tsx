@@ -5,6 +5,8 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import ComfortPicker from '@/components/ComfortPicker'
+import { withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
 const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
@@ -39,6 +41,7 @@ export default function OnboardingPage() {
   const [customerDescription, setCustomerDescription] = useState('')
   const [keySellingPoint, setKeySellingPoint] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
+  const [comfortLevel, setComfortLevel] = useState<ComfortLevel | null>(null)
   const [filmingStyles, setFilmingStyles] = useState<string[]>([])
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [locationType, setLocationType] = useState('fixed')
@@ -96,7 +99,7 @@ export default function OnboardingPage() {
       tone,
       target_audience: customerDescription,
       key_selling_point: keySellingPoint,
-      filming_comfort: [filmingStyles.length ? 'Preferred styles: ' + filmingStyles.join(', ') : '', filmingComfort].filter(Boolean).join(' | '),
+      filming_comfort: withComfort(comfortLevel, [filmingStyles.length ? 'Preferred styles: ' + filmingStyles.join(', ') : '', filmingComfort].filter(Boolean).join(' | ')),
       on_camera_people: onCameraPeople,
       location_type: locationType,
       website,
@@ -189,6 +192,8 @@ export default function OnboardingPage() {
                   <input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. London, Manchester" style={inputStyle} />
                 </div>
               </div>
+
+              <ComfortPicker value={comfortLevel} onChange={setComfortLevel} onDark />
             </div>
 
             {/* Optional section toggle */}

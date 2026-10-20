@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
+import { comfortRule } from '@/lib/filmingComfort'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -198,6 +199,8 @@ STRICT RULES:
 - Think: quick, authentic, done in under 2 minutes of filming`
       : ''
 
+    const comfortLine = comfortRule(profile.filming_comfort)
+
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
 
 BUSINESS:
@@ -219,7 +222,7 @@ RULES:
 - Camera must move or change in most steps - not a static talking head throughout
 - Common-sense observations fine to state directly. Specific technical/regulatory facts - hand off to owner to say in their own words
 - Never use emojis or em dashes anywhere in the output
-- Never use double quotes inside strings - use single quotes instead
+${comfortLine ? `- ${comfortLine}\n` : ''}- Never use double quotes inside strings - use single quotes instead
 ${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above - do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
 - Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 

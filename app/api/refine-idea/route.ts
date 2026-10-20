@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
+import { comfortRule } from '@/lib/filmingComfort'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -55,7 +56,7 @@ The business owner's instruction for how to change this idea: "${instruction}"
 
 Apply the same realism constraints as before: nothing that depends on a specific fictional customer/job happening live, no invented technical/regulatory facts (hand those off to the owner to explain themselves), 15-30 second video, filmable alone on a phone.
 
-Never use emojis or em dashes anywhere in the output.
+${comfortRule(profile.filming_comfort) ? `${comfortRule(profile.filming_comfort)}\n\n` : ''}Never use emojis or em dashes anywhere in the output.
 
 IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere inside any string value (use single quotes ' ' instead). This is critical for valid JSON output.
 Respond ONLY with valid JSON, no markdown, no code fences, in this exact structure:

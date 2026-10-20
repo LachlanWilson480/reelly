@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
+import { parseComfort, comfortRule } from '@/lib/filmingComfort'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -110,6 +111,11 @@ export async function POST(req: NextRequest) {
     const lengthInstruction = LENGTH_GUIDANCE[lengthKey]
     const styleInstruction = typeof style === 'string' && style.trim() ? style.trim() : 'natural and conversational'
 
+    const comfortLevel = parseComfort(profile?.filming_comfort).level
+    const spokenRule = comfortLevel === 'low'
+      ? '- The owner will NOT speak or show their face in this video. Write the script as short on-screen text captions, one caption per line, separated by a line break written as \\n - no spoken-word phrasing, no timestamps, no camera directions.'
+      : "- Write ONLY the spoken words, as one flowing piece of text - no timestamps, no camera directions, no step numbers, no stage directions in brackets." + (comfortLevel === 'medium' ? ' The owner will not be seen on camera, so write it as a voiceover over hands-on footage, never as someone talking straight to the camera.' : '')
+
     const businessContext = profile
       ? `Business context (use only where genuinely relevant, don't force it in): ${profile.business_name || 'a small business'}, a ${profile.industry || 'business'}${profile.suburb ? ` in ${profile.suburb}` : ''}. Tone: ${profile.tone || 'not specified'}.`
       : ''
@@ -121,7 +127,7 @@ ${businessContext}
 Requirements:
 - Style/tone: ${styleInstruction}
 - Length: ${lengthInstruction}
-- Write ONLY the spoken words, as one flowing piece of text - no timestamps, no camera directions, no step numbers, no stage directions in brackets.
+${spokenRule}
 - It must sound like a real person talking out loud (contractions, natural phrasing) - never like a formal ad or a written essay.
 - Give it a clear structure: a strong opening line that hooks attention in the first sentence, a middle that delivers on the topic, and a closing line with a natural call-to-action or takeaway.
 - Never invent specific technical, medical, legal, or safety claims - keep any expert-specific claims general or hand them off conversationally (e.g. "ask your provider about...").

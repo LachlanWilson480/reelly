@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
+import { comfortRule } from '@/lib/filmingComfort'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -441,6 +442,7 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
       : 'Camera: films ALONE on phone - every idea must work with ONE person on screen, no one else'
 
     const profileBrief = compressProfile(profile)
+    const comfortLine = comfortRule(profile.filming_comfort)
 
     const prompt = weeklyObjectives?.trim()
       ? `You are a social media content assistant. Generate exactly ${batchSize} short-form social video ideas as a JSON array.
@@ -451,7 +453,7 @@ Create ideas that directly fulfil this instruction, tailored to this account:
 - Business: ${profile.business_name || ''} (${profile.industry || ''})
 - Location: ${profile.suburb || ''}, ${profile.country || ''}
 - Tone: ${profile.tone || 'authentic, relatable'}
-- Services: ${profile.core_services || ''}
+- Services: ${profile.core_services || ''}${comfortLine ? `\n- ${comfortLine}` : ''}
 
 Return exactly ${batchSize} ideas. Each must have: title (catchy), hook (1 sentence), description (1-2 sentences), tags (3-5 hashtags). Do not add advice or commentary - just the ideas.`
       : `Generate exactly ${batchSize} short-form social video ideas. Return all ${batchSize} as one JSON array.
@@ -474,7 +476,7 @@ HOW TO USE THE BRIEF:
 - Website/Instagram/TikTok → ignore for idea generation (not relevant)
 
 HARD RULES:
-- Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
+${comfortLine ? `- ${comfortLine}\n` : ''}- Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
 - Never use emojis or em dashes anywhere in the output
 - Never state specific technical facts or diagnoses yourself - set up the topic and let the owner explain in their own words
 - 15-30 sec per video, one take, phone, no extra setup beyond normal workspace

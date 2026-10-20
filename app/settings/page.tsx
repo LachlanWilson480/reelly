@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { authFetch } from '@/lib/authFetch'
+import ComfortPicker from '@/components/ComfortPicker'
+import { parseComfort, withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
 const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
@@ -56,6 +58,7 @@ export default function SettingsPage() {
   const [targetAudience, setTargetAudience] = useState('')
   const [coreServices, setCoreServices] = useState('')
   const [filmingComfort, setFilmingComfort] = useState('')
+  const [comfortLevel, setComfortLevel] = useState<ComfortLevel | null>(null)
   const [locationType, setLocationType] = useState('fixed')
   const [onCameraPeople, setOnCameraPeople] = useState('')
   const [videoPeopleCount, setVideoPeopleCount] = useState(1)
@@ -132,7 +135,9 @@ export default function SettingsPage() {
         setTone(data.tone || '')
         setTargetAudience(data.target_audience || '')
         setCoreServices(data.core_services || '')
-        setFilmingComfort(data.filming_comfort || '')
+        const parsedComfort = parseComfort(data.filming_comfort)
+        setComfortLevel(parsedComfort.level)
+        setFilmingComfort(parsedComfort.rest)
         setLocationType(data.location_type || 'fixed')
         setOnCameraPeople(data.on_camera_people || '')
         setVideoPeopleCount(data.video_people_count ?? 1)
@@ -281,7 +286,7 @@ export default function SettingsPage() {
         tone,
         target_audience: targetAudience,
         core_services: coreServices,
-        filming_comfort: filmingComfort,
+        filming_comfort: withComfort(comfortLevel, filmingComfort),
         location_type: locationType,
         on_camera_people: onCameraPeople,
         video_people_count: videoPeopleCount,
@@ -508,7 +513,8 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
-            <Field label="Filming comfort level" value={filmingComfort} onChange={setFilmingComfort} />
+            <ComfortPicker value={comfortLevel} onChange={setComfortLevel} />
+            <Field label="Filming notes and preferred styles" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
 
             <div style={{ marginBottom: 20 }}>
