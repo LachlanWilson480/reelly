@@ -1,14 +1,9 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+const TABS = ['overview', 'ideas', 'myideas', 'filming', 'film', 'script', 'uploads', 'aiuploads', 'carousel', 'scheduler']
 
-export default function DashboardRedirect() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace('/dashboard/overview')
-  }, [router])
-
-  return null
+export default async function DashboardIndex({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
+  const { tab } = await searchParams
+  const t = Array.isArray(tab) ? tab[0] : tab
+  redirect(`/dashboard/${t && TABS.includes(t) ? t : 'overview'}`)
 }

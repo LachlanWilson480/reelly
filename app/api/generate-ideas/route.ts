@@ -337,6 +337,7 @@ export async function POST(req: NextRequest) {
 
     // Weekly usage enforcement
     let usageInfo: { used: number; limit: number } | null = null
+    let commitUsage: ((n: number) => Promise<void>) | null = null
     if (userId) {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
@@ -352,21 +353,26 @@ export async function POST(req: NextRequest) {
       const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
 
       if (currentCount + batchSize > weeklyLimit) {
-        const planLabel = plan === 'top' ? 'Premium' : plan === 'mid' ? 'Pro' : 'Basic'
+        const planLabel = plan === 'free' ? 'Free' : plan === 'top' ? 'Pro' : 'Basic'
         return NextResponse.json(
           { error: `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
           { status: 403 }
         )
       }
 
-      await supabaseAdmin
-        .from('business_profiles')
-        .update({
-          ideas_generated_this_week: currentCount + batchSize,
-          usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
-        })
-        .eq('user_id', userId)
-      usageInfo = { used: currentCount + batchSize, limit: weeklyLimit }
+      // The weekly count only goes up once ideas have actually been delivered, so a failed or
+      // blocked generation does not use up the user's allowance.
+      usageInfo = { used: currentCount, limit: weeklyLimit }
+      commitUsage = async (n: number) => {
+        await supabaseAdmin
+          .from('business_profiles')
+          .update({
+            ideas_generated_this_week: currentCount + n,
+            usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
+          })
+          .eq('user_id', userId)
+        usageInfo = { used: currentCount + n, limit: weeklyLimit }
+      }
     }
 
     const effectiveCustomization = (plan === 'mid' || plan === 'top') ? customization : null
@@ -514,6 +520,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }
 
+    if (commitUsage) await commitUsage(Math.min(safeIdeas.length, batchSize))
     return NextResponse.json({ ideas: cleanAiText(safeIdeas), plan, usage: usageInfo })
   } catch (error) {
     console.error('generate-ideas error:', error instanceof Error ? error.message : 'Unknown error')

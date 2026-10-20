@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: '/dashboard', missing: [{ type: 'query' as const, key: 'tab' }], destination: '/dashboard/overview', permanent: false },
+    ]
+  },
   async headers() {
     return [
       {

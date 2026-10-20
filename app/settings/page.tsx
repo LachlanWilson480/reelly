@@ -743,7 +743,7 @@ export default function SettingsPage() {
                     Free
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    You're on the Free plan (video rendering not included). <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View paid plans →</a>
+                    You're on the Free plan. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View paid plans →</a>
                   </p>
                 </>
               )}

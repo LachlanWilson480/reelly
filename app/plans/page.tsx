@@ -44,6 +44,11 @@ export default function PlansPage() {
     if (host.endsWith('.co.uk')) setCurrency('GBP')
     else if (host.endsWith('.com.au') || host.endsWith('localhost')) setCurrency('AUD')
     else setCurrency('USD')
+    // Where the visitor actually is wins over the domain they happened to open
+    fetch('/api/geo', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((g) => { if (g && (g.currency === 'AUD' || g.currency === 'USD' || g.currency === 'GBP')) setCurrency(g.currency) })
+      .catch(() => {})
   }, [])
 
   const prices = {

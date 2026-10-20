@@ -1464,7 +1464,7 @@ export default function DashboardPage() {
 
       setIdeas(newIdeas)
       setCurrentBatch(nextBatch)
-      setUserPlan(data.plan || "top")
+      setUserPlan(data.plan === 'free' ? 'basic' : (data.plan || "top"))
       if (data.usage) setUsageInfo(data.usage)
 
       // Show profile nudge only on first ever generation and only if profile is still sparse
@@ -3250,7 +3250,7 @@ export default function DashboardPage() {
               {usageInfo && (
                 <div style={{ background: usageInfo.used >= usageInfo.limit ? 'rgba(216,90,48,0.1)' : 'var(--sand)', border: usageInfo.used >= usageInfo.limit ? '1px solid var(--coral)' : 'none', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    {usageInfo.used} of {usageInfo.limit} ideas generated this week ({userPlan === 'top' ? 'Pro' : userPlan === 'mid' ? 'Basic' : 'Basic'} plan)
+                    {usageInfo.used} of {usageInfo.limit} ideas generated this week ({isFreeTier ? 'Free' : userPlan === 'top' ? 'Pro' : 'Basic'} plan)
                     {' · '}
                     <span style={{ color: 'var(--text-muted)' }}>
                       Resets {(() => {
