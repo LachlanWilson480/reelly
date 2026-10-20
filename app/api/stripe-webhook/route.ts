@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         // still active (or resubscribed) - cancel any pending deletion
         updateData.deletion_scheduled_at = null
         updateData.deletion_warning_sent = false
-      } else if (periodEndDate) {
+      } else if (periodEndDate && subscription.status !== 'incomplete' && subscription.status !== 'incomplete_expired') {
         // canceled / unpaid / expired - schedule deletion 60 days after period end
         const deletionDate = new Date(periodEndDate.getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000)
         updateData.deletion_scheduled_at = deletionDate.toISOString()
