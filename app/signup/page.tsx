@@ -89,7 +89,7 @@ export default function SignUpPage() {
     border: '1px solid rgba(255,255,255,0.2)',
     background: 'rgba(255,255,255,0.08)',
     fontSize: 14,
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Poppins', sans-serif",
     outline: 'none',
     boxSizing: 'border-box' as const,
     color: '#F1EFE8',
@@ -100,7 +100,7 @@ export default function SignUpPage() {
       style={{
         minHeight: '100vh',
         backgroundColor: 'var(--background)',
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Poppins', sans-serif",
         color: 'var(--ink)',
       }}
     >
@@ -119,7 +119,7 @@ export default function SignUpPage() {
           <Link
             href="/"
             style={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: "'Poppins', sans-serif",
               fontSize: 22,
               fontWeight: 600,
               color: 'var(--ink)',
@@ -170,7 +170,7 @@ export default function SignUpPage() {
           >
             <h1
               style={{
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
                 fontSize: 26,
                 fontWeight: 600,
                 color: '#F1EFE8',
@@ -307,7 +307,7 @@ export default function SignUpPage() {
                   color: '#fff',
                   fontSize: 15,
                   fontWeight: 600,
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: "'Poppins', sans-serif",
                   cursor: isSigningUp ? 'wait' : !agreedToTerms ? 'not-allowed' : 'pointer',
                   opacity: isSigningUp || !agreedToTerms ? 0.7 : 1,
                   transition: 'opacity 0.15s ease',
@@ -320,7 +320,7 @@ export default function SignUpPage() {
             {message === 'check-email' ? (
               <div style={{ padding: '8px 0' }}>
                 
-                <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#F1EFE8', textAlign: 'center' }}>Check your email</h2>
+                <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#F1EFE8', textAlign: 'center' }}>Check your email</h2>
                 <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
                   We sent a 6-digit code to <strong>{email}</strong>
                 </p>
@@ -357,7 +357,7 @@ export default function SignUpPage() {
                         const next = document.getElementById(`otp-${Math.min(pasted.length, 5)}`)
                         if (next) (next as HTMLInputElement).focus()
                       }}
-                      style={{ width: 44, height: 56, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 24, fontFamily: "'Inter', sans-serif", outline: 'none', color: '#F1EFE8', textAlign: 'center', fontWeight: 700 }}
+                      style={{ width: 44, height: 56, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 24, fontFamily: "'Poppins', sans-serif", outline: 'none', color: '#F1EFE8', textAlign: 'center', fontWeight: 700 }}
                     />
                   ))}
                 </div>
@@ -374,7 +374,7 @@ export default function SignUpPage() {
                     }
                   }}
                   disabled={otp.length !== 6 || verifying}
-                  style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
+                  style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
                 >
                   {verifying ? 'Verifying...' : 'Confirm account'}
                 </button>

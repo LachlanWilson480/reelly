@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 
-const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
+const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
-const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
+const sectionTitle = { fontFamily: "'Poppins', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -413,10 +413,10 @@ export default function SettingsPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '48px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 24 }}>
+        <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 24 }}>
           Settings
         </h1>
 
@@ -434,7 +434,7 @@ export default function SettingsPage() {
                 fontWeight: section === s ? 600 : 500,
                 color: section === s ? 'var(--ink)' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
                 textTransform: 'capitalize',
               }}
             >
@@ -487,7 +487,7 @@ export default function SettingsPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setLocationType(opt.value)}
-                    style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(216,90,48,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                    style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
                   >
                     {opt.label}
                   </button>
@@ -516,7 +516,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
+              style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
             >
               {showOptional ? '− Hide additional details' : '+ Show more details (improves your idea and filming generations)'}
             </button>
@@ -589,7 +589,7 @@ export default function SettingsPage() {
         {section === 'account' && (
           <div>
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
                 Email
               </h3>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 14 }}>{email}</p>
@@ -611,7 +611,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
               <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -641,7 +641,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
                 Export your data
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
@@ -655,8 +655,8 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div style={{ background: 'rgba(216,90,48,0.08)', border: '1px solid rgba(216,90,48,0.3)', borderRadius: 16, padding: '24px' }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
+            <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 16, padding: '24px' }}>
+              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
                 Delete account
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
@@ -720,12 +720,12 @@ export default function SettingsPage() {
         {section === 'billing' && (
           <div>
             <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
                 Current Plan
               </h3>
               {subPlan ? (
                 <>
-                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginTop: 8, marginBottom: 4 }}>
                     {subPlan === 'top' ? 'Pro' : subPlan === 'mid' ? 'Basic' : 'Basic'}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
@@ -739,7 +739,7 @@ export default function SettingsPage() {
                 </>
               ) : (
                 <>
-                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginTop: 8, marginBottom: 4 }}>
                     Free
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -752,7 +752,7 @@ export default function SettingsPage() {
             {subPlan && subStatus === 'active' && (
               <>
                 <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                  <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     Cancel Subscription
                   </h3>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
@@ -761,7 +761,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleCancelSubscription}
                     disabled={subCancelling}
-                    style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(216,90,48,0.4)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subCancelling ? 'not-allowed' : 'pointer', opacity: subCancelling ? 0.6 : 1 }}
+                    style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(255,106,77,0.4)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subCancelling ? 'not-allowed' : 'pointer', opacity: subCancelling ? 0.6 : 1 }}
                   >
                     {subCancelling ? 'Cancelling...' : 'Cancel subscription'}
                   </button>

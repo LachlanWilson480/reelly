@@ -139,7 +139,7 @@ export default function PlansPage() {
 
   if (userPlan && userPlan !== 'free' && subDetails) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
         <Sidebar />
         <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
           <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
@@ -147,7 +147,7 @@ export default function PlansPage() {
             <button onClick={openPortal} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
           </nav>
           <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
-            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
+            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32 }}>
               {subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
             </p>
@@ -209,7 +209,7 @@ export default function PlansPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
@@ -227,7 +227,7 @@ export default function PlansPage() {
         </nav>
 
         <div style={{ padding: '32px 48px 64px', maxWidth: 1000, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
+          <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
             Plans built for how often you post
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
@@ -284,10 +284,10 @@ export default function PlansPage() {
                   border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)',
                 }}
               >
-                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
                   {tier.name}
                 </h3>
-                <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
                   {discountPercent ? (
                     <>
                       <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 24 }}>{billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}</span>
@@ -347,7 +347,7 @@ export default function PlansPage() {
                 onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
                 placeholder="Have a code?"
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
                 onClick={applyDiscount}

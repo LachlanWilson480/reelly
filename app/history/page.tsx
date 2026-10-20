@@ -101,11 +101,11 @@ export default function HistoryPage() {
     new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ padding: '24px 48px' }}>
-          <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 22, fontWeight: 600 }}>
+          <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600 }}>
             History
           </span>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Scripts generated are shown at the bottom of the page.</p>
@@ -114,7 +114,7 @@ export default function HistoryPage() {
         <div style={{ padding: '0 48px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'flex-start' }}>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Ideas Generated ({ideas.length})
             </h2>
             {ideas.length === 0 && (
@@ -152,7 +152,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Filming Instructions ({filmingItems.length})
             </h2>
             {filmingItems.length === 0 && (
@@ -190,7 +190,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Renders ({renders.length})
             </h2>
             {renders.length === 0 && (
@@ -262,7 +262,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Scripts ({scripts.length})
             </h2>
             {scripts.length === 0 && (

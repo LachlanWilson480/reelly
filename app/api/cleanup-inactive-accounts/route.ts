@@ -37,7 +37,7 @@ function buildDeletionWarningEmail(deletionDate: string) {
                 this date and everything will stay exactly as you left it.
               </p>
               <a href="${process.env.NEXT_PUBLIC_SITE_URL}/plans"
-                 style="display:inline-block;background-color:#D85A30;color:#FAEEDA;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:bold;">
+                 style="display:inline-block;background-color:#FF6A4D;color:#FAEEDA;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:bold;">
                 Resubscribe
               </a>
             </td>

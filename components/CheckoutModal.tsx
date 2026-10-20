@@ -109,7 +109,7 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
         onClick={(e) => e.stopPropagation()}
         style={{ background: 'var(--card-bg)', borderRadius: 20, padding: '32px', maxWidth: 440, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
+        <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
           Subscribe to {planLabel}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
@@ -120,7 +120,7 @@ export default function CheckoutModal({ plan, planLabel, billingInterval, discou
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{planLabel} plan · {billingInterval === 'yearly' ? 'billed annually' : 'billed monthly'}</p>
             {discountCode && <p style={{ fontSize: 11, color: 'var(--coral)' }}>Discount applied</p>}
           </div>
-          <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
+          <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
             {(() => {
               const base = planLabel === 'Pro'
                 ? (billingInterval === 'yearly' ? 57.50 : 69)

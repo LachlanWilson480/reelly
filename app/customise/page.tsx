@@ -70,10 +70,10 @@ export default function CustomisePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '48px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
           Customise generation
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
@@ -83,7 +83,7 @@ export default function CustomisePage() {
         {plan === 'basic' ? (
           <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
             
-            <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
+            <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
               Custom guidance is a Pro plan feature
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
@@ -110,7 +110,7 @@ export default function CustomisePage() {
                 border: '1px solid rgba(128,128,128,0.25)',
                 background: 'var(--sand)',
                 fontSize: 14,
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
                 color: 'var(--ink)',
                 outline: 'none',
                 resize: 'vertical',

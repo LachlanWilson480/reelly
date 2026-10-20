@@ -113,11 +113,11 @@ function Folder({ id, title, count, noun, open, onToggle, children }: {
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
       >
         <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', color: 'var(--text-muted)' }}>›</span>
         <span style={{ flex: 1 }}>{title}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>{count} {noun}{count === 1 ? '' : 's'}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontFamily: "'Poppins', sans-serif" }}>{count} {noun}{count === 1 ? '' : 's'}</span>
       </button>
       {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>{children}</div>}
     </div>
@@ -224,13 +224,13 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       <div>
-        <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
+        <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your completed videos and carousels with suggested captions and hashtags.</p>
       </div>
 
       <div style={{ background: 'var(--sand)', borderRadius: 14, padding: '20px 24px', border: '1px solid rgba(128,128,128,0.12)' }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(216,90,48,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,106,77,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="var(--coral)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4" x2="7" y2="7.5"/><circle cx="7" cy="9.5" r="0.5" fill="var(--coral)"/></svg>
           </div>
           <div>

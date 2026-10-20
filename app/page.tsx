@@ -104,7 +104,7 @@ export default function HomePage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 0 }}>
 
@@ -118,7 +118,7 @@ export default function HomePage() {
 
         <section className="hero-section" style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, margin: '8px 64px 0', padding: '80px 64px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 64, alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 24 }}>
-            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 50, fontWeight: 600, color: '#F1EFE8', maxWidth: 520, lineHeight: 1.1, letterSpacing: -0.5, margin: 0 }}>
+            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 50, fontWeight: 600, color: '#F1EFE8', maxWidth: 520, lineHeight: 1.1, letterSpacing: -0.5, margin: 0 }}>
               Content ideas, filmed and posted in minutes.
             </h1>
             <p className="hero-subtext" style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
@@ -191,7 +191,7 @@ export default function HomePage() {
 @keyframes hpPulse { 50% { opacity: .25; } }
 @keyframes hpBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .hp-ideas { padding: 54px 14px 14px; display: flex; flex-direction: column; gap: 9px; }
-.hp-title { font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 18px; margin: 0 0 4px; color: #F1EFE8; }
+.hp-title { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 18px; margin: 0 0 4px; color: #F1EFE8; }
 .hp-idea { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #26232f; border-radius: 13px; padding: 12px; animation: hpUp .45s ease both; }
 .hp-idea-t { font-size: 13px; font-weight: 600; line-height: 1.3; color: #F1EFE8; margin: 0; }
 .hp-idea-h { font-size: 11px; margin: 4px 0 0; color: #ff8a63; }
@@ -212,7 +212,7 @@ export default function HomePage() {
 .hp-shutter { position: absolute; left: 50%; bottom: 20px; margin-left: -26px; width: 52px; height: 52px; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; }
 .hp-shutter span { width: 22px; height: 22px; border-radius: 6px; background: #ff3b30; }
 .hp-done { position: absolute; top: 44px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #0c2a20; background: #3ecf9b; padding: 5px 12px; border-radius: 20px; white-space: nowrap; }
-.hp-caption { position: absolute; left: 16px; right: 16px; bottom: 108px; text-align: center; font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 20px; line-height: 1.15; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.hp-caption { position: absolute; left: 16px; right: 16px; bottom: 108px; text-align: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 20px; line-height: 1.15; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
 .hp-caption b { color: #ffb36b; font-weight: 600; }
 .hp-chips { position: absolute; left: 0; right: 0; bottom: 52px; display: flex; justify-content: center; gap: 5px; }
 .hp-chips span { font-size: 10px; font-weight: 600; color: #fff; background: rgba(8,6,24,.55); padding: 4px 9px; border-radius: 20px; }
@@ -227,13 +227,13 @@ export default function HomePage() {
 
         <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>How it works</h2>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>How it works</h2>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>From setup to your first posted video in under an hour.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
               {steps.map((s, i) => (
                 <div key={s.title} style={{ padding: '28px 24px', background: 'var(--sand)', borderRadius: 14, border: '1px solid rgba(128,128,128,0.1)' }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--coral)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>{i + 1}</div>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{s.title}</h3>
+                  <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{s.title}</h3>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{s.desc}</p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {s.points.map((pt) => (
@@ -250,7 +250,7 @@ export default function HomePage() {
 
         <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>Everything you need to post consistently</h2>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>Everything you need to post consistently</h2>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>Built so you can go from idea to scheduled post without opening a single other app.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
               {[
@@ -260,7 +260,7 @@ export default function HomePage() {
                 { title: 'Plan your week', desc: 'Stay consistent by:', points: ['Lining up ideas ahead of time', 'Filming steps ready to go', 'Never staring at a blank page'] },
               ].map((f) => (
                 <div key={f.title} style={{ background: 'var(--sand)', borderRadius: 14, padding: '28px 24px', border: '1px solid rgba(128,128,128,0.1)' }}>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{f.title}</h3>
+                  <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>{f.title}</h3>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>{f.desc}</p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {f.points.map((pt) => (
@@ -277,13 +277,13 @@ export default function HomePage() {
 
         <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 }}>Pricing</h2>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 8, textAlign: 'center', letterSpacing: -0.3 }}>Pricing</h2>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 44 }}>Pick the plan that fits how many reels you make. Prices are in {currency ?? 'AUD'}. Full details at checkout.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, maxWidth: 960, margin: '0 auto' }}>
               {pricing.map((tier) => (
                 <div key={tier.name} style={{ background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)', borderRadius: 14, padding: '32px 24px', border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)' }}>
-                  <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 16, fontWeight: 600, color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{tier.name}</h3>
-                  <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Outfit', sans-serif", color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{currency ? tier.price : '\u00a0'}<span style={{ fontSize: 14, fontWeight: 400 }}>{currency ? tier.period : ''}</span></p>
+                  <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{tier.name}</h3>
+                  <p style={{ fontSize: 28, fontWeight: 600, fontFamily: "'Poppins', sans-serif", color: tier.highlight ? '#F1EFE8' : 'var(--ink)', margin: '0 0 4px' }}>{currency ? tier.price : '\u00a0'}<span style={{ fontSize: 14, fontWeight: 400 }}>{currency ? tier.period : ''}</span></p>
                   <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, margin: '0 0 4px', color: tier.highlight ? '#B8B5AE' : 'var(--text-muted)', minHeight: 16 }}>{currency ?? ''}</p>
                   {tier.note && <p style={{ fontSize: 12, margin: '0 0 8px', color: tier.highlight ? '#B8B5AE' : 'var(--text-muted)' }}>{currency ? tier.note : ''}</p>}
                   <p style={{ fontSize: 14, color: tier.highlight ? '#B8B5AE' : 'var(--text-secondary)', marginBottom: 20 }}>{tier.desc}</p>
@@ -306,11 +306,11 @@ export default function HomePage() {
 
         <section style={{ padding: '48px 64px 0' }}>
           <div style={{ maxWidth: 640, margin: '0 auto' }}>
-            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 36, textAlign: 'center', letterSpacing: -0.3 }}>Common questions</h2>
+            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 36, textAlign: 'center', letterSpacing: -0.3 }}>Common questions</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {faqs.map((f, i) => (
                 <div key={f.q} style={{ background: 'var(--sand)', borderRadius: 10, border: '1px solid rgba(128,128,128,0.1)', overflow: 'hidden' }}>
-                  <button onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: '100%', textAlign: 'left', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 500, color: 'var(--ink)', gap: 12 }}>
+                  <button onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: '100%', textAlign: 'left', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Poppins', sans-serif", fontSize: 14, fontWeight: 500, color: 'var(--ink)', gap: 12 }}>
                     <span>{f.q}</span>
                     <span style={{ fontSize: 18, color: 'var(--coral)', flexShrink: 0, lineHeight: 1, fontWeight: 400 }}>{openFaq === i ? '−' : '+'}</span>
                   </button>
@@ -322,7 +322,7 @@ export default function HomePage() {
         </section>
 
         <section style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, margin: '96px 64px 0', padding: '60px 56px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 28, fontWeight: 600, color: '#F1EFE8', marginBottom: 10, letterSpacing: -0.3 }}>Start posting consistently</h2>
+          <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, color: '#F1EFE8', marginBottom: 10, letterSpacing: -0.3 }}>Start posting consistently</h2>
           <p style={{ fontSize: 15, color: '#B8B5AE', marginBottom: 28 }}>No credit card required.</p>
           <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '13px 32px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>Get started free</Link>
         </section>

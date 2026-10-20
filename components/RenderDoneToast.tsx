@@ -87,7 +87,7 @@ export default function RenderDoneToast() {
   if (!show) return null
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1a1a1a', border: '1px solid rgba(216,90,48,0.4)', borderRadius: 14, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: 320 }}>
+    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#1a1a1a', border: '1px solid rgba(255,106,77,0.4)', borderRadius: 14, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: 320 }}>
       <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 8px #22c55e' }} />
       <div style={{ flex: 1 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: '#F1EFE8', marginBottom: 2 }}>Your video is ready!</p>

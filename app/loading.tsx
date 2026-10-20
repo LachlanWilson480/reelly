@@ -10,7 +10,7 @@ export default function Loading() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "'Inter', Arial, Helvetica, sans-serif",
+        fontFamily: "'Poppins', Arial, Helvetica, sans-serif",
       }}
     >
       <div style={{ display: "flex", justifyContent: "center" }}><ReelezyLogo size={44} /></div>

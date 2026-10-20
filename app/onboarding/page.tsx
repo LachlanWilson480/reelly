@@ -6,9 +6,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
-const sectionTitle = { fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
+const sectionTitle = { fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -139,7 +139,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
         <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
           <ReelezyLogo size={44} />
@@ -151,7 +151,7 @@ export default function OnboardingPage() {
 
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
+            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
               Let&apos;s get you set up
             </h1>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ width: '100%', background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ width: '100%', background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span style={{ fontSize: 13, fontWeight: 600 }}>{showOptional ? '− Hide additional details' : '+ Add additional details'}</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>optional</span>
@@ -215,7 +215,7 @@ export default function OnboardingPage() {
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, marginTop: -4 }}>Select all that apply - filming instructions will be tailored to these</p>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {['Talking head', 'Behind the scenes', 'Walk & talk', 'B-roll only', 'Tutorial / how-to', 'Product showcase', 'Day in the life', 'Customer testimonial'].map((style) => (
-                      <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 8, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: filmingStyles.includes(style) ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                      <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 8, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: filmingStyles.includes(style) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
                         {style}
                       </button>
                     ))}
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
                   <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>How do you serve your customers?</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'online', label: 'Online store' }, { value: 'both', label: 'All of the above' }].map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(216,90,48,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                      <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
                         {opt.label}
                       </button>
                     ))}
@@ -286,7 +286,7 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={loading}
-              style={{ width: '100%', padding: '15px', borderRadius: 10, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "'Outfit', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              style={{ width: '100%', padding: '15px', borderRadius: 10, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? 'Setting up...' : 'Start generating ideas →'}
             </button>

@@ -83,7 +83,7 @@ export default function Sidebar() {
           }}
         >
           <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
-          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
+          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
         </button>
 
         {showDashboardTabs && (
@@ -100,7 +100,7 @@ export default function Sidebar() {
               textAlign: 'left',
               color: 'var(--ink)',
               fontSize: 13,
-              fontFamily: "'Inter', sans-serif",
+              fontFamily: "'Poppins', sans-serif",
               cursor: 'pointer',
               marginBottom: 8,
             }}
@@ -126,7 +126,7 @@ export default function Sidebar() {
                   color: currentTab === item.id ? 'var(--coral)' : 'var(--ink)',
                   fontWeight: currentTab === item.id ? 600 : 400,
                   fontSize: 13,
-                  fontFamily: "'Inter', sans-serif",
+                  fontFamily: "'Poppins', sans-serif",
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -148,7 +148,7 @@ export default function Sidebar() {
                     textDecoration: 'none',
                     color: 'var(--ink)',
                     fontSize: 13,
-                    fontFamily: "'Inter', sans-serif",
+                    fontFamily: "'Poppins', sans-serif",
                     whiteSpace: 'nowrap',
                     width: '100%',
                   }}
@@ -175,7 +175,7 @@ export default function Sidebar() {
               textDecoration: "none",
               color: "var(--ink)",
               fontSize: 13,
-              fontFamily: "'Inter', sans-serif",
+              fontFamily: "'Poppins', sans-serif",
               whiteSpace: "nowrap",
             }}
           >
