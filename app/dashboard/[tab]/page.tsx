@@ -3,6 +3,7 @@
 import React from 'react'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
+import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -121,6 +122,17 @@ const swapItems = <T,>(list: T[], i: number, j: number): T[] => {
   return n
 }
 const splitScriptLines = (s: string) => s.split(/\n+/).map((x) => x.trim()).filter(Boolean)
+// Pulls the quoted on-screen text out of a filming step, e.g. "On-screen text: 'Bring your colour samples'" gives ["Bring your colour samples"]
+const extractOnScreenText = (step: string): string[] => {
+  const found: string[] = []
+  const re = /text(?:\s+(?:appears|shows|reads|says))?\s*:?\s*['"\u2018\u201c](.+?)['"\u2019\u201d](?=\s*(?:$|[.,;!?]|\bthen\b|\band\b|\bwith\b|\bover\b))/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(step)) !== null) {
+    const t = m[1].trim()
+    if (t) found.push(t)
+  }
+  return found
+}
 const fmtClock = (s: number) => {
   const t = Math.max(0, Math.floor(s))
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
@@ -969,7 +981,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [filmLineIdx, setFilmLineIdx] = useState(0)
-  const [filmActions, setFilmActions] = useState<string[]>([])
+  const [filmActionsText, setFilmActionsText] = useState('')
   const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
   const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
@@ -979,6 +991,7 @@ export default function DashboardPage() {
   const [aiTrims, setAiTrims] = useState<Record<number, ClipTrimRange>>({})
   const [trimOpen, setTrimOpen] = useState<string | null>(null)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
+  const [uploadSlotTexts, setUploadSlotTexts] = useState<Record<number, string[]>>({})
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
@@ -1739,6 +1752,8 @@ export default function DashboardPage() {
   }, [tab])
 
   const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
+  const filmActions = splitScriptLines(filmActionsText)
+  const filmClipCount = Math.max(filmLines.length, filmActions.length)
   const filmCurrentLine = filmLines[filmLineIdx] || ''
   const filmCurrentAction = filmActions[filmLineIdx] || ''
 
@@ -1796,15 +1811,17 @@ export default function DashboardPage() {
     const fromSteps = (item.checklist || [])
       .map((st: string) => st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '').replace(/[,;.]?\s*(?:and\s+)?say:.*$/i, '').trim())
       .filter(Boolean)
-    const source = dirs.length > 0 ? dirs : fromSteps
-    if (source.length === 0 || lineCount === 0) return []
-    return Array.from({ length: lineCount }, (_, i) => source[Math.min(source.length - 1, Math.floor((i * source.length) / lineCount))])
+    const hasOnScreen = fromSteps.some((s: string) => /on-?screen text/i.test(s))
+    const source = hasOnScreen ? fromSteps : dirs.length > 0 ? dirs : fromSteps
+    if (source.length === 0) return []
+    const count = lineCount > 0 ? lineCount : source.length
+    return Array.from({ length: count }, (_, i) => source[Math.min(source.length - 1, Math.floor((i * source.length) / count))])
   }
 
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = []) => {
     setFilmSelectedId(id)
     setFilmScript(lines.join('\n'))
-    setFilmActions(actions)
+    setFilmActionsText(actions.join('\n'))
     setFilmLineIdx(0)
     filmClips.forEach((cl) => URL.revokeObjectURL(cl.url))
     setFilmClips([])
@@ -1815,7 +1832,7 @@ export default function DashboardPage() {
   }
 
   const startFilmRecording = async () => {
-    if (!filmStreamRef.current || !filmCurrentLine) return
+    if (!filmStreamRef.current || filmClipCount === 0) return
     setFilmCountdown(3)
     await new Promise(r => setTimeout(r, 1000))
     setFilmCountdown(2)
@@ -2104,6 +2121,16 @@ export default function DashboardPage() {
       setUploadSlots(slots)
       setUploadSlotFiles(filesMap)
       setUploadSlotPaths(pathsMap)
+      const filmActionLines = splitScriptLines(filmActionsText)
+      const filmScriptLines = splitScriptLines(filmScript)
+      const lowComfort = parseComfort(profile?.filming_comfort).level === 'low'
+      const slotTexts: Record<number, string[]> = {}
+      results.forEach((_, i) => {
+        const fromAction = extractOnScreenText(filmActionLines[i] || '')
+        const use = fromAction.length > 0 ? fromAction : lowComfort && filmScriptLines[i] ? [filmScriptLines[i]] : []
+        if (use.length > 0) slotTexts[i] = use
+      })
+      setUploadSlotTexts(slotTexts)
       setUploadSpeechSlots(new Set(slots))
       const wideSlots = new Set<number>()
       if (filmOrientationRef.current === 'portrait') {
@@ -2145,7 +2172,7 @@ export default function DashboardPage() {
     }
     const clips = [...filmClips, clip]
     setFilmClips(clips)
-    if (filmLineIdx + 1 < filmLines.length) {
+    if (filmLineIdx + 1 < filmClipCount) {
       setFilmLineIdx(filmLineIdx + 1)
     } else {
       setFilmPlayIdx(0)
@@ -2572,13 +2599,8 @@ export default function DashboardPage() {
     next[j] = filmClips[i]
     setFilmClips(next)
     const ls = splitScriptLines(filmScript)
-    if (i < ls.length && j < ls.length) {
-      const swapped = ls.slice()
-      swapped[i] = ls[j]
-      swapped[j] = ls[i]
-      setFilmScript(swapped.join('\n'))
-      setFilmActions((prev) => swapItems(prev, i, j))
-    }
+    if (i < ls.length && j < ls.length) setFilmScript(swapItems(ls, i, j).join('\n'))
+    setFilmActionsText((prev) => swapItems(splitScriptLines(prev), i, j).join('\n'))
     setFilmPlayIdx(j)
   }
 
@@ -2613,6 +2635,7 @@ export default function DashboardPage() {
       const speechIndices: number[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
       const clipSettings: { letterbox?: boolean }[] = []
+      const clipTexts: string[][] = []
       let anyLandscape = false
 
       // Upload all clips in parallel
@@ -2647,6 +2670,7 @@ export default function DashboardPage() {
         if (!result) continue
         clipPaths.push(result.path)
         if (aiSpeechSteps.has(result.stepIndex)) speechIndices.push(clipPaths.length - 1)
+        clipTexts.push(extractOnScreenText(filmingItems.find((f) => f.id === selectedFilmingId)?.checklist?.[result.stepIndex] || ''))
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
@@ -2709,6 +2733,7 @@ export default function DashboardPage() {
           speechClipIndices: speechIndices,
           clipTrims,
           clipSettings,
+          clipTexts,
           outputOrientation,
           resolution: aiResolution,
           
@@ -2750,6 +2775,7 @@ export default function DashboardPage() {
       const clipPaths: string[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
       const clipSettings: { letterbox?: boolean }[] = []
+      const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
       const isFilmRender = slotIds.every((id) => (uploadSlotPaths[id] || '').includes('/film/filmed-'))
@@ -2788,6 +2814,7 @@ export default function DashboardPage() {
         if (!result) continue
         clipPaths.push(result.path)
         if (uploadSpeechSlots.has(result.slotId)) speechIndices.push(clipPaths.length - 1)
+        clipTexts.push(isFilmRender ? (uploadSlotTexts[result.slotId] || []) : [])
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
@@ -2839,7 +2866,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -4366,9 +4393,17 @@ export default function DashboardPage() {
                     {filmingItems.length === 0 && savedScripts.length === 0 && dbSavedIdeas.length === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
-                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                    <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmActions([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Pick an idea above or type your own. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmLines.length} {filmLines.length === 1 ? 'clip' : 'clips'}, one per line</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
+                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Actions</p>
+                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
                   </div>
                   {!filmReview && (
                   <>
@@ -4401,9 +4436,9 @@ export default function DashboardPage() {
                     {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
-                    {filmLines.length > 0 && (
+                    {filmClipCount > 0 && (
                       <div style={{ position: 'absolute', bottom: filmCurrentAction && !filmPending ? 158 : 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
-                        Clip {Math.min(filmLineIdx + 1, filmLines.length)} of {filmLines.length}
+                        Clip {Math.min(filmLineIdx + 1, filmClipCount)} of {filmClipCount}
                       </div>
                     )}
                     {filmCurrentLine && !filmPending && (
@@ -4446,9 +4481,9 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={filmIsRecording ? stopFilmRecording : startFilmRecording}
-                        disabled={filmCountdown !== null || filmUploading || filmLines.length === 0}
+                        disabled={filmCountdown !== null || filmUploading || filmClipCount === 0}
                         aria-label={filmIsRecording ? 'Stop recording' : 'Start recording'}
-                        style={{ position: 'absolute', left: '50%', bottom: 18, marginLeft: -29, width: 58, height: 58, borderRadius: '50%', border: '3px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 3, cursor: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmLines.length === 0) ? 0.5 : 1 }}
+                        style={{ position: 'absolute', left: '50%', bottom: 18, marginLeft: -29, width: 58, height: 58, borderRadius: '50%', border: '3px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 3, cursor: (filmCountdown !== null || filmUploading || filmClipCount === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmClipCount === 0) ? 0.5 : 1 }}
                       >
                         <span style={{ width: filmIsRecording ? 22 : 40, height: filmIsRecording ? 22 : 40, borderRadius: filmIsRecording ? 6 : '50%', background: '#ff3b30', transition: 'all 0.15s ease' }} />
                       </button>
@@ -4470,7 +4505,7 @@ export default function DashboardPage() {
                     {filmPending ? (
                       <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
                         <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
-                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmLines.length ? '✓ Review video' : '✓ Save & next'}</button>
+                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmClipCount ? '✓ Review video' : '✓ Save & next'}</button>
                       </div>
                     ) : null}
                   </div>
@@ -4495,7 +4530,7 @@ export default function DashboardPage() {
                         {filmClips.map((cl, i) => (
                           <div key={cl.url} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: filmPlayIdx === i ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: filmPlayIdx === i ? '1px solid var(--coral)' : '1px solid transparent' }}>
                             <button type="button" onClick={() => setFilmPlayIdx(i)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{i + 1}</button>
-                            <p style={{ flex: 1, fontSize: 13, lineHeight: 1.4, margin: 0 }}>{filmLines[i] || `Clip ${i + 1}`}</p>
+                            <p style={{ flex: 1, fontSize: 13, lineHeight: 1.4, margin: 0 }}>{filmLines[i] || filmActions[i] || `Clip ${i + 1}`}</p>
                             <span style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                               <button type="button" aria-label="Move clip earlier" disabled={i === 0} onClick={() => moveFilmClip(i, -1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}>▲</button>
                               <button type="button" aria-label="Move clip later" disabled={i === filmClips.length - 1} onClick={() => moveFilmClip(i, 1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === filmClips.length - 1 ? 'default' : 'pointer', opacity: i === filmClips.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}>▼</button>

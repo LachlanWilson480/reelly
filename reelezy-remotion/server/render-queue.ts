@@ -9,6 +9,7 @@ import { transcribeVideo } from "./transcribe";
 import { correctTranscript } from "./correct-transcript";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
+import { addClipTexts } from "./clip-texts";
 
 type ClipInput = {
   src: string;
@@ -24,6 +25,7 @@ type ClipInput = {
   flipV?: boolean;
   filter?: string;
   transition?: string;
+  captionTexts?: string[];
 };
 
 type CaptionStyle = {
@@ -133,10 +135,20 @@ export const makeRenderQueue = ({
       let captionCleanup: (() => void) | null = null;
 
       // Step 4: transcribe + render captions (optional)
-      if (captionStyle && process.env.OPENAI_API_KEY) {
+      const hasClipTexts = readyClips.some((c) => c.captionTexts && c.captionTexts.length > 0);
+      if (captionStyle && (process.env.OPENAI_API_KEY || hasClipTexts)) {
         setProgress(jobId, 55, job.data, cancel);
         console.info(`[${jobId}] Step 4: transcribing audio`);
-        const words = await transcribeVideo(stitchedLocalPath);
+        let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
+        if (process.env.OPENAI_API_KEY) {
+          try {
+            words = await transcribeVideo(stitchedLocalPath);
+          } catch (err) {
+            // A silent video has nothing to transcribe, but its on-screen text still becomes captions
+            if (!hasClipTexts) throw err;
+            console.warn(`[${jobId}] Transcription skipped:`, err instanceof Error ? err.message : err);
+          }
+        }
         // Correct proper nouns using user profile
         let properNouns: string[] = [];
         if (userId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -146,7 +158,8 @@ export const makeRenderQueue = ({
             if (profile) properNouns = [profile.business_name, profile.suburb].filter(Boolean);
           } catch {}
         }
-        const correctedWords = correctTranscript(words, properNouns);
+        const spokenWords = correctTranscript(words, properNouns);
+        const correctedWords = hasClipTexts ? await addClipTexts(spokenWords, readyClips) : spokenWords;
         if (cancelled) throw new Error('Cancelled');
 
         setProgress(jobId, 70, job.data, cancel);

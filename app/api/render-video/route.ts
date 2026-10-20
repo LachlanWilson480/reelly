@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`ai:${userId}`, 5, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
     const trims: ClipTrim[] = Array.isArray(clipTrims) ? clipTrims : []
     const settings: ClipSetting[] = Array.isArray(clipSettings) ? clipSettings : []
 
+    const texts: unknown[] = Array.isArray(clipTexts) ? clipTexts : []
     const clips = signedUrls.map((src, i) => {
       const trim = trims[i] || {}
       const setting = settings[i] || {}
@@ -161,6 +162,7 @@ export async function POST(req: NextRequest) {
         letterbox: setting.letterbox,
         durationInSeconds,
         transition: Array.isArray(perClipTransitions) ? (perClipTransitions[i] || 'none') : 'none',
+        captionTexts: Array.isArray(texts[i]) ? (texts[i] as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
       }
     })
 

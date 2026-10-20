@@ -21,6 +21,7 @@ type IncomingClip = {
   flipV?: boolean;
   letterbox?: boolean;
   transition?: string;
+  captionTexts?: unknown;
 };
 
 function setupApp() {
@@ -95,6 +96,7 @@ function setupApp() {
           flipV: clip.flipV,
           letterbox: clip.letterbox,
           transition: clip.transition,
+          captionTexts: Array.isArray(clip.captionTexts) ? (clip.captionTexts as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
         };
       });
 
