@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   title: "Reelezy - Social Media Generator and Editor",
   description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
   keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media scheduler"],
+  manifest: "/manifest.json",
+  themeColor: "#ffffff",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Reelezy",
+  },
   openGraph: {
     title: "Reelezy - Social Media Generator and Editor",
     description: "AI-powered content ideas, filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
@@ -57,6 +64,8 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
 
       <body
