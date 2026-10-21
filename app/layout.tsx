@@ -1,6 +1,7 @@
 import RenderDoneToast from "@/components/RenderDoneToast"
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister"
 import { Analytics } from "@vercel/analytics/next"
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -14,12 +15,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#16151c",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.reelezy.com"),
+  applicationName: "Reelezy",
+  icons: { apple: "/icons/icon-192.png" },
   title: "Reelezy - Social Media Generator and Editor",
   description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
   keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media scheduler"],
-  manifest: "/manifest.json",
   themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
@@ -79,6 +85,7 @@ export default function RootLayout({
         {children}
       <RenderDoneToast />
       <Analytics />
+      <ServiceWorkerRegister />
       </body>
     </html>
   );
