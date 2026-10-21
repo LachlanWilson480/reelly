@@ -28,16 +28,21 @@ export async function POST(req: NextRequest) {
 
     const { data: renderRow } = await supabaseAdmin
       .from('renders')
-      .select('shotstack_render_id, user_id, notified, status, output_url, over_quota')
+      .select('shotstack_render_id, user_id, notified, status, output_url, over_quota, idea_id, title, source')
       .eq('id', renderId)
       .single()
 
     if (!renderRow) return NextResponse.json({ error: 'Render not found' }, { status: 404 })
     if (renderRow.user_id !== userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
+    const clearedIdeaId: string | null = renderRow.idea_id || null
+    const clearedScriptTitle: string | null = renderRow.source === 'script' ? (renderRow.title || null) : null
+
     // If already done or failed in DB, return cached result
     if (renderRow.status === 'done' || renderRow.status === 'failed') {
       return NextResponse.json({
+        clearedIdeaId: renderRow.status === 'done' ? clearedIdeaId : null,
+        clearedScriptTitle: renderRow.status === 'done' ? clearedScriptTitle : null,
         status: renderRow.status,
         outputUrl: resolveOutputUrl(renderRow.output_url, renderId, siteUrl),
         progress: renderRow.status === 'done' ? 100 : 0,
@@ -64,6 +69,17 @@ export async function POST(req: NextRequest) {
     if (rawOutputUrl) updateData.output_url = rawOutputUrl
     if (durationSeconds) updateData.duration_seconds = Math.round(durationSeconds)
     await supabaseAdmin.from('renders').update(updateData).eq('id', renderId)
+
+    // The video is ready (it now shows on the Publish page), so the idea and its filming instructions are finished with
+    if (status === 'done') {
+      if (clearedIdeaId) {
+        await supabaseAdmin.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('id', clearedIdeaId).eq('user_id', renderRow.user_id)
+      }
+      if (clearedScriptTitle) {
+        await supabaseAdmin.from('generated_scripts').update({ dismissed: true }).eq('user_id', renderRow.user_id).eq('topic', clearedScriptTitle)
+        await supabaseAdmin.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('user_id', renderRow.user_id).eq('source', 'script').eq('title', clearedScriptTitle)
+      }
+    }
 
     if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY)
@@ -93,7 +109,11 @@ export async function POST(req: NextRequest) {
     }
 
     const resolvedUrl = resolveOutputUrl(rawOutputUrl, renderId, siteUrl)
-    return NextResponse.json({ status, outputUrl: resolvedUrl, progress, error: renderError || null })
+    return NextResponse.json({
+      status, outputUrl: resolvedUrl, progress, error: renderError || null,
+      clearedIdeaId: status === 'done' ? clearedIdeaId : null,
+      clearedScriptTitle: status === 'done' ? clearedScriptTitle : null,
+    })
   } catch (error) {
     console.error('render-status error:', error)
     return NextResponse.json({ error: 'Failed to check render status' }, { status: 500 })

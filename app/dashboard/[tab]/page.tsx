@@ -1323,6 +1323,23 @@ export default function DashboardPage() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+  // A finished video means its idea and filming instructions are done with (the server has already updated the database)
+  const applyFilmCleared = (data: { clearedIdeaId?: string | null; clearedScriptTitle?: string | null }) => {
+    const id = data.clearedIdeaId
+    if (id) {
+      setDbSavedIdeas((prev) => prev.filter((i) => i.id !== id))
+      setSavedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+      setFilmingItems((prev) => prev.filter((f) => f.id !== id))
+      setSelectedIdeaIdsForFilming((prev) => prev.filter((x) => x !== id))
+    }
+    const topic = data.clearedScriptTitle
+    if (topic) {
+      setSavedScripts((prev) => prev.filter((sc) => sc.topic !== topic))
+      setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === topic)))
+      setFilmingItems((prev) => prev.filter((f) => !(f.source === 'script' && f.title === topic)))
+    }
+  }
+
   useEffect(() => {
     if (!renderId || renderStatus === 'done' || renderStatus === 'failed') return
 
@@ -1334,7 +1351,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setRenderStatus(data.status)
-      if (data.status === 'done') refreshStats()
+      if (data.status === 'done') { refreshStats(); applyFilmCleared(data) }
       if (data.overQuota) setRenderOverQuota(true)
       if (typeof data.progress === 'number') setRenderProgress(data.progress)
       if (data.error) setRenderError(data.error)
@@ -1355,7 +1372,7 @@ export default function DashboardPage() {
       })
       const data = await res.json()
       setAiRenderStatus(data.status)
-      if (data.status === 'done') refreshStats()
+      if (data.status === 'done') { refreshStats(); applyFilmCleared(data) }
       if (data.overQuota) setAiRenderOverQuota(true)
       if (typeof data.progress === 'number') setAiRenderProgress(data.progress)
       if (data.outputUrl) setAiOutputUrl(data.outputUrl)
@@ -2065,29 +2082,6 @@ export default function DashboardPage() {
   const musicFileUrl = musicFile ? previewUrlFor(musicFile) : null
   const previewMusicUrl = libraryMusicUrl || musicFileUrl
 
-  // Once an idea or script has been filmed it no longer belongs in My Ideas
-  const markFilmDone = async (idea: { id: string } | undefined, script: { id: string; topic: string } | undefined) => {
-    if (idea && !idea.id.startsWith('script-')) {
-      const id = idea.id
-      setDbSavedIdeas((prev) => prev.filter((i) => i.id !== id))
-      setSavedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
-      setFilmingItems((prev) => prev.filter((f) => f.id !== id))
-      setSelectedIdeaIdsForFilming((prev) => prev.filter((x) => x !== id))
-      await supabase.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('id', id)
-    }
-    if (script) {
-      const sid = script.id
-      const topic = script.topic
-      setDismissedScriptIds((prev) => new Set([...prev, sid]))
-      setSavedScripts((prev) => prev.filter((sc) => sc.id !== sid))
-      setSelectedIdeaIdsForFilming((prev) => prev.filter((x) => x !== `script-${sid}`))
-      setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === topic)))
-      setFilmingItems((prev) => prev.filter((f) => !(f.source === 'script' && f.title === topic)))
-      await supabase.from('generated_scripts').update({ dismissed: true }).eq('id', sid)
-      await supabase.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('user_id', userId).eq('source', 'script').eq('title', topic)
-    }
-  }
-
   const finishFilm = async (clips: { blob: Blob; ext: string; type: string; url: string }[], renderNow = true) => {
     setFilmUploading(true)
     try {
@@ -2140,7 +2134,6 @@ export default function DashboardPage() {
       setUploadLandscapeSlots(wideSlots)
       const scriptLinesDone = splitScriptLines(filmScript)
       if (scriptLinesDone.length > 0) setVoiceScript({ id: 'film', label: filmItem?.title || filmSavedIdea?.title || filmScriptRow?.topic || 'Your filmed script', lines: scriptLinesDone })
-      void markFilmDone(filmItem || filmSavedIdea, filmScriptRow)
       setFilmSelectedId(null)
       clips.forEach((cl) => URL.revokeObjectURL(cl.url))
       setFilmClips([])
@@ -3461,14 +3454,28 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                     No ideas saved yet. Star an idea in Content Ideas to see it here.
                   </p>
+                  <button
+                    onClick={() => router.push('/history')}
+                    style={{ marginTop: 14, background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  >
+                    View old ideas
+                  </button>
                 </div>
               ) : (
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Saved ideas</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 24 }}>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                      Review your selected ideas, then film them.
-                    </p>
+                    <div>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
+                        Review your selected ideas, then film them.
+                      </p>
+                      <button
+                        onClick={() => router.push('/history')}
+                        style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                      >
+                        View old ideas
+                      </button>
+                    </div>
                     <button
                       onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
