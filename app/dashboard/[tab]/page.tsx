@@ -1829,8 +1829,6 @@ export default function DashboardPage() {
     const script = item.script || ''
     const byLine = script.split(/\n+/).map(cleanFilmLine).filter(Boolean)
     if (byLine.length > 1) return byLine
-    const fromSteps = (item.checklist || []).map((st: string) => cleanFilmLine((st.match(/Say:\s*(.*)$/i) || [])[1] || '')).filter(Boolean)
-    if (fromSteps.length > 1) return fromSteps
     return splitFilmText(script)
   }
 
@@ -3879,7 +3877,7 @@ export default function DashboardPage() {
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => { selectFilmSource(`idea:${item.id}`, getFilmLines(item)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          onClick={() => { selectFilmSource(`idea:${item.id}`, getFilmLines(item), getFilmActions(item, getFilmLines(item).length)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                         >
                           Film & edit this
@@ -4400,7 +4398,7 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>My ideas</p>
                           {dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((idea) => (
                             <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, [idea.hook, ...splitFilmText(idea.description || '')].map(cleanFilmLine).filter(Boolean)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
+                              <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, []); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                             </label>
                           ))}
@@ -4432,8 +4430,11 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
+                    {filmSelectedId && filmLines.length === 0 && (
+                      <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea doesn&apos;t have a script. Please generate one or write your own.</p>
+                    )}
                     {filmSelectedId && filmActions.length === 0 && (
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>This idea has no actions yet. Generate its filming instructions to fill the Actions box, or type your own.</p>
+                      <p style={{ fontSize: 12, color: 'var(--coral)', margin: '4px 0 0' }}>This idea has no actions or filming instructions yet. Generate its filming instructions to fill the Actions box, or type your own.</p>
                     )}
                   </div>
                   {!filmReview && (
