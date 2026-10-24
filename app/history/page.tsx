@@ -13,6 +13,8 @@ type IdeaRow = {
   tags: string
   notes: string | null
   saved: boolean
+  filming_cleared?: boolean | null
+  source?: string | null
   checklist: string[] | null
   script: string | null
   caption: string | null
@@ -44,6 +46,7 @@ export default function HistoryPage() {
   const [ideas, setIdeas] = useState<IdeaRow[]>([])
   const [renders, setRenders] = useState<RenderRow[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [addingBackId, setAddingBackId] = useState<string | null>(null)
   const [scripts, setScripts] = useState<ScriptRow[]>([])
 
   useEffect(() => {
@@ -97,6 +100,40 @@ export default function HistoryPage() {
 
   const filmingItems = ideas.filter((i) => i.checklist && i.checklist.length > 0)
 
+  // An idea is back in My Ideas when it is saved and its filming instructions have not been cleared
+  const isInMyIdeas = (idea: IdeaRow) => idea.saved === true && !(idea.checklist && idea.checklist.length > 0 && idea.filming_cleared === true)
+
+  const addBackToMyIdeas = async (idea: IdeaRow) => {
+    setAddingBackId(idea.id)
+    const { error } = await supabase.from('generated_ideas').update({ saved: true, filming_cleared: false }).eq('id', idea.id)
+    if (error) {
+      setAddingBackId(null)
+      alert('Could not add this idea back. Please try again.')
+      return
+    }
+    if (idea.source === 'script') {
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData.user) await supabase.from('generated_scripts').update({ dismissed: false }).eq('user_id', userData.user.id).eq('topic', idea.title)
+    }
+    setIdeas((prev) => prev.map((i) => i.id === idea.id ? { ...i, saved: true, filming_cleared: false } : i))
+    setAddingBackId(null)
+  }
+
+  const renderAddBack = (idea: IdeaRow) => isInMyIdeas(idea) ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>In My Ideas</span>
+      <button onClick={() => router.push('/dashboard/myideas')} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600, color: 'var(--coral)', cursor: 'pointer' }}>View My Ideas</button>
+    </div>
+  ) : (
+    <button
+      onClick={() => addBackToMyIdeas(idea)}
+      disabled={addingBackId === idea.id}
+      style={{ marginTop: 12, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: addingBackId === idea.id ? 'not-allowed' : 'pointer', opacity: addingBackId === idea.id ? 0.7 : 1 }}
+    >
+      {addingBackId === idea.id ? 'Adding...' : 'Add back to my ideas'}
+    </button>
+  )
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -144,6 +181,7 @@ export default function HistoryPage() {
                       {idea.notes && (
                         <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8, fontStyle: 'italic' }}>Notes: {idea.notes}</p>
                       )}
+                      {renderAddBack(idea)}
                     </div>
                   )}
                 </div>
@@ -182,6 +220,7 @@ export default function HistoryPage() {
                           </li>
                         ))}
                       </ul>
+                      {renderAddBack(idea)}
                     </div>
                   )}
                 </div>
