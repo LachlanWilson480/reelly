@@ -2,7 +2,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
+import { applyRenderResult } from '@/lib/renderDone'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,47 +65,10 @@ export async function POST(req: NextRequest) {
     const { status, progress, outputUrl: rawOutputUrl, durationSeconds, error: renderError } = await pollRes.json()
     console.log(`[render-status] renderId=${renderId} status=${status} progress=${progress} outputUrl=${rawOutputUrl}`)
 
-    const updateData: Record<string, unknown> = { status }
-    if (rawOutputUrl) updateData.output_url = rawOutputUrl
-    if (durationSeconds) updateData.duration_seconds = Math.round(durationSeconds)
-    await supabaseAdmin.from('renders').update(updateData).eq('id', renderId)
-
-    // The video is ready (it now shows on the Publish page), so the idea and its filming instructions are finished with
-    if (status === 'done') {
-      if (clearedIdeaId) {
-        await supabaseAdmin.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('id', clearedIdeaId).eq('user_id', renderRow.user_id)
-      }
-      if (clearedScriptTitle) {
-        await supabaseAdmin.from('generated_scripts').update({ dismissed: true }).eq('user_id', renderRow.user_id).eq('topic', clearedScriptTitle)
-        await supabaseAdmin.from('generated_ideas').update({ saved: false, filming_cleared: true }).eq('user_id', renderRow.user_id).eq('source', 'script').eq('title', clearedScriptTitle)
-      }
-    }
-
-    if (status === 'done' && !renderRow.notified && process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(renderRow.user_id)
-      const { data: profile } = await supabaseAdmin
-        .from('business_profiles')
-        .select('notify_render_complete, business_name')
-        .eq('user_id', renderRow.user_id)
-        .maybeSingle()
-
-      const shouldNotify = profile?.notify_render_complete ?? true
-      const email = authUser?.user?.email
-
-      if (shouldNotify && email) {
-        await resend.emails.send({
-          from: 'Reelezy <noreply@reelezy.com>',
-          to: email,
-          subject: 'Your video is ready',
-          html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-            <h2 style="color: #2C2C2A;">Your video is ready, ${profile?.business_name || 'there'}!</h2>
-            <p style="color: #555;">Your latest render just finished. Log in to Reelezy to view and download it.</p>
-            <a href="${siteUrl}/dashboard" style="display: inline-block; background: #FF6A4D; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 16px;">View your video</a>
-          </div>`,
-        })
-      }
-      await supabaseAdmin.from('renders').update({ notified: true }).eq('id', renderId)
+    if (status === 'done' || status === 'failed') {
+      await applyRenderResult(renderId, { status, outputUrl: rawOutputUrl, durationSeconds })
+    } else {
+      await supabaseAdmin.from('renders').update({ status }).eq('id', renderId)
     }
 
     const resolvedUrl = resolveOutputUrl(rawOutputUrl, renderId, siteUrl)

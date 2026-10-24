@@ -50,6 +50,7 @@ type JobData = {
   watermark?: boolean;
   userId?: string;
   renderId?: string;
+  callbackUrl?: string;
 };
 
 type JobState =
@@ -57,6 +58,25 @@ type JobState =
   | { status: "in-progress"; progress: number; data: JobData; cancel: () => void }
   | { status: "completed"; videoUrl: string; durationSeconds: number; data: JobData }
   | { status: "failed"; error: string; data: JobData };
+
+// Tells the website the moment a render ends, so it is saved even if nobody has the app open
+const notifyCallback = async (data: JobData, payload: Record<string, unknown>) => {
+  if (!data.callbackUrl || !data.renderId || !process.env.RENDER_SERVER_SECRET) return;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fetch(data.callbackUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": process.env.RENDER_SERVER_SECRET },
+        body: JSON.stringify({ renderId: data.renderId, ...payload }),
+      });
+      if (res.ok) return;
+      console.warn(`Render callback attempt ${attempt} returned ${res.status}`);
+    } catch (err) {
+      console.warn(`Render callback attempt ${attempt} failed:`, err instanceof Error ? err.message : err);
+    }
+    await new Promise((r) => setTimeout(r, 2000 * attempt));
+  }
+};
 
 export const makeRenderQueue = ({
   port,
@@ -221,6 +241,7 @@ export const makeRenderQueue = ({
 
       jobs.set(jobId, { status: "completed", videoUrl: finalUrl, durationSeconds, data: job.data });
       console.info(`[${jobId}] Done: ${finalUrl}`);
+      void notifyCallback(job.data, { status: "done", outputUrl: finalUrl, durationSeconds });
 
     } catch (error) {
       console.error(`[${jobId}] Render failed:`, error);
@@ -229,6 +250,7 @@ export const makeRenderQueue = ({
         error: error instanceof Error ? error.message : String(error),
         data: job.data,
       });
+      void notifyCallback(job.data, { status: "failed", error: error instanceof Error ? error.message : String(error) });
     } finally {
       tmpCleanups.forEach(fn => fn());
     }

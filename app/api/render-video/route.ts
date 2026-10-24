@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const userId = authed.userId
 
-    const rl = await rateLimit(`ai:${userId}`, 5, 60000)
+    const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
@@ -116,19 +116,19 @@ export async function POST(req: NextRequest) {
 
     const signedUrls: string[] = []
     for (const p of clipPaths) {
-      const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(p, 3600)
+      const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(p, 21600)
       if (error || !data) return NextResponse.json({ error: 'Failed to sign clip URLs' }, { status: 500 })
       signedUrls.push(data.signedUrl)
     }
 
     const signedVoiceovers: { url: string; start: number; duration: number; volume: number }[] = []
     for (const v of voiceoverList) {
-      const { data: voData, error: voError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(v.path, 3600)
+      const { data: voData, error: voError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(v.path, 21600)
       if (!voError && voData) signedVoiceovers.push({ url: voData.signedUrl, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0), volume: (Number.isFinite(Number(v.volume)) ? Math.min(100, Math.max(0, Number(v.volume))) : 100) / 100 })
     }
     let musicUrl: string | null = directMusicUrl || null
     if (!musicUrl && musicPath) {
-      const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(musicPath, 3600)
+      const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(musicPath, 21600)
       if (!error && data) musicUrl = data.signedUrl
     }
 
@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
         userId,
         renderId: renderRow.id,
         watermark: plan === 'free',
+        callbackUrl: process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/render-callback` : undefined,
       }),
     })
 

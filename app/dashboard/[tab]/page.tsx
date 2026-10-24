@@ -15,6 +15,7 @@ import JSZip from 'jszip'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
+import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 type Profile = {
   business_name: string
   industry: string
@@ -967,6 +968,8 @@ export default function DashboardPage() {
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
   const [filmOrientation, setFilmOrientation] = useState<'portrait' | 'landscape'>('portrait')
+  const [filmMulti, setFilmMulti] = useState(false)
+  const [filmMultiBusy, setFilmMultiBusy] = useState(false)
   const filmOrientationRef = useRef<'portrait' | 'landscape'>('portrait')
   const filmOutputOrientationRef = useRef<'portrait' | 'landscape' | null>(null)
   const filmRenderContextRef = useRef<{ ideaId: string | null; source: string; title: string | null; caption: string | null; tags: string | null } | null>(null)
@@ -2097,6 +2100,27 @@ export default function DashboardPage() {
     const src = voiceScriptSources.find((s) => s.id === id)
     if (src) setVoiceScript(src)
   }
+  // Everything that can be filmed in the "Several videos" mode, with its lines, actions and on-screen text
+  const multiLowComfort = parseComfort(profile?.filming_comfort).level === 'low'
+  const buildMultiIdea = (key: string, title: string, ideaId: string | null, source: 'idea' | 'script', caption: string | null, tags: unknown, lines: string[], actions: string[]): MultiFilmIdea => ({
+    key, title, ideaId, source, caption, tags, lines, actions,
+    texts: Array.from({ length: Math.max(lines.length, actions.length) }, (_, i) => {
+      const fromAction = extractOnScreenText(actions[i] || '')
+      return fromAction.length > 0 ? fromAction : multiLowComfort && lines[i] ? [lines[i]] : []
+    }),
+  })
+  const multiFilmIdeas: MultiFilmIdea[] = [
+    ...filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((i) => {
+      const lines = getFilmLines(i)
+      return buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', i.caption || null, i.tags || null, lines, getFilmActions(i, lines.length))
+    }),
+    ...dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((i) => buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', null, i.tags || null, [], [])),
+    ...savedScripts.map((s) => {
+      const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic))
+      const lines = fi ? getFilmLines(fi) : splitFilmText(s.script)
+      return buildMultiIdea(`script-${s.id}`, s.topic, null, 'script', null, null, lines, fi ? getFilmActions(fi, lines.length) : [])
+    }),
+  ]
   const musicFileUrl = musicFile ? previewUrlFor(musicFile) : null
   const previewMusicUrl = libraryMusicUrl || musicFileUrl
 
@@ -4379,11 +4403,36 @@ export default function DashboardPage() {
 
                         {/* Film tab */}
               {tab === 'film' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmReview ? 'none' : 520, margin: filmReview ? '32px 0' : '32px auto', padding: filmReview ? 0 : '0 16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 640 : filmReview ? 'none' : 520, margin: filmReview && !filmMulti ? '32px 0' : '32px auto', padding: filmReview && !filmMulti ? 0 : '0 16px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.'}</p>
                   </div>
+                  <div role="group" aria-label="How many videos" style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 24, background: 'var(--sand)' }}>
+                    {([[false, 'One video'], [true, 'Several videos']] as const).map(([multi, name]) => {
+                      const locked = filmMultiBusy || filmIsRecording || filmRecorderOpen || filmClips.length > 0 || !!filmPending
+                      const active = filmMulti === multi
+                      return (
+                        <button key={name} type="button" aria-pressed={active} disabled={locked && !active} onClick={() => setFilmMulti(multi)} title={locked && !active ? 'Finish or clear your clips to switch' : undefined} style={{ flex: 1, padding: '9px 12px', borderRadius: 20, border: 'none', background: active ? 'var(--coral)' : 'transparent', color: active ? '#fff' : 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked && !active ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1, fontFamily: 'Inter, sans-serif' }}>{name}</button>
+                      )
+                    })}
+                  </div>
+                  {filmMulti && userId ? (
+                    <MultiFilm
+                      userId={userId}
+                      ideas={multiFilmIdeas}
+                      isFreeTier={isFreeTier}
+                      userPlan={userPlan}
+                      captionDefaults={{ preset: captionPreset, fontFamily: captionFontFamily, fontSize: Number(captionFontSize) || 36, color: captionColor, position: captionPosition, borderColor: captionBorderColor }}
+                      captionPresets={CAPTION_PRESETS}
+                      fontOptions={FONT_OPTIONS}
+                      renderBlocked={freeQuotaExceeded}
+                      gateRender={gateRenderAction}
+                      onCleared={applyFilmCleared}
+                      onBusy={setFilmMultiBusy}
+                    />
+                  ) : (
+                  <>
                   <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16 }}>
                     <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -4471,7 +4520,7 @@ export default function DashboardPage() {
                   </>
                   )}
                   {filmRecorderVisible && typeof document !== 'undefined' && createPortal(
-                    <div role="dialog" aria-label="Film your video" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0b0a10', display: 'flex', flexDirection: 'column', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <div role="dialog" aria-label="Film your video" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0a10', display: 'flex', flexDirection: 'column', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
                       <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}>✕</button>
@@ -4594,6 +4643,8 @@ export default function DashboardPage() {
                       </div>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               )}

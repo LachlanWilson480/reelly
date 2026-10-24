@@ -59,7 +59,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -136,6 +136,7 @@ function setupApp() {
         watermark: watermark === true,
         userId,
         renderId,
+        callbackUrl: typeof callbackUrl === 'string' && callbackUrl.startsWith('https://') ? callbackUrl : undefined,
       });
 
       res.json({ jobId });
