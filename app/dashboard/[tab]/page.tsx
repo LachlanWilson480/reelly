@@ -3096,7 +3096,7 @@ export default function DashboardPage() {
                     aria-label={`${s.label}: ${s.value}. Open the ${s.tab} tab`}
                     style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 12, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
                   >
-                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Poppins', sans-serif", color: '#F1EFE8', margin: 0, textDecoration: 'underline', textDecorationColor: 'rgba(241,239,232,0.35)', textUnderlineOffset: 4 }}>{s.value}</p>
+                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "'Poppins', sans-serif", color: '#F1EFE8', margin: 0 }}>{s.value}</p>
                     <p style={{ fontSize: 12, color: '#D3D1C7', margin: 0 }}>{s.label}</p>
                   </button>
                 ) : (
@@ -3123,7 +3123,7 @@ export default function DashboardPage() {
                 Create <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
               </button>
               {openDropdown === 'create' && (
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: createBtnRef.current?.getBoundingClientRect().left ?? 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(createBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
                   {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'script', label: 'Script Generator' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
                     <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
                       {item.label}{(item as {pro?: boolean}).pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)' }}>Pro</span> : ''}
@@ -3154,7 +3154,7 @@ export default function DashboardPage() {
                 Edit <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
               </button>
               {openDropdown === 'edit' && (
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: editBtnRef.current?.getBoundingClientRect().left ?? 0, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
                   {[{ id: 'aiuploads', label: 'AI Editor For Generated Idea' }, { id: 'uploads', label: 'AI Editor For Any Video' }].map((item) => (
                     <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 7, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
                       {item.label}

@@ -210,7 +210,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
   }
   const shortcuts = [
     { key: 'script', label: 'Scripts' },
-    { key: 'idea', label: 'Premade ideas' },
+    { key: 'idea', label: 'Generated ideas' },
     { key: 'reel', label: 'Image reels' },
   ]
 
@@ -271,7 +271,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
             ))}
       </Folder>
 
-      <Folder id="folder-idea" title="Premade ideas" count={ideaRenders.length} noun="video" open={isOpen('idea')} onToggle={() => toggleFolder('idea')}>
+      <Folder id="folder-idea" title="Generated ideas" count={ideaRenders.length} noun="video" open={isOpen('idea')} onToggle={() => toggleFolder('idea')}>
         {ideaRenders.length === 0
           ? emptyNote('No finished videos from your content ideas yet.')
           : ideaRenders.map((render) => (
