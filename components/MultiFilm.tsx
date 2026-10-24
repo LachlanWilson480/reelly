@@ -607,7 +607,7 @@ export default function MultiFilm(p: Props) {
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13, lineHeight: 1.4 }}>{i.title}</span>
                     <span style={{ display: 'block', fontSize: 11, color: disabled ? 'var(--coral)' : 'var(--text-muted)', marginTop: 2 }}>
-                      {disabled ? 'Needs a script or filming instructions first' : `${count} ${count === 1 ? 'clip' : 'clips'}`}
+                      {disabled ? 'Needs a script or filming instructions. Please generate one first.' : `${count} ${count === 1 ? 'clip' : 'clips'}`}
                     </span>
                   </span>
                 </label>
