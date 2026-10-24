@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { useEffect, useState, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -962,6 +963,7 @@ export default function DashboardPage() {
   const filmDeviceIdRef = useRef<string | null>(null)
   const [filmMirrored, setFilmMirrored] = useState(true)
   const [filmReview, setFilmReview] = useState(false)
+  const [filmRecorderOpen, setFilmRecorderOpen] = useState(false)
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
   const [filmOrientation, setFilmOrientation] = useState<'portrait' | 'landscape'>('portrait')
@@ -1754,9 +1756,12 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filmCameraActive])
 
+  // The camera and recorder only run while the full-screen recorder is showing
+  const filmRecorderVisible = tab === 'film' && filmRecorderOpen && !filmReview
+
   useEffect(() => {
-    filmWantedRef.current = tab === 'film'
-    if (tab === 'film') {
+    filmWantedRef.current = filmRecorderVisible
+    if (filmRecorderVisible) {
       startFilmCamera()
     } else {
       filmStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -1766,6 +1771,13 @@ export default function DashboardPage() {
       setFilmCameraError('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filmRecorderVisible])
+
+  // Leaving the Film tab closes the recorder, so coming back starts on the setup page
+  useEffect(() => {
+    if (tab === 'film') return
+    const t = setTimeout(() => setFilmRecorderOpen(false), 0)
+    return () => clearTimeout(t)
   }, [tab])
 
   const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
@@ -1836,6 +1848,7 @@ export default function DashboardPage() {
   }
 
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = []) => {
+    setFilmRecorderOpen(false)
     setFilmSelectedId(id)
     setFilmScript(lines.join('\n'))
     setFilmActionsText(actions.join('\n'))
@@ -1941,6 +1954,13 @@ export default function DashboardPage() {
     setFilmLineIdx(0)
     setFilmPlayIdx(0)
     setFilmReview(true)
+  }
+
+  const closeFilmRecorder = () => {
+    if (filmIsRecording || filmCountdown !== null) return
+    if (filmRedoIdx !== null) cancelFilmRedo()
+    else if (filmPending) redoFilmClip()
+    setFilmRecorderOpen(false)
   }
 
   const filmBezelStyle = {
@@ -2139,6 +2159,7 @@ export default function DashboardPage() {
       setFilmClips([])
       setFilmLineIdx(0)
       setFilmReview(false)
+      setFilmRecorderOpen(false)
       if (renderNow) setFilmAutoRender(true)
       setTab('uploads')
     } catch (err) {
@@ -4363,7 +4384,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmReview ? 'none' : 520, margin: filmReview ? '32px 0' : '32px auto', padding: filmReview ? 0 : '0 16px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Each line of your script is one clip. Film a line, redo it if you need to, then save and move on. After the last clip your video renders automatically.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.</p>
                   </div>
                   <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16 }}>
                     <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
@@ -4435,14 +4456,24 @@ export default function DashboardPage() {
                       )
                     })}
                   </div>
-                  {filmRedoIdx !== null && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,106,77,0.1)', border: '1px solid var(--coral)' }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Re-recording clip {filmRedoIdx + 1}</p>
-                      <button type="button" onClick={cancelFilmRedo} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to review</button>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => setFilmRecorderOpen(true)}
+                    disabled={filmClipCount === 0}
+                    style={{ padding: '15px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: filmClipCount === 0 ? 'not-allowed' : 'pointer', opacity: filmClipCount === 0 ? 0.5 : 1, boxShadow: filmClipCount === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'Inter, sans-serif' }}
+                  >
+                    {filmClips.length > 0 ? `Continue filming (clip ${Math.min(filmLineIdx + 1, filmClipCount)} of ${filmClipCount})` : 'Start filming'}
+                  </button>
+                  {filmClipCount === 0 && (
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>Choose an idea or add a script or actions to start filming.</p>
                   )}
-                  <div style={filmBezelStyle}>
-                  <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
+                  </>
+                  )}
+                  {filmRecorderVisible && typeof document !== 'undefined' && createPortal(
+                    <div role="dialog" aria-label="Film your video" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0b0a10', display: 'flex', flexDirection: 'column', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
+                      <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}>✕</button>
                     {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
@@ -4452,7 +4483,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmCurrentLine && !filmPending && (
-                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(8,6,24,0.62)', padding: filmOrientation === 'landscape' ? '12px 18px' : '46px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(8,6,24,0.62)', padding: filmOrientation === 'landscape' ? '12px 60px 12px 18px' : '46px 60px 14px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {filmLines[filmLineIdx - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx - 1]}</p>}
                         {filmIsRecording ? (
                           <div style={{ overflow: 'hidden' }}>
@@ -4502,24 +4533,26 @@ export default function DashboardPage() {
                       <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
                     )}
                   </div>
-                  {filmNotch}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{filmScrollSpeed}x</span>
                       </div>
-                      <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => setFilmScrollSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
-                    </div>
-                    {filmPending ? (
-                      <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                        <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
-                        <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmClipCount ? '✓ Review video' : '✓ Save & next'}</button>
+                      <div style={{ height: 84, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14, padding: '0 16px', background: '#0b0a10', color: '#fff' }}>
+                        {filmPending ? (
+                          <>
+                            <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : `Clip ${filmLineIdx + 1} of ${filmClipCount}`}</p>
+                            <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
+                            <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmClipCount ? '✓ Review video' : '✓ Save & next'}</button>
+                          </>
+                        ) : (
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : 'Scroll speed'}</span>
+                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{filmScrollSpeed}x</span>
+                            </div>
+                            <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => setFilmScrollSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
+                          </div>
+                        )}
                       </div>
-                    ) : null}
-                  </div>
-                  </>
+                    </div>,
+                    document.body
                   )}
                   {filmReview && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
