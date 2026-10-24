@@ -245,7 +245,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       {renders.length === 0 && carousels.length === 0 && (
         <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>No completed videos or carousels yet.</p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor, Editor For Any Video, or Carousel Reels to create content.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor For Generated Idea, AI Editor For Any Video, or Carousel Reels to create content.</p>
         </div>
       )}
 
