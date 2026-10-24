@@ -245,7 +245,7 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake, onReorderClip }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -255,6 +255,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
+  onReorderClip?: (from: number, to: number) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -273,6 +274,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const scriptBoxRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
   const dragTakeRef = useRef<{ id: string; grab: number } | null>(null)
+  const clipPressRef = useRef<{ from: number; to: number; startX: number; dragging: boolean } | null>(null)
+  const [clipDrag, setClipDrag] = useState<{ from: number; to: number } | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -504,6 +507,16 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     return Math.min(total, Math.max(0, ((clientX - r.left) / r.width) * total))
   }
 
+  const clipIndexAt = (clientX: number) => {
+    const t = timeAt(clientX)
+    let acc = 0
+    for (let i = 0; i < lengths.length; i++) {
+      acc += lengths[i]
+      if (t <= acc) return i
+    }
+    return Math.max(0, lengths.length - 1)
+  }
+
   const hasClips = segments.length > 0
 
   return (
@@ -564,10 +577,39 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           aria-valuemin={0}
           aria-valuemax={Math.round(total)}
           aria-valuenow={Math.round(globalTime)}
-          onPointerDown={(e) => { if (recording || total <= 0) return; draggingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekGlobal(timeAt(e.clientX), playing) }}
-          onPointerMove={(e) => { if (draggingRef.current) seekGlobal(timeAt(e.clientX), playing) }}
-          onPointerUp={() => { draggingRef.current = false }}
-          onPointerCancel={() => { draggingRef.current = false }}
+          onPointerDown={(e) => {
+            if (recording || total <= 0) return
+            const top = e.currentTarget.getBoundingClientRect().top
+            if (onReorderClip && segments.length > 1 && e.clientY - top <= 24) {
+              // A press on a clip block: drag it to a new place, or tap to jump there
+              const at = clipIndexAt(e.clientX)
+              clipPressRef.current = { from: at, to: at, startX: e.clientX, dragging: false }
+              e.currentTarget.setPointerCapture(e.pointerId)
+              return
+            }
+            draggingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekGlobal(timeAt(e.clientX), playing)
+          }}
+          onPointerMove={(e) => {
+            const press = clipPressRef.current
+            if (press) {
+              if (!press.dragging && Math.abs(e.clientX - press.startX) < 8) return
+              press.dragging = true
+              press.to = clipIndexAt(e.clientX)
+              setClipDrag({ from: press.from, to: press.to })
+              return
+            }
+            if (draggingRef.current) seekGlobal(timeAt(e.clientX), playing)
+          }}
+          onPointerUp={(e) => {
+            const press = clipPressRef.current
+            clipPressRef.current = null
+            draggingRef.current = false
+            if (!press) return
+            setClipDrag(null)
+            if (press.dragging) { if (press.from !== press.to) onReorderClip?.(press.from, press.to) }
+            else seekGlobal(timeAt(e.clientX), playing)
+          }}
+          onPointerCancel={() => { draggingRef.current = false; clipPressRef.current = null; setClipDrag(null) }}
           onKeyDown={(e) => {
             if (recording || total <= 0) return
             if (e.key === 'ArrowRight') { e.preventDefault(); seekGlobal(Math.min(total, globalTime + 1), playing) }
@@ -576,9 +618,14 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           style={{ position: 'relative', height: musicUrl ? 92 : 62, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
         >
           <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 24, display: 'flex', borderRadius: 6, overflow: 'hidden', background: 'rgba(128,128,128,0.15)' }}>
-            {lengths.map((len, i) => (
-              <div key={i} style={{ flex: len > 0 ? len : 1, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: 6, overflow: 'hidden' }}>{i + 1}</div>
-            ))}
+            {lengths.map((len, i) => {
+              const moving = clipDrag?.from === i
+              const landing = !!clipDrag && clipDrag.to === i && clipDrag.from !== i
+              const edge = landing && clipDrag ? (clipDrag.to > clipDrag.from ? 'inset -3px 0 0 #fff' : 'inset 3px 0 0 #fff') : 'none'
+              return (
+                <div key={i} style={{ flex: len > 0 ? len : 1, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>{i + 1}</div>
+              )
+            })}
           </div>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 32, height: 26, borderRadius: 6, background: 'rgba(128,128,128,0.08)', overflow: 'hidden' }}>
             {takes.map((t, ti) => (
@@ -610,7 +657,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <div style={{ position: 'absolute', top: -3, bottom: -3, left: pct(globalTime), width: 2, marginLeft: -1, background: 'var(--ink)', borderRadius: 1, pointerEvents: 'none' }} />
         </div>
         <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-          <span>Top bar: your clips</span>
+          <span>Top bar: your clips{onReorderClip && segments.length > 1 ? ' (drag a block to reorder)' : ''}</span>
           <span>Middle bar: your voiceover (drag a block to move it)</span>
           {musicUrl && <span>Bottom bar: music</span>}
         </div>
@@ -628,7 +675,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -638,13 +685,26 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
+  onReorderClip?: (from: number, to: number) => void
+  onDropFiles?: (files: File[]) => void
 }) {
+  const [fileOver, setFileOver] = useState(false)
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
   // Start fresh when the clips or trims change (voiceover changes keep the playhead where it is)
   const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|')
   return (
-    <div className="ed-preview" style={{ background: 'var(--sand)', borderRadius: 20, padding: 20 }}>
+    <div
+      className="ed-preview"
+      onDragOver={onDropFiles ? (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!fileOver) setFileOver(true) } : undefined}
+      onDragLeave={onDropFiles ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileOver(false) } : undefined}
+      onDrop={onDropFiles ? (e) => { if (!hasFiles(e)) return; e.preventDefault(); setFileOver(false); onDropFiles(Array.from(e.dataTransfer.files)) } : undefined}
+      style={{ background: 'var(--sand)', borderRadius: 20, padding: 20, position: 'relative', outline: fileOver ? '2px dashed var(--coral)' : 'none', outlineOffset: -2 }}
+    >
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
-      <EditorPreviewInner key={key} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} />
+      {fileOver && (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 20, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
+      )}
+      <EditorPreviewInner key={key} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -2426,6 +2486,65 @@ export default function DashboardPage() {
       URL.revokeObjectURL(blobUrl)
     } catch (err) {
       console.error("Download failed", err)
+    }
+  }
+
+  const isVideoFile = (f: File) => f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(f.name)
+
+  // Any-video editor: drag a clip block on the preview timeline to a new place
+  const reorderUploadClip = (from: number, to: number) => {
+    const filled = uploadSlots.filter((id) => uploadSlotFiles[id])
+    const fromId = filled[from]
+    const toId = filled[to]
+    if (fromId === undefined || toId === undefined || fromId === toId) return
+    setUploadSlots((prev) => {
+      const fromIdx = prev.indexOf(fromId)
+      const toIdx = prev.indexOf(toId)
+      if (fromIdx < 0 || toIdx < 0) return prev
+      const next = [...prev]
+      next.splice(fromIdx, 1)
+      next.splice(toIdx, 0, fromId)
+      return next
+    })
+  }
+
+  // Any-video editor: videos dropped on the preview fill empty clip slots first, then add new ones
+  const addUploadFiles = (files: File[]) => {
+    if (!userId) return
+    const vids = files.filter(isVideoFile)
+    if (vids.length === 0) return
+    const empty = uploadSlots.filter((id) => !uploadSlotFiles[id])
+    let nextId = Math.max(-1, ...uploadSlots) + 1
+    const added: number[] = []
+    const assign: Record<number, File> = {}
+    vids.forEach((f) => {
+      let id: number
+      if (empty.length > 0) id = empty.shift() as number
+      else { id = nextId++; added.push(id) }
+      assign[id] = f
+    })
+    if (added.length > 0) setUploadSlots((prev) => [...prev, ...added])
+    setUploadSlotFiles((prev) => ({ ...prev, ...assign }))
+    Object.entries(assign).forEach(([id, f]) => startClipUpload('u', Number(id), f))
+  }
+
+  // AI editor: the steps are fixed, so dropped videos fill the next empty steps in order
+  const addAiFiles = (files: File[]) => {
+    if (!userId) return
+    const vids = files.filter(isVideoFile)
+    if (vids.length === 0) return
+    const item = filmingItems.find((f) => f.id === selectedFilmingId)
+    const stepCount = aiSingleClipMode ? 1 : item?.checklist.length || 0
+    const empty: number[] = []
+    for (let i = 0; i < stepCount; i++) if (!stepUploads[i] && !stepUploadNames[i]) empty.push(i)
+    const used = vids.slice(0, empty.length)
+    used.forEach((f, n) => {
+      const idx = empty[n]
+      setStepUploads((prev) => ({ ...prev, [idx]: f }))
+      startClipUpload('a', idx, f)
+    })
+    if (used.length < vids.length) {
+      setAiEditorError(used.length === 0 ? 'Choose an idea first, or every step already has a clip.' : `Only ${used.length} ${used.length === 1 ? 'step was' : 'steps were'} empty, so the other ${vids.length - used.length} ${vids.length - used.length === 1 ? 'video was' : 'videos were'} not added.`)
     }
   }
 
@@ -4388,6 +4507,8 @@ export default function DashboardPage() {
               )}
 
               {(!renderId || renderStatus === 'failed') && <EditorPreview
+                onReorderClip={reorderUploadClip}
+                onDropFiles={addUploadFiles}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -4968,6 +5089,7 @@ export default function DashboardPage() {
                 )
               })()}
               {(!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
+                onDropFiles={addAiFiles}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
