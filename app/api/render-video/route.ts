@@ -23,7 +23,7 @@ async function getPlan(userId: string | undefined): Promise<'free' | 'basic' | '
     .select('plan, status')
     .eq('user_id', userId)
     .maybeSingle()
-  if (!data || data.status !== 'active') return 'free'
+  if (!data || (data.status !== 'active' && data.status !== 'trialing')) return 'free'
   if (data.plan === 'basic') return 'basic'
   if (data.plan === 'top') return 'top'
   return 'mid'

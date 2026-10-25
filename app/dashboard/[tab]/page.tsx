@@ -268,6 +268,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recording, setRecording] = useState(false)
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
+  const [showScript, setShowScript] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -519,16 +520,32 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   const hasClips = segments.length > 0
 
+  // The script on the preview follows the playhead, also when the timeline is dragged while paused
+  useEffect(() => {
+    const box = scriptBoxRef.current
+    if (!box || total <= 0 || box.scrollHeight <= box.clientHeight) return
+    box.scrollTop = Math.min(1, globalTime / total) * (box.scrollHeight - box.clientHeight)
+  }, [globalTime, total, recording, showScript])
+
   return (
     <div>
       <div style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
         <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+        {scriptLines.length > 0 && (recording || showScript) && (
+          <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.82) 72%, rgba(8,6,24,0))' }}>
+            <div ref={scriptBoxRef} style={{ height: '100%', overflow: 'hidden', padding: `${recording ? 40 : 16}px 18px 22px` }}>
+              {scriptLines.map((line, i) => (
+                <p key={i} style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.45, color: '#fff', margin: '0 0 12px', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{line}</p>
+              ))}
+            </div>
+          </div>
+        )}
         {!playing && hasClips && (
           <button type="button" onClick={toggle} aria-label="Play preview"
             style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}>▶</button>
         )}
         {recording && (
-          <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 10px' }}>● Recording</span>
+          <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 10px' }}>● Recording</span>
         )}
         {!hasClips && (
           <p style={{ position: 'absolute', inset: 0, margin: 'auto', height: 'fit-content', padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>Add a clip to see your video here.</p>
@@ -538,16 +555,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         <audio key={t.id} ref={(el) => { audioEls.current[t.id] = el }} src={t.url} preload="auto" />
       ))}
       {musicUrl && <audio ref={(el) => { audioEls.current['music'] = el }} src={musicUrl} preload="auto" />}
-      {scriptLines.length > 0 && (
-        <div style={{ marginTop: 12, border: '1px solid rgba(128,128,128,0.25)', borderRadius: 12, background: 'var(--card-bg)', overflow: 'hidden' }}>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, padding: '8px 12px 0' }}>Your script. It scrolls as the video plays.</p>
-          <div ref={scriptBoxRef} style={{ maxHeight: 130, overflowY: 'auto', padding: '6px 12px 10px' }}>
-            {scriptLines.map((line, i) => (
-              <p key={i} style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink)', margin: '0 0 6px' }}>{line}</p>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={toggle} disabled={!hasClips || recording}
@@ -556,6 +563,9 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
+        {scriptLines.length > 0 && !recording && (
+          <button type="button" onClick={() => setShowScript((v) => !v)} style={choiceBtn(showScript)}>{showScript ? 'Hide script' : 'Show script'}</button>
+        )}
         {!recording ? (
           <button type="button" onClick={startRecording} disabled={!hasClips}
             style={{ ...choiceBtn(false, !hasClips), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -1095,6 +1105,7 @@ export default function DashboardPage() {
   const [userPlan, setUserPlan] = useState<'basic' | 'mid' | 'top'>('basic')
   const [realSubPlan, setRealSubPlan] = useState<'basic' | 'mid' | 'top' | null>(null)
   const [realSubStatus, setRealSubStatus] = useState<string | null>(null)
+  const [subLoaded, setSubLoaded] = useState(false)
   const [refiningId, setRefiningId] = useState<string | null>(null)
   const [refineInstruction, setRefineInstruction] = useState('')
   const [refineLoading, setRefineLoading] = useState(false)
@@ -1165,7 +1176,7 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .maybeSingle()
       if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
-      if (subRow && subRow.status === 'active' && subRow.plan) {
+      if (subRow && (subRow.status === 'active' || subRow.status === 'trialing') && subRow.plan) {
         setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
       } else {
         setUserPlan('basic') // no active subscription -> default to Basic, matches backend getPlan()
@@ -1174,6 +1185,7 @@ export default function DashboardPage() {
         setRealSubPlan(subRow.plan as 'basic' | 'mid' | 'top')
         setRealSubStatus(subRow.status)
       }
+      setSubLoaded(true)
 
       const { data: eventsData } = await supabase
         .from('key_events')
@@ -1797,6 +1809,9 @@ export default function DashboardPage() {
     }
   }
 
+  const changeOrientationRef = useRef(changeFilmOrientation)
+  useEffect(() => { changeOrientationRef.current = changeFilmOrientation })
+
   // On phones and tablets, follow the way the device is held
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return
@@ -1804,13 +1819,13 @@ export default function DashboardPage() {
     const landscape = window.matchMedia('(orientation: landscape)')
     const sync = () => {
       if (tab !== 'film' || !touch.matches) return
-      changeFilmOrientation(landscape.matches ? 'landscape' : 'portrait')
+      changeOrientationRef.current(landscape.matches ? 'landscape' : 'portrait')
     }
     sync()
     landscape.addEventListener('change', sync)
     return () => landscape.removeEventListener('change', sync)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, filmIsRecording, filmClips.length, filmPending])
+  }, [tab])
 
   useEffect(() => {
     if (filmCameraActive && filmStreamRef.current && filmVideoRef.current) {
@@ -3098,9 +3113,11 @@ export default function DashboardPage() {
     { id: 'scheduler', label: 'Scheduler' },
   ]
 
-  const isFreeTier = !realSubPlan || realSubStatus !== 'active'
+  const paidStatus = realSubStatus === 'active' || realSubStatus === 'trialing'
+  const isFreeTier = !realSubPlan || !paidStatus
+  const showWatermark = subLoaded && isFreeTier
   const freeQuotaExceeded = isFreeTier && lifetimeRenderSeconds >= 60
-  const isProPlan = userPlan === 'top' && realSubStatus === 'active'
+  const isProPlan = userPlan === 'top' && paidStatus
 
   const renderCapMin = userPlan === 'top' ? 60 : 25
 
@@ -4542,7 +4559,7 @@ export default function DashboardPage() {
                     <MultiFilm
                       userId={userId}
                       ideas={multiFilmIdeas}
-                      isFreeTier={isFreeTier}
+                      isFreeTier={showWatermark}
                       userPlan={userPlan}
                       captionDefaults={{ preset: captionPreset, fontFamily: captionFontFamily, fontSize: Number(captionFontSize) || 36, color: captionColor, position: captionPosition, borderColor: captionBorderColor }}
                       captionPresets={CAPTION_PRESETS}
@@ -4645,7 +4662,7 @@ export default function DashboardPage() {
                       <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}>✕</button>
-                    {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
+                    {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
                     {filmClipCount > 0 && (
@@ -4733,7 +4750,7 @@ export default function DashboardPage() {
                       </div>
                       <div style={filmBezelStyle}>
                       <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
-                        {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
+                        {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         <div style={{ position: 'absolute', top: filmOrientation === 'landscape' ? 12 : 44, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
                       </div>
