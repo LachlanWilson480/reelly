@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -229,6 +229,7 @@ export async function POST(req: NextRequest) {
         resolution,
         cutDeadSpace: cutDeadSpace === true,
         captionStyle: captionStyle || null,
+        captionTextOnly: captionTextOnly === true,
         userId,
         renderId: renderRow.id,
         watermark: plan === 'free',

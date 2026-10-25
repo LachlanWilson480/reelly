@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { trackRenders } from '@/lib/renderTracker'
+import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 
 export type MultiFilmIdea = {
   key: string
@@ -186,6 +187,8 @@ export default function MultiFilm(p: Props) {
   const [countdown, setCountdown] = useState<number | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [scrollSpeed, setScrollSpeed] = useState(3)
+  const [recordError, setRecordError] = useState('')
+  const badMimeRef = useRef<Set<string>>(new Set())
 
   const video = videos[vi]
   const idea = video?.idea
@@ -296,6 +299,8 @@ export default function MultiFilm(p: Props) {
 
   const startRecording = async () => {
     if (!streamRef.current || clipTotal === 0) return
+    if (!streamIsLive(streamRef.current)) { setRecordError('The camera stopped. It is restarting, press record again in a moment.'); streamRef.current = null; setCameraActive(false); startCamera(); return }
+    setRecordError('')
     for (const n of [3, 2, 1]) {
       setCountdown(n)
       await new Promise((r) => setTimeout(r, 1000))
@@ -303,8 +308,7 @@ export default function MultiFilm(p: Props) {
     setCountdown(null)
     if (!streamRef.current) return
     try {
-      const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-      const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || ''
+      const mimeType = pickRecorderMime(badMimeRef.current)
       // Record exactly 9:16 or 16:9. If the camera gives another shape, crop the centre of every frame.
       let recordStream: MediaStream = streamRef.current
       let stopCanvas: (() => void) | null = null
@@ -347,19 +351,30 @@ export default function MultiFilm(p: Props) {
       recorder.onstop = () => {
         if (stopCanvas) stopCanvas()
         const blob = new Blob(chunks, { type: baseType })
-        if (blob.size === 0) { setCameraError('Nothing was recorded. Please try again.'); return }
+        if (blob.size === 0) {
+          // This format recorded nothing on this device, so the next try uses another one on a fresh camera
+          badMimeRef.current.add(mimeType)
+          setRecordError('That clip did not record. The camera is restarting, please try it again.')
+          streamRef.current?.getTracks().forEach((t) => t.stop())
+          streamRef.current = null
+          setCameraActive(false)
+          startCamera()
+          return
+        }
+        setRecordError('')
         setPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
       }
-      recorder.start(1000)
+      recorder.onerror = () => { setRecordError('Recording stopped unexpectedly. Please try again.'); setIsRecording(false) }
+      beginRecorder(recorder, mimeType)
       recorderRef.current = recorder
       setIsRecording(true)
     } catch {
-      setCameraError('Could not start recording on this browser.')
+      setRecordError('Could not start recording on this browser.')
     }
   }
 
   const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
+    if (recorderRef.current) finishRecorder(recorderRef.current)
     setIsRecording(false)
   }
   useEffect(() => { stopRef.current = stopRecording })
@@ -519,7 +534,8 @@ export default function MultiFilm(p: Props) {
       const s = effective(key)
       const land = orientationRef.current === 'landscape'
       const clipTrims = v.clips.map((c) => (c.duration > 1.5 && c.duration !== 5 ? { duration: c.duration, trimStart: 0.3, trimLength: c.duration - 0.6 } : { duration: c.duration }))
-      const captionStyle = s.captions ? { preset: s.preset, custom: { font: { family: s.fontFamily, size: s.fontSize || 36, color: s.color }, position: s.position, borderColor: s.borderColor } } : null
+      const hasTexts = v.idea.texts.some((t) => t.length > 0)
+      const captionStyle = s.captions || hasTexts ? { preset: s.preset, custom: { font: { family: s.fontFamily, size: s.fontSize || 36, color: s.color }, position: s.position, borderColor: s.borderColor } } : null
       try {
         const res = await authFetch('/api/render-video', {
           method: 'POST',
@@ -528,6 +544,7 @@ export default function MultiFilm(p: Props) {
             userId,
             clipPaths: v.clips.map((c) => c.path),
             captionStyle,
+            captionTextOnly: !s.captions && hasTexts,
             musicPath: null,
             voiceovers: [],
             clipTrims,
@@ -690,6 +707,9 @@ export default function MultiFilm(p: Props) {
                     <button type="button" onClick={startCamera} style={{ padding: '12px 28px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>Enable camera</button>
                     <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: 0, padding: '0 24px', textAlign: 'center', lineHeight: 1.5 }}>{cameraError || 'Allow camera and microphone to start'}</p>
                   </div>
+                )}
+                {recordError && (
+                  <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
                 )}
                 {isRecording && (
                   <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', zIndex: 3 }}>

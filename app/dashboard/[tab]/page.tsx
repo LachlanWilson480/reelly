@@ -16,6 +16,7 @@ import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
+import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 type Profile = {
   business_name: string
   industry: string
@@ -269,6 +270,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
   const [showScript, setShowScript] = useState(false)
+  const [scriptSpeed, setScriptSpeed] = useState(1)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -416,10 +418,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           else if (mus.paused) { try { mus.currentTime = g } catch {} void mus.play().catch(() => {}) }
           else if (Math.abs(mus.currentTime - g) > 0.35) { try { mus.currentTime = g } catch {} }
         }
-        // The script scrolls along with the video so it can be read while recording
-        const box = scriptBoxRef.current
-        const totalLen = L.lengths.reduce((a, b) => a + b, 0)
-        if (box && totalLen > 0 && box.scrollHeight > box.clientHeight) box.scrollTop = Math.min(1, g / totalLen) * (box.scrollHeight - box.clientHeight)
       }
       raf = requestAnimationFrame(tick)
     }
@@ -524,8 +522,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   useEffect(() => {
     const box = scriptBoxRef.current
     if (!box || total <= 0 || box.scrollHeight <= box.clientHeight) return
-    box.scrollTop = Math.min(1, globalTime / total) * (box.scrollHeight - box.clientHeight)
-  }, [globalTime, total, recording, showScript])
+    box.scrollTop = Math.min(1, (globalTime / total) * scriptSpeed) * (box.scrollHeight - box.clientHeight)
+  }, [globalTime, total, recording, showScript, scriptSpeed])
 
   return (
     <div>
@@ -565,6 +563,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         <span style={{ flex: 1 }} />
         {scriptLines.length > 0 && !recording && (
           <button type="button" onClick={() => setShowScript((v) => !v)} style={choiceBtn(showScript)}>{showScript ? 'Hide script' : 'Show script'}</button>
+        )}
+        {scriptLines.length > 0 && !recording && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+            Script speed
+            <input type="range" min={0.5} max={2} step={0.25} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
+            <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28 }}>{scriptSpeed}x</span>
+          </label>
         )}
         {!recording ? (
           <button type="button" onClick={startRecording} disabled={!hasClips}
@@ -1039,6 +1044,8 @@ export default function DashboardPage() {
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
   const [filmOrientation, setFilmOrientation] = useState<'portrait' | 'landscape'>('portrait')
   const [filmMulti, setFilmMulti] = useState(false)
+  const [filmRecordError, setFilmRecordError] = useState('')
+  const filmBadMimeRef = useRef<Set<string>>(new Set())
   const [filmMultiBusy, setFilmMultiBusy] = useState(false)
   const filmOrientationRef = useRef<'portrait' | 'landscape'>('portrait')
   const filmOutputOrientationRef = useRef<'portrait' | 'landscape' | null>(null)
@@ -1067,6 +1074,10 @@ export default function DashboardPage() {
   const [trimOpen, setTrimOpen] = useState<string | null>(null)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [uploadSlotTexts, setUploadSlotTexts] = useState<Record<number, string[]>>({})
+  const [uploadCaptionOwn, setUploadCaptionOwn] = useState(false)
+  const [uploadOwnTexts, setUploadOwnTexts] = useState<Record<number, string>>({})
+  const [aiCaptionOwn, setAiCaptionOwn] = useState(false)
+  const [aiOwnTexts, setAiOwnTexts] = useState<Record<number, string>>({})
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
@@ -1906,8 +1917,10 @@ export default function DashboardPage() {
   const getFilmLines = (item: FilmingItem): string[] => {
     const script = item.script || ''
     const byLine = script.split(/\n+/).map(cleanFilmLine).filter(Boolean)
-    if (byLine.length > 1) return byLine
-    return splitFilmText(script)
+    const lines = byLine.length > 1 ? byLine : splitFilmText(script)
+    if (lines.length > 0) return lines
+    // No separate script was saved, so take the spoken words from the filming steps
+    return (item.checklist || []).map((st: string) => { const m = st.match(/say:\s*([\s\S]*)$/i); return m ? cleanFilmLine(m[1]) : '' }).filter(Boolean)
   }
 
   // What the person should physically do in each clip (camera position, hands, movement), lined up with the script lines
@@ -1939,6 +1952,8 @@ export default function DashboardPage() {
 
   const startFilmRecording = async () => {
     if (!filmStreamRef.current || filmClipCount === 0) return
+    if (!streamIsLive(filmStreamRef.current)) { setFilmRecordError('The camera stopped. It is restarting, press record again in a moment.'); filmStreamRef.current = null; setFilmCameraActive(false); startFilmCamera(); return }
+    setFilmRecordError('')
     setFilmCountdown(3)
     await new Promise(r => setTimeout(r, 1000))
     setFilmCountdown(2)
@@ -1947,8 +1962,7 @@ export default function DashboardPage() {
     await new Promise(r => setTimeout(r, 1000))
     setFilmCountdown(null)
     try {
-      const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-      const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t)) || ''
+      const mimeType = pickRecorderMime(filmBadMimeRef.current)
       // Record exactly 9:16 (portrait) or 16:9 (landscape). If the camera gives a different shape
       // (a laptop webcam in portrait, say), crop the centre of every frame to the right shape.
       let recordStream: MediaStream = filmStreamRef.current
@@ -1995,20 +2009,31 @@ export default function DashboardPage() {
       recorder.onstop = () => {
         if (stopCanvas) stopCanvas()
         const blob = new Blob(chunks, { type: baseType })
-        if (blob.size === 0) { alert('Nothing was recorded. Please try again.'); return }
+        if (blob.size === 0) {
+          // This format recorded nothing on this device, so the next try uses another one on a fresh camera
+          filmBadMimeRef.current.add(mimeType)
+          setFilmRecordError('That clip did not record. The camera is restarting, please try it again.')
+          filmStreamRef.current?.getTracks().forEach((t) => t.stop())
+          filmStreamRef.current = null
+          setFilmCameraActive(false)
+          startFilmCamera()
+          return
+        }
+        setFilmRecordError('')
         setFilmPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
       }
-      recorder.start(1000)
+      recorder.onerror = () => { setFilmRecordError('Recording stopped unexpectedly. Please try again.'); setFilmIsRecording(false) }
+      beginRecorder(recorder, mimeType)
       filmMediaRecorderRef.current = recorder
       setFilmIsRecording(true)
     } catch (err) {
       console.error('Recording failed:', err)
-      alert('Could not start recording on this browser.')
+      setFilmRecordError('Could not start recording on this browser.')
     }
   }
 
   const stopFilmRecording = () => {
-    if (filmMediaRecorderRef.current && filmMediaRecorderRef.current.state !== 'inactive') filmMediaRecorderRef.current.stop()
+    if (filmMediaRecorderRef.current) finishRecorder(filmMediaRecorderRef.current)
     setFilmIsRecording(false)
   }
 
@@ -2053,7 +2078,7 @@ export default function DashboardPage() {
     ? <div aria-hidden="true" style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', width: 76, height: 20, borderRadius: 11, background: '#0b0a10', zIndex: 6, pointerEvents: 'none' }} />
     : null
 
-  const renderPreferencesFields = () => (
+  const renderPreferencesFields = (showCaptionModes = true) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
 
                     {/* Music */}
@@ -2098,6 +2123,16 @@ export default function DashboardPage() {
                       </label>
                       {uploadAddCaptions && (
                         <>
+                          {showCaptionModes && (
+                            <>
+                            <div role="group" aria-label="Where captions come from" style={{ display: 'flex', gap: 6, margin: '0 0 12px', flexWrap: 'wrap' }}>
+                              {([[false, 'Auto from my voice'], [true, 'Write my own']] as const).map(([own, name]) => (
+                                <button key={name} type="button" aria-pressed={uploadCaptionOwn === own} onClick={() => setUploadCaptionOwn(own)} style={{ padding: '7px 14px', borderRadius: 20, border: uploadCaptionOwn === own ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: uploadCaptionOwn === own ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
+                              ))}
+                            </div>
+                            {uploadCaptionOwn && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '-4px 0 12px' }}>Type a caption for each clip. Only your captions are used.</p>}
+                            </>
+                          )}
                           <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
                             <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
                           </div>
@@ -2380,6 +2415,7 @@ export default function DashboardPage() {
             prep: data.prep || [],
             caption: data.caption || "",
             script: data.script || "",
+            directions: Array.isArray(data.directions) ? data.directions : [],
           }
           merged.push(item)
           if (item.id.startsWith('script-')) {
@@ -2410,7 +2446,7 @@ export default function DashboardPage() {
                   tags: item.tags,
                   saved: true,
                   batch_number: 0,
-                  checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script },
+                  checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script, directions: item.directions },
                   filming_cleared: false,
                   source: 'script',
                 })
@@ -2431,7 +2467,7 @@ export default function DashboardPage() {
           } else {
             await supabase
               .from("generated_ideas")
-              .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script }, filming_cleared: false })
+              .update({ checklist: { steps: item.checklist, prep: item.prep, caption: item.caption, script: item.script, directions: item.directions }, filming_cleared: false })
               .eq("id", item.id)
           }
         } else {
@@ -2840,7 +2876,13 @@ export default function DashboardPage() {
         if (!result) continue
         clipPaths.push(result.path)
         if (aiSpeechSteps.has(result.stepIndex)) speechIndices.push(clipPaths.length - 1)
-        clipTexts.push(extractOnScreenText(filmingItems.find((f) => f.id === selectedFilmingId)?.checklist?.[result.stepIndex] || ''))
+        {
+          const it = filmingItems.find((f) => f.id === selectedFilmingId)
+          const fromActions = extractOnScreenText(it?.directions?.[result.stepIndex] || '')
+          const base = fromActions.length > 0 ? fromActions : extractOnScreenText(it?.checklist?.[result.stepIndex] || '')
+          const typed = aiOwnTexts[result.stepIndex]
+          clipTexts.push(aiAddCaptions && aiCaptionOwn && typed !== undefined ? (typed.trim() ? [typed.trim()] : []) : base)
+        }
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
@@ -2878,7 +2920,8 @@ export default function DashboardPage() {
 
       const outputOrientation = undefined  // always portrait output
 
-      const aiCaptionStyle = aiAddCaptions
+      const aiHasTexts = clipTexts.some((t) => t.length > 0)
+      const aiCaptionStyle = aiAddCaptions || aiHasTexts
         ? {
             preset: aiCaptionPreset,
             custom: {
@@ -2896,6 +2939,7 @@ export default function DashboardPage() {
           userId,
           clipPaths,
           captionStyle: aiCaptionStyle,
+          captionTextOnly: aiHasTexts && (!aiAddCaptions || aiCaptionOwn),
           musicPath,
           voiceovers,
           originalVolume: originalVol, musicVolume: musicVol,
@@ -2984,7 +3028,11 @@ export default function DashboardPage() {
         if (!result) continue
         clipPaths.push(result.path)
         if (uploadSpeechSlots.has(result.slotId)) speechIndices.push(clipPaths.length - 1)
-        clipTexts.push(isFilmRender ? (uploadSlotTexts[result.slotId] || []) : [])
+        {
+          const base = isFilmRender ? (uploadSlotTexts[result.slotId] || []) : []
+          const typed = uploadOwnTexts[result.slotId]
+          clipTexts.push(uploadAddCaptions && uploadCaptionOwn && typed !== undefined ? (typed.trim() ? [typed.trim()] : []) : base)
+        }
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
@@ -3022,7 +3070,8 @@ export default function DashboardPage() {
 
       const outputOrientation = filmLandscapeOut ? 'landscape' : undefined
 
-      const captionStyle = uploadAddCaptions
+      const hasOnScreen = clipTexts.some((t) => t.length > 0)
+      const captionStyle = uploadAddCaptions || hasOnScreen
         ? {
             preset: captionPreset,
             custom: {
@@ -3036,7 +3085,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: hasOnScreen && (!uploadAddCaptions || uploadCaptionOwn), musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -4408,6 +4457,9 @@ export default function DashboardPage() {
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                           </div>
                         )}
+                        {uploadAddCaptions && uploadCaptionOwn && uploadSlotFiles[slotId] && (
+                          <input type="text" value={uploadOwnTexts[slotId] ?? (uploadSlotTexts[slotId] || []).join(' ')} onChange={(e) => { const v = e.target.value; setUploadOwnTexts((p) => ({ ...p, [slotId]: v })) }} placeholder="Caption for this clip" maxLength={140} aria-label={`Caption for clip ${slotIndex + 1}`} style={{ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 16, fontFamily: 'Inter, sans-serif' }} />
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                         {uploadSlotFiles[slotId] && <button type="button" onClick={() => setTrimOpen((p) => p === `u${slotId}` ? null : `u${slotId}`)} style={{ fontSize: 11, color: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId])}</button>}
@@ -4700,6 +4752,9 @@ export default function DashboardPage() {
                         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: 0, padding: '0 24px', textAlign: 'center', lineHeight: 1.5 }}>{filmCameraError || 'Click to start your camera'}</p>
                       </div>
                     )}
+                    {filmRecordError && (
+                      <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{filmRecordError}</div>
+                    )}
                     {filmIsRecording && (
                       <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
@@ -4772,7 +4827,7 @@ export default function DashboardPage() {
                       </div>
                       <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '20px 24px 24px' }}>
                         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 18px' }}>Preferences</p>
-                        {renderPreferencesFields()}
+                        {renderPreferencesFields(false)}
                       </div>
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -4800,7 +4855,7 @@ export default function DashboardPage() {
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()) }}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }) }}
                         style={{ padding: '8px 14px', borderRadius: 8, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -4886,6 +4941,9 @@ export default function DashboardPage() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
                                 <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
+                                {aiAddCaptions && aiCaptionOwn && (
+                                  <input type="text" value={aiOwnTexts[i] ?? extractOnScreenText(item.directions?.[i] || '').join(' ')} onChange={(e) => { const v = e.target.value; setAiOwnTexts((p) => ({ ...p, [i]: v })) }} placeholder="Caption for this clip" maxLength={140} aria-label={`Caption for clip ${i + 1}`} style={{ ...({ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 16, fontFamily: 'Inter, sans-serif' }), marginTop: 0, marginBottom: 8 }} />
+                                )}
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -5006,6 +5064,12 @@ export default function DashboardPage() {
                             </label>
                             {aiAddCaptions && (
                               <>
+                                <div role="group" aria-label="Where captions come from" style={{ display: 'flex', gap: 6, margin: '0 0 12px', flexWrap: 'wrap' }}>
+                              {([[false, 'Auto from my voice'], [true, 'Write my own']] as const).map(([own, name]) => (
+                                <button key={name} type="button" aria-pressed={aiCaptionOwn === own} onClick={() => setAiCaptionOwn(own)} style={{ padding: '7px 14px', borderRadius: 20, border: aiCaptionOwn === own ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: aiCaptionOwn === own ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
+                              ))}
+                            </div>
+                            {aiCaptionOwn && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '-4px 0 12px' }}>Type a caption for each clip. Only your captions are used.</p>}
                                 <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
                                   <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
                                 </div>

@@ -47,6 +47,7 @@ type JobData = {
   cutDeadSpace?: boolean;
   crf?: number;
   captionStyle?: CaptionStyle | null;
+  captionTextOnly?: boolean;
   watermark?: boolean;
   userId?: string;
   renderId?: string;
@@ -104,7 +105,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -156,11 +157,11 @@ export const makeRenderQueue = ({
 
       // Step 4: transcribe + render captions (optional)
       const hasClipTexts = readyClips.some((c) => c.captionTexts && c.captionTexts.length > 0);
-      if (captionStyle && (process.env.OPENAI_API_KEY || hasClipTexts)) {
+      if (captionStyle && ((process.env.OPENAI_API_KEY && !captionTextOnly) || hasClipTexts)) {
         setProgress(jobId, 55, job.data, cancel);
         console.info(`[${jobId}] Step 4: transcribing audio`);
         let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
-        if (process.env.OPENAI_API_KEY) {
+        if (process.env.OPENAI_API_KEY && !captionTextOnly) {
           try {
             words = await transcribeVideo(stitchedLocalPath);
           } catch (err) {
