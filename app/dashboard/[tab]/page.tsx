@@ -128,11 +128,17 @@ const splitScriptLines = (s: string) => s.split(/\n+/).map((x) => x.trim()).filt
 // Pulls the quoted on-screen text out of a filming step, e.g. "On-screen text: 'Bring your colour samples'" gives ["Bring your colour samples"]
 const extractOnScreenText = (step: string): string[] => {
   const found: string[] = []
-  const re = /text(?:\s+(?:appears|shows|reads|says))?\s*:?\s*['"\u2018\u201c](.+?)['"\u2019\u201d](?=\s*(?:$|[.,;!?]|\bthen\b|\band\b|\bwith\b|\bover\b))/gi
+  // "On-screen text: 'Hello'", "On-screen captions: 'Hello'", "text appears 'Hello'", "title reads \"Hello\""
+  const re = /(?:text|captions?|titles?)(?:\s+(?:appears|shows|reads|says|overlay))?\s*:?\s*['"\u2018\u201c](.+?)['"\u2019\u201d](?=\s*(?:$|[.,;!?]|\bthen\b|\band\b|\bwith\b|\bover\b))/gi
   let m: RegExpExecArray | null
   while ((m = re.exec(step)) !== null) {
     const t = m[1].trim()
     if (t) found.push(t)
+  }
+  if (found.length === 0) {
+    // Same label but the words are not in quotes: "On-screen text: Bring your colour samples"
+    const plain = /on[\s-]?screen\s+(?:text|captions?|titles?)\s*:\s*([^\n]+?)\s*$/i.exec(step)
+    if (plain && plain[1].trim()) found.push(plain[1].trim().replace(/^['"\u2018\u201c]|['"\u2019\u201d]$/g, '').trim())
   }
   return found
 }
@@ -1061,7 +1067,7 @@ export default function DashboardPage() {
   const [aiRenderStatus, setAiRenderStatus] = useState<string | null>(null)
   const [aiOutputUrl, setAiOutputUrl] = useState<string | null>(null)
   const [aiCaptionPreset, setAiCaptionPreset] = useState('word_by_word')
-  const [aiAddCaptions, setAiAddCaptions] = useState(false)
+  const [aiAddCaptions, setAiAddCaptions] = useState(true)
   const [aiSpeechSteps, setAiSpeechSteps] = useState<Set<number>>(new Set())
   const [aiLandscapeSteps, setAiLandscapeSteps] = useState<Set<number>>(new Set())
   const [showSpeechWarning, setShowSpeechWarning] = useState(false)
@@ -1150,7 +1156,7 @@ export default function DashboardPage() {
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
-  const [uploadAddCaptions, setUploadAddCaptions] = useState(false)
+  const [uploadAddCaptions, setUploadAddCaptions] = useState(true)
   const [cutDeadSpace, setCutDeadSpace] = useState(false)
   const [showUploadSpeechWarning, setShowUploadSpeechWarning] = useState(false)
   const [extractingAudio, setExtractingAudio] = useState(false)
