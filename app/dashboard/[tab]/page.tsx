@@ -1950,6 +1950,7 @@ export default function DashboardPage() {
       if (el) el.style.transform = 'translateX(0)'
       return
     }
+    if (!filmCurrentLine) return
     const words = filmCurrentLine.split(/\s+/).filter(Boolean).length
     const secs = Math.max(2, words / (2.3 * (filmScrollSpeed / 3)))
     const distance = el.scrollWidth
@@ -4731,11 +4732,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
-                    {filmSelectedId && filmLines.length === 0 && (
-                      <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea doesn&apos;t have a script. Please generate one or write your own.</p>
-                    )}
-                    {filmSelectedId && filmActions.length === 0 && (
-                      <p style={{ fontSize: 12, color: 'var(--coral)', margin: '4px 0 0' }}>This idea has no actions or filming instructions yet. Generate its filming instructions to fill the Actions box, or type your own.</p>
+                    {filmSelectedId && filmClipCount === 0 && (
+                      <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea has no script or actions yet. Generate its filming instructions, or type your own script or actions. You only need one of them.</p>
                     )}
                   </div>
                   {!filmReview && (
