@@ -113,6 +113,7 @@ function setupApp() {
             color: captionStyle.custom?.font?.color,
             position: captionStyle.custom?.position,
             borderColor: captionStyle.custom?.borderColor,
+            layers: captionStyle.layers && typeof captionStyle.layers === 'object' ? captionStyle.layers : undefined,
           };
         }
       }

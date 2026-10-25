@@ -9,7 +9,7 @@ import { transcribeVideo } from "./transcribe";
 import { correctTranscript } from "./correct-transcript";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
-import { addClipTexts } from "./clip-texts";
+import { clipTextSegments } from "./clip-texts";
 
 type ClipInput = {
   src: string;
@@ -29,6 +29,11 @@ type ClipInput = {
 };
 
 type CaptionStyle = {
+  layers?: {
+    onScreen?: { enabled?: boolean; x?: number; y?: number };
+    speech?: { enabled?: boolean; x?: number; y?: number };
+    textLayer?: 'onScreen' | 'speech';
+  };
   preset: string;
   fontFamily?: string;
   fontSize?: number;
@@ -157,16 +162,20 @@ export const makeRenderQueue = ({
 
       // Step 4: transcribe + render captions (optional)
       const hasClipTexts = readyClips.some((c) => c.captionTexts && c.captionTexts.length > 0);
-      if (captionStyle && ((process.env.OPENAI_API_KEY && !captionTextOnly) || hasClipTexts)) {
+      const layers = captionStyle?.layers;
+      const speechOn = !captionTextOnly && layers?.speech?.enabled !== false;
+      const textLayerOn = (layers?.textLayer === 'speech' ? layers?.speech?.enabled : layers?.onScreen?.enabled) !== false;
+      const textOn = hasClipTexts && textLayerOn;
+      if (captionStyle && ((process.env.OPENAI_API_KEY && speechOn) || textOn)) {
         setProgress(jobId, 55, job.data, cancel);
         console.info(`[${jobId}] Step 4: transcribing audio`);
         let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
-        if (process.env.OPENAI_API_KEY && !captionTextOnly) {
+        if (process.env.OPENAI_API_KEY && speechOn) {
           try {
             words = await transcribeVideo(stitchedLocalPath);
           } catch (err) {
             // A silent video has nothing to transcribe, but its on-screen text still becomes captions
-            if (!hasClipTexts) throw err;
+            if (!textOn) throw err;
             console.warn(`[${jobId}] Transcription skipped:`, err instanceof Error ? err.message : err);
           }
         }
@@ -180,17 +189,18 @@ export const makeRenderQueue = ({
           } catch {}
         }
         const spokenWords = correctTranscript(words, properNouns);
-        const correctedWords = hasClipTexts ? await addClipTexts(spokenWords, readyClips) : spokenWords;
+        const textSegments = textOn ? await clipTextSegments(readyClips) : [];
         if (cancelled) throw new Error('Cancelled');
 
         setProgress(jobId, 70, job.data, cancel);
         console.info(`[${jobId}] Step 5: burning captions`);
         const { outputPath, cleanup } = await burnCaptions(
           stitchedLocalPath,
-          correctedWords,
+          spokenWords,
           captionStyle,
           outputWidth,
-          outputHeight
+          outputHeight,
+          textSegments
         );
         captionCleanup = cleanup;
         tmpCleanups.push(() => { try { require('node:fs').unlinkSync(stitchedLocalPath); } catch {} });

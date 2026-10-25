@@ -14,7 +14,11 @@ const PAUSE_THRESHOLD = 0.4;
 const MIN_FONT_SIZE = 36;
 
 type WordTimestamp = { word: string; start: number; end: number };
+type LayerPos = { enabled?: boolean; x?: number; y?: number };
+type CaptionLayers = { onScreen?: LayerPos; speech?: LayerPos; textLayer?: 'onScreen' | 'speech' };
+type TextSegment = { text: string; start: number; end: number };
 type CaptionStyle = {
+  layers?: CaptionLayers;
   preset: string;
   fontFamily?: string;
   fontSize?: number;
@@ -124,6 +128,7 @@ export async function burnCaptions(
   captionStyle: CaptionStyle,
   outputWidth: number,
   outputHeight: number,
+  textSegments: TextSegment[] = [],
 ): Promise<{ outputPath: string; cleanup: () => void }> {
   const outputPath = path.join(path.resolve('renders'), `${randomUUID()}-captioned.mp4`);
 
@@ -170,9 +175,25 @@ export async function burnCaptions(
     ? `:fontfile='${fontFilePath}'`
     : '';
 
-  const groups = groupWords(words, preset.wordsPerGroup);
+  const layers = captionStyle.layers;
+  const speechOn = layers?.speech?.enabled !== false;
+  const textLayerKey = layers?.textLayer === 'speech' ? 'speech' : 'onScreen';
+  const textOn = layers?.[textLayerKey]?.enabled !== false;
+  const groups = speechOn ? groupWords(words, preset.wordsPerGroup) : [];
+  const texts = textOn ? textSegments : [];
 
-  if (groups.length === 0) {
+  // Where a layer sits: centre of the text at (x, y) as a share of the frame, kept inside the picture
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+  const xExpr = (pos?: LayerPos) => {
+    const x = num(pos?.x);
+    return x === null ? '(w-text_w)/2' : `max(12,min(w-text_w-12,w*${x.toFixed(4)}-text_w/2))`;
+  };
+  const yCenter = (pos: LayerPos | undefined, fallback: string) => {
+    const y = num(pos?.y);
+    return y === null ? fallback : `h*${y.toFixed(4)}`;
+  };
+
+  if (groups.length === 0 && texts.length === 0) {
     fs.copyFileSync(inputPath, outputPath);
     return { outputPath, cleanup: () => { try { fs.unlinkSync(outputPath); } catch {} } };
   }
@@ -189,8 +210,35 @@ export async function burnCaptions(
     const adjStart = Math.max(0, group.start);
     const adjEnd = nextGroup ? Math.min(group.end, nextGroup.start) : group.end;
 
-    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x=(w-text_w)/2:y=${yPosition}${boxPart}${fontFilePart}:line_spacing=8`;
+    const speechY = num(layers?.speech?.y) === null ? yPosition : `max(12,min(h-text_h-12,${yCenter(layers?.speech, '0')}-text_h/2))`;
+    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(layers?.speech)}':y='${speechY}'${boxPart}${fontFilePart}:line_spacing=8`;
   });
+
+  // Layer 1: on-screen text, shown as whole phrases above the speech captions
+  const textPos = layers?.[textLayerKey];
+  const textFont = Math.round(fontSize * 0.85);
+  const lineH = Math.round(textFont * 1.22);
+  const maxChars = Math.max(8, Math.floor((outputWidth * 0.86) / (textFont * (uppercase ? 0.68 : 0.56))));
+  const wrap = (phrase: string) => {
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of phrase.split(/\s+/).filter(Boolean)) {
+      if (cur && (cur + ' ' + w).length > maxChars) { lines.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+    }
+    if (cur) lines.push(cur);
+    return lines.slice(0, 5);
+  };
+  const baseCenterY = num(textPos?.y) === null ? `(${yPosition}-h*0.16)` : yCenter(textPos, '0');
+  const textFilters = texts.flatMap((seg) => {
+    const lines = wrap(uppercase ? seg.text.toUpperCase() : seg.text);
+    return lines.map((line, li) => {
+      const safe = line.replace(/'/g, "\u2019").replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+      const offset = Math.round((li - (lines.length - 1) / 2) * lineH);
+      const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '';
+      return `drawtext=text='${safe}':enable='between(t,${seg.start.toFixed(3)},${seg.end.toFixed(3)})':fontsize=${textFont}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(textPos)}':y='max(12,min(h-text_h-12,${baseCenterY}+(${offset})-text_h/2))'${boxPart}${fontFilePart}`;
+    });
+  });
+  drawtextFilters.push(...textFilters);
 
   // Split into batches of 50 to avoid OS argument length limits
   const BATCH_SIZE = 50;

@@ -5,6 +5,8 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
+import CaptionLayersPanel from '@/components/CaptionLayersPanel'
+import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -165,7 +167,7 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
 // Voiceover settings: explains how it works, adds an uploaded recording, lists every part with its own
 // volume, and mixes the original sound and music. Recording itself happens under the preview so it can
 // start wherever the preview was paused.
-function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptOptions, scriptId, onScript }: {
+function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -177,9 +179,7 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
   hasMusic: boolean
   musicVol: number
   onMusicVol: (v: number) => void
-  scriptOptions: { id: string; label: string }[]
-  scriptId: string
-  onScript: (id: string) => void
+  scriptLabel?: string
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const card = { border: '1px solid rgba(128,128,128,0.22)', borderRadius: 14, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
@@ -200,15 +200,11 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
         Pause the preview where you want to start talking, then press Record voiceover under it. Your clips play silently while you talk. You can record as many parts as you like. An uploaded recording starts at the beginning of the video.
       </p>
 
-      <div style={{ marginTop: 12 }}>
-        <label style={{ fontSize: 13, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Script to read while you record</label>
-        <select value={scriptId} onChange={(e) => onScript(e.target.value)}
-          style={{ width: '100%', maxWidth: 420, padding: '9px 10px', borderRadius: 10, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }}>
-          <option value="">No script</option>
-          {scriptOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>It shows under the preview and scrolls as the video plays.</p>
-      </div>
+      {scriptLabel && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '12px 0 0' }}>
+          Your script for <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong> is loaded. It shows over the preview and scrolls as the video plays.
+        </p>
+      )}
 
       {takes.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
@@ -275,7 +271,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recording, setRecording] = useState(false)
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
-  const [showScript, setShowScript] = useState(false)
+  const [showScript, setShowScript] = useState(true)
   const [scriptSpeed, setScriptSpeed] = useState(1)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
@@ -1219,6 +1215,7 @@ export default function DashboardPage() {
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
+  const [captionLayers, setCaptionLayers] = useState<CaptionLayers>(DEFAULT_CAPTION_LAYERS)
 
   const refreshStats = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -2176,9 +2173,7 @@ export default function DashboardPage() {
                       musicVol={musicVol}
                       onMusicVol={setMusicVol}
                       onTakeVolume={setTakeVolume}
-                      scriptOptions={scriptOptions}
-                      scriptId={voiceScript?.id || ''}
-                      onScript={pickVoiceScript}
+                      scriptLabel={voiceScript?.label}
                       onAddFile={addVoiceFile}
                       onRemoveTake={removeVoiceTake}
                       statuses={clipUploadStatus}
@@ -2216,6 +2211,7 @@ export default function DashboardPage() {
                               </button>
                             ))}
                           </div>
+                          <CaptionLayersPanel value={captionLayers} onChange={setCaptionLayers} position={captionPosition} />
                           <details>
                             <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
@@ -2247,7 +2243,7 @@ export default function DashboardPage() {
                           <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
                           <div>
                             <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)', marginBottom: 1 }}>Smart Trim</p>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
+                            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cuts long silences and the start and end</p>
                           </div>
                         </label>
                       </div>
@@ -2266,23 +2262,8 @@ export default function DashboardPage() {
     v.src = url
   })
 
-  // Scripts the user can read from while recording a voiceover
-  const voiceScriptSources: { id: string; label: string; lines: string[] }[] = [
-    ...filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((i) => ({ id: `idea:${i.id}`, label: i.title || 'Idea', lines: getFilmLines(i) })),
-    ...dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((i) => ({ id: `idea:${i.id}`, label: i.title || 'Idea', lines: [i.hook, ...splitFilmText(i.description || '')].map(cleanFilmLine).filter(Boolean) })),
-    ...savedScripts.map((s) => ({ id: `script-${s.id}`, label: s.topic, lines: splitFilmText(s.script) })),
-  ]
-  const scriptOptions = [
-    ...(voiceScript && !voiceScriptSources.some((s) => s.id === voiceScript.id) ? [{ id: voiceScript.id, label: voiceScript.label }] : []),
-    ...voiceScriptSources.map(({ id, label }) => ({ id, label })),
-  ]
   const aiIdeaItem = filmingItems.find((f) => f.id === selectedFilmingId)
   const aiIdeaLines = aiIdeaItem ? getFilmLines(aiIdeaItem) : []
-  const pickVoiceScript = (id: string) => {
-    if (!id) { setVoiceScript(null); return }
-    const src = voiceScriptSources.find((s) => s.id === id)
-    if (src) setVoiceScript(src)
-  }
   // Everything that can be filmed in the "Several videos" mode, with its lines, actions and on-screen text
   const multiLowComfort = parseComfort(profile?.filming_comfort).level === 'low'
   const buildMultiIdea = (key: string, title: string, ideaId: string | null, source: 'idea' | 'script', caption: string | null, tags: unknown, lines: string[], actions: string[]): MultiFilmIdea => ({
@@ -2994,7 +2975,10 @@ export default function DashboardPage() {
       const outputOrientation = undefined  // always portrait output
 
       const aiHasTexts = clipTexts.some((t) => t.length > 0)
-      const aiCaptionStyle = aiAddCaptions || aiHasTexts
+      const aiOwnMode = aiAddCaptions && aiCaptionOwn
+      const aiTextActive = aiHasTexts && (aiOwnMode ? captionLayers.speech.on : captionLayers.onScreen.on)
+      const aiSpeechActive = aiAddCaptions && !aiOwnMode && captionLayers.speech.on
+      const aiCaptionStyle = aiSpeechActive || aiTextActive
         ? {
             preset: aiCaptionPreset,
             custom: {
@@ -3002,6 +2986,7 @@ export default function DashboardPage() {
               position: captionPosition,
               borderColor: captionBorderColor,
             },
+            layers: resolveCaptionLayers(captionLayers, captionPosition, aiOwnMode),
           }
         : null
 
@@ -3012,7 +2997,7 @@ export default function DashboardPage() {
           userId,
           clipPaths,
           captionStyle: aiCaptionStyle,
-          captionTextOnly: aiHasTexts && (!aiAddCaptions || aiCaptionOwn),
+          captionTextOnly: aiTextActive && !aiSpeechActive,
           musicPath,
           voiceovers,
           originalVolume: originalVol, musicVolume: musicVol,
@@ -3144,7 +3129,10 @@ export default function DashboardPage() {
       const outputOrientation = filmLandscapeOut ? 'landscape' : undefined
 
       const hasOnScreen = clipTexts.some((t) => t.length > 0)
-      const captionStyle = uploadAddCaptions || hasOnScreen
+      const uploadOwnMode = uploadAddCaptions && uploadCaptionOwn
+      const uploadTextActive = hasOnScreen && (uploadOwnMode ? captionLayers.speech.on : captionLayers.onScreen.on)
+      const uploadSpeechActive = uploadAddCaptions && !uploadOwnMode && captionLayers.speech.on
+      const captionStyle = uploadSpeechActive || uploadTextActive
         ? {
             preset: captionPreset,
             custom: {
@@ -3152,13 +3140,14 @@ export default function DashboardPage() {
               position: captionPosition,
               borderColor: captionBorderColor,
             },
+            layers: resolveCaptionLayers(captionLayers, captionPosition, uploadOwnMode),
           }
         : null
 
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: hasOnScreen && (!uploadAddCaptions || uploadCaptionOwn), musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
       })
 
       const data = await res.json()
@@ -4686,7 +4675,7 @@ export default function DashboardPage() {
                       ideas={multiFilmIdeas}
                       isFreeTier={showWatermark}
                       userPlan={userPlan}
-                      captionDefaults={{ preset: captionPreset, fontFamily: captionFontFamily, fontSize: Number(captionFontSize) || 36, color: captionColor, position: captionPosition, borderColor: captionBorderColor }}
+                      captionDefaults={{ preset: captionPreset, fontFamily: captionFontFamily, fontSize: Number(captionFontSize) || 36, color: captionColor, position: captionPosition, borderColor: captionBorderColor, layers: captionLayers }}
                       captionPresets={CAPTION_PRESETS}
                       fontOptions={FONT_OPTIONS}
                       renderBlocked={freeQuotaExceeded}
@@ -5118,9 +5107,7 @@ export default function DashboardPage() {
                       musicVol={musicVol}
                       onMusicVol={setMusicVol}
                       onTakeVolume={setTakeVolume}
-                      scriptOptions={scriptOptions}
-                      scriptId={voiceScript?.id || (aiIdeaLines.length > 0 ? `idea:${selectedFilmingId}` : '')}
-                      onScript={pickVoiceScript}
+                      scriptLabel={voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined)}
                       onAddFile={addVoiceFile}
                       onRemoveTake={removeVoiceTake}
                       statuses={clipUploadStatus}
@@ -5155,6 +5142,7 @@ export default function DashboardPage() {
                                     </button>
                                   ))}
                                 </div>
+                                <CaptionLayersPanel value={captionLayers} onChange={setCaptionLayers} position={captionPosition} />
                                 <details>
                                   <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
@@ -5186,7 +5174,7 @@ export default function DashboardPage() {
                               <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
                               <div>
                                 <p style={{ fontSize: 12, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Smart Trim</p>
-                                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cuts long silences and the start and end</p>
                               </div>
                             </label>
                           </div>

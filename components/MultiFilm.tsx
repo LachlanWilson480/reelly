@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import CaptionLayersPanel from '@/components/CaptionLayersPanel'
+import { type CaptionLayers, resolveCaptionLayers } from '@/lib/captionLayers'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -28,6 +30,7 @@ type Settings = {
   color: string
   position: 'bottom' | 'top' | 'center'
   borderColor: string
+  layers: CaptionLayers
   resolution: 'high' | '4k'
   cutDeadSpace: boolean
 }
@@ -110,6 +113,7 @@ function SettingsFields({ value, onChange, props }: { value: Settings; onChange:
                 </button>
               ))}
             </div>
+            <div style={{ marginTop: 10 }}><CaptionLayersPanel value={value.layers} onChange={(layers) => onChange({ layers })} position={value.position} /></div>
             <details style={{ marginTop: 8 }}>
               <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Font, size, colour and position</summary>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginTop: 8 }}>
@@ -137,7 +141,7 @@ function SettingsFields({ value, onChange, props }: { value: Settings; onChange:
         <input type="checkbox" checked={value.cutDeadSpace} onChange={(e) => onChange({ cutDeadSpace: e.target.checked })} style={{ accentColor: '#FF6A4D' }} />
         <span>
           <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Smart Trim</span>
-          <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>Remove long silences</span>
+          <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>Cuts long silences and the start and end</span>
         </span>
       </label>
     </div>
@@ -535,7 +539,9 @@ export default function MultiFilm(p: Props) {
       const land = orientationRef.current === 'landscape'
       const clipTrims = v.clips.map((c) => (c.duration > 1.5 && c.duration !== 5 ? { duration: c.duration, trimStart: 0.3, trimLength: c.duration - 0.6 } : { duration: c.duration }))
       const hasTexts = v.idea.texts.some((t) => t.length > 0)
-      const captionStyle = s.captions || hasTexts ? { preset: s.preset, custom: { font: { family: s.fontFamily, size: s.fontSize || 36, color: s.color }, position: s.position, borderColor: s.borderColor } } : null
+      const textActive = hasTexts && s.layers.onScreen.on
+      const speechActive = s.captions && s.layers.speech.on
+      const captionStyle = speechActive || textActive ? { preset: s.preset, custom: { font: { family: s.fontFamily, size: s.fontSize || 36, color: s.color }, position: s.position, borderColor: s.borderColor }, layers: resolveCaptionLayers(s.layers, s.position, false) } : null
       try {
         const res = await authFetch('/api/render-video', {
           method: 'POST',
@@ -544,7 +550,7 @@ export default function MultiFilm(p: Props) {
             userId,
             clipPaths: v.clips.map((c) => c.path),
             captionStyle,
-            captionTextOnly: !s.captions && hasTexts,
+            captionTextOnly: textActive && !speechActive,
             musicPath: null,
             voiceovers: [],
             clipTrims,
