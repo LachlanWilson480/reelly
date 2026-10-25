@@ -2205,6 +2205,8 @@ export default function DashboardPage() {
     ...(voiceScript && !voiceScriptSources.some((s) => s.id === voiceScript.id) ? [{ id: voiceScript.id, label: voiceScript.label }] : []),
     ...voiceScriptSources.map(({ id, label }) => ({ id, label })),
   ]
+  const aiIdeaItem = filmingItems.find((f) => f.id === selectedFilmingId)
+  const aiIdeaLines = aiIdeaItem ? getFilmLines(aiIdeaItem) : []
   const pickVoiceScript = (id: string) => {
     if (!id) { setVoiceScript(null); return }
     const src = voiceScriptSources.find((s) => s.id === id)
@@ -4855,7 +4857,7 @@ export default function DashboardPage() {
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }) }}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
                         style={{ padding: '8px 14px', borderRadius: 8, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -5046,7 +5048,7 @@ export default function DashboardPage() {
                       onMusicVol={setMusicVol}
                       onTakeVolume={setTakeVolume}
                       scriptOptions={scriptOptions}
-                      scriptId={voiceScript?.id || ''}
+                      scriptId={voiceScript?.id || (aiIdeaLines.length > 0 ? `idea:${selectedFilmingId}` : '')}
                       onScript={pickVoiceScript}
                       onAddFile={addVoiceFile}
                       onRemoveTake={removeVoiceTake}
@@ -5176,7 +5178,7 @@ export default function DashboardPage() {
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
                 musicVol={musicVol}
-                scriptLines={voiceScript?.lines ?? []}
+                scriptLines={voiceScript?.lines ?? aiIdeaLines}
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
