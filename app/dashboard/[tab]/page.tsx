@@ -816,6 +816,9 @@ function ClipTrimPanel({ file, trim, onChange, onClose }: {
   const [total, setTotal] = useState(0)
   const [cur, setCur] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [thumbs, setThumbs] = useState<string[]>([])
+  const barRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<'start' | 'end' | 'seek' | null>(null)
 
   const t = trim && trim.file === file ? trim : undefined
   const start = t ? t.start : 0
@@ -828,6 +831,64 @@ function ClipTrimPanel({ file, trim, onChange, onClose }: {
   const seek = (time: number) => {
     const v = videoRef.current
     if (v) { try { v.pause(); v.currentTime = Math.max(0, time) } catch {} }
+  }
+
+  // Film-strip frames for the trim bar (skipped quietly if the browser can't draw them)
+  useEffect(() => {
+    if (total <= 0) return
+    let dead = false
+    const N = 10
+    const out: string[] = []
+    const v = document.createElement('video')
+    v.muted = true
+    v.playsInline = true
+    v.preload = 'auto'
+    const c = document.createElement('canvas')
+    const grab = (i: number) => {
+      if (dead) return
+      if (i >= N) { setThumbs(out); return }
+      try { v.currentTime = Math.min(total - 0.05, ((i + 0.5) / N) * total) } catch { setThumbs(out) }
+    }
+    v.onloadeddata = () => {
+      const h = 64
+      c.height = h
+      c.width = Math.max(1, Math.round(h * ((v.videoWidth || 9) / (v.videoHeight || 16))))
+      grab(0)
+    }
+    v.onseeked = () => {
+      try {
+        c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height)
+        out.push(c.toDataURL('image/jpeg', 0.6))
+      } catch { setThumbs([]); return }
+      grab(out.length)
+    }
+    v.onerror = () => { if (!dead) setThumbs([]) }
+    v.src = url
+    return () => { dead = true; v.onloadeddata = null; v.onseeked = null; v.removeAttribute('src') }
+  }, [total, url])
+
+  const timeAt = (clientX: number) => {
+    const r = barRef.current?.getBoundingClientRect()
+    if (!r || r.width <= 0) return 0
+    return Math.min(total, Math.max(0, ((clientX - r.left) / r.width) * total))
+  }
+  const applyDrag = (clientX: number) => {
+    const tm = timeAt(clientX)
+    if (dragRef.current === 'start') {
+      const sNew = Math.min(tm, Math.max(0, end - 0.5))
+      emit(sNew, end); seek(sNew)
+    } else if (dragRef.current === 'end') {
+      const eNew = Math.max(tm, Math.min(total, start + 0.5))
+      emit(start, eNew); seek(Math.max(start, eNew - 0.05))
+    } else if (dragRef.current === 'seek') {
+      seek(Math.min(end, Math.max(start, tm)))
+    }
+  }
+  const beginDrag = (e: React.PointerEvent, mode: 'start' | 'end' | 'seek') => {
+    e.stopPropagation()
+    dragRef.current = mode
+    try { barRef.current?.setPointerCapture(e.pointerId) } catch {}
+    applyDrag(e.clientX)
   }
 
   // Drive the bar every frame while playing, so it moves smoothly in every browser
@@ -855,8 +916,7 @@ function ClipTrimPanel({ file, trim, onChange, onClose }: {
     } else { v.pause(); setPlaying(false) }
   }
 
-  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', minWidth: 74 }
-  const timeStyle: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', minWidth: 52, textAlign: 'right' }
+  const pct = (x: number) => `${total > 0 ? (x / total) * 100 : 0}%`
 
   return (
     <div style={{ marginTop: 6, background: 'rgba(128,128,128,0.07)', borderRadius: 12, padding: 14, border: '1px solid rgba(128,128,128,0.12)' }}>
@@ -898,41 +958,46 @@ function ClipTrimPanel({ file, trim, onChange, onClose }: {
           style={{ width: '100%', maxHeight: 240, borderRadius: 10, background: '#000', display: 'block' }}
         />
       )}
-      {total > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-          <button type="button" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>{playing ? '❚❚' : '▶'}</button>
-          <input
-            type="range" min={start} max={end} step={0.05} value={Math.min(end, Math.max(start, cur))}
-            onChange={(e) => { const v = videoRef.current; if (v) { v.currentTime = Number(e.target.value); setCur(v.currentTime) } }}
-            style={{ flex: 1, accentColor: '#FF6A4D', minWidth: 0 }}
-          />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtTrimTime(Math.max(0, Math.min(end, cur) - start))} / {fmtTrimTime(end - start)}</span>
-        </div>
-      )}
       {total <= 0 ? (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>Loading clip…</p>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <span style={labelStyle}>Start</span>
-            <input
-              type="range" min={0} max={total} step={0.1} value={start}
-              onChange={(e) => { const s = Math.min(Number(e.target.value), Math.max(0, end - 0.5)); emit(s, end); seek(s) }}
-              style={{ flex: 1, accentColor: '#FF6A4D', minWidth: 0 }}
-            />
-            <span style={timeStyle}>{fmtTrimTime(start)}</span>
+            <button type="button" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>{playing ? '❚❚' : '▶'}</button>
+            <div
+              ref={barRef}
+              onPointerDown={(e) => beginDrag(e, 'seek')}
+              onPointerMove={(e) => { if (dragRef.current) applyDrag(e.clientX) }}
+              onPointerUp={() => { dragRef.current = null }}
+              onPointerCancel={() => { dragRef.current = null }}
+              style={{ position: 'relative', flex: 1, minWidth: 0, height: 54, borderRadius: 8, background: '#1c1c1e', overflow: 'hidden', touchAction: 'none', userSelect: 'none', cursor: 'pointer' }}
+            >
+              <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+                {thumbs.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={src} alt="" draggable={false} style={{ flex: 1, minWidth: 0, height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                ))}
+              </div>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct(start), background: 'rgba(0,0,0,0.65)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: pct(end), right: 0, background: 'rgba(0,0,0,0.65)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: pct(start), width: `calc(${pct(end)} - ${pct(start)})`, borderTop: '3px solid #FF6A4D', borderBottom: '3px solid #FF6A4D', boxSizing: 'border-box', pointerEvents: 'none' }} />
+              {cur >= start && cur <= end && (
+                <div style={{ position: 'absolute', top: 3, bottom: 3, left: `calc(${pct(cur)} - 1px)`, width: 2, background: '#fff', boxShadow: '0 0 3px rgba(0,0,0,0.6)', pointerEvents: 'none' }} />
+              )}
+              <div
+                onPointerDown={(e) => beginDrag(e, 'start')}
+                aria-label="Trim start"
+                style={{ position: 'absolute', top: 0, bottom: 0, left: `min(${pct(start)}, calc(100% - 28px))`, width: 14, background: '#FF6A4D', borderRadius: '8px 0 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'ew-resize', touchAction: 'none' }}
+              ><div style={{ width: 3, height: 18, borderRadius: 2, background: '#fff' }} /></div>
+              <div
+                onPointerDown={(e) => beginDrag(e, 'end')}
+                aria-label="Trim end"
+                style={{ position: 'absolute', top: 0, bottom: 0, left: `max(calc(${pct(end)} - 14px), 14px)`, width: 14, background: '#FF6A4D', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'ew-resize', touchAction: 'none' }}
+              ><div style={{ width: 3, height: 18, borderRadius: 2, background: '#fff' }} /></div>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-            <span style={labelStyle}>End</span>
-            <input
-              type="range" min={0} max={total} step={0.1} value={end}
-              onChange={(e) => { const en = Math.min(total, Math.max(Number(e.target.value), start + 0.5)); emit(start, en); seek(start) }}
-              style={{ flex: 1, accentColor: '#FF6A4D', minWidth: 0 }}
-            />
-            <span style={timeStyle}>{fmtTrimTime(end)}</span>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '10px 0 0' }}>
-            Keeping {(end - start).toFixed(1)}s of {total.toFixed(1)}s
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0', fontVariantNumeric: 'tabular-nums' }}>
+            Keeping {fmtTrimTime(end - start)} of {fmtTrimTime(total)} · playing {fmtTrimTime(Math.max(0, Math.min(end, cur) - start))}
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => { const v = videoRef.current; if (v) { v.currentTime = start; v.play().catch(() => {}) } }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Preview trim</button>
