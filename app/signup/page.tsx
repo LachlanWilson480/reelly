@@ -38,7 +38,7 @@ export default function SignUpPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { email_confirm: true },
+        data: { email_confirm: true, ...(() => { try { const r = (localStorage.getItem('reelezy-ref') || '').toUpperCase(); return /^[A-Z0-9]{4,12}$/.test(r) ? { referral_code: r } : {} } catch { return {} } })() },
       },
     })
 

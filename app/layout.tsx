@@ -1,4 +1,5 @@
 import RenderDoneToast from "@/components/RenderDoneToast"
+import ReferralTracker from "@/components/ReferralTracker"
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister"
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata, Viewport } from "next";
@@ -91,6 +92,7 @@ export default function RootLayout({
       >
         {children}
       <RenderDoneToast />
+      <ReferralTracker />
       <Analytics />
       <ServiceWorkerRegister />
       </body>

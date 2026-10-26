@@ -5,9 +5,8 @@ import Link from 'next/link'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
-import CheckoutModal from '@/components/CheckoutModal'
+import ReferralCard from '@/components/ReferralCard'
 import { supabase } from '@/lib/supabase'
-import { authFetch } from '@/lib/authFetch'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
@@ -51,8 +50,6 @@ export default function PlansPage() {
 
   const p = CURRENCY_PRICES[currency]
 
-  const [checkoutPlan, setCheckoutPlan] = useState<{ id: string; label: string } | null>(null)
-  const [success, setSuccess] = useState(false)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('yearly')
   const [discountCode, setDiscountCode] = useState('')
   const [discountInput, setDiscountInput] = useState('')
@@ -199,6 +196,8 @@ export default function PlansPage() {
               </div>
             )}
 
+            <div style={{ marginBottom: 20 }}><ReferralCard /></div>
+
             {/* Switch plan link */}
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
               Want to see other plans?{' '}
@@ -271,12 +270,6 @@ export default function PlansPage() {
             </span>
           </div>
 
-          {success && (
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '20px 24px', marginBottom: 32, textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>Subscription active! You're all set.</p>
-            </div>
-          )}
-
           <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 48 }}>
             {pricing.map((tier) => (
               <div
@@ -321,7 +314,7 @@ export default function PlansPage() {
                 </ul>
                 {tier.id !== 'free' && (
                   <button
-                    onClick={() => { trackEvent('checkout_started', { plan: tier.id, currency }); setCheckoutPlan({ id: tier.id, label: tier.name }) }}
+                    onClick={() => { trackEvent('checkout_started', { plan: tier.id, currency }); router.push(`/checkout?plan=${tier.id}&interval=${billingInterval}${discountCode ? `&code=${encodeURIComponent(discountCode)}` : ''}`) }}
                     style={{
                       display: 'block',
                       width: '100%',
@@ -365,27 +358,11 @@ export default function PlansPage() {
             {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>{discountPercent}% off applied!</p>}
           </div>
 
+          {userEmail && <div style={{ maxWidth: 640, margin: '0 auto' }}><ReferralCard /></div>}
+
           
         </div>
       </div>
-
-      {checkoutPlan && (
-        <CheckoutModal
-          plan={checkoutPlan.id}
-          planLabel={checkoutPlan.label}
-          currency={currency}
-          billingInterval={billingInterval}
-          discountCode={discountCode || undefined}
-          discountPercent={discountPercent}
-          onClose={() => setCheckoutPlan(null)}
-          onSuccess={() => {
-            setCheckoutPlan(null)
-            setSuccess(true)
-            // Ask Stripe for the final status so the plan is active straight away, then go to the dashboard
-            authFetch('/api/sync-subscription', { method: 'POST' }).catch(() => {}).finally(() => setTimeout(() => router.push('/dashboard'), 1500))
-          }}
-        />
-      )}
     </div>
   )
 }

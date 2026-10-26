@@ -73,6 +73,12 @@ export async function POST(req: NextRequest) {
       customerId = customer.id
     }
 
+    // Starting again (for example after changing plan) leaves an unpaid attempt behind, so close those first
+    try {
+      const stale = await stripe.subscriptions.list({ customer: customerId, status: 'incomplete', limit: 10 })
+      for (const s of stale.data) await stripe.subscriptions.cancel(s.id)
+    } catch {}
+
     // Apply discount code if provided
     let couponId: string | undefined
     if (discountCode) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { rewardReferrerForInvoice } from '@/lib/referralReward'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
         // still active (or resubscribed) - cancel any pending deletion
         updateData.deletion_scheduled_at = null
         updateData.deletion_warning_sent = false
-      } else if (periodEndDate && subscription.status !== 'incomplete' && subscription.status !== 'incomplete_expired') {
+      } else if (periodEndDate && subscription.status !== 'incomplete' && subscription.status !== 'incomplete_expired' && subscription.metadata?.referral_reward !== 'true') {
         // canceled / unpaid / expired - schedule deletion 60 days after period end
         const deletionDate = new Date(periodEndDate.getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000)
         updateData.deletion_scheduled_at = deletionDate.toISOString()
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
           .update({ status: 'active', deletion_scheduled_at: null, deletion_warning_sent: false })
           .eq('stripe_subscription_id', subscriptionId)
       }
+      // A friend's first real payment earns their referrer a free month
+      await rewardReferrerForInvoice(stripe, invoice)
     }
     return NextResponse.json({ received: true })
   } catch (error) {
