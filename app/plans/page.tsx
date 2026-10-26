@@ -145,7 +145,7 @@ export default function PlansPage() {
         <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
           <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
             <Link href="/"><ReelezyLogo size={44} /></Link>
-            <button onClick={openPortal} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
+            <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); window.location.href = '/login' }} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
           </nav>
           <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
             <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
