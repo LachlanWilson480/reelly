@@ -364,23 +364,6 @@ export default function SettingsPage() {
     setSavingNotifications(false)
   }
 
-  const handleExportData = async () => {
-    const { data } = await supabase
-      .from('business_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    const exportData = { email, business_profile: data }
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'reelezy-my-data.json'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') return
     setDeleting(true)
@@ -658,21 +641,6 @@ export default function SettingsPage() {
                 {changingPassword ? 'Updating...' : 'Update password'}
               </button>
               {passwordMessage && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10 }}>{passwordMessage}</p>}
-            </div>
-
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
-                Export your data
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
-                Download a copy of your account and business profile data as a JSON file.
-              </p>
-              <button
-                onClick={handleExportData}
-                style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '10px 18px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
-              >
-                Export my data
-              </button>
             </div>
 
             <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 16, padding: '24px' }}>
