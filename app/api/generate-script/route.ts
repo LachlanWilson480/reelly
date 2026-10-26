@@ -1,6 +1,7 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
+import { modelForPlan } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
         .eq('user_id', userId)
     }
 
-    const model = plan === 'top' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = modelForPlan(plan)
 
     const lengthKey = typeof length === 'string' && LENGTH_GUIDANCE[length] ? length : 'medium'
     const lengthInstruction = LENGTH_GUIDANCE[lengthKey]

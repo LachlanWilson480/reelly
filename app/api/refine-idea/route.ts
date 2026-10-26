@@ -1,6 +1,7 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
+import { modelForPlan } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
@@ -62,7 +63,7 @@ IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere 
 Respond ONLY with valid JSON, no markdown, no code fences, in this exact structure:
 { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }`
 
-    const model = plan === 'top' ? 'claude-sonnet-5' : 'claude-haiku-4-5'
+    const model = modelForPlan(plan)
 
     const message = await anthropic.messages.create({
       thinking: { type: 'disabled' },
