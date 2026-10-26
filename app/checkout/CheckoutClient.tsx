@@ -81,6 +81,9 @@ export default function CheckoutClient() {
   const [clientSecret, setClientSecret] = useState('')
   const [percentOff, setPercentOff] = useState<number | null>(null)
   const [referred, setReferred] = useState(false)
+  const [refInput, setRefInput] = useState('')
+  const [refMsg, setRefMsg] = useState('')
+  const [refBusy, setRefBusy] = useState(false)
   const started = useRef(false)
 
   const currency = currencyForCountry(country) ?? detectedCurrency
@@ -149,6 +152,31 @@ export default function CheckoutClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const applyReferral = async () => {
+    const c = refInput.trim().toUpperCase()
+    if (!c || refBusy) return
+    setRefBusy(true)
+    setRefMsg('')
+    try {
+      const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
+      const d = await res.json().catch(() => ({}))
+      if (d.claimed) setReferred(true)
+      else {
+        const reasons: Record<string, string> = {
+          unknown_code: 'That code is not right. Check it and try again.',
+          own_code: 'You cannot use your own code.',
+          already_referred: 'A referral code is already on your account.',
+          not_new: 'Referral codes are for new accounts only.',
+          has_subscription: 'Referral codes are for new accounts only.',
+        }
+        setRefMsg(reasons[d.reason] || 'That code could not be used.')
+      }
+    } catch {
+      setRefMsg('That code could not be checked. Try again.')
+    }
+    setRefBusy(false)
+  }
+
   const cp = currency ? CURRENCY_PRICES[currency] : null
   const base = cp ? (interval === 'yearly' ? (plan === 'top' ? cp.proYearly : cp.basicYearly) : (plan === 'top' ? cp.pro : cp.basic)) : 0
   const discount = percentOff ? base * (percentOff / 100) : 0
@@ -210,6 +238,23 @@ export default function CheckoutClient() {
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 10, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
             A friend referred you. They get a month free when you subscribe.
           </p>
+        )}
+        {!referred && (
+          <div style={{ margin: '0 0 20px' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={refInput}
+                onChange={(e) => setRefInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyReferral() } }}
+                placeholder="Referral code (optional)"
+                autoComplete="off"
+                aria-label="Referral code"
+                style={{ flex: 1, minWidth: 0, padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit' }}
+              />
+              <button type="button" onClick={applyReferral} disabled={refBusy || !refInput.trim()} style={{ padding: '11px 18px', borderRadius: 10, border: '1px solid var(--coral)', background: 'transparent', color: 'var(--coral)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}>{refBusy ? 'Checking…' : 'Apply'}</button>
+            </div>
+            {refMsg && <p role="alert" style={{ fontSize: 12, color: 'var(--coral)', margin: '6px 0 0' }}>{refMsg}</p>}
+          </div>
         )}
         <Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap' }] }}>
           <PayForm dueLabel={dueLabel || 'Pay now'} returnUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/checkout?plan=${plan}&interval=${interval}`} onSuccess={finish} />

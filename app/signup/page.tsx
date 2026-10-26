@@ -19,6 +19,12 @@ export default function SignUpPage() {
   const [otp, setOtp] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [refCode, setRefCode] = useState('')
+  // A friend's link fills this in for them
+  useEffect(() => {
+    const t = setTimeout(() => { try { const r = (localStorage.getItem('reelezy-ref') || '').toUpperCase(); if (r) setRefCode(r) } catch {} }, 0)
+    return () => clearTimeout(t)
+  }, [])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,13 +38,14 @@ export default function SignUpPage() {
 
     setMessage('')
     setIsSigningUp(true)
+    try { const r = refCode.trim().toUpperCase(); if (/^[A-Z0-9]{4,12}$/.test(r)) localStorage.setItem('reelezy-ref', r) } catch {}
 
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { email_confirm: true, ...(() => { try { const r = (localStorage.getItem('reelezy-ref') || '').toUpperCase(); return /^[A-Z0-9]{4,12}$/.test(r) ? { referral_code: r } : {} } catch { return {} } })() },
+        data: { email_confirm: true, ...(/^[A-Z0-9]{4,12}$/.test(refCode.trim().toUpperCase()) ? { referral_code: refCode.trim().toUpperCase() } : {}) },
       },
     })
 
@@ -261,6 +268,17 @@ export default function SignUpPage() {
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
+
+              <input
+                type="text"
+                placeholder="Referral code (optional)"
+                value={refCode}
+                onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                disabled={isSigningUp}
+                autoCapitalize="characters"
+                autoComplete="off"
+                style={{ ...inputStyle, marginBottom: 20, opacity: isSigningUp ? 0.7 : 1 }}
+              />
 
               <label
                 style={{
