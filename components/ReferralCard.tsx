@@ -21,11 +21,11 @@ export default function ReferralCard() {
   const link = info ? `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.reelezy.com')}/signup?ref=${info.code}` : ''
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
+    try { await navigator.clipboard.writeText(info?.code || ''); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
   }
   const share = async () => {
     try {
-      if (navigator.share) await navigator.share({ title: 'Reelezy', text: 'I use Reelezy to plan, film and edit my social videos. Sign up with my link:', url: link })
+      if (navigator.share) await navigator.share({ title: 'Reelezy', text: `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first payment:`, url: link })
       else await copy()
     } catch {}
   }
@@ -49,11 +49,15 @@ export default function ReferralCard() {
         <p style={{ fontSize: 13, color: '#D3D1C7', margin: 0 }}>Loading your link…</p>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Your referral link" style={{ flex: '1 1 220px', minWidth: 0, padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 16, fontFamily: 'inherit' }} />
-            <button type="button" onClick={copy} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{copied ? 'Copied' : 'Copy link'}</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0, padding: '10px 14px', borderRadius: 10, border: '1px dashed rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.08)', textAlign: 'center' }}>
+              <p style={{ fontSize: 11, color: '#D3D1C7', margin: 0 }}>Your referral code</p>
+              <p style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, margin: 0, color: '#fff', userSelect: 'all' }}>{info.code}</p>
+            </div>
+            <button type="button" onClick={copy} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{copied ? 'Copied' : 'Copy code'}</button>
             <button type="button" onClick={share} style={{ padding: '11px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Share</button>
           </div>
+          <p style={{ fontSize: 12, color: '#D3D1C7', margin: '10px 0 0', lineHeight: 1.5 }}>Your friend types this code in when they sign up or choose a plan.</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 20, padding: '14px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.07)' }}>
             {stat(info.joined, 'Friends joined')}
             {stat(info.subscribed, 'Subscribed')}

@@ -11,6 +11,7 @@ import { authFetch } from '@/lib/authFetch'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
+import { cleanReferralInput } from '@/lib/referralInput'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -257,7 +258,7 @@ export default function CheckoutClient() {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={refInput}
-                onChange={(e) => setRefInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                onChange={(e) => setRefInput(cleanReferralInput(e.target.value))}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyReferral() } }}
                 placeholder="Referral code (optional)"
                 autoComplete="off"

@@ -8,7 +8,9 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SU
 const NEW_ACCOUNT_DAYS = 7
 
 const clean = (v: unknown) => {
-  const c = typeof v === 'string' ? v.trim().toUpperCase() : ''
+  const text = typeof v === 'string' ? v.trim() : ''
+  const fromLink = text.match(/[?&]ref=([A-Za-z0-9]+)/)
+  const c = (fromLink ? fromLink[1] : text).toUpperCase()
   return /^[A-Z0-9]{4,12}$/.test(c) ? c : ''
 }
 

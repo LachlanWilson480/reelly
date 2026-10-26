@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
+import { cleanReferralInput } from '@/lib/referralInput'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -273,7 +274,7 @@ export default function SignUpPage() {
                 type="text"
                 placeholder="Referral code (optional)"
                 value={refCode}
-                onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                onChange={(e) => setRefCode(cleanReferralInput(e.target.value))}
                 disabled={isSigningUp}
                 autoCapitalize="characters"
                 autoComplete="off"

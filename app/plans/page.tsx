@@ -12,6 +12,7 @@ import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
+import { cleanReferralInput } from '@/lib/referralInput'
 
 export default function PlansPage() {
   const router = useRouter()
@@ -402,7 +403,7 @@ export default function PlansPage() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
                       value={refInput}
-                      onChange={(e) => setRefInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                      onChange={(e) => setRefInput(cleanReferralInput(e.target.value))}
                       onKeyDown={(e) => e.key === 'Enter' && applyReferral()}
                       placeholder="Friend's referral code"
                       autoComplete="off"
