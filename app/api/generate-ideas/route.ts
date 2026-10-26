@@ -1,6 +1,7 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
+import { parseLocationTypes, multiLocationBrief } from '@/lib/locationTypes'
 import { modelForPlan } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -415,10 +416,12 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const angleLines = angles.map((a, i) => `${i + 1}. ${a}`).join('\n')
 
     // Location
-    const locationType = profile.location_type || 'fixed'
+    const locationList = parseLocationTypes(profile.location_type)
+    const locationType = locationList.length === 1 ? locationList[0] : 'multi'
     const locationBrief =
       locationType === 'online' ? 'ONLINE STORE - sells online, no storefront and no customer visits; focus on products, packing/shipping orders, behind-the-scenes, unboxing, workspace/stockroom; never suggest customers visiting'
       : locationType === 'mobile' ? 'MOBILE - travels to customers, no storefront; use van/tools/expertise'
+      : locationType === 'multi' ? multiLocationBrief(locationList)
       : locationType === 'both' ? 'ALL OF THE ABOVE - mix of fixed shop, mobile and online store; shop ok but not assumed, vary the setting'
       : 'FIXED shop/studio - customers visit; showing space is fine'
     const locationRule = locationType === 'online'

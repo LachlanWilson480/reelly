@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { parseLocationTypes, toggleLocationType } from '@/lib/locationTypes'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -231,8 +232,8 @@ export default function OnboardingPage() {
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>How do you serve your customers?</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'online', label: 'Online store' }, { value: 'both', label: 'All of the above' }].map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setLocationType(opt.value)} style={{ padding: '9px 16px', borderRadius: 8, border: locationType === opt.value ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: locationType === opt.value ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                    {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'online', label: 'Online store' }].map((opt) => (
+                      <button key={opt.value} type="button" onClick={() => setLocationType(toggleLocationType(locationType, opt.value))} style={{ padding: '9px 16px', borderRadius: 8, border: parseLocationTypes(locationType).includes(opt.value) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: parseLocationTypes(locationType).includes(opt.value) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
                         {opt.label}
                       </button>
                     ))}

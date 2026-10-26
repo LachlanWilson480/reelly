@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { parseLocationTypes, toggleLocationType } from '@/lib/locationTypes'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -138,7 +139,7 @@ export default function SettingsPage() {
         const parsedComfort = parseComfort(data.filming_comfort)
         setComfortLevel(parsedComfort.level)
         setFilmingComfort(parsedComfort.rest)
-        setLocationType(data.location_type || 'fixed')
+        setLocationType(parseLocationTypes(data.location_type).join(','))
         setOnCameraPeople(data.on_camera_people || '')
         setVideoPeopleCount(data.video_people_count ?? 1)
         setWebsite(data.website || '')
@@ -500,13 +501,12 @@ export default function SettingsPage() {
                   { value: "fixed", label: "Fixed location (shop/studio)" },
                   { value: "mobile", label: "Mobile (I travel to customers)" },
                   { value: "online", label: "Online store" },
-                  { value: "both", label: "All of the above" },
                 ].map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setLocationType(opt.value)}
-                    style={{ padding: "10px 16px", borderRadius: 8, border: locationType === opt.value ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: locationType === opt.value ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                    onClick={() => setLocationType(toggleLocationType(locationType, opt.value))}
+                    style={{ padding: "10px 16px", borderRadius: 8, border: parseLocationTypes(locationType).includes(opt.value) ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: parseLocationTypes(locationType).includes(opt.value) ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
                   >
                     {opt.label}
                   </button>
