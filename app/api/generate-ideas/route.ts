@@ -291,6 +291,24 @@ const PREMIUM_WEEKLY_LIMIT = 210
 const TOKENS_PER_CARD = 250
 const TOKEN_BUFFER = 200
 
+// Static prompt text, sent as a cached system block (prompt caching).
+const IDEAS_STATIC_RULES = `HOW TO USE THE BRIEF:
+- Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea
+- Signature, USP, Problem, Objections, Promos → lean into these as the content subject where the angle fits
+- BestContent/Formats → match what has worked; AvoidContent → don't repeat those angles
+- Gear/Comfort → never suggest anything beyond what they have or can do
+- Community, Suburb → add local flavour where natural, not forced
+- Website/Instagram/TikTok → ignore for idea generation (not relevant)
+
+STATIC HARD RULES:
+- Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
+- Never use emojis or em dashes anywhere in the output
+- Never state specific technical facts or diagnoses yourself - set up the topic and let the owner explain in their own words
+- 15-30 sec per video, one take, phone, no extra setup beyond normal workspace
+- Title must reference a real business detail - no generic templates ("Behind the scenes", "Day in the life" unless content genuinely is that)
+- Keep each field brief: title <10 words, hook <20 words, description <25 words
+- Use single quotes inside strings, never double quotes`
+
 export async function POST(req: NextRequest) {
   try {
   const authed = await getAuthedUser(req)
@@ -467,22 +485,8 @@ ${keyEventsContext && !objectivesBlock ? `\nRecent biz events (weave in at most 
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
 ${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch - let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
-HOW TO USE THE BRIEF:
-- Tone, Brand personality, Avoid, Taglines → shape voice/style of every idea
-- Signature, USP, Problem, Objections, Promos → lean into these as the content subject where the angle fits
-- BestContent/Formats → match what has worked; AvoidContent → don't repeat those angles
-- Gear/Comfort → never suggest anything beyond what they have or can do
-- Community, Suburb → add local flavour where natural, not forced
-- Website/Instagram/TikTok → ignore for idea generation (not relevant)
-
 HARD RULES:
-${comfortLine ? `- ${comfortLine}\n` : ''}- Never invent a specific fictional customer, address, or live job. Frame problems as common/general ("One thing I get called out for all the time..." not "I just arrived at a house in Bondi where...")
-- Never use emojis or em dashes anywhere in the output
-- Never state specific technical facts or diagnoses yourself - set up the topic and let the owner explain in their own words
-- 15-30 sec per video, one take, phone, no extra setup beyond normal workspace
-- Title must reference a real business detail - no generic templates ("Behind the scenes", "Day in the life" unless content genuinely is that)
-- Keep each field brief: title <10 words, hook <20 words, description <25 words
-- Use single quotes inside strings, never double quotes
+${comfortLine ? `- ${comfortLine}\n` : ''}
 
 ANGLES - assign exactly one per idea, in this order:
 ${angleLines}
@@ -498,6 +502,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
       model,
       max_tokens: maxTokens,
       thinking: { type: 'disabled' },
+      system: [{ type: 'text', text: IDEAS_STATIC_RULES, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: prompt }],
     })
 
