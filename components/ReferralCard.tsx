@@ -64,7 +64,7 @@ export default function ReferralCard() {
             {stat(info.monthsEarned, 'Months earned')}
           </div>
           <p style={{ fontSize: 11, color: '#D3D1C7', margin: '14px 0 0', lineHeight: 1.5 }}>
-            Your friend needs to be new to Reelezy and make a paid first payment. Up to {info.limit} free months per person.
+            Your friend needs to be on the Free plan and make their first paid payment. Up to {info.limit} free months per person.
           </p>
         </>
       )}

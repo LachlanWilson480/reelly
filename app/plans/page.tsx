@@ -136,8 +136,7 @@ export default function PlansPage() {
           unknown_code: 'That code is not right. Check it and try again.',
           own_code: 'You cannot use your own code.',
           already_referred: 'A referral code is already on your account.',
-          not_new: 'Referral codes are for new accounts only.',
-          has_subscription: 'Referral codes are for new accounts only.',
+          has_subscription: 'Referral codes are for accounts that have not subscribed before.',
         }
         setRefMsg(reasons[d.reason] || 'That code could not be used.')
       }

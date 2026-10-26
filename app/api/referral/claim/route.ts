@@ -5,8 +5,6 @@ import { rateLimit } from '@/lib/rateLimit'
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-const NEW_ACCOUNT_DAYS = 7
-
 const clean = (v: unknown) => {
   const text = typeof v === 'string' ? v.trim() : ''
   const fromLink = text.match(/[?&]ref=([A-Za-z0-9]+)/)
@@ -32,9 +30,6 @@ export async function POST(req: NextRequest) {
 
     const { data: existing } = await admin.from('referrals').select('id').eq('referred_id', authed.userId).maybeSingle()
     if (existing) return NextResponse.json({ claimed: false, reason: 'already_referred' })
-
-    const ageDays = (Date.now() - new Date(user.created_at).getTime()) / 86400000
-    if (ageDays > NEW_ACCOUNT_DAYS) return NextResponse.json({ claimed: false, reason: 'not_new' })
 
     const { data: paid } = await admin.from('subscriptions').select('status, stripe_subscription_id').eq('user_id', authed.userId).maybeSingle()
     if (paid?.stripe_subscription_id) return NextResponse.json({ claimed: false, reason: 'has_subscription' })
