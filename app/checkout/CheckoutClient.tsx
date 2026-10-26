@@ -97,6 +97,22 @@ export default function CheckoutClient() {
     authFetch('/api/sync-subscription', { method: 'POST' }).catch(() => {}).finally(() => setTimeout(() => router.push('/dashboard'), 2200))
   }
 
+  // Starts the payment. Run again after a referral code is added, so the 30% off is on the new payment
+  const createSub = async (mail: string) => {
+    const res = await authFetch('/api/create-subscription', {
+      method: 'POST',
+      body: JSON.stringify({ email: mail, plan, billingInterval: interval, discountCode: code || null }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.clientSecret) {
+      setMessage(data.error || 'We could not start checkout. Please try again.')
+      setPhase('error')
+      return
+    }
+    setClientSecret(data.clientSecret)
+    setPhase('ready')
+  }
+
   useEffect(() => {
     if (started.current) return
     started.current = true
@@ -135,18 +151,7 @@ export default function CheckoutClient() {
         } catch {}
       }
 
-      const res = await authFetch('/api/create-subscription', {
-        method: 'POST',
-        body: JSON.stringify({ email: user.email, plan, billingInterval: interval, discountCode: code || null }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.clientSecret) {
-        setMessage(data.error || 'We could not start checkout. Please try again.')
-        setPhase('error')
-        return
-      }
-      setClientSecret(data.clientSecret)
-      setPhase('ready')
+      await createSub(user.email || '')
     }
     run().catch(() => { setMessage('We could not start checkout. Please try again.'); setPhase('error') })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,7 +165,12 @@ export default function CheckoutClient() {
     try {
       const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
       const d = await res.json().catch(() => ({}))
-      if (d.claimed) setReferred(true)
+      if (d.claimed) {
+        setReferred(true)
+        setClientSecret('')
+        setPhase('loading')
+        await createSub(email)
+      }
       else {
         const reasons: Record<string, string> = {
           unknown_code: 'That code is not right. Check it and try again.',
@@ -179,7 +189,10 @@ export default function CheckoutClient() {
 
   const cp = currency ? CURRENCY_PRICES[currency] : null
   const base = cp ? (interval === 'yearly' ? (plan === 'top' ? cp.proYearly : cp.basicYearly) : (plan === 'top' ? cp.pro : cp.basic)) : 0
-  const discount = percentOff ? base * (percentOff / 100) : 0
+  const referralPct = referred ? 30 : 0
+  const effectivePct = Math.max(percentOff ?? 0, referralPct)
+  const usingReferral = referralPct > 0 && referralPct >= (percentOff ?? 0)
+  const discount = effectivePct ? base * (effectivePct / 100) : 0
   const due = Math.max(0, base - discount)
   const money = (n: number) => (cp ? `${cp.symbol}${n.toFixed(2)}` : '')
   const dueLabel = cp ? `${money(due)} ${currency}` : ''
@@ -236,7 +249,7 @@ export default function CheckoutClient() {
         {email && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 22px' }}>Your receipt will go to {email}</p>}
         {referred && (
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 10, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
-            A friend referred you. They get a month free when you subscribe.
+            A friend referred you. You get 30% off your first payment, and they get a month free when you subscribe.
           </p>
         )}
         {!referred && (
@@ -306,7 +319,7 @@ export default function CheckoutClient() {
                 {interval === 'yearly' && <p style={{ fontSize: 12, color: '#D3D1C7', margin: '0 0 8px' }}>That&apos;s {money(base / 12)} a month, with two months free.</p>}
                 {discount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8, color: '#FFB4A5' }}>
-                    <span>Discount {code} ({percentOff}% off)</span>
+                    <span>{usingReferral ? 'Referral discount' : `Discount ${code}`} ({effectivePct}% off)</span>
                     <span>-{money(discount)}</span>
                   </div>
                 )}

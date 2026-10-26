@@ -3,7 +3,7 @@ import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { currencyForCountry } from '@/lib/pricing'
+import { currencyForCountry, REFERRAL_PERCENT_OFF } from '@/lib/pricing'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,8 +79,25 @@ export async function POST(req: NextRequest) {
       for (const s of stale.data) await stripe.subscriptions.cancel(s.id)
     } catch {}
 
-    // Apply discount code if provided
+    // Discount: a discount code, or 30% off for a friend who joined with a referral code. Only the bigger one applies.
     let couponId: string | undefined
+    let referralPercent = 0
+    try {
+      const { data: refRow } = await supabaseAdmin.from('referrals').select('status').eq('referred_id', userId).maybeSingle()
+      if (refRow && refRow.status === 'signed_up') referralPercent = REFERRAL_PERCENT_OFF
+    } catch {}
+
+    const couponForPercent = async (percent: number) => {
+      const couponName = `${percent}OFF`
+      const existingCoupons = await stripe.coupons.list({ limit: 100 })
+      const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === percent)
+      if (existing) return existing.id
+      const created = await stripe.coupons.create({ percent_off: percent, duration: 'once', name: couponName })
+      return created.id
+    }
+
+    let codePercent = 0
+    let codeRow: { id: string; uses: number; percent_off: number } | null = null
     if (discountCode) {
       const { data: discountRow } = await supabaseAdmin
         .from('discount_codes')
@@ -88,21 +105,16 @@ export async function POST(req: NextRequest) {
         .eq('code', discountCode.trim().toUpperCase())
         .eq('active', true)
         .maybeSingle()
-
-      if (discountRow && (discountRow.max_uses === null || discountRow.uses < discountRow.max_uses)) {
-        // Find or create a Stripe coupon for this percentage
-        const couponName = `${discountRow.percent_off}OFF`
-        const existingCoupons = await stripe.coupons.list({ limit: 100 })
-        const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === discountRow.percent_off)
-        if (existing) {
-          couponId = existing.id
-        } else {
-          const newCoupon = await stripe.coupons.create({ percent_off: discountRow.percent_off, duration: 'once', name: couponName })
-          couponId = newCoupon.id
-        }
-        // Increment uses
-        await supabaseAdmin.from('discount_codes').update({ uses: discountRow.uses + 1 }).eq('id', discountRow.id)
+      if (discountRow && (discountRow.max_uses === null || discountRow.uses < discountRow.max_uses) && (!discountRow.expires_at || new Date(discountRow.expires_at) > new Date())) {
+        codePercent = discountRow.percent_off
+        codeRow = discountRow
       }
+    }
+    if (referralPercent > 0 && referralPercent >= codePercent) {
+      couponId = await couponForPercent(referralPercent)
+    } else if (codeRow) {
+      couponId = await couponForPercent(codePercent)
+      await supabaseAdmin.from('discount_codes').update({ uses: codeRow.uses + 1 }).eq('id', codeRow.id)
     }
 
     const subscription = await stripe.subscriptions.create({

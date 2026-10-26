@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import ReferralCard from '@/components/ReferralCard'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import { getMonthStartISO } from '@/lib/billingMonth'
-import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
+import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
 
@@ -23,11 +24,16 @@ export default function PlansPage() {
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
   const [accountLoaded, setAccountLoaded] = useState(false)
+  const [referralPercent, setReferralPercent] = useState(0)
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserEmail(user.email || null)
+        try {
+          const { data: ref } = await supabase.from('referrals').select('status').eq('referred_id', user.id).maybeSingle()
+          if (ref && ref.status === 'signed_up') setReferralPercent(REFERRAL_PERCENT_OFF)
+        } catch {}
         const { data: profile } = await supabase.from('business_profiles').select('business_name, country').eq('user_id', user.id).maybeSingle()
         setProfileCountry(profile?.country || null)
         setBusinessName(profile?.business_name || user.email || null)
@@ -56,6 +62,10 @@ export default function PlansPage() {
   const [discountError, setDiscountError] = useState('')
   const [discountLoading, setDiscountLoading] = useState(false)
   const [discountPercent, setDiscountPercent] = useState<number | null>(null)
+  const effectivePercent = Math.max(discountPercent ?? 0, referralPercent) || null
+  const [refInput, setRefInput] = useState('')
+  const [refMsg, setRefMsg] = useState('')
+  const [refBusy, setRefBusy] = useState(false)
   const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null } | null>(null)
   const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number; renderMinutes: number } | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -111,10 +121,35 @@ export default function PlansPage() {
     }
   }
 
+  const applyReferral = async () => {
+    const c = refInput.trim().toUpperCase()
+    if (!c || refBusy) return
+    setRefBusy(true)
+    setRefMsg('')
+    try {
+      const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
+      const d = await res.json().catch(() => ({}))
+      if (d.claimed) { setReferralPercent(REFERRAL_PERCENT_OFF); setRefInput('') }
+      else {
+        const reasons: Record<string, string> = {
+          unknown_code: 'That code is not right. Check it and try again.',
+          own_code: 'You cannot use your own code.',
+          already_referred: 'A referral code is already on your account.',
+          not_new: 'Referral codes are for new accounts only.',
+          has_subscription: 'Referral codes are for new accounts only.',
+        }
+        setRefMsg(reasons[d.reason] || 'That code could not be used.')
+      }
+    } catch {
+      setRefMsg('That code could not be checked. Try again.')
+    }
+    setRefBusy(false)
+  }
+
   const discountedPrice = (price: string) => {
-    if (!discountPercent) return null
+    if (!effectivePercent) return null
     const num = parseFloat(price.replace(/[^0-9.]/g, ''))
-    return `${p.symbol}${(num * (1 - discountPercent / 100)).toFixed(2)}`
+    return `${p.symbol}${(num * (1 - effectivePercent / 100)).toFixed(2)}`
   }
 
   const openPortal = async () => {
@@ -285,7 +320,7 @@ export default function PlansPage() {
                   {tier.name}
                 </h3>
                 <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
-                  {discountPercent ? (
+                  {effectivePercent ? (
                     <>
                       <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 24 }}>{billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}</span>
                       {' '}
@@ -358,6 +393,36 @@ export default function PlansPage() {
             {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>{discountPercent}% off applied!</p>}
           </div>
 
+          {userEmail && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
+              {referralPercent > 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textAlign: 'center', margin: 0 }}>Friend&apos;s referral applied: {referralPercent}% off your first payment.</p>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      value={refInput}
+                      onChange={(e) => setRefInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12))}
+                      onKeyDown={(e) => e.key === 'Enter' && applyReferral()}
+                      placeholder="Friend's referral code"
+                      autoComplete="off"
+                      aria-label="Referral code"
+                      style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "'Poppins', sans-serif", width: 200, outline: 'none' }}
+                    />
+                    <button
+                      onClick={applyReferral}
+                      disabled={refBusy || !refInput.trim()}
+                      style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}
+                    >
+                      {refBusy ? 'Checking...' : 'Apply'}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>New here? A friend&apos;s code takes {REFERRAL_PERCENT_OFF}% off your first payment, and gives them a free month.</p>
+                  {refMsg && <p style={{ fontSize: 12, color: 'var(--coral)', margin: 0 }}>{refMsg}</p>}
+                </>
+              )}
+            </div>
+          )}
           {userEmail && <div style={{ maxWidth: 640, margin: '0 auto' }}><ReferralCard /></div>}
 
           

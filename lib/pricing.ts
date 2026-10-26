@@ -1,3 +1,6 @@
+// Off the first payment for a friend who joins with a referral code
+export const REFERRAL_PERCENT_OFF = 30
+
 export type Currency = 'AUD' | 'NZD' | 'GBP' | 'EUR' | 'USD' | 'CAD' | 'SGD' | 'ZAR'
 
 const perMonth = (yearly: number) => (yearly / 12).toFixed(2)
