@@ -1089,6 +1089,8 @@ export default function DashboardPage() {
   const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
   const [filmScript, setFilmScript] = useState('')
   const [filmScrollSpeed, setFilmScrollSpeed] = useState(3)
+  const filmScrollSpeedRef = useRef(3)
+  const changeFilmSpeed = (v: number) => { filmScrollSpeedRef.current = v; setFilmScrollSpeed(v) }
   const [filmIsRecording, setFilmIsRecording] = useState(false)
   const [filmCountdown, setFilmCountdown] = useState<number | null>(null)
   const [filmUploading, setFilmUploading] = useState(false)
@@ -1952,13 +1954,16 @@ export default function DashboardPage() {
     }
     if (!filmCurrentLine) return
     const words = filmCurrentLine.split(/\s+/).filter(Boolean).length
-    const secs = Math.max(2, words / (2.3 * (filmScrollSpeed / 3)))
     const distance = el.scrollWidth
-    // eslint-disable-next-line react-hooks/purity
-    const startTime = performance.now()
+    let progress = 0
+    let last = 0
     let stopTimer: ReturnType<typeof setTimeout> | null = null
     const tick = (now: number) => {
-      const progress = Math.min((now - startTime) / (secs * 1000), 1)
+      if (!last) last = now
+      // Read the speed every frame so the slider works while the line is moving
+      const secs = Math.max(4, words / (1.3 * (filmScrollSpeedRef.current / 3)))
+      progress = Math.min(1, progress + (now - last) / (secs * 1000))
+      last = now
       el.style.transform = `translateX(-${distance * progress}px)`
       if (progress < 1) {
         filmRafRef.current = requestAnimationFrame(tick)
@@ -1972,7 +1977,7 @@ export default function DashboardPage() {
       if (stopTimer) clearTimeout(stopTimer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filmIsRecording, filmScrollSpeed])
+  }, [filmIsRecording])
 
     const cleanFilmLine = (s: string) => s.trim().replace(/^say:\s*/i, '').replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g, '').trim()
 
@@ -2642,7 +2647,7 @@ export default function DashboardPage() {
     const item = filmingItems.find((f) => f.id === selectedFilmingId)
     const stepCount = aiSingleClipMode ? 1 : item?.checklist.length || 0
     const empty: number[] = []
-    for (let i = 0; i < stepCount; i++) if (!stepUploads[i] && !stepUploadNames[i]) empty.push(i)
+    for (let i = 0; i < stepCount; i++) if (!stepUploads[i]) empty.push(i)
     const used = vids.slice(0, empty.length)
     used.forEach((f, n) => {
       const idx = empty[n]
@@ -2773,6 +2778,7 @@ export default function DashboardPage() {
     Array.from(clipUploadPromises.keys()).filter((k) => k.startsWith('a')).forEach((k) => clipUploadPromises.delete(k))
     setClipUploadStatus((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => !k.startsWith('a'))) as Record<string, ClipUploadState>)
     setStepUploadPaths({})
+    setStepUploadNames({})
   }
 
   // Music and voiceover files upload in the background too ('m' = music file, 'v:<id>' = a voiceover part)
@@ -4793,6 +4799,11 @@ export default function DashboardPage() {
                           <p style={{ color: '#fff', fontSize: 17, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{filmCurrentLine}</p>
                         )}
                         {filmLines[filmLineIdx + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx + 1]}</p>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slower</span>
+                          <input type="range" min={1} max={10} value={filmScrollSpeed} aria-label="Teleprompter speed" onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ flex: 1, minWidth: 0, accentColor: 'var(--coral)' }} />
+                          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Faster</span>
+                        </div>
                       </div>
                     )}
                     {filmCurrentAction && !filmPending && (
@@ -4850,7 +4861,7 @@ export default function DashboardPage() {
                               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : 'Scroll speed'}</span>
                               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{filmScrollSpeed}x</span>
                             </div>
-                            <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => setFilmScrollSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
+                            <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
                           </div>
                         )}
                       </div>
