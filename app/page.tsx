@@ -10,14 +10,9 @@ import { CURRENCY_PRICES, PLAN_COPY } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import './landing.css'
 
-const Tick = () => (
-  <span className="lp-tick" aria-hidden="true">
-    <svg width="11" height="9" viewBox="0 0 12 10"><path d="M1.5 5.2l3 3 6-6.4" fill="none" stroke="#ff6a4d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-  </span>
-)
 const Points = ({ items }: { items: readonly string[] }) => (
   <ul className="lp-list">
-    {items.map((pt) => (<li key={pt}><Tick />{pt}</li>))}
+    {items.map((pt) => (<li key={pt}>{pt}</li>))}
   </ul>
 )
 
@@ -109,117 +104,105 @@ export default function HomePage() {
     { label: 'Auto-edited video' },
   ]
 
-  const businessTypes = ['Cafés', 'Salons', 'Trades', 'Makers', 'Market stalls']
-
   return (
     <div className="lp">
       <Sidebar />
 
       <nav className="lp-nav" aria-label="Main">
-        <ReelezyLogo size={34} />
-        <div className="lp-nav-links">
-          <a href="#how">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#faq">Questions</a>
-        </div>
-        <div className="lp-nav-actions">
-          <Link href="/login" className="lp-login">Log in</Link>
-          <Link href="/signup" className="lp-btn lp-btn-sm">Sign up</Link>
+        <div className="lp-nav-in">
+          <ReelezyLogo size={34} />
+          <div className="lp-nav-links">
+            <a href="#how">How it works</a>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">Questions</a>
+          </div>
+          <div className="lp-nav-actions">
+            <Link href="/login" className="lp-login">Log in</Link>
+            <Link href="/signup" className="lp-btn lp-btn-sm">Sign up</Link>
+          </div>
         </div>
       </nav>
 
       <header className="lp-hero">
-        <div className="lp-hero-copy">
-          <h1 className="lp-h1">Content ideas, filmed and posted in minutes.</h1>
-          <p className="lp-hero-sub">
-            Reelezy gives small businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
-          </p>
-          <div className="lp-hero-actions">
-            <Link href="/signup" className="lp-btn lp-btn-lg">Get started free</Link>
-            <a href="#how" className="lp-btn lp-btn-lg lp-btn-ghost">See how it works</a>
-          </div>
-          <p className="lp-note"><i />No credit card required.</p>
-        </div>
-
-        <div className="lp-stage">
-          <div className="lp-pills">
-            {heroSteps.map((step, i) => (
-              <div key={step.label} className={i === heroStep ? 'lp-pill lp-pill-on' : 'lp-pill'}>
-                <b>{i + 1}</b>
-                <span>{step.label}</span>
-              </div>
-            ))}
+        <div className="lp-wrap lp-hero-grid">
+          <div className="lp-hero-copy">
+            <h1 className="lp-h1">Content ideas, filmed and posted in minutes.</h1>
+            <p className="lp-hero-sub">
+              Reelezy gives small businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
+            </p>
+            <div className="lp-hero-actions">
+              <Link href="/signup" className="lp-btn">Get started free</Link>
+              <a href="#how" className="lp-btn lp-btn-line">See how it works</a>
+            </div>
+            <p className="lp-hero-note">No credit card required.</p>
           </div>
 
-          <div className="lp-float lp-float-a" aria-hidden="true">
-            <span className="lp-dot lp-dot-star">★</span>
-            <div><b>Saved to My Ideas</b><span>Before and after reveal</span></div>
-          </div>
-          <div className="lp-float lp-float-b" aria-hidden="true">
-            <span className="lp-dot lp-dot-ok">✓</span>
-            <div><b>Captions added</b><span>Music and pauses cut</span></div>
-          </div>
-
-          <div className="hp-phone" aria-hidden="true">
-            <div className="hp-notch" />
-            <div className="hp-screen">
-              {heroStep === 0 && (
-                <div className="hp-s hp-ideas" key="ideas">
-                  <p className="hp-title">Ideas for this week</p>
-                  {mockIdeas.map((idea, i) => (
-                    <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
-                      <div>
-                        <p className="hp-idea-t">{idea.title}</p>
-                        <p className="hp-idea-h">{idea.tag}</p>
+          <div className="lp-stage">
+            <div className="hp-phone" aria-hidden="true">
+              <div className="hp-notch" />
+              <div className="hp-screen">
+                {heroStep === 0 && (
+                  <div className="hp-s hp-ideas" key="ideas">
+                    <p className="hp-title">Ideas for this week</p>
+                    {mockIdeas.map((idea, i) => (
+                      <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
+                        <div>
+                          <p className="hp-idea-t">{idea.title}</p>
+                          <p className="hp-idea-h">{idea.tag}</p>
+                        </div>
+                        <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
                       </div>
-                      <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {heroStep === 1 && (
-                <div className="hp-s hp-film" key="film">
-                  <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                  <div className="hp-prompter">
-                    {phoneLines.map((line, i) => (
-                      <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
                     ))}
                   </div>
-                  <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
-                  <div className="hp-clips">Clip 2 of 3</div>
-                  <div className="hp-shutter"><span /></div>
-                </div>
-              )}
-              {heroStep === 2 && (
-                <div className="hp-s hp-film" key="edit">
-                  <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                  <div className="hp-done">Render complete</div>
-                  <div className="hp-caption">Booking slots <b>open</b> this week</div>
-                  <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
-                  <div className="hp-progress"><span /></div>
-                </div>
-              )}
+                )}
+                {heroStep === 1 && (
+                  <div className="hp-s hp-film" key="film">
+                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-prompter">
+                      {phoneLines.map((line, i) => (
+                        <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
+                      ))}
+                    </div>
+                    <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
+                    <div className="hp-clips">Clip 2 of 3</div>
+                    <div className="hp-shutter"><span /></div>
+                  </div>
+                )}
+                {heroStep === 2 && (
+                  <div className="hp-s hp-film" key="edit">
+                    <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-done">Render complete</div>
+                    <div className="hp-caption">Booking slots <b>open</b> this week</div>
+                    <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
+                    <div className="hp-progress"><span /></div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="lp-tabs" aria-hidden="true">
+              {heroSteps.map((step, i) => (
+                <span key={step.label} className={i === heroStep ? 'on' : ''}>{step.label}</span>
+              ))}
             </div>
           </div>
         </div>
       </header>
 
       <div className="lp-for">
-        <p>Made for small businesses</p>
-        <ul>
-          {businessTypes.map((t) => (<li key={t}>{t}</li>))}
-        </ul>
+        <p className="lp-for-in" style={{ margin: '0 auto' }}><b>Made for small businesses:</b> cafés, salons, trades, makers and market stalls.</p>
       </div>
 
       <section id="how" className="lp-sec lp-anchor">
         <div className="lp-wrap">
-          <h2 className="lp-h2">How it works</h2>
-          <p className="lp-lead">From setup to your first posted video in under an hour.</p>
+          <div className="lp-head">
+            <h2 className="lp-h2">How it works</h2>
+            <p className="lp-lead">From setup to your first posted video in under an hour.</p>
+          </div>
           <div className="lp-steps">
             {steps.map((st, i) => (
               <div key={st.title} className="lp-step">
-                <p className="lp-num">{i + 1}</p>
+                <div className="lp-step-top"><span>Step {i + 1} of {steps.length}</span><b>{i + 1}</b></div>
                 <h3 className="lp-h3">{st.title}</h3>
                 <p className="lp-sub">{st.desc}</p>
                 <Points items={st.points} />
@@ -231,15 +214,19 @@ export default function HomePage() {
 
       <section id="features" className="lp-sec lp-anchor">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Everything you need to post consistently</h2>
-          <p className="lp-lead">Built so you can go from idea to scheduled post without opening a single other app.</p>
-          <div className="lp-bento">
-            <div className="lp-tile lp-tile-a">
-              <h3 className="lp-h3">AI content ideas</h3>
-              <p className="lp-tile-lead">A fresh set of ideas written for your business and your local area.</p>
-              <Points items={['Hyperlocal video ideas', 'Titles and hashtags', 'Step-by-step filming checklists']} />
-              <div className="lp-mock lp-ideas" aria-hidden="true">
-                {[...mockIdeas, { title: 'Meet the person behind the counter', tag: '#meettheteam' }, { title: 'Our most popular order', tag: '#bestseller' }].map((idea, i) => (
+          <div className="lp-head">
+            <h2 className="lp-h2">Everything you need to post consistently</h2>
+            <p className="lp-lead">Built so you can go from idea to scheduled post without opening a single other app.</p>
+          </div>
+          <div className="lp-rows">
+            <div className="lp-row">
+              <div className="lp-row-text">
+                <h3 className="lp-h3">AI content ideas</h3>
+                <p className="lp-tile-lead">A fresh set of ideas written for your business and your local area.</p>
+                <Points items={['Hyperlocal video ideas', 'Titles and hashtags', 'Step-by-step filming checklists']} />
+              </div>
+              <div className="lp-screen lp-ideas" aria-hidden="true">
+                {mockIdeas.map((idea, i) => (
                   <div key={idea.title} className="lp-idea">
                     <div><strong>{idea.title}</strong><span>{idea.tag}</span></div>
                     <em className={i === 0 ? 'on' : ''}>★</em>
@@ -248,35 +235,43 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="lp-tile lp-tile-b">
-              <h3 className="lp-h3">Automatic editing</h3>
-              <p className="lp-tile-lead">Film the clips. Reelezy puts the video together.</p>
-              <Points items={['Stitching your clips together', 'Captions', 'Pause removal', 'Sound']} />
-              <div className="lp-mock lp-frame" aria-hidden="true">
-                <div className="cap">Booking slots <b>open</b> this week</div>
-                <div className="lp-chip-row"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
-                <div className="lp-bar"><i /></div>
+            <div className="lp-row">
+              <div className="lp-row-text">
+                <h3 className="lp-h3">Film with a teleprompter</h3>
+                <p className="lp-tile-lead">Read your script off the screen while you film.</p>
+                <Points items={['Your script scrolls on screen', 'One clip at a time', 'Redo any clip before you render']} />
               </div>
-            </div>
-
-            <div className="lp-tile lp-tile-c">
-              <h3 className="lp-h3">Film with a teleprompter</h3>
-              <p className="lp-tile-lead">Read your script off the screen while you film.</p>
-              <Points items={['Your script scrolls on screen', 'One clip at a time', 'Redo any clip before you render']} />
-              <div className="lp-mock lp-prompt" aria-hidden="true">
-                <span className="lp-rec"><i />REC</span>
-                {phoneLines.map((line, i) => (<p key={line} className={i === 1 ? 'on' : ''}>{line}</p>))}
-              </div>
-            </div>
-
-            <div className="lp-tile lp-tile-d">
-              <div className="lp-tile-top">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  <h3 className="lp-h3">Plan your week</h3>
-                  <p className="lp-tile-lead">Line up the week once, then film when it suits you.</p>
-                  <Points items={['Lining up ideas ahead of time', 'Filming steps ready to go', 'Never staring at a blank page']} />
+              <div className="lp-screen" aria-hidden="true">
+                <div className="lp-prompt">
+                  <span className="lp-rec"><i />REC</span>
+                  {phoneLines.map((line, i) => (<p key={line} className={i === 1 ? 'on' : ''}>{line}</p>))}
                 </div>
-                <div className="lp-week" aria-hidden="true">
+              </div>
+            </div>
+
+            <div className="lp-row">
+              <div className="lp-row-text">
+                <h3 className="lp-h3">Automatic editing</h3>
+                <p className="lp-tile-lead">Film the clips. Reelezy puts the video together.</p>
+                <Points items={['Stitching your clips together', 'Captions', 'Pause removal', 'Sound']} />
+              </div>
+              <div className="lp-screen" aria-hidden="true">
+                <div className="lp-frame">
+                  <div className="cap">Booking slots <b>open</b> this week</div>
+                  <div className="lp-chip-row"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
+                  <div className="lp-bar"><i /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lp-row">
+              <div className="lp-row-text">
+                <h3 className="lp-h3">Plan your week</h3>
+                <p className="lp-tile-lead">Line up the week once, then film when it suits you.</p>
+                <Points items={['Lining up ideas ahead of time', 'Filming steps ready to go', 'Never staring at a blank page']} />
+              </div>
+              <div className="lp-screen" aria-hidden="true">
+                <div className="lp-week">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                     <div key={d} className="lp-day">
                       <small>{d}</small>
@@ -295,33 +290,37 @@ export default function HomePage() {
 
       <section id="pricing" className="lp-sec lp-anchor">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Pricing</h2>
-          <p className="lp-lead">Pick the plan that fits how many reels you make. Prices are in {currency ?? 'AUD'}. Full details at checkout.</p>
+          <div className="lp-head">
+            <h2 className="lp-h2">Pricing</h2>
+            <p className="lp-lead">Pick the plan that fits how many reels you make. Prices are in {currency ?? 'AUD'}. Full details at checkout.</p>
+          </div>
           <div className="lp-plans">
             {pricing.map((tier) => (
               <div key={tier.name} className={tier.highlight ? 'lp-plan lp-plan-hi' : 'lp-plan'}>
                 <h3>{tier.name}</h3>
+                <p className="desc">{tier.desc}</p>
                 <p className="lp-price">{currency ? tier.price : '\u00a0'}<small>{currency ? tier.period : ''}</small></p>
                 <p className="meta">{currency && tier.note ? tier.note : ''}</p>
-                <p className="desc">{tier.desc}</p>
                 <Points items={tier.features} />
                 <Link href="/signup" className={tier.highlight ? 'lp-btn' : 'lp-btn lp-btn-line'}>Get started</Link>
               </div>
             ))}
           </div>
-          <div className="lp-more"><Link href="/plans">See full plan details</Link></div>
+          <p className="lp-more"><Link href="/plans">See full plan details</Link></p>
         </div>
       </section>
 
       <section id="faq" className="lp-sec lp-anchor">
         <div className="lp-wrap">
-          <h2 className="lp-h2" style={{ marginBottom: 40 }}>Common questions</h2>
+          <div className="lp-head">
+            <h2 className="lp-h2">Common questions</h2>
+          </div>
           <div className="lp-faq">
             {faqs.map((f, i) => (
               <div key={f.q} className={openFaq === i ? 'lp-q open' : 'lp-q'}>
                 <button type="button" aria-expanded={openFaq === i} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
                   <span>{f.q}</span>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="#ff6a4d" strokeWidth="2" strokeLinecap="round" /></svg>
+                  <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v14M3 10h14" stroke="#ff6a4d" strokeWidth="2" strokeLinecap="square" /></svg>
                 </button>
                 <div className="lp-ans"><div><p>{f.a}</p></div></div>
               </div>
@@ -331,36 +330,42 @@ export default function HomePage() {
       </section>
 
       <div className="lp-final">
-        <h2>Start posting consistently</h2>
-        <p>No credit card required.</p>
-        <Link href="/signup" className="lp-btn lp-btn-lg">Get started free</Link>
+        <div className="lp-final-in">
+          <div>
+            <h2>Start posting consistently</h2>
+            <p>No credit card required.</p>
+          </div>
+          <Link href="/signup" className="lp-btn">Get started free</Link>
+        </div>
       </div>
 
       <footer className="lp-foot">
-        <div className="lp-foot-top">
-          <div>
-            <ReelezyLogo size={44} />
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 220, lineHeight: 1.6 }}>AI-powered social content for small businesses.</p>
-          </div>
-          <div style={{ display: 'flex', gap: 56 }}>
+        <div className="lp-wrap">
+          <div className="lp-foot-top">
             <div>
-              <h4>Product</h4>
-              <div className="lp-foot-col">
-                <Link href="/plans">Plans</Link>
-                <Link href="/signup">Sign up</Link>
-                <Link href="/login">Log in</Link>
+              <ReelezyLogo size={44} />
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, maxWidth: 220, lineHeight: 1.6 }}>AI-powered social content for small businesses.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 56 }}>
+              <div>
+                <h4>Product</h4>
+                <div className="lp-foot-col">
+                  <Link href="/plans">Plans</Link>
+                  <Link href="/signup">Sign up</Link>
+                  <Link href="/login">Log in</Link>
+                </div>
+              </div>
+              <div>
+                <h4>Company</h4>
+                <div className="lp-foot-col">
+                  <Link href="/privacy">Privacy Policy</Link>
+                  <a href="mailto:hello@reelezy.com">Contact</a>
+                </div>
               </div>
             </div>
-            <div>
-              <h4>Company</h4>
-              <div className="lp-foot-col">
-                <Link href="/privacy">Privacy Policy</Link>
-                <a href="mailto:hello@reelezy.com">Contact</a>
-              </div>
-            </div>
           </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>© 2026 Reelezy.</p>
         </div>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 48 }}>© 2026 Reelezy.</p>
       </footer>
     </div>
   )
