@@ -85,11 +85,10 @@ const fmtTrimTime = (s: number) => {
   return `${m}:${sec.toFixed(1).padStart(4, '0')}`
 }
 
-const trimButtonLabel = (t: ClipTrimRange | undefined, file: File | undefined) =>
-  t && file && t.file === file ? `Trimmed · ${(t.end - t.start).toFixed(1)}s` : 'Trim'
 
 type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
+type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number }
 type PreviewCaptionStyle = { color: string; border: string; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
 const voiceoverExt = (b: Blob) => {
@@ -267,7 +266,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -280,6 +279,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   captionStyle?: PreviewCaptionStyle
   onReorderClip?: (from: number, to: number) => void
   onDropFiles?: (files: File[]) => void
+  captions?: CustomCaption[]
+  onCaptions?: (c: CustomCaption[]) => void
+  onTrimClip?: (index: number, start: number, end: number, total: number) => void
+  captionNote?: string
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -311,6 +314,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const recStartRef = useRef(0)
   const recWallRef = useRef(0)
   const pickRef = useRef<HTMLInputElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [selCap, setSelCap] = useState<string | null>(null)
+  const [capDraft, setCapDraft] = useState('')
+  const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
+  const capPosRef = useRef<{ id: string } | null>(null)
+  const trimDragRef = useRef<{ i: number; side: 'l' | 'r'; startX: number; scale: number; start: number; end: number; dur: number } | null>(null)
   // Playback bookkeeping that must not wait for a re-render (this is what kept the voiceover from glitching)
   const indexRef = useRef(0)
   const switchingRef = useRef(false)
@@ -579,6 +588,78 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   const hasClips = segments.length > 0
 
+  // ---- Captions: each one is a block on the timeline. Blocks that overlap in time sit on their own row (layer).
+  const caps = captions || []
+  const capRows: Record<string, number> = {}
+  const rowEnds: number[] = []
+  ;[...caps].sort((a, b) => a.start - b.start).forEach((c) => {
+    let r = rowEnds.findIndex((e) => e <= c.start + 0.001)
+    if (r === -1) { r = rowEnds.length; rowEnds.push(0) }
+    rowEnds[r] = c.end
+    capRows[c.id] = r
+  })
+  const capTop = musicUrl ? 94 : 64
+  const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62)
+  const updateCap = (id: string, patch: Partial<CustomCaption>) => onCaptions?.(caps.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+  const addCaption = () => {
+    const text = capDraft.trim()
+    if (!text || !onCaptions || total <= 0 || caps.length >= 30) return
+    const start = globalTime >= total - 0.5 ? Math.max(0, total - 3) : globalTime
+    const end = Math.min(total, start + 3)
+    const stacked = caps.filter((c) => c.start < end && c.end > start).length
+    const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
+    onCaptions([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12) }])
+    setSelCap(id)
+    setCapDraft('')
+  }
+  const moveCap = (e: React.PointerEvent) => {
+    const d = capDragRef.current
+    if (!d || total <= 0) return
+    const w = trackRef.current?.getBoundingClientRect().width || 1
+    const delta = (e.clientX - d.startX) * (total / w)
+    if (d.mode === 'move') {
+      const len = d.end - d.start
+      const st = Math.min(Math.max(0, total - len), Math.max(0, d.start + delta))
+      updateCap(d.id, { start: st, end: st + len })
+    } else if (d.mode === 'l') updateCap(d.id, { start: Math.min(d.end - 0.3, Math.max(0, d.start + delta)) })
+    else updateCap(d.id, { end: Math.max(d.start + 0.3, Math.min(total, d.end + delta)) })
+  }
+  const startCapDrag = (e: React.PointerEvent, c: CustomCaption, mode: 'move' | 'l' | 'r') => {
+    if (recording) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setSelCap(c.id)
+    capDragRef.current = { id: c.id, mode, startX: e.clientX, start: c.start, end: c.end }
+  }
+
+  // ---- Trim: the white ends of a clip block on the timeline
+  const startTrim = (e: React.PointerEvent, i: number, side: 'l' | 'r') => {
+    const seg = segments[i]
+    if (recording || !onTrimClip || !seg) return
+    const dur = durations[previewFileKey(seg.file)] || 0
+    if (dur <= 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    videoRef.current?.pause()
+    pauseTakes()
+    setPlaying(false)
+    const w = trackRef.current?.getBoundingClientRect().width || 1
+    trimDragRef.current = { i, side, startX: e.clientX, scale: total / w, start: seg.start, end: seg.end != null ? Math.min(seg.end, dur) : dur, dur }
+  }
+  const moveTrim = (e: React.PointerEvent) => {
+    const d = trimDragRef.current
+    if (!d || !onTrimClip) return
+    const delta = (e.clientX - d.startX) * d.scale
+    if (d.side === 'r') onTrimClip(d.i, d.start, Math.min(d.dur, Math.max(d.start + 0.3, d.end + delta)), d.dur)
+    else onTrimClip(d.i, Math.max(0, Math.min(d.end - 0.3, d.start + delta)), d.end, d.dur)
+  }
+  const endTrim = () => {
+    const d = trimDragRef.current
+    trimDragRef.current = null
+    if (d) load(d.i, 0, false)
+  }
+
   // The script on the preview follows the playhead, also when the timeline is dragged while paused
   useEffect(() => {
     const box = scriptBoxRef.current
@@ -588,19 +669,27 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   return (
     <div>
-      <div style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
+      <div ref={stageRef} style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
         <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-        {(() => {
-          const cap = segments[index]
-          if (!captionStyle || !cap?.caption) return null
-          const pt = captionStyle[cap.captionLayer || 'speech']
+        {captionStyle && caps.filter((c) => globalTime >= c.start && globalTime < c.end).map((c) => {
           const unit = (captionStyle.size / 1080) * 100
+          const sel = selCap === c.id
           return (
-            <div aria-label="Caption preview" style={{ position: 'absolute', left: `${pt.x * 100}%`, top: `${pt.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, pointerEvents: 'none', fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
-              {cap.caption}
+            <div key={c.id} aria-label={`Caption: ${c.text}`}
+              onPointerDown={(e) => { if (recording || !onCaptions) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id); capPosRef.current = { id: c.id } }}
+              onPointerMove={(e) => {
+                const p = capPosRef.current
+                const box = stageRef.current?.getBoundingClientRect()
+                if (!p || !box) return
+                updateCap(p.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)) })
+              }}
+              onPointerUp={() => { capPosRef.current = null }}
+              onPointerCancel={() => { capPosRef.current = null }}
+              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
+              {c.text}
             </div>
           )
-        })()}
+        })}
         {scriptLines.length > 0 && (recording || showScript) && (
           <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.82) 72%, rgba(8,6,24,0))' }}>
             <div ref={scriptBoxRef} style={{ height: '100%', overflow: 'hidden', padding: `${recording ? 40 : 16}px 18px 22px` }}>
@@ -713,15 +802,25 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             if (e.key === 'ArrowRight') { e.preventDefault(); seekGlobal(Math.min(total, globalTime + 1), playing) }
             if (e.key === 'ArrowLeft') { e.preventDefault(); seekGlobal(Math.max(0, globalTime - 1), playing) }
           }}
-          style={{ position: 'relative', height: musicUrl ? 92 : 62, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
+          style={{ position: 'relative', height: trackHeight, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
         >
           <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 24, display: 'flex', borderRadius: 6, overflow: 'hidden', background: 'rgba(128,128,128,0.15)' }}>
+            {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
             {lengths.map((len, i) => {
               const moving = clipDrag?.from === i
               const landing = !!clipDrag && clipDrag.to === i && clipDrag.from !== i
               const edge = landing && clipDrag ? (clipDrag.to > clipDrag.from ? 'inset -3px 0 0 #fff' : 'inset 3px 0 0 #fff') : 'none'
               return (
-                <div key={i} style={{ flex: len > 0 ? len : 1, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>{i + 1}</div>
+                <div key={i} style={{ position: 'relative', flex: len > 0 ? len : 1, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 14 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
+                  {i + 1}
+                  {onTrimClip && !recording && (['l', 'r'] as const).map((side) => (
+                    <span key={side} role="separator" aria-label={side === 'l' ? `Trim the start of clip ${i + 1}` : `Trim the end of clip ${i + 1}`}
+                      onPointerDown={(e) => startTrim(e, i, side)} onPointerMove={(e) => moveTrim(e)} onPointerUp={() => endTrim()} onPointerCancel={() => endTrim()}
+                      style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 10, background: '#fff', cursor: 'ew-resize', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: side === 'l' ? '6px 0 0 6px' : '0 6px 6px 0' }}>
+                      <span style={{ width: 2, height: 12, background: 'rgba(0,0,0,0.45)', borderRadius: 1, pointerEvents: 'none' }} />
+                    </span>
+                  ))}
+                </div>
               )
             })}
           </div>
@@ -763,13 +862,60 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           {musicUrl && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 6, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
           )}
+          {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
+          {caps.map((c) => {
+            const sel = selCap === c.id
+            const grip = (side: 'l' | 'r') => (
+              <span key={side} aria-label={side === 'l' ? 'Change when the caption starts' : 'Change when the caption ends'}
+                onPointerDown={(e) => startCapDrag(e, c, side)} onPointerMove={(e) => moveCap(e)} onPointerUp={() => { capDragRef.current = null }} onPointerCancel={() => { capDragRef.current = null }}
+                style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 8, background: '#fff', cursor: 'ew-resize', touchAction: 'none', borderRadius: side === 'l' ? '4px 0 0 4px' : '0 4px 4px 0' }} />
+            )
+            return (
+              <div key={c.id} title={`Caption: ${c.text}. Drag to move it, drag the white ends to change how long it shows.`}
+                onPointerDown={(e) => startCapDrag(e, c, 'move')} onPointerMove={(e) => moveCap(e)} onPointerUp={() => { capDragRef.current = null }} onPointerCancel={() => { capDragRef.current = null }}
+                style={{ position: 'absolute', top: capTop + (capRows[c.id] ?? 0) * 26, height: 22, left: pct(c.start), width: pct(Math.max(0, c.end - c.start)), minWidth: 22, boxSizing: 'border-box', borderRadius: 5, background: sel ? 'var(--coral)' : 'rgba(255,106,77,0.55)', border: `1.5px solid ${sel ? '#fff' : 'var(--coral)'}`, color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+                <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.text}</span>
+                {!recording && grip('l')}
+                {!recording && grip('r')}
+              </div>
+            )
+          })}
           <div style={{ position: 'absolute', top: -3, bottom: -3, left: pct(globalTime), width: 2, marginLeft: -1, background: 'var(--ink)', borderRadius: 1, pointerEvents: 'none' }} />
         </div>
-        <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-          <span>Top bar: your clips{onReorderClip && segments.length > 1 ? ' (drag a block to reorder)' : ''}</span>
+        <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+          <span>Top bar: your clips{onReorderClip && segments.length > 1 ? ' (drag a block to reorder)' : ''}{onTrimClip ? '. Drag the white ends to trim' : ''}</span>
           <span>Middle bar: your voiceover (drag a block to move it)</span>
           {musicUrl && <span>Bottom bar: music</span>}
+          {caps.length > 0 && <span>Orange bars: captions</span>}
         </div>
+      {onCaptions && (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 8px' }}>Captions</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input type="text" value={capDraft} maxLength={140} disabled={!hasClips} placeholder="Type a caption" aria-label="Type a caption"
+              onChange={(e) => setCapDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCaption() } }}
+              style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+            <button type="button" onClick={addCaption} disabled={!hasClips || !capDraft.trim()} style={{ ...choiceBtn(false, !hasClips || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+            A caption appears on the preview where the playhead is, for 3 seconds. Add as many as you like. Captions that overlap in time stack as layers. Drag a caption on the preview to place it, and drag its bar on the timeline to move it or change how long it shows.
+          </p>
+          {(() => {
+            const sel = caps.find((x) => x.id === selCap)
+            if (!sel) return null
+            return (
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                <input type="text" value={sel.text} maxLength={140} aria-label="Edit the selected caption"
+                  onChange={(e) => updateCap(sel.id, { text: e.target.value })}
+                  style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+                <button type="button" onClick={() => { onCaptions(caps.filter((x) => x.id !== sel.id)); setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0 }}>Delete</button>
+              </div>
+            )
+          })()}
+          {captionNote && caps.length > 0 && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>{captionNote}</p>}
+        </div>
+      )}
       {takeDrag && (
         <div ref={binRef} aria-label="Bin: drop a voiceover here to delete it"
           style={{ position: 'fixed', left: '50%', bottom: 24, transform: `translateX(-50%) scale(${takeDrag.over ? 1.08 : 1})`, zIndex: 1000, display: 'flex', alignItems: 'center', gap: 10, padding: '14px 26px', borderRadius: 999, background: takeDrag.over ? '#d92d20' : 'rgba(30,30,34,0.92)', border: `1.5px dashed ${takeDrag.over ? '#fff' : 'rgba(255,255,255,0.5)'}`, color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: '0 8px 28px rgba(0,0,0,0.35)', transition: 'background 0.12s, transform 0.12s', pointerEvents: 'none' }}>
@@ -791,7 +937,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -804,11 +950,15 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onReorderClip?: (from: number, to: number) => void
   captionStyle?: PreviewCaptionStyle
   onDropFiles?: (files: File[]) => void
+  captions?: CustomCaption[]
+  onCaptions?: (c: CustomCaption[]) => void
+  onTrimClip?: (index: number, start: number, end: number, total: number) => void
+  captionNote?: string
 }) {
   const [fileOver, setFileOver] = useState(false)
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
   // Start fresh when the clips or trims change (voiceover changes keep the playhead where it is)
-  const key = segments.map((s) => `${previewFileKey(s.file)}@${s.start}-${s.end}`).join('|')
+  const key = segments.map((s) => previewFileKey(s.file)).join('|')
   return (
     <div
       className="ed-preview"
@@ -821,7 +971,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 20, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} captionNote={captionNote} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -901,213 +1051,6 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
         </p>
       )}
       {extractError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractError}</p>}
-    </div>
-  )
-}
-
-function ClipTrimPanel({ file, trim, onChange, onClose }: {
-  file: File
-  trim: ClipTrimRange | undefined
-  onChange: (t: ClipTrimRange | null) => void
-  onClose: () => void
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const probing = useRef(false)
-  // The panel is re-created (via key) when the clip changes, so one preview URL per mount is enough
-  const [url] = useState(() => URL.createObjectURL(file))
-  const [total, setTotal] = useState(0)
-  const [cur, setCur] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const [thumbs, setThumbs] = useState<string[]>([])
-  const barRef = useRef<HTMLDivElement | null>(null)
-  const dragRef = useRef<'start' | 'end' | 'seek' | null>(null)
-
-  const t = trim && trim.file === file ? trim : undefined
-  const start = t ? t.start : 0
-  const end = t ? t.end : total
-
-  const emit = (s: number, e: number) => {
-    if (s <= 0.05 && e >= total - 0.05) onChange(null)
-    else onChange({ start: s, end: e, total, file })
-  }
-  const seek = (time: number) => {
-    const v = videoRef.current
-    if (v) { try { v.pause(); v.currentTime = Math.max(0, time) } catch {} }
-  }
-
-  // Film-strip frames for the trim bar (skipped quietly if the browser can't draw them)
-  useEffect(() => {
-    if (total <= 0) return
-    let dead = false
-    const N = 10
-    const out: string[] = []
-    const v = document.createElement('video')
-    v.muted = true
-    v.playsInline = true
-    v.preload = 'auto'
-    const c = document.createElement('canvas')
-    const grab = (i: number) => {
-      if (dead) return
-      if (i >= N) { setThumbs(out); return }
-      try { v.currentTime = Math.min(total - 0.05, ((i + 0.5) / N) * total) } catch { setThumbs(out) }
-    }
-    v.onloadeddata = () => {
-      const h = 64
-      c.height = h
-      c.width = Math.max(1, Math.round(h * ((v.videoWidth || 9) / (v.videoHeight || 16))))
-      grab(0)
-    }
-    v.onseeked = () => {
-      try {
-        c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height)
-        out.push(c.toDataURL('image/jpeg', 0.6))
-      } catch { setThumbs([]); return }
-      grab(out.length)
-    }
-    v.onerror = () => { if (!dead) setThumbs([]) }
-    v.src = url
-    return () => { dead = true; v.onloadeddata = null; v.onseeked = null; v.removeAttribute('src') }
-  }, [total, url])
-
-  const timeAt = (clientX: number) => {
-    const r = barRef.current?.getBoundingClientRect()
-    if (!r || r.width <= 0) return 0
-    return Math.min(total, Math.max(0, ((clientX - r.left) / r.width) * total))
-  }
-  const applyDrag = (clientX: number) => {
-    const tm = timeAt(clientX)
-    if (dragRef.current === 'start') {
-      const sNew = Math.min(tm, Math.max(0, end - 0.5))
-      emit(sNew, end); seek(sNew)
-    } else if (dragRef.current === 'end') {
-      const eNew = Math.max(tm, Math.min(total, start + 0.5))
-      emit(start, eNew); seek(Math.max(start, eNew - 0.05))
-    } else if (dragRef.current === 'seek') {
-      seek(Math.min(end, Math.max(start, tm)))
-    }
-  }
-  const beginDrag = (e: React.PointerEvent, mode: 'start' | 'end' | 'seek') => {
-    e.stopPropagation()
-    dragRef.current = mode
-    try { barRef.current?.setPointerCapture(e.pointerId) } catch {}
-    applyDrag(e.clientX)
-  }
-
-  // Drive the bar every frame while playing, so it moves smoothly in every browser
-  useEffect(() => {
-    if (!playing) return
-    let raf = 0
-    const tick = () => {
-      const v = videoRef.current
-      if (v) {
-        if (end > 0 && v.currentTime >= end - 0.03) { v.pause(); v.currentTime = end }
-        setCur(v.currentTime)
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [playing, end])
-
-  const togglePlay = () => {
-    const v = videoRef.current
-    if (!v) return
-    if (v.paused) {
-      if (v.currentTime < start - 0.05 || v.currentTime >= end - 0.05) v.currentTime = start
-      v.play().then(() => setPlaying(true)).catch(() => {})
-    } else { v.pause(); setPlaying(false) }
-  }
-
-  const pct = (x: number) => `${total > 0 ? (x / total) * 100 : 0}%`
-
-  return (
-    <div style={{ marginTop: 6, background: 'rgba(128,128,128,0.07)', borderRadius: 12, padding: 14, border: '1px solid rgba(128,128,128,0.12)' }}>
-      {url && (
-        <video
-          ref={videoRef}
-          src={url}
-          playsInline
-          preload="metadata"
-          onLoadedMetadata={(e) => {
-            const v = e.currentTarget
-            if (!isFinite(v.duration)) {
-              // Browser-recorded video reports no duration until seeked to the end
-              probing.current = true
-              v.currentTime = 1e101
-            } else if (v.duration > 0) {
-              setTotal(v.duration)
-            }
-          }}
-          onTimeUpdate={(e) => {
-            const v = e.currentTarget
-            if (probing.current) {
-              probing.current = false
-              if (isFinite(v.duration) && v.duration > 0) setTotal(v.duration)
-              v.currentTime = 0
-              setCur(0)
-              return
-            }
-            if (!v.paused && total > 0) {
-              if (v.currentTime < start - 0.05) v.currentTime = start
-              else if (v.currentTime >= end - 0.05) { v.pause(); v.currentTime = end }
-            }
-            setCur(v.currentTime)
-          }}
-          onSeeked={(e) => { if (!probing.current) setCur(e.currentTarget.currentTime) }}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onClick={togglePlay}
-          style={{ width: '100%', maxHeight: 240, borderRadius: 10, background: '#000', display: 'block' }}
-        />
-      )}
-      {total <= 0 ? (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>Loading clip…</p>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <button type="button" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>{playing ? '❚❚' : '▶'}</button>
-            <div
-              ref={barRef}
-              onPointerDown={(e) => beginDrag(e, 'seek')}
-              onPointerMove={(e) => { if (dragRef.current) applyDrag(e.clientX) }}
-              onPointerUp={() => { dragRef.current = null }}
-              onPointerCancel={() => { dragRef.current = null }}
-              style={{ position: 'relative', flex: 1, minWidth: 0, height: 54, borderRadius: 8, background: '#1c1c1e', overflow: 'hidden', touchAction: 'none', userSelect: 'none', cursor: 'pointer' }}
-            >
-              <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-                {thumbs.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" draggable={false} style={{ flex: 1, minWidth: 0, height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
-                ))}
-              </div>
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct(start), background: 'rgba(0,0,0,0.65)', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: pct(end), right: 0, background: 'rgba(0,0,0,0.65)', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: pct(start), width: `calc(${pct(end)} - ${pct(start)})`, borderTop: '3px solid #FF6A4D', borderBottom: '3px solid #FF6A4D', boxSizing: 'border-box', pointerEvents: 'none' }} />
-              {cur >= start && cur <= end && (
-                <div style={{ position: 'absolute', top: 3, bottom: 3, left: `calc(${pct(cur)} - 1px)`, width: 2, background: '#fff', boxShadow: '0 0 3px rgba(0,0,0,0.6)', pointerEvents: 'none' }} />
-              )}
-              <div
-                onPointerDown={(e) => beginDrag(e, 'start')}
-                aria-label="Trim start"
-                style={{ position: 'absolute', top: 0, bottom: 0, left: `min(${pct(start)}, calc(100% - 28px))`, width: 14, background: '#FF6A4D', borderRadius: '8px 0 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'ew-resize', touchAction: 'none' }}
-              ><div style={{ width: 3, height: 18, borderRadius: 2, background: '#fff' }} /></div>
-              <div
-                onPointerDown={(e) => beginDrag(e, 'end')}
-                aria-label="Trim end"
-                style={{ position: 'absolute', top: 0, bottom: 0, left: `max(calc(${pct(end)} - 14px), 14px)`, width: 14, background: '#FF6A4D', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'ew-resize', touchAction: 'none' }}
-              ><div style={{ width: 3, height: 18, borderRadius: 2, background: '#fff' }} /></div>
-            </div>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0', fontVariantNumeric: 'tabular-nums' }}>
-            Keeping {fmtTrimTime(end - start)} of {fmtTrimTime(total)} · playing {fmtTrimTime(Math.max(0, Math.min(end, cur) - start))}
-          </p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => { const v = videoRef.current; if (v) { v.currentTime = start; v.play().catch(() => {}) } }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Preview trim</button>
-            <button type="button" onClick={() => { onChange(null); seek(0) }} style={{ background: 'none', color: 'var(--text-muted)', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer' }}>Reset</button>
-            <button type="button" onClick={onClose} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', marginLeft: 'auto' }}>Done</button>
-          </div>
-        </>
-      )}
     </div>
   )
 }
@@ -1240,13 +1183,14 @@ export default function DashboardPage() {
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadTrims, setUploadTrims] = useState<Record<number, ClipTrimRange>>({})
   const [aiTrims, setAiTrims] = useState<Record<number, ClipTrimRange>>({})
-  const [trimOpen, setTrimOpen] = useState<string | null>(null)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [uploadSlotTexts, setUploadSlotTexts] = useState<Record<number, string[]>>({})
   const [uploadCaptionOwn, setUploadCaptionOwn] = useState(false)
   const [uploadOwnTexts, setUploadOwnTexts] = useState<Record<number, string>>({})
   const [aiCaptionOwn, setAiCaptionOwn] = useState(false)
   const [aiOwnTexts, setAiOwnTexts] = useState<Record<number, string>>({})
+  const [uploadCaps, setUploadCaps] = useState<CustomCaption[]>([])
+  const [aiCaps, setAiCaps] = useState<CustomCaption[]>([])
   const [stepUploadPaths, setStepUploadPaths] = useState<Record<number, string>>({})
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
@@ -2260,6 +2204,28 @@ export default function DashboardPage() {
     speech: layerPoint(captionLayers, 'speech', captionPosition),
   }
 
+  // Captions are sent as plain data: text, when it shows and where it sits
+  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor }
+  const captionTimingNote = cutDeadSpace ? 'Smart Trim is switched off for this video while it has captions, so they stay in time.' : undefined
+
+  // Dragging the ends of a clip on the timeline sets its trim
+  const applyTrim = (setter: React.Dispatch<React.SetStateAction<Record<number, ClipTrimRange>>>, key: number, file: File, start: number, end: number, total: number) => {
+    setter((prev) => {
+      const n = { ...prev }
+      if (start <= 0.05 && end >= total - 0.05) delete n[key]
+      else n[key] = { start, end, total, file }
+      return n
+    })
+  }
+  const trimUploadClip = (i: number, start: number, end: number, total: number) => {
+    const id = uploadSlots.filter((slot) => uploadSlotFiles[slot])[i]
+    if (id !== undefined && uploadSlotFiles[id]) applyTrim(setUploadTrims, id, uploadSlotFiles[id], start, end, total)
+  }
+  const trimAiClip = (i: number, start: number, end: number, total: number) => {
+    const step = Object.keys(stepUploads).map(Number).sort((a, b) => a - b)[i]
+    if (step !== undefined && stepUploads[step]) applyTrim(setAiTrims, step, stepUploads[step], start, end, total)
+  }
+
   // The Audio section: original sound, voiceover and music in their own card
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
     <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '24px' }}>
@@ -3127,6 +3093,9 @@ export default function DashboardPage() {
           clipTexts,
           outputOrientation,
           resolution: aiResolution,
+          cutDeadSpace: cutDeadSpace && aiCaps.length === 0,
+          customCaptions: aiCaps,
+          customCaptionStyle,
           
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
@@ -3266,7 +3235,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle }),
       })
 
       const data = await res.json()
@@ -3395,8 +3364,8 @@ export default function DashboardPage() {
         }
         @media (min-width: 1024px) {
           .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
-          .ed-split > * { grid-column: 2; margin-bottom: 24px; min-width: 0; }
-          .ed-split > .ed-preview { grid-column: 1; grid-row: 1 / span 40; position: sticky; top: 24px; align-self: start; margin-bottom: 0; }
+          .ed-split > .ed-main { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; }
+          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky; top: 24px; align-self: start; margin: 0; }
         }
       `}</style>
       {showOverageModal && (
@@ -4562,6 +4531,7 @@ export default function DashboardPage() {
           )}
           {tab === 'uploads' && (
             <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+<div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
 
               {/* ── CLIPS ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '24px' }}>
@@ -4640,7 +4610,6 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-                        {uploadSlotFiles[slotId] && <button type="button" onClick={() => setTrimOpen((p) => p === `u${slotId}` ? null : `u${slotId}`)} style={{ fontSize: 11, color: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId])}</button>}
                         {uploadSlots.length > 1 && (
                           <button onClick={() => {
                             setUploadSlots((prev) => prev.filter((id) => id !== slotId))
@@ -4653,15 +4622,6 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
-                    {trimOpen === `u${slotId}` && uploadSlotFiles[slotId] && (
-                      <ClipTrimPanel
-                        key={`${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}-${uploadSlotFiles[slotId].lastModified}`}
-                        file={uploadSlotFiles[slotId]}
-                        trim={uploadTrims[slotId]}
-                        onChange={(t) => setUploadTrims((prev) => { const n = { ...prev }; if (t) n[slotId] = t; else delete n[slotId]; return n })}
-                        onClose={() => setTrimOpen(null)}
-                      />
-                    )}
                     </div>
                   ))}
                 </div>
@@ -4756,11 +4716,17 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              </div>
+
               {(!renderId || renderStatus === 'failed') && <EditorPreview
                 onReorderClip={reorderUploadClip}
                 onDropFiles={addUploadFiles}
                 captionStyle={previewCaptionStyle}
-                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; const own = uploadAddCaptions && uploadCaptionOwn && captionLayers.speech.on; const caption = own ? (uploadOwnTexts[id] ?? (uploadSlotTexts[id] || []).join(' ')).trim() : ''; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, caption, captionLayer: 'speech' as const } })}
+                captions={uploadCaps}
+                onCaptions={setUploadCaps}
+                onTrimClip={trimUploadClip}
+                captionNote={uploadCaps.length > 0 ? captionTimingNote : undefined}
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -5029,6 +4995,7 @@ export default function DashboardPage() {
 
 {tab === 'aiuploads' && (
             <div className={selectedFilmingId ? 'ed-split' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+<div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
 
               {/* ── Select idea ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
@@ -5040,7 +5007,7 @@ export default function DashboardPage() {
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([]); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
                         style={{ padding: '8px 14px', borderRadius: 8, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -5098,19 +5065,9 @@ export default function DashboardPage() {
                             </div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
-                              {stepUploads[0] && <button type="button" onClick={() => setTrimOpen((p) => p === 'a0' ? null : 'a0')} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[0], stepUploads[0]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[0], stepUploads[0])}</button>}
                               {stepUploads[0] && <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
                             </div>
                           </div>
-                          {trimOpen === 'a0' && stepUploads[0] && (
-                            <ClipTrimPanel
-                              key={`${stepUploads[0].name}-${stepUploads[0].size}-${stepUploads[0].lastModified}`}
-                              file={stepUploads[0]}
-                              trim={aiTrims[0]}
-                              onChange={(t) => setAiTrims((prev) => { const n = { ...prev }; if (t) n[0] = t; else delete n[0]; return n })}
-                              onClose={() => setTrimOpen(null)}
-                            />
-                          )}
                         </div>
                       ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -5152,7 +5109,6 @@ export default function DashboardPage() {
                                 )}
                               </div>
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                                {stepUploads[i] && <button type="button" onClick={() => setTrimOpen((p) => p === `a${i}` ? null : `a${i}`)} style={{ fontSize: 11, color: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(aiTrims[i], stepUploads[i]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(aiTrims[i], stepUploads[i])}</button>}
                                 {(stepUploads[i] || stepUploadNames[i]) && (
                                   <button type="button" onClick={() => {
                                     setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
@@ -5164,15 +5120,6 @@ export default function DashboardPage() {
                                 )}
                               </div>
                             </div>
-                            {trimOpen === `a${i}` && stepUploads[i] && (
-                              <ClipTrimPanel
-                                key={`${stepUploads[i].name}-${stepUploads[i].size}-${stepUploads[i].lastModified}`}
-                                file={stepUploads[i]}
-                                trim={aiTrims[i]}
-                                onChange={(t) => setAiTrims((prev) => { const n = { ...prev }; if (t) n[i] = t; else delete n[i]; return n })}
-                                onClose={() => setTrimOpen(null)}
-                              />
-                            )}
                             </React.Fragment>
                           )
                         })}
@@ -5312,10 +5259,16 @@ export default function DashboardPage() {
                   </>
                 )
               })()}
+              </div>
+
               {!!selectedFilmingId && (!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
                 onDropFiles={addAiFiles}
                 captionStyle={previewCaptionStyle}
-                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; const own = aiAddCaptions && aiCaptionOwn && captionLayers.speech.on; const caption = own ? (aiOwnTexts[i] ?? extractOnScreenText(filmingItems.find((x) => x.id === selectedFilmingId)?.directions?.[i] || '').join(' ')).trim() : ''; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, caption, captionLayer: 'speech' as const } })}
+                captions={aiCaps}
+                onCaptions={setAiCaps}
+                onTrimClip={trimAiClip}
+                captionNote={aiCaps.length > 0 ? captionTimingNote : undefined}
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}

@@ -59,7 +59,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, userId, renderId, watermark, callbackUrl } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -135,6 +135,14 @@ function setupApp() {
         crf,
         captionStyle: normalizedCaptionStyle,
         captionTextOnly: captionTextOnly === true,
+        customCaptions: customCaptions && Array.isArray(customCaptions.items) && customCaptions.items.length > 0
+          ? {
+              items: customCaptions.items.slice(0, 30)
+                .filter((c: { text?: unknown; start?: unknown; end?: unknown }) => c && typeof c.text === 'string' && Number.isFinite(Number(c.start)) && Number.isFinite(Number(c.end)))
+                .map((c: { text: string; start: unknown; end: unknown; x?: unknown; y?: unknown }) => ({ text: c.text.slice(0, 140), start: Number(c.start), end: Number(c.end), x: Number.isFinite(Number(c.x)) ? Number(c.x) : 0.5, y: Number.isFinite(Number(c.y)) ? Number(c.y) : 0.7 })),
+              style: customCaptions.style && typeof customCaptions.style === 'object' ? customCaptions.style : {},
+            }
+          : undefined,
         watermark: watermark === true,
         userId,
         renderId,

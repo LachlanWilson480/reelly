@@ -10,6 +10,7 @@ import { correctTranscript } from "./correct-transcript";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
 import { clipTextSegments } from "./clip-texts";
+import { burnCustomCaptions, type CustomCaption, type CustomCaptionStyle } from "./custom-captions";
 
 type ClipInput = {
   src: string;
@@ -53,6 +54,7 @@ type JobData = {
   crf?: number;
   captionStyle?: CaptionStyle | null;
   captionTextOnly?: boolean;
+  customCaptions?: { items: CustomCaption[]; style: CustomCaptionStyle };
   watermark?: boolean;
   userId?: string;
   renderId?: string;
@@ -110,7 +112,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -129,7 +131,7 @@ export const makeRenderQueue = ({
       const readyClips = await Promise.all(
         convertedClips.map(async (clip) => {
           // A clip the user trimmed by hand keeps their exact trim, so skip Smart Trim for it
-          if (!cutDeadSpace || clip.trimStart || clip.trimLength) return clip;
+          if (!cutDeadSpace || customCaptions || clip.trimStart || clip.trimLength) return clip;
           console.info(`[${jobId}] Step 2: cutting silence from clip`);
           const { outputPath, cleanup } = await cutSilence(clip.localPath);
           tmpCleanups.push(cleanup);
@@ -205,6 +207,17 @@ export const makeRenderQueue = ({
         captionCleanup = cleanup;
         tmpCleanups.push(() => { try { require('node:fs').unlinkSync(stitchedLocalPath); } catch {} });
         finalPath = outputPath;
+        if (cancelled) throw new Error('Cancelled');
+      }
+
+      // Step 5b: captions the user placed on the timeline
+      if (customCaptions && customCaptions.items.length > 0) {
+        setProgress(jobId, 80, job.data, cancel);
+        console.info(`[${jobId}] Step 5b: burning ${customCaptions.items.length} timeline captions`);
+        const burned = await burnCustomCaptions(finalPath, customCaptions.items, customCaptions.style, outputWidth, outputHeight);
+        if (captionCleanup) captionCleanup();
+        captionCleanup = burned.cleanup;
+        finalPath = burned.outputPath;
         if (cancelled) throw new Error('Cancelled');
       }
 

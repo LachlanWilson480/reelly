@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -211,6 +211,16 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('renders').update({ over_quota: true }).eq('id', renderRow.id)
     }
 
+    // Captions the user typed on the timeline: text, when it shows and where it sits (kept small and plain)
+    const num01 = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d)
+    const cleanCaptions = (Array.isArray(customCaptions) ? customCaptions : []).slice(0, 30).flatMap((c: { text?: unknown; start?: unknown; end?: unknown; x?: unknown; y?: unknown }) => {
+      const text = typeof c?.text === 'string' ? c.text.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 140) : ''
+      const start = Number(c?.start)
+      const end = Number(c?.end)
+      if (!text || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return []
+      return [{ text, start: Math.max(0, start), end: Math.min(3600, end), x: num01(c?.x, 0.5), y: num01(c?.y, 0.7) }]
+    })
+    const capStyle = customCaptionStyle && typeof customCaptionStyle === 'object' ? customCaptionStyle : {}
     // Call render server with the real renderId
     const renderServerUrl = process.env.RENDER_SERVER_URL!
     const renderRes = await fetch(`${renderServerUrl}/renders`, {
@@ -230,6 +240,15 @@ export async function POST(req: NextRequest) {
         cutDeadSpace: cutDeadSpace === true,
         captionStyle: captionStyle || null,
         captionTextOnly: captionTextOnly === true,
+        customCaptions: cleanCaptions.length > 0 ? {
+          items: cleanCaptions,
+          style: {
+            fontFamily: typeof capStyle.fontFamily === 'string' ? capStyle.fontFamily.slice(0, 40) : undefined,
+            size: Number.isFinite(Number(capStyle.size)) ? Math.min(200, Math.max(16, Number(capStyle.size))) : undefined,
+            color: typeof capStyle.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(capStyle.color) ? capStyle.color : undefined,
+            borderColor: typeof capStyle.borderColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(capStyle.borderColor) ? capStyle.borderColor : undefined,
+          },
+        } : undefined,
         userId,
         renderId: renderRow.id,
         watermark: plan === 'free',
