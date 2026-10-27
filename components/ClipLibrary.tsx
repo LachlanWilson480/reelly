@@ -98,6 +98,10 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const dragIds = useRef<string[]>([])
   const [albumRename, setAlbumRename] = useState(false)
   const [albumConfirmDelete, setAlbumConfirmDelete] = useState(false)
   const [newAlbum, setNewAlbum] = useState<string | null>(null)
@@ -108,6 +112,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
   const limit = libraryLimitBytes(plan)
   const pct = Math.min(100, Math.round((used / limit) * 100))
   const currentAlbum = albums.find((a) => a.id === view)
+  const sel = selected.filter((id) => clips.some((c) => c.id === id))
   const shown = clips.filter((c) => inView(c, view) && c.name.toLowerCase().includes(search.trim().toLowerCase())).sort(byDate)
   const viewTitle = view === 'all' ? 'All clips' : currentAlbum?.name || 'Album'
 
@@ -171,9 +176,29 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     else setMessage('Could not move that clip. Make sure the albums update has been run in Supabase, then try again.')
   }
 
-  const goTo = (v: View) => { setView(v); setAlbumRename(false); setAlbumConfirmDelete(false); setSearch('') }
+  const toggleSel = (id: string) => { setBulkConfirm(false); setSelected((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) }
+  const clearSel = () => { setSelected([]); setBulkConfirm(false) }
+  const moveMany = async (ids: string[], albumId: string | null) => {
+    const results = await Promise.all(ids.map((id) => moveToAlbum(id, albumId)))
+    if (results.some((ok) => !ok)) setMessage('Some clips could not be moved. Please try again.')
+    else setMessage('')
+    clearSel()
+    await refresh()
+  }
+  const deleteMany = async (ids: string[]) => {
+    const targets = clips.filter((c) => ids.includes(c.id))
+    const results = await Promise.all(targets.map((c) => deleteFromLibrary(c)))
+    if (results.some((ok) => !ok)) setMessage('Some clips could not be deleted. Please try again.')
+    else setMessage('')
+    clearSel()
+    await refresh()
+  }
+  const goTo = (v: View) => { clearSel(); setView(v); setAlbumRename(false); setAlbumConfirmDelete(false); setSearch('') }
   const sideItem = (id: View, label: string, count: number) => (
-    <button key={id} type="button" onClick={() => goTo(id)} aria-current={view === id} className="lib-side-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: view === id ? 'rgba(255,106,77,0.12)' : 'transparent', color: view === id ? 'var(--coral)' : 'var(--ink)', fontSize: 13, fontWeight: view === id ? 700 : 500, cursor: 'pointer', textAlign: 'left' }}>
+    <button key={id} type="button" onClick={() => goTo(id)} aria-current={view === id}
+      onDragOver={(e) => { if (dragIds.current.length === 0) return; e.preventDefault(); e.stopPropagation(); setDropTarget(id) }}
+      onDragLeave={() => setDropTarget((t) => t === id ? null : t)}
+      onDrop={(e) => { if (dragIds.current.length === 0) return; e.preventDefault(); e.stopPropagation(); const ids = dragIds.current; dragIds.current = []; setDropTarget(null); void moveMany(ids, id === 'all' ? null : id) }} className="lib-side-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: dropTarget === id ? 'rgba(255,106,77,0.28)' : view === id ? 'rgba(255,106,77,0.12)' : 'transparent', outline: dropTarget === id ? '2px dashed var(--coral)' : 'none', color: view === id ? 'var(--coral)' : 'var(--ink)', fontSize: 13, fontWeight: view === id ? 700 : 500, cursor: 'pointer', textAlign: 'left' }}>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
       <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{count}</span>
     </button>
@@ -223,9 +248,9 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
         </nav>
 
         <section
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragOver={(e) => { if (dragIds.current.length > 0) return; e.preventDefault(); setDragOver(true) }}
           onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false) }}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); void addFiles(Array.from(e.dataTransfer.files || [])) }}
+          onDrop={(e) => { if (dragIds.current.length > 0) return; e.preventDefault(); setDragOver(false); void addFiles(Array.from(e.dataTransfer.files || [])) }}
           style={{ minWidth: 0, position: 'relative', minHeight: 320, borderRadius: 16, outline: dragOver ? '2px dashed var(--coral)' : 'none', outlineOffset: 6 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -256,6 +281,29 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
             )}
           </div>
 
+          {sel.length > 0 && (
+            <div role="toolbar" aria-label="Selected clips" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{sel.length} selected</span>
+              <button type="button" onClick={() => setSelected(shown.map((c) => c.id))} style={smallBtn}>Select all</button>
+              <select aria-label="Move selected clips to" value="" onChange={(e) => { if (e.target.value) void moveMany(sel, e.target.value === '__all' ? null : e.target.value) }} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)' }}>
+                <option value="">Move to…</option>
+                <option value="__all">All clips only</option>
+                {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              {bulkConfirm ? (
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Delete {sel.length} {sel.length === 1 ? 'clip' : 'clips'} for good?</span>
+                  <button type="button" onClick={() => void deleteMany(sel)} style={{ ...smallBtn, fontWeight: 700, color: '#d92d20' }}>Delete</button>
+                  <button type="button" onClick={() => setBulkConfirm(false)} style={smallBtn}>Keep</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setBulkConfirm(true)} style={{ ...smallBtn, color: '#d92d20', fontWeight: 600 }}>Delete</button>
+              )}
+              <button type="button" onClick={clearSel} style={{ ...smallBtn, marginLeft: 'auto' }}>Clear</button>
+            </div>
+          )}
+          {!loading && shown.length > 0 && sel.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>Tick clips to move or delete them, or drag a clip onto an album.</p>}
+
           {loading ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
           ) : shown.length === 0 ? (
@@ -267,7 +315,11 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
           ) : (
             <div className="lib-grid">
               {shown.map((c) => (
-                <div key={c.id} style={{ background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(128,128,128,0.15)', display: 'flex', flexDirection: 'column' }}>
+                <div key={c.id} draggable
+                  onDragStart={(e) => { dragIds.current = sel.includes(c.id) ? sel : [c.id]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'reelly-clips') }}
+                  onDragEnd={() => { dragIds.current = []; setDropTarget(null) }}
+                  style={{ position: 'relative', background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: sel.includes(c.id) ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)', boxShadow: sel.includes(c.id) ? '0 0 0 3px rgba(255,106,77,0.25)' : 'none', display: 'flex', flexDirection: 'column' }}>
+                  <button type="button" role="checkbox" aria-checked={sel.includes(c.id)} aria-label={`Select ${c.name}`} onClick={() => toggleSel(c.id)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, width: 24, height: 24, borderRadius: 6, border: sel.includes(c.id) ? '2px solid var(--coral)' : '2px solid rgba(255,255,255,0.9)', background: sel.includes(c.id) ? 'var(--coral)' : 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }}>{sel.includes(c.id) ? '✓' : ''}</button>
                   <button type="button" onClick={() => setPlaying(c)} aria-label={`Play ${c.name}`} style={{ position: 'relative', display: 'block', width: '100%', aspectRatio: '3 / 4', padding: 0, border: 'none', background: '#17151f', cursor: 'pointer', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', inset: 0 }}><Thumb url={urls[c.path]} /></div>
                     <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</span>
@@ -282,10 +334,6 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
                       )}
                       <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{formatBytes(c.size_bytes)}</p>
                     </div>
-                    <select aria-label="Move to album" value={c.album_id || ''} onChange={(e) => move(c, e.target.value)} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%' }}>
-                      <option value="">All clips only</option>
-                      {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <button type="button" onClick={() => { setRenaming(c.id); setRenameText(c.name) }} style={smallBtn}>Rename</button>
                       {confirmDelete === c.id ? (
