@@ -3381,7 +3381,7 @@ export default function DashboardPage() {
         @media (min-width: 1024px) {
           .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
           .ed-split > .ed-main { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; }
-          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky; top: 24px; align-self: start; margin: 0; }
+          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky !important; top: 24px; align-self: start; margin: 0; }
         }
       `}</style>
       {showOverageModal && (
