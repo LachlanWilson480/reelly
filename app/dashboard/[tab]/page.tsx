@@ -267,7 +267,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -279,6 +279,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onMoveTake: (id: string, start: number) => void
   captionStyle?: PreviewCaptionStyle
   onReorderClip?: (from: number, to: number) => void
+  onDropFiles?: (files: File[]) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -309,6 +310,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const chunksRef = useRef<Blob[]>([])
   const recStartRef = useRef(0)
   const recWallRef = useRef(0)
+  const pickRef = useRef<HTMLInputElement | null>(null)
   // Playback bookkeeping that must not wait for a re-render (this is what kept the voiceover from glitching)
   const indexRef = useRef(0)
   const switchingRef = useRef(false)
@@ -616,7 +618,18 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 999, padding: '3px 10px' }}>● Recording</span>
         )}
         {!hasClips && (
-          <p style={{ position: 'absolute', inset: 0, margin: 'auto', height: 'fit-content', padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>Add a clip to see your video here.</p>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>
+            <p style={{ margin: 0 }}>Add a clip to see your video here.</p>
+            {onDropFiles && (
+              <>
+                <input ref={pickRef} type="file" accept="video/*" multiple style={{ display: 'none' }}
+                  onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) onDropFiles(files); e.target.value = '' }} />
+                <button type="button" onClick={() => pickRef.current?.click()}
+                  style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>or drag and drop a video onto this phone</p>
+              </>
+            )}
+          </div>
         )}
       </div>
       {takes.map((t) => (
@@ -808,7 +821,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 20, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
