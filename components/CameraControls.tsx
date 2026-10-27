@@ -66,6 +66,10 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
         </div>
       )}
 
+      {cam.panel && !hidden && (
+        <div aria-hidden="true" onClick={() => cam.setPanel(null)} style={{ position: 'absolute', inset: 0, zIndex: 5 }} />
+      )}
+
       {cam.panel === 'timer' && !hidden && (
         <div role="group" aria-label="Countdown timer" style={{ ...panelBox, left: 58, top: 'calc(34% + 50px)' }}>
           <p style={panelLabel}>Countdown</p>
