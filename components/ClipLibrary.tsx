@@ -67,7 +67,7 @@ const fmtDuration = (s: number | null) => (s ? `${Math.floor(s / 60)}:${String(M
 
 function Thumb({ url }: { url?: string }) {
   return url
-    ? <video src={`${url}#t=0.1`} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', background: '#17151f' }} />
+    ? <video src={`${url}#t=0.1`} preload="metadata" muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', background: '#17151f', pointerEvents: 'none' }} />
     : <div style={{ width: '100%', height: '100%', background: '#17151f' }} />
 }
 
@@ -86,22 +86,29 @@ function StorageBar({ used, limit }: { used: number; limit: number }) {
   )
 }
 
-// The Library tab: upload, rename and delete clips
+// The Library tab: albums down the side, clips in a grid, upload and storage along the top
 export default function ClipLibrary({ userId, plan, onPlans }: { userId: string | null; plan: LibraryPlan; onPlans?: () => void }) {
   const { clips, albums, urls, loading, refresh } = useLibrary(userId)
   const [view, setView] = useState<View>('all')
-  const [albumRename, setAlbumRename] = useState<string | null>(null)
-  const [albumConfirmDelete, setAlbumConfirmDelete] = useState(false)
+  const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(0)
   const [message, setMessage] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [albumRename, setAlbumRename] = useState(false)
+  const [albumConfirmDelete, setAlbumConfirmDelete] = useState(false)
+  const [newAlbum, setNewAlbum] = useState<string | null>(null)
+  const [playing, setPlaying] = useState<LibraryClip | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const used = clips.reduce((n, c) => n + (c.size_bytes || 0), 0)
   const limit = libraryLimitBytes(plan)
+  const pct = Math.min(100, Math.round((used / limit) * 100))
+  const currentAlbum = albums.find((a) => a.id === view)
+  const shown = clips.filter((c) => inView(c, view) && c.name.toLowerCase().includes(search.trim().toLowerCase()))
+  const viewTitle = view === 'all' ? 'All clips' : view === 'none' ? 'No album' : currentAlbum?.name || 'Album'
 
   const addFiles = async (files: File[]) => {
     if (!userId) return
@@ -112,7 +119,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     const problems: string[] = []
     setBusy((n) => n + vids.length)
     for (const f of vids) {
-      const r = await saveToLibrary(userId, f, usedNow, limit, albums.some((a) => a.id === view) ? view : null)
+      const r = await saveToLibrary(userId, f, usedNow, limit, currentAlbum ? currentAlbum.id : null)
       if (r.clip) usedNow += r.clip.size_bytes
       else if (r.error) problems.push(`${f.name}: ${r.error}`)
       setBusy((n) => n - 1)
@@ -128,12 +135,17 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     if (await renameInLibrary(c.id, name)) await refresh()
   }
 
-  const shown = clips.filter((c) => inView(c, view))
-  const currentAlbum = albums.find((a) => a.id === view)
+  const remove = async (c: LibraryClip) => {
+    setConfirmDelete(null)
+    if (await deleteFromLibrary(c)) await refresh()
+    else setMessage('Could not delete that clip. Please try again.')
+  }
 
   const makeAlbum = async (name: string) => {
-    if (!userId) return
-    const a = await createAlbum(userId, name)
+    setNewAlbum(null)
+    const n = name.trim()
+    if (!n || !userId) return
+    const a = await createAlbum(userId, n)
     if (!a) { setMessage('Could not make that album. Make sure the albums update has been run in Supabase, then try again.'); return }
     setMessage('')
     await refresh()
@@ -141,7 +153,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
   }
 
   const saveAlbumName = async (a: LibraryAlbum, name: string) => {
-    setAlbumRename(null)
+    setAlbumRename(false)
     const n = name.trim()
     if (!n || n === a.name) return
     if (await renameAlbum(a.id, n)) await refresh()
@@ -158,100 +170,150 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     else setMessage('Could not move that clip. Make sure the albums update has been run in Supabase, then try again.')
   }
 
-  const remove = async (c: LibraryClip) => {
-    setConfirmDelete(null)
-    if (await deleteFromLibrary(c)) await refresh()
-    else setMessage('Could not delete that clip. Please try again.')
-  }
+  const goTo = (v: View) => { setView(v); setAlbumRename(false); setAlbumConfirmDelete(false); setSearch('') }
+  const sideItem = (id: View, label: string, count: number) => (
+    <button key={id} type="button" onClick={() => goTo(id)} aria-current={view === id} className="lib-side-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: view === id ? 'rgba(255,106,77,0.12)' : 'transparent', color: view === id ? 'var(--coral)' : 'var(--ink)', fontSize: 13, fontWeight: view === id ? 700 : 500, cursor: 'pointer', textAlign: 'left' }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{count}</span>
+    </button>
+  )
+  const smallBtn: React.CSSProperties = { background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1100, margin: '32px auto', padding: '0 24px' }}>
-      <div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Clip library</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Upload a clip once, then add it to any video from the editor.</p>
-      </div>
+    <div style={{ maxWidth: 1180, margin: '32px auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <input ref={inputRef} type="file" accept="video/*" multiple style={{ display: 'none' }} onChange={(e) => { void addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
 
-      <AlbumBar clips={clips} albums={albums} view={view} setView={(v) => { setView(v); setAlbumRename(null); setAlbumConfirmDelete(false) }} onCreate={makeAlbum} />
-      {currentAlbum && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: -8 }}>
-          {albumRename === currentAlbum.id ? (
-            <input autoFocus defaultValue={currentAlbum.name} onBlur={(e) => saveAlbumName(currentAlbum, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setAlbumRename(null) }} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)' }} />
-          ) : (
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{currentAlbum.name}</span>
-          )}
-          <button type="button" onClick={() => setAlbumRename(currentAlbum.id)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Rename</button>
-          {albumConfirmDelete ? (
-            <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)' }}>Your clips stay in the library.</span>
-              <button type="button" onClick={() => removeAlbum(currentAlbum)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, color: '#d92d20', cursor: 'pointer' }}>Delete album</button>
-              <button type="button" onClick={() => setAlbumConfirmDelete(false)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Keep</button>
-            </span>
-          ) : (
-            <button type="button" onClick={() => setAlbumConfirmDelete(true)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Delete album</button>
-          )}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Clip library</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Upload a clip once, then use it in any video.</p>
         </div>
-      )}
-
-      <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <StorageBar used={used} limit={limit} />
-        {used / limit >= 0.9 && onPlans && plan !== 'top' && (
-          <button type="button" onClick={onPlans} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--coral)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Almost full. See plans with more space</button>
-        )}
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); void addFiles(Array.from(e.dataTransfer.files || [])) }}
-          style={{ border: `2px dashed ${dragOver ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, borderRadius: 12, padding: '22px 16px', textAlign: 'center', background: dragOver ? 'rgba(255,106,77,0.06)' : 'transparent' }}
-        >
-          <input ref={inputRef} type="file" accept="video/*" multiple style={{ display: 'none' }} onChange={(e) => { void addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={busy > 0} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 24, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: busy > 0 ? 'not-allowed' : 'pointer', opacity: busy > 0 ? 0.6 : 1 }}>
-            {busy > 0 ? `Uploading ${busy} ${busy === 1 ? 'clip' : 'clips'}…` : currentAlbum ? `+ Upload clips to ${currentAlbum.name}` : '+ Upload clips'}
-          </button>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' }}>or drag and drop videos here</p>
-        </div>
-        {message && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0, lineHeight: 1.5 }}>{message}</p>}
-      </div>
-
-      {loading ? (
-        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
-      ) : shown.length === 0 ? (
-        <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>{clips.length === 0 ? 'No clips yet' : 'Nothing in here yet'}</p>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Upload clips above, or press &quot;Save to library&quot; on a clip in the editor.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
-          {shown.map((c) => (
-            <div key={c.id} style={{ background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(128,128,128,0.15)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ position: 'relative', aspectRatio: '16 / 10', background: '#17151f' }}>
-                <Thumb url={urls[c.path]} />
-                {c.duration ? <span style={{ position: 'absolute', right: 8, bottom: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '2px 8px' }}>{fmtDuration(c.duration)}</span> : null}
-              </div>
-              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {renaming === c.id ? (
-                  <input autoFocus value={renameText} onChange={(e) => setRenameText(e.target.value)} onBlur={() => finishRename(c)} onKeyDown={(e) => { if (e.key === 'Enter') void finishRename(c); if (e.key === 'Escape') setRenaming(null) }} style={{ fontSize: 13, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' }} />
-                ) : (
-                  <button type="button" onClick={() => { setRenaming(c.id); setRenameText(c.name) }} title="Rename" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</button>
-                )}
-                <select aria-label="Move to album" value={c.album_id || ''} onChange={(e) => move(c, e.target.value)} style={{ fontSize: 11, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%' }}>
-                  <option value="">No album</option>
-                  {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatBytes(c.size_bytes)}</span>
-                  {confirmDelete === c.id ? (
-                    <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button type="button" onClick={() => remove(c)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 700, color: '#d92d20', cursor: 'pointer' }}>Delete</button>
-                      <button type="button" onClick={() => setConfirmDelete(null)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Keep</button>
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => setConfirmDelete(c.id)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Delete</button>
-                  )}
-                </div>
-              </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 200 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5, gap: 12 }}>
+              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{formatBytes(used)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>of {formatBytes(limit)}</span>
             </div>
-          ))}
+            <div style={{ height: 6, borderRadius: 3, background: 'rgba(128,128,128,0.2)', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(pct, used > 0 ? 2 : 0)}%`, height: '100%', background: pct >= 90 ? '#d92d20' : 'var(--coral)' }} />
+            </div>
+            {pct >= 90 && onPlans && plan !== 'top' && (
+              <button type="button" onClick={onPlans} style={{ ...smallBtn, color: 'var(--coral)', fontWeight: 600, marginTop: 5 }}>Almost full. See plans with more space</button>
+            )}
+          </div>
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={busy > 0} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 24, padding: '11px 22px', fontSize: 13, fontWeight: 700, cursor: busy > 0 ? 'not-allowed' : 'pointer', opacity: busy > 0 ? 0.65 : 1, whiteSpace: 'nowrap' }}>
+            {busy > 0 ? `Uploading ${busy}…` : '+ Upload clips'}
+          </button>
         </div>
+      </div>
+
+      {message && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0, lineHeight: 1.5 }}>{message}</p>}
+
+      <div className="lib-layout">
+        <nav className="lib-side" aria-label="Albums">
+          <p className="lib-side-title" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 6px 12px' }}>Albums</p>
+          {sideItem('all', 'All clips', clips.length)}
+          {albums.map((a) => sideItem(a.id, a.name, clips.filter((c) => c.album_id === a.id).length))}
+          {sideItem('none', 'No album', clips.filter((c) => !c.album_id).length)}
+          {newAlbum !== null ? (
+            <input autoFocus value={newAlbum} placeholder="Album name" onChange={(e) => setNewAlbum(e.target.value)} onBlur={() => makeAlbum(newAlbum)} onKeyDown={(e) => { if (e.key === 'Enter') void makeAlbum(newAlbum); if (e.key === 'Escape') setNewAlbum(null) }} style={{ flexShrink: 0, width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', outline: 'none' }} />
+          ) : (
+            <button type="button" onClick={() => setNewAlbum('')} style={{ flexShrink: 0, width: '100%', padding: '9px 12px', borderRadius: 10, border: '1px dashed rgba(128,128,128,0.35)', background: 'transparent', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap' }}>+ New album</button>
+          )}
+        </nav>
+
+        <section
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false) }}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); void addFiles(Array.from(e.dataTransfer.files || [])) }}
+          style={{ minWidth: 0, position: 'relative', minHeight: 320, borderRadius: 16, outline: dragOver ? '2px dashed var(--coral)' : 'none', outlineOffset: 6 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
+              {albumRename && currentAlbum ? (
+                <input autoFocus defaultValue={currentAlbum.name} onBlur={(e) => saveAlbumName(currentAlbum, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setAlbumRename(false) }} style={{ fontSize: 16, fontWeight: 700, padding: '4px 8px', borderRadius: 8, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)' }} />
+              ) : (
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{viewTitle}</h3>
+              )}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{shown.length} {shown.length === 1 ? 'clip' : 'clips'}</span>
+              {currentAlbum && (
+                albumConfirmDelete ? (
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Clips stay in the library.</span>
+                    <button type="button" onClick={() => removeAlbum(currentAlbum)} style={{ ...smallBtn, fontWeight: 700, color: '#d92d20' }}>Delete album</button>
+                    <button type="button" onClick={() => setAlbumConfirmDelete(false)} style={smallBtn}>Keep</button>
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', gap: 12 }}>
+                    <button type="button" onClick={() => setAlbumRename(true)} style={smallBtn}>Rename</button>
+                    <button type="button" onClick={() => setAlbumConfirmDelete(true)} style={smallBtn}>Delete album</button>
+                  </span>
+                )
+              )}
+            </div>
+            {clips.length > 0 && (
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clips" aria-label="Search clips" style={{ fontSize: 13, padding: '8px 14px', borderRadius: 20, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', width: 200, maxWidth: '100%' }} />
+            )}
+          </div>
+
+          {loading ? (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
+          ) : shown.length === 0 ? (
+            <div style={{ border: '2px dashed rgba(128,128,128,0.3)', borderRadius: 16, padding: '56px 20px', textAlign: 'center' }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', margin: '0 0 6px' }}>{search ? 'No clips match that search' : clips.length === 0 ? 'Your library is empty' : 'Nothing in here yet'}</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>{search ? 'Try a different name.' : <>Drag videos here, or press &quot;Save to library&quot; on a clip in the editor.</>}</p>
+              {!search && <button type="button" onClick={() => inputRef.current?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 24, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{currentAlbum ? `+ Upload to ${currentAlbum.name}` : '+ Upload clips'}</button>}
+            </div>
+          ) : (
+            <div className="lib-grid">
+              {shown.map((c) => (
+                <div key={c.id} style={{ background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(128,128,128,0.15)', display: 'flex', flexDirection: 'column' }}>
+                  <button type="button" onClick={() => setPlaying(c)} aria-label={`Play ${c.name}`} style={{ position: 'relative', display: 'block', width: '100%', aspectRatio: '3 / 4', padding: 0, border: 'none', background: '#17151f', cursor: 'pointer', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', inset: 0 }}><Thumb url={urls[c.path]} /></div>
+                    <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</span>
+                    {c.duration ? <span style={{ position: 'absolute', right: 8, bottom: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '2px 8px' }}>{fmtDuration(c.duration)}</span> : null}
+                  </button>
+                  <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      {renaming === c.id ? (
+                        <input autoFocus value={renameText} onChange={(e) => setRenameText(e.target.value)} onBlur={() => finishRename(c)} onKeyDown={(e) => { if (e.key === 'Enter') void finishRename(c); if (e.key === 'Escape') setRenaming(null) }} style={{ fontSize: 13, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' }} />
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.name}>{c.name}</p>
+                      )}
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{formatBytes(c.size_bytes)}</p>
+                    </div>
+                    <select aria-label="Move to album" value={c.album_id || ''} onChange={(e) => move(c, e.target.value)} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%' }}>
+                      <option value="">No album</option>
+                      {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button type="button" onClick={() => { setRenaming(c.id); setRenameText(c.name) }} style={smallBtn}>Rename</button>
+                      {confirmDelete === c.id ? (
+                        <span style={{ display: 'flex', gap: 8 }}>
+                          <button type="button" onClick={() => remove(c)} style={{ ...smallBtn, fontWeight: 700, color: '#d92d20' }}>Delete</button>
+                          <button type="button" onClick={() => setConfirmDelete(null)} style={smallBtn}>Keep</button>
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmDelete(c.id)} style={smallBtn}>Delete</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {playing && typeof document !== 'undefined' && createPortal(
+        <div role="dialog" aria-label={playing.name} onClick={() => setPlaying(null)} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: 'min(92vw, 420px)', width: '100%' }}>
+            <video src={urls[playing.path]} controls autoPlay playsInline style={{ width: '100%', maxHeight: '82vh', borderRadius: 14, background: '#000', display: 'block' }} />
+            <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: '10px 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playing.name}</p>
+            <button type="button" onClick={() => setPlaying(null)} aria-label="Close" style={{ position: 'absolute', top: -14, right: -14, width: 34, height: 34, borderRadius: '50%', border: 'none', background: '#fff', color: '#111', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>×</button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
