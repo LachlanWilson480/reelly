@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { trackRenders } from '@/lib/renderTracker'
 import CameraControls from '@/components/CameraControls'
+import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 
@@ -192,6 +193,7 @@ export default function MultiFilm(p: Props) {
   const [mirrored, setMirrored] = useState(false)
   const camx = useCameraControls(() => streamRef.current)
   const [deviceLandscape, setDeviceLandscape] = useState(false)
+  const [showLibrary, setShowLibrary] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -799,12 +801,15 @@ export default function MultiFilm(p: Props) {
               {pending ? (
                 <>
                   <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>Video {vi + 1} · Clip {ci + 1} of {clipTotal}</p>
+                  <SaveToLibraryButton dark key={pending.url} userId={userId} plan={isFreeTier ? 'free' : p.userPlan} getFile={() => new File([pending.blob], `film-clip.${pending.ext}`, { type: pending.type })} />
                   <button type="button" onClick={discardPending} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
                   <button type="button" onClick={saveClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
                     {ci + 1 < clipTotal ? '✓ Save & next' : refilming || vi + 1 >= videos.length ? '✓ Finish' : '✓ Finish video'}
                   </button>
                 </>
               ) : (
+                <>
+                <button type="button" onClick={() => setShowLibrary(true)} disabled={isRecording || countdown !== null} style={{ flexShrink: 0, padding: '11px 16px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1, fontFamily: 'Inter, sans-serif' }}>Use saved clip</button>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed {scrollSpeed}x</span>
@@ -812,9 +817,22 @@ export default function MultiFilm(p: Props) {
                   </div>
                   <input type="range" min={1} max={10} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
                 </div>
+                </>
               )}
             </div>
           </>
+        )}
+        {showLibrary && (
+          <LibraryPicker
+            userId={userId}
+            single
+            title="Use a saved clip"
+            onClose={() => setShowLibrary(false)}
+            onAdd={(files) => {
+              const f = files[0]
+              if (f) { setRecordError(''); setPending({ blob: f, ext: (f.name.split('.').pop() || 'mp4').toLowerCase(), type: f.type || 'video/mp4', url: URL.createObjectURL(f) }) }
+            }}
+          />
         )}
         {confirmLeave && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>

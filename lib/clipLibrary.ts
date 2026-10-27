@@ -9,7 +9,10 @@ export type LibraryClip = {
   mime: string | null
   duration: number | null
   created_at: string
+  album_id?: string | null
 }
+
+export type LibraryAlbum = { id: string; name: string; created_at: string }
 
 export type LibraryPlan = 'free' | 'basic' | 'mid' | 'top'
 
@@ -57,7 +60,7 @@ const videoLength = (file: File): Promise<number | null> =>
   })
 
 // Saves a file to the library. Returns the new clip, or a plain-English reason it could not be saved.
-export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number): Promise<{ clip?: LibraryClip; error?: string }> {
+export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null): Promise<{ clip?: LibraryClip; error?: string }> {
   if (!isVideoName(file)) return { error: 'Only video files can go in the library.' }
   if (file.size > MAX_LIBRARY_FILE_BYTES) return { error: 'That clip is over 500 MB, which is too big for the library.' }
   if (usedBytes + file.size > limitBytes) return { error: `Not enough library space. You have ${formatBytes(Math.max(0, limitBytes - usedBytes))} left.` }
@@ -66,7 +69,7 @@ export async function saveToLibrary(userId: string, file: File, usedBytes: numbe
   const up = await supabase.storage.from(BUCKET).upload(path, file, file.type ? { contentType: file.type } : undefined)
   if (up.error) return { error: 'The upload did not finish. Please try again.' }
   const duration = await videoLength(file)
-  const { data, error } = await supabase.from('clip_library').insert({ user_id: userId, name: file.name, path, size_bytes: file.size, mime: file.type || null, duration }).select('*').single()
+  const { data, error } = await supabase.from('clip_library').insert({ user_id: userId, name: file.name, path, size_bytes: file.size, mime: file.type || null, duration, ...(albumId ? { album_id: albumId } : {}) }).select('*').single()
   if (error || !data) {
     await supabase.storage.from(BUCKET).remove([path])
     return { error: 'Could not save the clip to your library. Please try again.' }
@@ -99,4 +102,31 @@ export async function libraryClipToFile(clip: LibraryClip): Promise<File | null>
   } catch {
     return null
   }
+}
+
+export async function listAlbums(): Promise<LibraryAlbum[]> {
+  const { data, error } = await supabase.from('clip_albums').select('*').order('created_at', { ascending: true })
+  if (error || !data) return []
+  return data as LibraryAlbum[]
+}
+
+export async function createAlbum(userId: string, name: string): Promise<LibraryAlbum | null> {
+  const { data, error } = await supabase.from('clip_albums').insert({ user_id: userId, name }).select('*').single()
+  return error || !data ? null : (data as LibraryAlbum)
+}
+
+export async function renameAlbum(id: string, name: string): Promise<boolean> {
+  const { error } = await supabase.from('clip_albums').update({ name }).eq('id', id)
+  return !error
+}
+
+// The clips in a deleted album are kept and go back to "No album"
+export async function deleteAlbum(id: string): Promise<boolean> {
+  const { error } = await supabase.from('clip_albums').delete().eq('id', id)
+  return !error
+}
+
+export async function moveToAlbum(clipId: string, albumId: string | null): Promise<boolean> {
+  const { error } = await supabase.from('clip_library').update({ album_id: albumId }).eq('id', clipId)
+  return !error
 }

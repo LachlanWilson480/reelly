@@ -1088,7 +1088,7 @@ export default function DashboardPage() {
   const carouselInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai'>(null)
+  const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai' | 'film'>(null)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
@@ -4679,7 +4679,19 @@ export default function DashboardPage() {
             <ClipLibrary userId={userId} plan={isFreeTier ? 'free' : userPlan} onPlans={() => { window.location.href = '/plans' }} />
           )}
           {libraryPicker && (
-            <LibraryPicker userId={userId} onClose={() => setLibraryPicker(null)} onAdd={(files) => { if (libraryPicker === 'ai') addAiFiles(files); else addUploadFiles(files) }} />
+            <LibraryPicker
+              userId={userId}
+              single={libraryPicker === 'film'}
+              title={libraryPicker === 'film' ? 'Use a saved clip' : undefined}
+              onClose={() => setLibraryPicker(null)}
+              onAdd={(files) => {
+                if (libraryPicker === 'film') {
+                  const f = files[0]
+                  if (f) { setFilmRecordError(''); setFilmPending({ blob: f, ext: (f.name.split('.').pop() || 'mp4').toLowerCase(), type: f.type || 'video/mp4', url: URL.createObjectURL(f) }) }
+                } else if (libraryPicker === 'ai') addAiFiles(files)
+                else addUploadFiles(files)
+              }}
+            />
           )}
 
           {tab === 'uploads' && (
@@ -5099,10 +5111,13 @@ export default function DashboardPage() {
                         {filmPending ? (
                           <>
                             <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : `Clip ${filmLineIdx + 1} of ${filmClipCount}`}</p>
+                            <SaveToLibraryButton dark key={filmPending.url} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => new File([filmPending.blob], `film-clip.${filmPending.ext}`, { type: filmPending.type })} />
                             <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>↺ Redo</button>
                             <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 50, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmClipCount ? '✓ Review video' : '✓ Save & next'}</button>
                           </>
                         ) : (
+                          <>
+                          <button type="button" onClick={() => setLibraryPicker('film')} disabled={filmIsRecording || filmCountdown !== null} style={{ flexShrink: 0, padding: '11px 16px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1, fontFamily: 'Inter, sans-serif' }}>Use saved clip</button>
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : 'Scroll speed'}</span>
@@ -5110,6 +5125,7 @@ export default function DashboardPage() {
                             </div>
                             <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
                           </div>
+                          </>
                         )}
                       </div>
                     </div>,

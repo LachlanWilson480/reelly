@@ -1,22 +1,25 @@
 'use client'
 
+import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  type LibraryClip, type LibraryPlan,
-  deleteFromLibrary, formatBytes, isVideoName, libraryClipToFile, libraryLimitBytes, listLibrary, renameInLibrary, saveToLibrary, signedUrls,
+  type LibraryClip, type LibraryAlbum, type LibraryPlan,
+  createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFile, libraryLimitBytes, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
 } from '@/lib/clipLibrary'
 
 // Loads the person's clips and a preview link for each one
 function useLibrary(userId: string | null) {
   const [clips, setClips] = useState<LibraryClip[]>([])
+  const [albums, setAlbums] = useState<LibraryAlbum[]>([])
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
     if (!userId) return
-    const list = await listLibrary()
+    const [list, albumList] = await Promise.all([listLibrary(), listAlbums()])
     setClips(list)
+    setAlbums(albumList)
     setUrls(await signedUrls(list.map((c) => c.path)))
     setLoading(false)
   }, [userId])
@@ -26,7 +29,38 @@ function useLibrary(userId: string | null) {
     return () => clearTimeout(t)
   }, [refresh])
 
-  return { clips, urls, loading, refresh }
+  return { clips, albums, urls, loading, refresh }
+}
+
+type View = 'all' | 'none' | string
+const inView = (c: LibraryClip, v: View) => v === 'all' ? true : v === 'none' ? !c.album_id : c.album_id === v
+
+const albumChip = (on: boolean): React.CSSProperties => ({ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: on ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: on ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' })
+
+// The row of album buttons used in the Library tab and in the picker
+function AlbumBar({ clips, albums, view, setView, onCreate }: { clips: LibraryClip[]; albums: LibraryAlbum[]; view: View; setView: (v: View) => void; onCreate?: (name: string) => Promise<void> }) {
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const create = async () => {
+    const n = name.trim()
+    setAdding(false)
+    setName('')
+    if (n && onCreate) await onCreate(n)
+  }
+  return (
+    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, alignItems: 'center' }}>
+      <button type="button" onClick={() => setView('all')} style={albumChip(view === 'all')}>All clips ({clips.length})</button>
+      {albums.map((a) => (
+        <button key={a.id} type="button" onClick={() => setView(a.id)} style={albumChip(view === a.id)}>{a.name} ({clips.filter((c) => c.album_id === a.id).length})</button>
+      ))}
+      <button type="button" onClick={() => setView('none')} style={albumChip(view === 'none')}>No album ({clips.filter((c) => !c.album_id).length})</button>
+      {onCreate && (adding ? (
+        <input autoFocus value={name} placeholder="Album name" onChange={(e) => setName(e.target.value)} onBlur={create} onKeyDown={(e) => { if (e.key === 'Enter') void create(); if (e.key === 'Escape') { setAdding(false); setName('') } }} style={{ flexShrink: 0, width: 150, fontSize: 12, padding: '7px 12px', borderRadius: 20, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)' }} />
+      ) : (
+        <button type="button" onClick={() => setAdding(true)} style={{ ...albumChip(false), borderStyle: 'dashed', color: 'var(--text-muted)' }}>+ New album</button>
+      ))}
+    </div>
+  )
 }
 
 const fmtDuration = (s: number | null) => (s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : '')
@@ -54,7 +88,10 @@ function StorageBar({ used, limit }: { used: number; limit: number }) {
 
 // The Library tab: upload, rename and delete clips
 export default function ClipLibrary({ userId, plan, onPlans }: { userId: string | null; plan: LibraryPlan; onPlans?: () => void }) {
-  const { clips, urls, loading, refresh } = useLibrary(userId)
+  const { clips, albums, urls, loading, refresh } = useLibrary(userId)
+  const [view, setView] = useState<View>('all')
+  const [albumRename, setAlbumRename] = useState<string | null>(null)
+  const [albumConfirmDelete, setAlbumConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(0)
   const [message, setMessage] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -75,7 +112,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     const problems: string[] = []
     setBusy((n) => n + vids.length)
     for (const f of vids) {
-      const r = await saveToLibrary(userId, f, usedNow, limit)
+      const r = await saveToLibrary(userId, f, usedNow, limit, albums.some((a) => a.id === view) ? view : null)
       if (r.clip) usedNow += r.clip.size_bytes
       else if (r.error) problems.push(`${f.name}: ${r.error}`)
       setBusy((n) => n - 1)
@@ -91,6 +128,36 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     if (await renameInLibrary(c.id, name)) await refresh()
   }
 
+  const shown = clips.filter((c) => inView(c, view))
+  const currentAlbum = albums.find((a) => a.id === view)
+
+  const makeAlbum = async (name: string) => {
+    if (!userId) return
+    const a = await createAlbum(userId, name)
+    if (!a) { setMessage('Could not make that album. Make sure the albums update has been run in Supabase, then try again.'); return }
+    setMessage('')
+    await refresh()
+    setView(a.id)
+  }
+
+  const saveAlbumName = async (a: LibraryAlbum, name: string) => {
+    setAlbumRename(null)
+    const n = name.trim()
+    if (!n || n === a.name) return
+    if (await renameAlbum(a.id, n)) await refresh()
+  }
+
+  const removeAlbum = async (a: LibraryAlbum) => {
+    setAlbumConfirmDelete(false)
+    if (await deleteAlbum(a.id)) { setView('all'); await refresh() }
+    else setMessage('Could not delete that album. Please try again.')
+  }
+
+  const move = async (c: LibraryClip, albumId: string) => {
+    if (await moveToAlbum(c.id, albumId || null)) await refresh()
+    else setMessage('Could not move that clip. Make sure the albums update has been run in Supabase, then try again.')
+  }
+
   const remove = async (c: LibraryClip) => {
     setConfirmDelete(null)
     if (await deleteFromLibrary(c)) await refresh()
@@ -103,6 +170,27 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Clip library</h2>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Upload a clip once, then add it to any video from the editor.</p>
       </div>
+
+      <AlbumBar clips={clips} albums={albums} view={view} setView={(v) => { setView(v); setAlbumRename(null); setAlbumConfirmDelete(false) }} onCreate={makeAlbum} />
+      {currentAlbum && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: -8 }}>
+          {albumRename === currentAlbum.id ? (
+            <input autoFocus defaultValue={currentAlbum.name} onBlur={(e) => saveAlbumName(currentAlbum, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setAlbumRename(null) }} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)' }} />
+          ) : (
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{currentAlbum.name}</span>
+          )}
+          <button type="button" onClick={() => setAlbumRename(currentAlbum.id)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Rename</button>
+          {albumConfirmDelete ? (
+            <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
+              <span style={{ color: 'var(--text-muted)' }}>Your clips stay in the library.</span>
+              <button type="button" onClick={() => removeAlbum(currentAlbum)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, color: '#d92d20', cursor: 'pointer' }}>Delete album</button>
+              <button type="button" onClick={() => setAlbumConfirmDelete(false)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Keep</button>
+            </span>
+          ) : (
+            <button type="button" onClick={() => setAlbumConfirmDelete(true)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Delete album</button>
+          )}
+        </div>
+      )}
 
       <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <StorageBar used={used} limit={limit} />
@@ -117,7 +205,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
         >
           <input ref={inputRef} type="file" accept="video/*" multiple style={{ display: 'none' }} onChange={(e) => { void addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
           <button type="button" onClick={() => inputRef.current?.click()} disabled={busy > 0} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 24, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: busy > 0 ? 'not-allowed' : 'pointer', opacity: busy > 0 ? 0.6 : 1 }}>
-            {busy > 0 ? `Uploading ${busy} ${busy === 1 ? 'clip' : 'clips'}…` : '+ Upload clips'}
+            {busy > 0 ? `Uploading ${busy} ${busy === 1 ? 'clip' : 'clips'}…` : currentAlbum ? `+ Upload clips to ${currentAlbum.name}` : '+ Upload clips'}
           </button>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' }}>or drag and drop videos here</p>
         </div>
@@ -126,14 +214,14 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 
       {loading ? (
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
-      ) : clips.length === 0 ? (
+      ) : shown.length === 0 ? (
         <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>No clips yet</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>{clips.length === 0 ? 'No clips yet' : 'Nothing in here yet'}</p>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Upload clips above, or press &quot;Save to library&quot; on a clip in the editor.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
-          {clips.map((c) => (
+          {shown.map((c) => (
             <div key={c.id} style={{ background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(128,128,128,0.15)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ position: 'relative', aspectRatio: '16 / 10', background: '#17151f' }}>
                 <Thumb url={urls[c.path]} />
@@ -145,6 +233,10 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
                 ) : (
                   <button type="button" onClick={() => { setRenaming(c.id); setRenameText(c.name) }} title="Rename" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</button>
                 )}
+                <select aria-label="Move to album" value={c.album_id || ''} onChange={(e) => move(c, e.target.value)} style={{ fontSize: 11, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%' }}>
+                  <option value="">No album</option>
+                  {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatBytes(c.size_bytes)}</span>
                   {confirmDelete === c.id ? (
@@ -166,13 +258,14 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 }
 
 // The picker opened from the editors: choose clips from the library to add to the video
-export function LibraryPicker({ userId, onClose, onAdd }: { userId: string | null; onClose: () => void; onAdd: (files: File[]) => void }) {
-  const { clips, urls, loading } = useLibrary(userId)
+export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userId: string | null; onClose: () => void; onAdd: (files: File[]) => void; single?: boolean; title?: string }) {
+  const { clips, albums, urls, loading } = useLibrary(userId)
+  const [view, setView] = useState<View>('all')
   const [picked, setPicked] = useState<string[]>([])
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
 
-  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  const toggle = (id: string) => setPicked((p) => (single ? (p.includes(id) ? [] : [id]) : p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
   const add = async () => {
     setWorking(true)
@@ -194,17 +287,20 @@ export function LibraryPicker({ userId, onClose, onAdd }: { userId: string | nul
     <div role="dialog" aria-label="Add from library" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg, #fff)', color: 'var(--ink)', borderRadius: 18, width: '100%', maxWidth: 760, maxHeight: '86vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(128,128,128,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Add from library</p>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title || 'Add from library'}</p>
           <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
+          {clips.length > 0 && albums.length > 0 && (
+            <div style={{ marginBottom: 14 }}><AlbumBar clips={clips} albums={albums} view={view} setView={setView} /></div>
+          )}
           {loading ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
           ) : clips.length === 0 ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>Your library is empty. Add clips in the Library tab, or press &quot;Save to library&quot; on a clip.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
-              {clips.map((c) => {
+              {clips.filter((c) => inView(c, view)).map((c) => {
                 const on = picked.includes(c.id)
                 return (
                   <button key={c.id} type="button" onClick={() => toggle(c.id)} aria-pressed={on} style={{ padding: 0, textAlign: 'left', background: 'var(--sand)', border: on ? '2px solid var(--coral)' : '2px solid transparent', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
@@ -224,7 +320,7 @@ export function LibraryPicker({ userId, onClose, onAdd }: { userId: string | nul
         <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(128,128,128,0.15)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button type="button" onClick={onClose} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 24, padding: '9px 18px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>Cancel</button>
           <button type="button" onClick={add} disabled={picked.length === 0 || working} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 24, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: picked.length === 0 || working ? 'not-allowed' : 'pointer', opacity: picked.length === 0 || working ? 0.55 : 1 }}>
-            {working ? 'Adding…' : picked.length === 0 ? 'Choose clips' : `Add ${picked.length} ${picked.length === 1 ? 'clip' : 'clips'}`}
+            {working ? 'Adding…' : picked.length === 0 ? (single ? 'Choose a clip' : 'Choose clips') : single ? 'Use this clip' : `Add ${picked.length} ${picked.length === 1 ? 'clip' : 'clips'}`}
           </button>
         </div>
       </div>
@@ -234,7 +330,7 @@ export function LibraryPicker({ userId, onClose, onAdd }: { userId: string | nul
 }
 
 // A small "Save to library" button for a clip in the editors
-export function SaveToLibraryButton({ userId, plan, getFile }: { userId: string | null; plan: LibraryPlan; getFile: () => File | null }) {
+export function SaveToLibraryButton({ userId, plan, getFile, dark }: { userId: string | null; plan: LibraryPlan; getFile: () => File | null; dark?: boolean }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [msg, setMsg] = useState('')
 
@@ -252,10 +348,10 @@ export function SaveToLibraryButton({ userId, plan, getFile }: { userId: string 
 
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <button type="button" onClick={save} disabled={state === 'saving' || state === 'saved'} style={{ fontSize: 11, color: state === 'saved' ? '#1a9d4a' : 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '3px 8px', cursor: state === 'saving' || state === 'saved' ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+      <button type="button" onClick={save} disabled={state === 'saving' || state === 'saved'} style={dark ? { fontSize: 13, fontWeight: 600, color: state === 'saved' ? '#34c759' : '#fff', background: 'transparent', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 50, padding: '13px 18px', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', cursor: state === 'saving' || state === 'saved' ? 'default' : 'pointer' } : { fontSize: 11, color: state === 'saved' ? '#1a9d4a' : 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '3px 8px', cursor: state === 'saving' || state === 'saved' ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
         {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved to library ✓' : 'Save to library'}
       </button>
-      {state === 'error' && <span role="alert" style={{ fontSize: 11, color: '#d92d20' }}>{msg}</span>}
+      {state === 'error' && <span role="alert" style={{ fontSize: 11, color: dark ? '#ff8a80' : '#d92d20' }}>{msg}</span>}
     </span>
   )
 }
