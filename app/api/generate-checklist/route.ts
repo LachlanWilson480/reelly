@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
-import { comfortRule } from '@/lib/filmingComfort'
+import { comfortRule, parseComfort } from '@/lib/filmingComfort'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -163,8 +163,10 @@ export async function POST(req: NextRequest) {
     const peopleList = onCameraPeople ? onCameraPeople.split(/[,&]|and/i).map((p: string) => p.trim()).filter(Boolean) : []
     const effectivePeopleCount = typeof peopleCountOverride === 'number' && peopleCountOverride > 0 ? peopleCountOverride : peopleList.length
     const noOne = peopleCountOverride === 0
+    // Low comfort means silent footage: nobody speaks, no voiceover, no face
+    const lowComfort = parseComfort(profile.filming_comfort).level === 'low'
     const isMultiPerson = !noOne && effectivePeopleCount > 1
-    const crewGuidance = noOne ? 'NO PEOPLE on camera. Faceless: hands-only, product close-ups, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
+    const crewGuidance = lowComfort ? 'SILENT FILM. Hands and actions only: nobody speaks, there is NO voiceover and NO face on camera. Never ask for anything to be said or recorded as audio. Any words appear as on-screen text only' : noOne ? 'NO PEOPLE on camera. Faceless: hands-only, product close-ups, screen recordings, text overlays, voiceover. Never require anyone to appear or speak to camera' : isMultiPerson
       ? `${effectivePeopleCount} people on camera${onCameraPeople && typeof peopleCountOverride !== 'number' ? ` (${onCameraPeople})` : ''} - label each step with who is on camera and use every person at least once; include handoffs, reactions or back-and-forth`
       : 'Films ALONE on phone, no crew - never mention or require a second person'
 
@@ -204,6 +206,13 @@ STRICT RULES:
       : ''
 
     const comfortLine = comfortRule(profile.filming_comfort)
+    const silentRules = lowComfort ? `
+SILENT FILM (overrides every other rule about dialogue, words to say, voiceover or spoken lines):
+- Do NOT write 'say:' anywhere. Nobody speaks and there is no voiceover.
+- Each step = time range + camera position/movement + the on-screen text to show, written as: show on-screen text: 'the text'
+- Keep each on-screen text short (under 8 words)
+- script = the on-screen text captions only, one per line separated by \\n, never spoken-word phrasing
+` : ''
 
     const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
 
@@ -218,6 +227,7 @@ Title: ${idea.title}
 Opening line: "${idea.hook}"
 Payoff: ${idea.description}${notesLine}
 
+${silentRules}
 RULES:
 - IMPORTANT: Do NOT reference any seasonal events, holidays or dates (Halloween, Christmas, etc.) unless the idea itself explicitly mentions them. Keep all dialogue and directions evergreen and specific to this business only.
 - Continue the opening line naturally - don't invent a new one
@@ -230,12 +240,12 @@ ${comfortLine ? `- ${comfortLine}\n` : ''}- Never use double quotes inside strin
 ${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above - do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
 - Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 
-Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say: G'day, it's Jake from Jake's Plumbing, and mate, if your hot water system is making a weird banging noise, you're not going crazy."
+${lowComfort ? `Example step: "0:00 to 0:04 - Hold phone at chest height facing the van, and show on-screen text: 'Hot water system banging?'"` : `Example step: "0:00 to 0:11 - Hold phone at chest height facing the van, and say: G'day, it's Jake from Jake's Plumbing, and mate, if your hot water system is making a weird banging noise, you're not going crazy."`}
 
 Also provide:
 - prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed for this specific idea)
 - caption: ready-to-post social caption, maximum 100 characters total including hashtags, punchy and in the business's tone
-- script: full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud
+- script: ${lowComfort ? 'the on-screen text captions only, one per line separated by \\n, nothing spoken' : 'full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud'}
 - directions: the ACTIONS, an array with exactly one entry per checklist step, in the same order. Each says what the person physically does and where the camera is (hands, movement, what is in frame), with no spoken dialogue, e.g. 'Hold phone at chest height facing the oven' or 'Close-up of hands shaping dough'. If that step shows text on screen, end the action with: On-screen text: 'the text'
 
 Respond ONLY with valid JSON, no markdown, no code fences:
@@ -272,6 +282,12 @@ Respond ONLY with valid JSON, no markdown, no code fences:
 
     if (!result) {
       return NextResponse.json({ error: 'The AI had trouble generating this checklist. Please try again.' }, { status: 500 })
+    }
+
+    if (lowComfort) {
+      // Safety net: turn any spoken line into on-screen text so nobody is ever asked to speak
+      const toText = (t: string) => t.replace(/[,;.]?\s*(?:and\s+)?(?:say|says|saying|voiceover|voice over|voice-over)\s*:\s*/gi, ', and show on-screen text: ')
+      if (Array.isArray(result.checklist)) result.checklist = result.checklist.map(toText)
     }
 
     const moderationTexts = [
