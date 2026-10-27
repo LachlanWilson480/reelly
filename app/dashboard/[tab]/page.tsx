@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import CaptionLayersPanel from '@/components/CaptionLayersPanel'
-import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers } from '@/lib/captionLayers'
+import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -88,7 +88,9 @@ const fmtTrimTime = (s: number) => {
 const trimButtonLabel = (t: ClipTrimRange | undefined, file: File | undefined) =>
   t && file && t.file === file ? `Trimmed · ${(t.end - t.start).toFixed(1)}s` : 'Trim'
 
-type VoiceoverSegment = { file: File; start: number; end: number | null }
+type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
+// How the preview draws the user's own captions (same colours and places as the final video)
+type PreviewCaptionStyle = { color: string; border: string; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
 const voiceoverExt = (b: Blob) => {
   const t = (b.type || '').toLowerCase()
@@ -164,10 +166,9 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
   )
 }
 
-// Voiceover settings: explains how it works, adds an uploaded recording, lists every part with its own
-// volume, and mixes the original sound and music. Recording itself happens under the preview so it can
-// start wherever the preview was paused.
-function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel }: {
+// Audio section: the original sound of the clips, then voiceover, then music, each with its own
+// volume. Recording itself happens under the preview so it can start wherever the preview was paused.
+function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, musicPicker }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -180,75 +181,93 @@ function VoiceoverPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses
   musicVol: number
   onMusicVol: (v: number) => void
   scriptLabel?: string
+  musicPicker: React.ReactNode
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const card = { border: '1px solid rgba(128,128,128,0.22)', borderRadius: 14, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
+  const heading = (title: string, hint: string) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>{title}</p>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{hint}</span>
+    </div>
+  )
+  const divider = { borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 } as const
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Voiceover</p>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional. Talk over clips you have already filmed.</span>
-      </div>
-      <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" style={choiceBtn()}
-          onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Go to the preview to record</button>
-        <button type="button" style={choiceBtn()} onClick={() => fileRef.current?.click()}>Upload a recording</button>
-      </div>
-      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-        Pause the preview where you want to start talking, then press Record voiceover under it. Your clips play silently while you talk. You can record as many parts as you like. An uploaded recording starts at the beginning of the video.
-      </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Audio</p>
 
-      {scriptLabel && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '12px 0 0' }}>
-          Your script for <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong> is loaded. It shows over the preview and scrolls as the video plays.
+      {/* 1. Original audio */}
+      <div>
+        {heading('Original audio', 'The sound recorded in your clips.')}
+        <VolumeRow label="Volume" value={originalVol} onChange={onOriginalVol} color="#4a6fa5" />
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+          {takes.length > 0 ? 'Turned down while you have a voiceover. Drag it to Off to remove the sound from your clips.' : 'Plays at full volume. Drag it to Off to remove the sound from your clips.'}
         </p>
-      )}
+      </div>
 
-      {takes.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-          {takes.map((t, i) => (
-            <div key={t.id} style={{ ...card, position: 'relative', paddingLeft: 18 }}>
-              <span aria-hidden style={{ position: 'absolute', left: 6, top: 14, bottom: 14, width: 4, borderRadius: 2, background: takeColor(i) }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ width: 26, height: 26, borderRadius: '50%', background: takeColor(i), color: '#fff', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', margin: 0 }}>Voiceover {i + 1}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-                    {t.duration > 0 ? `${fmtClock(t.start)} to ${fmtClock(t.start + t.duration)} (${Math.max(1, Math.round(t.duration))}s)` : `Starts at ${fmtClock(t.start)}`}
-                  </p>
+      {/* 2. Voiceover */}
+      <div style={divider}>
+        {heading('Voiceover', 'Optional. Talk over clips you have already filmed.')}
+        <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" style={choiceBtn()}
+            onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Go to the preview to record</button>
+          <button type="button" style={choiceBtn()} onClick={() => fileRef.current?.click()}>Upload a recording</button>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+          Pause the preview where you want to start talking, then press Record voiceover under it. Your clips play silently while you talk. You can record as many parts as you like. An uploaded recording starts at the beginning of the video.
+        </p>
+
+        {scriptLabel && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '12px 0 0' }}>
+            Your script for <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong> is loaded. It shows over the preview and scrolls as the video plays.
+          </p>
+        )}
+
+        {takes.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+            {takes.map((t, i) => (
+              <div key={t.id} style={{ ...card, position: 'relative', paddingLeft: 18 }}>
+                <span aria-hidden style={{ position: 'absolute', left: 6, top: 14, bottom: 14, width: 4, borderRadius: 2, background: takeColor(i) }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ width: 26, height: 26, borderRadius: '50%', background: takeColor(i), color: '#fff', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', margin: 0 }}>Voiceover {i + 1}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                      {t.duration > 0 ? `${fmtClock(t.start)} to ${fmtClock(t.start + t.duration)} (${Math.max(1, Math.round(t.duration))}s)` : `Starts at ${fmtClock(t.start)}`}
+                    </p>
+                  </div>
+                  <span style={{ flex: 1 }} />
+                  <ClipUploadBadge status={statuses[`v:${t.id}`]} onRetry={() => onRetry(t.id)} />
+                  <button type="button" onClick={() => onRemoveTake(t.id)}
+                    style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>Remove</button>
                 </div>
-                <span style={{ flex: 1 }} />
-                <ClipUploadBadge status={statuses[`v:${t.id}`]} onRetry={() => onRetry(t.id)} />
-                <button type="button" onClick={() => onRemoveTake(t.id)}
-                  style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>Remove</button>
+                <div style={{ marginTop: 10 }}>
+                  <VolumeRow label="Volume" value={t.volume} onChange={(v) => onTakeVolume(t.id, v)} color={takeColor(i)} />
+                </div>
               </div>
-              <div style={{ marginTop: 10 }}>
-                <VolumeRow label="Volume" value={t.volume} onChange={(v) => onTakeVolume(t.id, v)} color={takeColor(i)} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {(takes.length > 0 || hasMusic) && (
-        <div style={{ ...card, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', margin: 0 }}>Sound levels</p>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>Balance the sounds in your finished video. Voiceover levels are set in each part above.</p>
+            ))}
           </div>
-          <VolumeRow label="Original video sound" hint="From your clips" value={originalVol} onChange={onOriginalVol} color="#4a6fa5" />
-          {hasMusic && <VolumeRow label="Music" value={musicVol} onChange={onMusicVol} color="#3A9D6E" />}
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* 3. Music */}
+      <div style={divider}>
+        {musicPicker}
+        {hasMusic && (
+          <div style={{ marginTop: 12 }}>
+            <VolumeRow label="Music volume" value={musicVol} onChange={onMusicVol} color="#3A9D6E" />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake, onReorderClip }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -258,6 +277,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
+  captionStyle?: PreviewCaptionStyle
   onReorderClip?: (from: number, to: number) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
@@ -286,6 +306,11 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const chunksRef = useRef<Blob[]>([])
   const recStartRef = useRef(0)
   const recWallRef = useRef(0)
+  // Playback bookkeeping that must not wait for a re-render (this is what kept the voiceover from glitching)
+  const indexRef = useRef(0)
+  const switchingRef = useRef(false)
+  const advancingRef = useRef(false)
+  const lastSyncRef = useRef<Record<string, number>>({})
 
   // Read each clip's length once so the timeline knows the total
   useEffect(() => {
@@ -330,14 +355,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     const v = videoRef.current
     const seg = segments[i]
     if (!v || !seg) return
+    indexRef.current = i
     setIndex(i)
     const src = previewUrlFor(seg.file)
     const go = () => {
       v.currentTime = seg.start + offset
       setLocalTime(offset)
+      switchingRef.current = false
+      advancingRef.current = false
       if (autoplay) void v.play().catch(() => {})
     }
     if (v.getAttribute('data-src') !== src) {
+      switchingRef.current = true
+      window.setTimeout(() => { switchingRef.current = false }, 2500)
       v.setAttribute('data-src', src)
       v.src = src
       v.onloadedmetadata = () => { v.onloadedmetadata = null; go() }
@@ -374,14 +404,18 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   }
 
   const advance = () => {
-    if (index + 1 >= segments.length) {
+    // Both the clip ending and the animation loop can ask for the next clip, so only the first one counts
+    if (advancingRef.current) return
+    const i = indexRef.current
+    if (i + 1 >= segments.length) {
       videoRef.current?.pause()
       pauseTakes()
       setPlaying(false)
-      setLocalTime(lengths[index] || 0)
+      setLocalTime(lengths[i] || 0)
       if (recording) stopRecording()
     } else {
-      load(index + 1, 0, true)
+      advancingRef.current = true
+      load(i + 1, 0, true)
     }
   }
 
@@ -396,29 +430,49 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     const tick = () => {
       const v = videoRef.current
       const L = latest.current
-      const seg = L.segments[L.index]
-      if (v && seg) {
+      const idx = indexRef.current
+      const seg = L.segments[idx]
+      if (v && seg && !switchingRef.current) {
         setLocalTime(Math.max(0, v.currentTime - seg.start))
-        if (seg.end != null && v.currentTime >= seg.end - 0.03) L.advance()
-        const g = L.before + Math.max(0, v.currentTime - seg.start)
+        if (seg.end != null && v.currentTime >= seg.end - 0.03) {
+          L.advance()
+          raf = requestAnimationFrame(tick)
+          return
+        }
+        const g = L.lengths.slice(0, idx).reduce((a, b) => a + b, 0) + Math.max(0, v.currentTime - seg.start)
+        const now = performance.now()
+        const last = lastSyncRef.current
+        // Start a sound where it belongs, then only correct it when it has really drifted. Jumping an
+        // audio element every frame is what made voiceovers crackle and stutter.
+        const sync = (el: HTMLAudioElement, key: string, want: number) => {
+          if (el.paused) {
+            if (now - (last[key] ?? 0) < 250) return
+            last[key] = now
+            try { el.currentTime = want } catch {}
+            void el.play().catch(() => {})
+          } else if (Math.abs(el.currentTime - want) > 0.5 && now - (last[key] ?? 0) > 1500) {
+            last[key] = now
+            try { el.currentTime = want } catch {}
+          }
+        }
         L.takes.forEach((t, i) => {
           const el = audioEls.current[t.id]
           if (!el) return
           const end = t.duration > 0 ? t.start + t.duration : Infinity
-          el.volume = Math.min(1, Math.max(0, t.volume / 100))
-          el.muted = L.takes.slice(i + 1).some((o) => g >= o.start && g < (o.duration > 0 ? o.start + o.duration : Infinity))
+          const level = Math.min(1, Math.max(0, t.volume / 100))
+          if (el.volume !== level) el.volume = level
+          const hidden = L.takes.slice(i + 1).some((o) => g >= o.start && g < (o.duration > 0 ? o.start + o.duration : Infinity))
+          if (el.muted !== hidden) el.muted = hidden
           if (L.recording || g < t.start || g >= end) { if (!el.paused) el.pause(); return }
-          const want = g - t.start
-          if (el.paused) { try { el.currentTime = want } catch {} void el.play().catch(() => {}) }
-          else if (Math.abs(el.currentTime - want) > 0.35) { try { el.currentTime = want } catch {} }
+          sync(el, t.id, g - t.start)
         })
         // Music is the third layer: it plays from the start of the video, under everything else
         const mus = audioEls.current['music']
         if (mus) {
-          mus.volume = Math.min(1, Math.max(0, L.musicVol / 100))
+          const level = Math.min(1, Math.max(0, L.musicVol / 100))
+          if (mus.volume !== level) mus.volume = level
           if (L.recording) { if (!mus.paused) mus.pause() }
-          else if (mus.paused) { try { mus.currentTime = g } catch {} void mus.play().catch(() => {}) }
-          else if (Math.abs(mus.currentTime - g) > 0.35) { try { mus.currentTime = g } catch {} }
+          else sync(mus, 'music', g)
         }
       }
       raf = requestAnimationFrame(tick)
@@ -529,8 +583,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   return (
     <div>
-      <div style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
+      <div style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 18, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
         <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+        {(() => {
+          const cap = segments[index]
+          if (!captionStyle || !cap?.caption) return null
+          const pt = captionStyle[cap.captionLayer || 'speech']
+          const unit = (captionStyle.size / 1080) * 100
+          return (
+            <div aria-label="Caption preview" style={{ position: 'absolute', left: `${pt.x * 100}%`, top: `${pt.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, pointerEvents: 'none', fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
+              {cap.caption}
+            </div>
+          )
+        })()}
         {scriptLines.length > 0 && (recording || showScript) && (
           <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.82) 72%, rgba(8,6,24,0))' }}>
             <div ref={scriptBoxRef} style={{ height: '100%', overflow: 'hidden', padding: `${recording ? 40 : 16}px 18px 22px` }}>
@@ -692,7 +757,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -703,6 +768,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
   onReorderClip?: (from: number, to: number) => void
+  captionStyle?: PreviewCaptionStyle
   onDropFiles?: (files: File[]) => void
 }) {
   const [fileOver, setFileOver] = useState(false)
@@ -721,7 +787,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 20, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -2152,39 +2218,51 @@ export default function DashboardPage() {
     ? <div aria-hidden="true" style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', width: 76, height: 20, borderRadius: 11, background: '#0b0a10', zIndex: 6, pointerEvents: 'none' }} />
     : null
 
+  const previewCaptionStyle: PreviewCaptionStyle = {
+    color: captionColor,
+    border: captionBorderColor,
+    size: Number(captionFontSize) || 60,
+    onScreen: layerPoint(captionLayers, 'onScreen', captionPosition),
+    speech: layerPoint(captionLayers, 'speech', captionPosition),
+  }
+
+  // The Audio section: original sound, voiceover and music in their own card
+  const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
+    <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '24px' }}>
+      <AudioPanel
+        takes={voiceTakes}
+        originalVol={originalVol}
+        onOriginalVol={setOriginalVolPick}
+        hasMusic={!!(musicFile || libraryMusicUrl || extractedMusicPath)}
+        musicVol={musicVol}
+        onMusicVol={setMusicVol}
+        onTakeVolume={setTakeVolume}
+        scriptLabel={scriptLabel}
+        onAddFile={addVoiceFile}
+        onRemoveTake={removeVoiceTake}
+        statuses={clipUploadStatus}
+        onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
+        musicPicker={
+          <MusicPicker
+            libraryName={libraryMusicName}
+            musicFile={musicFile}
+            extractedPath={extractedMusicPath}
+            extracting={extractingAudio}
+            extractError={extractAudioError}
+            uploadStatus={clipUploadStatus['m']}
+            onOpenLibrary={() => setShowMusicLibrary(musicTarget)}
+            onPickFile={pickMusicFile}
+            onExtract={handleExtractAudio}
+            onClear={clearMusic}
+            onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
+          />
+        }
+      />
+    </div>
+  )
+
   const renderPreferencesFields = (showCaptionModes = true) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-                    {/* Music */}
-                    <MusicPicker
-                      libraryName={libraryMusicName}
-                      musicFile={musicFile}
-                      extractedPath={extractedMusicPath}
-                      extracting={extractingAudio}
-                      extractError={extractAudioError}
-                      uploadStatus={clipUploadStatus['m']}
-                      onOpenLibrary={() => setShowMusicLibrary('upload')}
-                      onPickFile={pickMusicFile}
-                      onExtract={handleExtractAudio}
-                      onClear={clearMusic}
-                      onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
-                    />
-
-                    {/* Voiceover */}
-                    <VoiceoverPanel
-                      takes={voiceTakes}
-                      originalVol={originalVol}
-                      onOriginalVol={setOriginalVolPick}
-                      hasMusic={!!(musicFile || libraryMusicUrl || extractedMusicPath)}
-                      musicVol={musicVol}
-                      onMusicVol={setMusicVol}
-                      onTakeVolume={setTakeVolume}
-                      scriptLabel={voiceScript?.label}
-                      onAddFile={addVoiceFile}
-                      onRemoveTake={removeVoiceTake}
-                      statuses={clipUploadStatus}
-                      onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
-                    />
 
                     {/* Captions */}
                     <div>
@@ -4575,6 +4653,9 @@ export default function DashboardPage() {
                 )}
               </div>
 
+              {/* ── AUDIO ── */}
+              {renderAudioSection('upload', voiceScript?.label)}
+
               {/* ── CUSTOMISE (collapsed) ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
                 <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
@@ -4647,7 +4728,8 @@ export default function DashboardPage() {
               {(!renderId || renderStatus === 'failed') && <EditorPreview
                 onReorderClip={reorderUploadClip}
                 onDropFiles={addUploadFiles}
-                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                captionStyle={previewCaptionStyle}
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; const own = uploadAddCaptions && uploadCaptionOwn && captionLayers.speech.on; const caption = own ? (uploadOwnTexts[id] ?? (uploadSlotTexts[id] || []).join(' ')).trim() : ''; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, caption, captionLayer: 'speech' as const } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -4896,6 +4978,7 @@ export default function DashboardPage() {
                           </div>
                         ))}
                       </div>
+                      {renderAudioSection('upload', voiceScript?.label)}
                       <div style={{ background: 'var(--sand)', borderRadius: 20, padding: '20px 24px 24px' }}>
                         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 18px' }}>Preferences</p>
                         {renderPreferencesFields(false)}
@@ -4914,7 +4997,7 @@ export default function DashboardPage() {
               )}
 
 {tab === 'aiuploads' && (
-            <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className={selectedFilmingId ? 'ed-split' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
               {/* ── Select idea ── */}
               <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
@@ -5079,6 +5162,9 @@ export default function DashboardPage() {
                       )}
                     </div>
 
+                    {/* ── AUDIO ── */}
+                    {renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined))}
+
                     {/* ── CUSTOMISE (collapsed) ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 20, overflow: 'hidden' }}>
                       <button type="button" onClick={() => setShowAdvancedCaptions((v) => !v)}
@@ -5089,41 +5175,6 @@ export default function DashboardPage() {
 
                       {showAdvancedCaptions && (
                         <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)' }}>
-                          {/* Music row */}
-                          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <MusicPicker
-                      libraryName={libraryMusicName}
-                      musicFile={musicFile}
-                      extractedPath={extractedMusicPath}
-                      extracting={extractingAudio}
-                      extractError={extractAudioError}
-                      uploadStatus={clipUploadStatus['m']}
-                      onOpenLibrary={() => setShowMusicLibrary('ai')}
-                      onPickFile={pickMusicFile}
-                      onExtract={handleExtractAudio}
-                      onClear={clearMusic}
-                      onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
-                    />
-                          </div>
-
-                          {/* Voiceover row */}
-                          <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
-                            <VoiceoverPanel
-                      takes={voiceTakes}
-                      originalVol={originalVol}
-                      onOriginalVol={setOriginalVolPick}
-                      hasMusic={!!(musicFile || libraryMusicUrl || extractedMusicPath)}
-                      musicVol={musicVol}
-                      onMusicVol={setMusicVol}
-                      onTakeVolume={setTakeVolume}
-                      scriptLabel={voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined)}
-                      onAddFile={addVoiceFile}
-                      onRemoveTake={removeVoiceTake}
-                      statuses={clipUploadStatus}
-                      onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
-                    />
-                          </div>
-
                           {/* Captions row */}
                           <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(128,128,128,0.08)' }}>
                             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Captions</p>
@@ -5239,9 +5290,10 @@ export default function DashboardPage() {
                   </>
                 )
               })()}
-              {(!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
+              {!!selectedFilmingId && (!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
                 onDropFiles={addAiFiles}
-                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                captionStyle={previewCaptionStyle}
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; const own = aiAddCaptions && aiCaptionOwn && captionLayers.speech.on; const caption = own ? (aiOwnTexts[i] ?? extractOnScreenText(filmingItems.find((x) => x.id === selectedFilmingId)?.directions?.[i] || '').join(' ')).trim() : ''; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, caption, captionLayer: 'speech' as const } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}

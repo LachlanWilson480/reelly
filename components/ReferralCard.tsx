@@ -9,6 +9,7 @@ export default function ReferralCard() {
   const [info, setInfo] = useState<Info | null>(null)
   const [failed, setFailed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -23,10 +24,16 @@ export default function ReferralCard() {
   const copy = async () => {
     try { await navigator.clipboard.writeText(info?.code || ''); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
   }
+  // What a friend receives: the offer, the code and the sign up link
+  const shareText = `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first payment.`
   const share = async () => {
     try {
-      if (navigator.share) await navigator.share({ title: 'Reelezy', text: `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first payment:`, url: link })
-      else await copy()
+      if (navigator.share) await navigator.share({ title: 'Reelezy', text: shareText, url: link })
+      else {
+        await navigator.clipboard.writeText(`${shareText} ${link}`)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2500)
+      }
     } catch {}
   }
 
@@ -41,7 +48,7 @@ export default function ReferralCard() {
     <div id="refer" style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 20, padding: '28px 28px 24px', color: '#F1EFE8', fontFamily: "'Poppins', sans-serif" }}>
       <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 6px' }}>Refer a friend, get a month free</h2>
       <p style={{ fontSize: 13, color: '#D3D1C7', margin: '0 0 18px', lineHeight: 1.5 }}>
-        When a friend signs up with your link and subscribes, you get a month of the plan they bought, free. If you already pay, it comes off your next bill. If you are on the Free plan, you get that plan free for a month.
+        Your friend gets 30% off their first payment when they join with your code, and you get 1 month free of the plan they buy. If you already pay, it comes off your next bill. If you are on the Free plan, you get that plan free for a month.
       </p>
       {failed ? (
         <p style={{ fontSize: 13, color: '#FFB4A5', margin: 0 }}>Your referral link could not load. Refresh the page to try again.</p>
@@ -55,7 +62,7 @@ export default function ReferralCard() {
               <p style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, margin: 0, color: '#fff', userSelect: 'all' }}>{info.code}</p>
             </div>
             <button type="button" onClick={copy} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{copied ? 'Copied' : 'Copy code'}</button>
-            <button type="button" onClick={share} style={{ padding: '11px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Share</button>
+            <button type="button" onClick={share} style={{ padding: '11px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{shareCopied ? 'Message copied' : 'Share'}</button>
           </div>
           <p style={{ fontSize: 12, color: '#D3D1C7', margin: '10px 0 0', lineHeight: 1.5 }}>Your friend types this code in when they sign up or choose a plan.</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 20, padding: '14px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.07)' }}>
