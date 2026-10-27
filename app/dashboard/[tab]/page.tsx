@@ -1170,10 +1170,26 @@ export default function DashboardPage() {
   const filmRafRef = useRef<number | null>(null)
   const [filmCameraActive, setFilmCameraActive] = useState(false)
   const [filmAutoRender, setFilmAutoRender] = useState(false)
-  const [filmFacing, setFilmFacing] = useState<'user' | 'environment'>('user')
-  const filmFacingRef = useRef<'user' | 'environment'>('user')
+  // Start on the back camera (the main one that faces away from you), like the iPhone Camera app
+  const [filmFacing, setFilmFacing] = useState<'user' | 'environment'>('environment')
+  const filmFacingRef = useRef<'user' | 'environment'>('environment')
   const filmDeviceIdRef = useRef<string | null>(null)
-  const [filmMirrored, setFilmMirrored] = useState(true)
+  const [filmMirrored, setFilmMirrored] = useState(false)
+  // Camera controls, like the ones in the iPhone Camera app
+  const [filmGrid, setFilmGrid] = useState(false)
+  const [filmTimer, setFilmTimer] = useState<0 | 3 | 10>(3)
+  const [filmRes, setFilmRes] = useState<'720' | '1080' | '4k'>('1080')
+  const filmResRef = useRef<'720' | '1080' | '4k'>('1080')
+  const [filmFps, setFilmFps] = useState<24 | 30 | 60>(30)
+  const filmFpsRef = useRef<24 | 30 | 60>(30)
+  const [filmTorchOk, setFilmTorchOk] = useState(false)
+  const [filmTorch, setFilmTorch] = useState(false)
+  const [filmZoomCaps, setFilmZoomCaps] = useState<{ min: number; max: number; step: number } | null>(null)
+  const [filmZoom, setFilmZoom] = useState(1)
+  const [filmLenses, setFilmLenses] = useState<{ id: string; name: string }[]>([])
+  const [filmLensId, setFilmLensId] = useState<string | null>(null)
+  const [filmSettingsOpen, setFilmSettingsOpen] = useState(false)
+  const [filmDeviceLandscape, setFilmDeviceLandscape] = useState(false)
   const [filmReview, setFilmReview] = useState(false)
   const [filmRecorderOpen, setFilmRecorderOpen] = useState(false)
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
@@ -1889,7 +1905,8 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
-    const filmSize = { width: { ideal: filmOrientationRef.current === 'landscape' ? 1920 : 1080 }, height: { ideal: filmOrientationRef.current === 'landscape' ? 1080 : 1920 } }
+    const [longSide, shortSide] = filmResRef.current === '4k' ? [3840, 2160] : filmResRef.current === '720' ? [1280, 720] : [1920, 1080]
+    const filmSize = { width: { ideal: filmOrientationRef.current === 'landscape' ? longSide : shortSide }, height: { ideal: filmOrientationRef.current === 'landscape' ? shortSide : longSide }, frameRate: { ideal: filmFpsRef.current } }
     const filmCamera = filmDeviceIdRef.current ? { deviceId: { exact: filmDeviceIdRef.current } } : { facingMode: filmFacingRef.current }
     navigator.mediaDevices.getUserMedia({ video: { ...filmCamera, ...filmSize }, audio: true })
       .then(stream => {
@@ -1905,6 +1922,21 @@ export default function DashboardPage() {
         }
         if (filmVideoRef.current) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
+        // Work out which extras this camera supports (zoom, torch, other lenses)
+        setFilmTorch(false)
+        setFilmZoom(1)
+        try {
+          const caps = (vt?.getCapabilities?.() || {}) as unknown as { torch?: boolean; zoom?: { min: number; max: number; step?: number } }
+          setFilmTorchOk(!!caps.torch)
+          setFilmZoomCaps(caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 } : null)
+        } catch { setFilmTorchOk(false); setFilmZoomCaps(null) }
+        const currentId = vt?.getSettings?.().deviceId || null
+        setFilmLensId(currentId)
+        navigator.mediaDevices.enumerateDevices().then((devs) => {
+          const rear = devs.filter((d) => d.kind === 'videoinput' && /back|rear|environment/i.test(d.label))
+          const isRear = !!currentId && rear.some((d) => d.deviceId === currentId)
+          setFilmLenses(isRear && rear.length > 1 ? rear.map((d) => ({ id: d.deviceId, name: /ultra/i.test(d.label) ? '0.5x' : /tele/i.test(d.label) ? '2x' : '1x' })).sort((a, b) => parseFloat(a.name) - parseFloat(b.name)) : [])
+        }).catch(() => setFilmLenses([]))
       })
       .catch(err => {
         console.error('Camera error:', err)
@@ -1946,6 +1978,44 @@ export default function DashboardPage() {
     startFilmCamera()
   }
 
+  const restartFilmCamera = () => {
+    if (filmIsRecording) return
+    filmStreamRef.current?.getTracks().forEach(t => t.stop())
+    filmStreamRef.current = null
+    setFilmCameraActive(false)
+    startFilmCamera()
+  }
+
+  const changeFilmQuality = (res: '720' | '1080' | '4k', fps: 24 | 30 | 60) => {
+    filmResRef.current = res
+    filmFpsRef.current = fps
+    setFilmRes(res)
+    setFilmFps(fps)
+    restartFilmCamera()
+  }
+
+  const pickFilmLens = (id: string) => {
+    if (filmIsRecording || id === filmLensId) return
+    filmDeviceIdRef.current = id
+    restartFilmCamera()
+  }
+
+  const applyFilmTrack = (settings: Record<string, unknown>) => {
+    const vt = filmStreamRef.current?.getVideoTracks()[0]
+    if (!vt) return Promise.resolve(false)
+    return vt.applyConstraints({ advanced: [settings] } as unknown as MediaTrackConstraints).then(() => true).catch(() => false)
+  }
+
+  const toggleFilmTorch = async () => {
+    const next = !filmTorch
+    if (await applyFilmTrack({ torch: next })) setFilmTorch(next)
+  }
+
+  const changeFilmZoom = async (z: number) => {
+    setFilmZoom(z)
+    await applyFilmTrack({ zoom: z })
+  }
+
   const changeFilmOrientation = (o: 'portrait' | 'landscape') => {
     if (o === filmOrientationRef.current || filmIsRecording || filmClips.length > 0 || filmPending) return
     filmOrientationRef.current = o
@@ -1961,18 +2031,30 @@ export default function DashboardPage() {
   const changeOrientationRef = useRef(changeFilmOrientation)
   useEffect(() => { changeOrientationRef.current = changeFilmOrientation })
 
-  // On phones and tablets, follow the way the device is held
+  // On phones and tablets, follow the way the device is held. Listens to every kind of rotation signal so it works on iPhone and Android.
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return
     const touch = window.matchMedia('(pointer: coarse)')
     const landscape = window.matchMedia('(orientation: landscape)')
+    const isTouch = () => touch.matches || (navigator.maxTouchPoints || 0) > 0 && /iPhone|iPad|Android/i.test(navigator.userAgent)
     const sync = () => {
-      if (tab !== 'film' || !touch.matches) return
-      changeOrientationRef.current(landscape.matches ? 'landscape' : 'portrait')
+      if (!isTouch()) return
+      const nowLandscape = typeof screen !== 'undefined' && screen.orientation?.type ? screen.orientation.type.startsWith('landscape') : landscape.matches
+      setFilmDeviceLandscape(nowLandscape)
+      if (tab !== 'film') return
+      changeOrientationRef.current(nowLandscape ? 'landscape' : 'portrait')
     }
     sync()
     landscape.addEventListener('change', sync)
-    return () => landscape.removeEventListener('change', sync)
+    window.addEventListener('orientationchange', sync)
+    window.addEventListener('resize', sync)
+    if (typeof screen !== 'undefined' && screen.orientation?.addEventListener) screen.orientation.addEventListener('change', sync)
+    return () => {
+      landscape.removeEventListener('change', sync)
+      window.removeEventListener('orientationchange', sync)
+      window.removeEventListener('resize', sync)
+      if (typeof screen !== 'undefined' && screen.orientation?.removeEventListener) screen.orientation.removeEventListener('change', sync)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
@@ -2118,12 +2200,10 @@ export default function DashboardPage() {
     if (!filmStreamRef.current || filmClipCount === 0) return
     if (!streamIsLive(filmStreamRef.current)) { setFilmRecordError('The camera stopped. It is restarting, press record again in a moment.'); filmStreamRef.current = null; setFilmCameraActive(false); startFilmCamera(); return }
     setFilmRecordError('')
-    setFilmCountdown(3)
-    await new Promise(r => setTimeout(r, 1000))
-    setFilmCountdown(2)
-    await new Promise(r => setTimeout(r, 1000))
-    setFilmCountdown(1)
-    await new Promise(r => setTimeout(r, 1000))
+    for (let n = filmTimer; n > 0; n--) {
+      setFilmCountdown(n)
+      await new Promise(r => setTimeout(r, 1000))
+    }
     setFilmCountdown(null)
     try {
       const mimeType = pickRecorderMime(filmBadMimeRef.current)
@@ -2156,7 +2236,7 @@ export default function DashboardPage() {
             raf = requestAnimationFrame(draw)
           }
           draw()
-          const cs = canvas.captureStream(30)
+          const cs = canvas.captureStream(filmFpsRef.current)
           filmStreamRef.current.getAudioTracks().forEach((t) => cs.addTrack(t))
           recordStream = cs
           stopCanvas = () => {
@@ -4956,6 +5036,49 @@ export default function DashboardPage() {
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
+                    {filmGrid && (
+                      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', backgroundImage: 'linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)), linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px))' }} />
+                    )}
+                    <div style={{ position: 'absolute', right: 12, top: 'calc(45% + 56px)', zIndex: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <button type="button" aria-label="Grid lines" aria-pressed={filmGrid} onClick={() => setFilmGrid(!filmGrid)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmGrid ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Grid</button>
+                      <button type="button" aria-label="Countdown timer" disabled={filmIsRecording} onClick={() => setFilmTimer(filmTimer === 0 ? 3 : filmTimer === 3 ? 10 : 0)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTimer ? 'var(--coral)' : 'rgba(0,0,0,0.55)', opacity: filmIsRecording ? 0.4 : 1 }}>{filmTimer ? `${filmTimer}s` : 'Off'}</button>
+                      {filmTorchOk && (
+                        <button type="button" aria-label="Torch" aria-pressed={filmTorch} onClick={toggleFilmTorch} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTorch ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Light</button>
+                      )}
+                      <button type="button" aria-label="Video quality" aria-expanded={filmSettingsOpen} onClick={() => setFilmSettingsOpen(!filmSettingsOpen)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmSettingsOpen ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>{filmRes === '4k' ? '4K' : `${filmRes}p`}</button>
+                    </div>
+                    {filmSettingsOpen && (
+                      <div role="group" aria-label="Video quality" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, background: 'rgba(8,6,24,0.85)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 190 }}>
+                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Resolution</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {(['720', '1080', '4k'] as const).map((r) => (
+                            <button key={r} type="button" disabled={filmIsRecording} onClick={() => changeFilmQuality(r, filmFps)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmRes === r ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{r === '4k' ? '4K' : `${r}p`}</button>
+                          ))}
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Frame rate</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {([24, 30, 60] as const).map((f) => (
+                            <button key={f} type="button" disabled={filmIsRecording} onClick={() => changeFilmQuality(filmRes, f)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmFps === f ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{f}</button>
+                          ))}
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }}>Higher settings give a sharper video but bigger files. If your phone can&apos;t do it, it uses the closest it can.</p>
+                      </div>
+                    )}
+                    {(filmLenses.length > 0 || filmZoomCaps) && !filmPending && (
+                      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 90, zIndex: 3, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 4 }}>
+                        {filmLenses.length > 0 ? filmLenses.map((l) => (
+                          <button key={l.id} type="button" disabled={filmIsRecording} onClick={() => pickFilmLens(l.id)} style={{ minWidth: 38, height: 32, borderRadius: 16, border: 'none', background: filmLensId === l.id ? 'var(--coral)' : 'transparent', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{l.name}</button>
+                        )) : filmZoomCaps && (
+                          <>
+                            <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, padding: '0 6px' }}>{filmZoom.toFixed(1)}x</span>
+                            <input type="range" aria-label="Zoom" min={filmZoomCaps.min} max={filmZoomCaps.max} step={filmZoomCaps.step} value={filmZoom} onChange={(e) => changeFilmZoom(Number(e.target.value))} style={{ width: 120, accentColor: 'var(--coral)' }} />
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {filmClips.length > 0 && !filmPending && filmDeviceLandscape !== (filmOrientation === 'landscape') && (
+                      <div role="status" style={{ position: 'absolute', left: 14, right: 14, top: '40%', zIndex: 6, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>Turn your phone {filmOrientation === 'landscape' ? 'sideways' : 'upright'} to match your other clips</div>
+                    )}
                     {filmClipCount > 0 && (
                       <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
                         Clip {Math.min(filmLineIdx + 1, filmClipCount)} of {filmClipCount}
