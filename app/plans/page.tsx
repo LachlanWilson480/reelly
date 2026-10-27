@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import ReferralCard from '@/components/ReferralCard'
 import { supabase } from '@/lib/supabase'
+import { formatBytes, libraryLimitBytes } from '@/lib/clipLibrary'
 import { authFetch } from '@/lib/authFetch'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } from '@/lib/pricing'
@@ -18,6 +19,7 @@ export default function PlansPage() {
   const router = useRouter()
 
   const detectedCurrency = useCurrency()
+  const [libraryUsed, setLibraryUsed] = useState(0)
   const [profileCountry, setProfileCountry] = useState<string | null>(null)
   const accountCurrency = currencyForCountry(profileCountry) ?? detectedCurrency
   const currency = accountCurrency ?? 'AUD'
@@ -47,6 +49,8 @@ export default function PlansPage() {
           const monthStart = getMonthStartISO()
           const { data: monthRenders } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).gte('created_at', monthStart)
           const usedSeconds = (monthRenders || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
+          const { data: libRows } = await supabase.from('clip_library').select('size_bytes').eq('user_id', user.id)
+          setLibraryUsed((libRows || []).reduce((sum: number, r: { size_bytes: number | null }) => sum + (r.size_bytes || 0), 0))
           setUsage({ ideas: bp?.ideas_generated_this_week || 0, scripts: bp?.scripts_generated_this_week || 0, filming: bp?.filming_generated_this_week || 0, renderMinutes: usedSeconds })
         }
       }
@@ -230,6 +234,25 @@ export default function PlansPage() {
                 ))}
               </div>
             )}
+
+            {/* Storage is a running total, not a weekly allowance */}
+            {usage && (() => {
+              const limit = libraryLimitBytes(userPlan === 'top' ? 'top' : userPlan === 'mid' ? 'mid' : 'free')
+              const pct = Math.min(100, (libraryUsed / limit) * 100)
+              return (
+                <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>Storage</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, color: 'var(--ink)' }}>Clip library</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatBytes(libraryUsed)} / {formatBytes(limit)}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 99, background: 'rgba(128,128,128,0.12)' }}>
+                    <div style={{ height: 6, borderRadius: 99, background: pct >= 90 ? '#d92d20' : 'var(--coral)', width: `${libraryUsed > 0 ? Math.max(pct, 1) : 0}%`, transition: 'width 0.4s ease' }} />
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '12px 0 0', lineHeight: 1.5 }}>This is a running total of the clips you have saved, so it does not reset each week. <Link href="/dashboard/library" style={{ color: 'var(--coral)', fontWeight: 600 }}>Open your library</Link></p>
+                </div>
+              )
+            })()}
 
             <div style={{ marginBottom: 20 }}><ReferralCard /></div>
 

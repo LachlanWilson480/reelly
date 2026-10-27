@@ -19,9 +19,9 @@ export type LibraryPlan = 'free' | 'basic' | 'mid' | 'top'
 const BUCKET = 'video-uploads'
 export const MAX_LIBRARY_FILE_BYTES = 500 * 1024 * 1024
 
-// How much each plan can keep in the library. Basic and Pro come from the plan limits, the others sit around them.
+// How much each plan can keep in the library. 'mid' is the paid Basic plan; 'basic' and 'free' both mean no paid plan.
 export function libraryLimitBytes(plan: LibraryPlan): number {
-  const mb = plan === 'top' ? PLAN_LIMITS.top.storageMb : plan === 'mid' ? Math.round((PLAN_LIMITS.basic.storageMb + PLAN_LIMITS.top.storageMb) / 2) : plan === 'basic' ? PLAN_LIMITS.basic.storageMb : 500
+  const mb = plan === 'top' ? PLAN_LIMITS.top.storageMb : plan === 'mid' ? PLAN_LIMITS.basic.storageMb : 500
   return mb * 1024 * 1024
 }
 
