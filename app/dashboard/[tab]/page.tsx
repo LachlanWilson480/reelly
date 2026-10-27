@@ -5,7 +5,6 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
-import CaptionLayersPanel from '@/components/CaptionLayersPanel'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
@@ -2313,7 +2312,6 @@ export default function DashboardPage() {
                               </button>
                             ))}
                           </div>
-                          <CaptionLayersPanel value={captionLayers} onChange={setCaptionLayers} position={captionPosition} />
                           <details>
                             <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
@@ -5189,7 +5187,6 @@ export default function DashboardPage() {
                                     </button>
                                   ))}
                                 </div>
-                                <CaptionLayersPanel value={captionLayers} onChange={setCaptionLayers} position={captionPosition} />
                                 <details>
                                   <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 10, marginTop: 8 }}>
