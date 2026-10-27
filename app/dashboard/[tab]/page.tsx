@@ -5129,7 +5129,7 @@ export default function DashboardPage() {
                     )}
                     {filmCurrentAction && !filmPending && (
                       <div style={{ position: 'absolute', left: 14, right: 14, bottom: 124, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
-                        <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 2px' }}>Action{filmDurations[filmLineIdx] ? ` · about ${filmDurations[filmLineIdx]} seconds` : ''}</p>
+                        <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>Action{filmDurations[filmLineIdx] ? <span style={{ background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, borderRadius: 12, padding: '2px 10px' }}>about {filmDurations[filmLineIdx]} seconds</span> : null}</p>
                         <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmCurrentAction}</p>
                       </div>
                     )}
