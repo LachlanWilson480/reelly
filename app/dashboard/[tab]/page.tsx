@@ -144,6 +144,13 @@ const extractOnScreenText = (step: string): string[] => {
   }
   return found
 }
+// A silent film has no spoken words: every filming step carries its own on-screen text. Returns one caption per step, or null when the idea is not a silent one.
+const silentCaptions = (item: { checklist?: string[] }): string[] | null => {
+  const steps = item.checklist || []
+  if (steps.length === 0 || steps.some((st) => /\bsay\s*:/i.test(st))) return null
+  const caps = steps.map((st) => extractOnScreenText(st).join(' ').trim())
+  return caps.every(Boolean) ? caps : null
+}
 const fmtClock = (s: number) => {
   const t = Math.max(0, Math.floor(s))
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
@@ -2050,6 +2057,8 @@ export default function DashboardPage() {
   }
 
   const getFilmLines = (item: FilmingItem): string[] => {
+    const silent = silentCaptions(item)
+    if (silent) return silent
     const script = item.script || ''
     const byLine = script.split(/\n+/).map(cleanFilmLine).filter(Boolean)
     const lines = byLine.length > 1 ? byLine : splitFilmText(script)
@@ -4220,7 +4229,7 @@ export default function DashboardPage() {
                                       {timeRange}
                                     </span>
                                   )}
-                                  <p style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{instruction}</p>
+                                  <p style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{silentCaptions(item) ? simplifyFilmAction(instruction) : instruction}</p>
                                 </div>
                               </div>
                             )
@@ -4239,20 +4248,23 @@ export default function DashboardPage() {
                       {/* Script */}
                       {item.script && (
                         <div style={{ padding: '16px 24px' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Full script</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>{silentCaptions(item) ? 'On-screen text' : 'Full script'}</p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             {(() => {
-                              // Split script into sentences
-                              const sentences = item.script
+                              // Silent films show one caption per step. Otherwise split the script into sentences
+                              const silent = silentCaptions(item)
+                              const joiner = silent || item.script.includes('\n') ? '\n' : ' '
+                              const sentences: string[] = silent ?? (item.script.includes('\n') ? splitScriptLines(item.script) : item.script
                                 .split(/(?<=[.!?])\s+/)
                                 .map((s: string) => s.trim())
-                                .filter((s: string) => s.length > 0)
+                                .filter((s: string) => s.length > 0))
                               // Use directions from API if available, otherwise no directions
                               const directions: (string | null)[] = item.directions && item.directions.length > 0 ? item.directions : []
                               // Distribute directions evenly across sentences
                               const validDirections = directions.filter(Boolean)
                               const directionInterval = validDirections.length > 0 ? Math.max(1, Math.floor(sentences.length / validDirections.length)) : 0
-                              const sentenceDirections: (string | null)[] = sentences.map((_: string, i: number) => {
+                              const stepAction = (i: number) => { const st = item.checklist[i] || ''; const d = st.indexOf(' - '); return simplifyFilmAction(d !== -1 ? st.slice(d + 3) : st) || null }
+                              const sentenceDirections: (string | null)[] = silent ? sentences.map((_: string, i: number) => stepAction(i)) : sentences.map((_: string, i: number) => {
                                 const dirIdx = directionInterval > 0 ? Math.floor(i / directionInterval) : -1
                                 return (dirIdx >= 0 && dirIdx < validDirections.length && i % directionInterval === 0) ? validDirections[dirIdx] : null
                               })
@@ -4279,10 +4291,11 @@ export default function DashboardPage() {
                                             const newSentences = [...sentences]
                                             const trimmed = editingScriptText.trim() || sentence
                                             newSentences[i] = trimmed
-                                            const newScript = newSentences.join(' ')
+                                            const newScript = newSentences.join(joiner)
                                             // Also update matching checklist step's Say: part
                                             const newChecklist = item.checklist.map((step: string, si: number) => {
                                               if (si !== i) return step
+                                              if (silent && silent[i]) return step.replace(silent[i], trimmed)
                                               const sayIdx = step.indexOf("Say: '")
                                               if (sayIdx === -1) return step
                                               return step.slice(0, sayIdx) + `Say: '${trimmed}'`

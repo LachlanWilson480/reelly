@@ -211,6 +211,8 @@ SILENT FILM (overrides every other rule about dialogue, words to say, voiceover 
 - Do NOT write 'say:' anywhere. Nobody speaks and there is no voiceover.
 - Each step = time range + camera position/movement + the on-screen text to show, written as: show on-screen text: 'the text'
 - Keep each on-screen text short (under 8 words)
+- Each step is 3 to 4 seconds long
+- Describe what to FILM, like 'Film the sample wall, panning across the colours'. Never tell them how to hold the phone
 - script = the on-screen text captions only, one per line separated by \\n, never spoken-word phrasing
 ` : ''
 
@@ -287,7 +289,12 @@ Respond ONLY with valid JSON, no markdown, no code fences:
     if (lowComfort) {
       // Safety net: turn any spoken line into on-screen text so nobody is ever asked to speak
       const toText = (t: string) => t.replace(/[,;.]?\s*(?:and\s+)?(?:say|says|saying|voiceover|voice over|voice-over)\s*:\s*/gi, ', and show on-screen text: ')
-      if (Array.isArray(result.checklist)) result.checklist = result.checklist.map(toText)
+      if (Array.isArray(result.checklist)) {
+        result.checklist = result.checklist.map(toText)
+        // One caption per step, so the script always lines up with the steps
+        const caps = result.checklist.map((st: string) => (st.match(/on-?screen text\s*:\s*['"\u2018\u201c](.+?)['"\u2019\u201d]\s*[.,;!?]?\s*$/i) || [])[1]?.trim() || '')
+        if (caps.length > 0 && caps.every(Boolean)) result.script = caps.join('\n')
+      }
     }
 
     const moderationTexts = [
