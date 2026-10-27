@@ -37,6 +37,34 @@ const inView = (c: LibraryClip, v: View) => v === 'all' ? true : c.album_id === 
 // Newest first
 const byDate = (a: LibraryClip, b: LibraryClip) => (b.created_at || '').localeCompare(a.created_at || '')
 
+// A small dropdown in the site's style (instead of the browser's own select menu)
+function PickMenu({ label, options, onPick }: { label: string; options: { value: string; label: string }[]; onPick: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc) }
+  }, [open])
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 20, border: open ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        {label}
+        <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      {open && (
+        <div role="listbox" aria-label={label} style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, minWidth: 180, maxHeight: 260, overflowY: 'auto', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 14, padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
+          {options.map((o) => (
+            <button key={o.value} type="button" role="option" aria-selected={false} onClick={() => { setOpen(false); onPick(o.value) }} className="lib-option" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 9, border: 'none', background: 'transparent', color: 'var(--ink)', fontSize: 13, fontWeight: 500, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 const albumChip = (on: boolean): React.CSSProperties => ({ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: on ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: on ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' })
 
 // The row of album buttons used in the Library tab and in the picker
@@ -285,11 +313,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
             <div role="toolbar" aria-label="Selected clips" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{sel.length} selected</span>
               <button type="button" onClick={() => setSelected(shown.map((c) => c.id))} style={smallBtn}>Select all</button>
-              <select aria-label="Move selected clips to" value="" onChange={(e) => { if (e.target.value) void moveMany(sel, e.target.value === '__all' ? null : e.target.value) }} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)' }}>
-                <option value="">Move to…</option>
-                <option value="__all">All clips only</option>
-                {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              <PickMenu label="Move to…" onPick={(v) => void moveMany(sel, v === '__all' ? null : v)} options={[{ value: '__all', label: 'All clips only' }, ...albums.map((a) => ({ value: a.id, label: a.name }))]} />
               {bulkConfirm ? (
                 <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
                   <span style={{ color: 'var(--text-muted)' }}>Delete {sel.length} {sel.length === 1 ? 'clip' : 'clips'} for good?</span>
@@ -319,7 +343,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
                   onDragStart={(e) => { dragIds.current = sel.includes(c.id) ? sel : [c.id]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'reelly-clips') }}
                   onDragEnd={() => { dragIds.current = []; setDropTarget(null) }}
                   style={{ position: 'relative', background: 'var(--card-bg)', borderRadius: 14, overflow: 'hidden', border: sel.includes(c.id) ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)', boxShadow: sel.includes(c.id) ? '0 0 0 3px rgba(255,106,77,0.25)' : 'none', display: 'flex', flexDirection: 'column' }}>
-                  <button type="button" role="checkbox" aria-checked={sel.includes(c.id)} aria-label={`Select ${c.name}`} onClick={() => toggleSel(c.id)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, width: 24, height: 24, borderRadius: 6, border: sel.includes(c.id) ? '2px solid var(--coral)' : '2px solid rgba(255,255,255,0.9)', background: sel.includes(c.id) ? 'var(--coral)' : 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }}>{sel.includes(c.id) ? '✓' : ''}</button>
+                  <button type="button" role="checkbox" aria-checked={sel.includes(c.id)} aria-label={`Select ${c.name}`} onClick={() => toggleSel(c.id)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, width: 24, height: 24, borderRadius: 7, border: sel.includes(c.id) ? '2px solid var(--coral)' : '2px solid rgba(255,255,255,0.9)', background: sel.includes(c.id) ? 'var(--coral)' : 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', transition: 'background 0.15s ease, border-color 0.15s ease' }}>{sel.includes(c.id) && <svg width="12" height="10" viewBox="0 0 12 10" aria-hidden="true"><path d="M1.5 5.2l3 3 6-6.4" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}</button>
                   <button type="button" onClick={() => setPlaying(c)} aria-label={`Play ${c.name}`} style={{ position: 'relative', display: 'block', width: '100%', aspectRatio: '3 / 4', padding: 0, border: 'none', background: '#17151f', cursor: 'pointer', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', inset: 0 }}><Thumb url={urls[c.path]} /></div>
                     <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</span>

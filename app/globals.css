@@ -365,3 +365,5 @@ select::-ms-expand { display: none; }
   .lib-side > * { flex-shrink: 0; width: auto !important; }
   .lib-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 }
+
+.lib-option:hover, .lib-option:focus-visible { background: rgba(255, 106, 77, 0.12) !important; color: var(--coral) !important; outline: none; }
