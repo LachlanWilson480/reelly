@@ -246,7 +246,7 @@ Also provide:
 - prep: 2-4 items to grab before filming (always include Phone; add others only if genuinely needed for this specific idea)
 - caption: ready-to-post social caption, maximum 100 characters total including hashtags, punchy and in the business's tone
 - script: ${lowComfort ? 'the on-screen text captions only, one per line separated by \\n, nothing spoken' : 'full word-for-word spoken words only, no timestamps or camera notes, reads naturally aloud'}
-- directions: the ACTIONS, an array with exactly one entry per checklist step, in the same order. Each says what the person physically does and where the camera is (hands, movement, what is in frame), with no spoken dialogue, e.g. 'Hold phone at chest height facing the oven' or 'Close-up of hands shaping dough'. If that step shows text on screen, end the action with: On-screen text: 'the text'
+- directions: the ACTIONS, an array with exactly one entry per checklist step, in the same order. Each is ONE short plain sentence (maximum 12 words) that starts with a verb and tells the person the single thing to do, like 'Hold the phone at chest height facing the oven' or 'Film a close-up of your hands shaping dough'. No lists, no extra detail, no camera jargon, no spoken words, never more than one action per entry. If that step shows text on screen, add a second short sentence: On-screen text: 'the text'
 
 Respond ONLY with valid JSON, no markdown, no code fences:
 { "prep": ["..."], "checklist": ["..."], "caption": "...", "script": "...", "directions": ["..."] }`

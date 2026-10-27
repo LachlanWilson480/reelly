@@ -2065,7 +2065,18 @@ export default function DashboardPage() {
       .map((st: string) => st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '').replace(/[,;.]?\s*(?:and\s+)?say:.*$/i, '').trim())
       .filter(Boolean)
     const withText = (list: string[]) => list.some((s: string) => /on-?screen text/i.test(s))
-    return withText(dirs) ? dirs : withText(fromSteps) ? fromSteps : dirs.length > 0 ? dirs : fromSteps
+    const source = withText(dirs) ? dirs : withText(fromSteps) ? fromSteps : dirs.length > 0 ? dirs : fromSteps
+    return source.map(simplifyFilmAction)
+  }
+
+  // Keeps an action short: just the first thing to do, with any on-screen text removed
+  const simplifyFilmAction = (text: string): string => {
+    const t = text
+      .replace(/\s+/g, ' ')
+      .replace(/[,;.]?\s*(?:and\s+)?(?:show\s+)?on-?screen text\s*:?.*$/i, '')
+      .trim()
+    const first = (t.match(/^[^.!?]+[.!?]?/)?.[0] || t).trim().replace(/[.]$/, '')
+    return first.split(/,\s+(?:then|and then|while|as|so)\s+/i)[0]
   }
 
   // Joins a list down to n entries by merging neighbours, so nothing is repeated or dropped
@@ -2078,7 +2089,7 @@ export default function DashboardPage() {
     const actions = getFilmActions(item)
     if (lines.length === 0 || actions.length === 0 || lines.length === actions.length) return { lines, actions }
     const n = Math.min(lines.length, actions.length)
-    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, ' Then ') }
+    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, '. Then ') }
   }
 
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = []) => {
