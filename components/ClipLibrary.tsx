@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   type LibraryClip, type LibraryAlbum, type LibraryPlan,
-  createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFile, libraryLimitBytes, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
+  createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFileDetailed, libraryLimitBytes, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
 } from '@/lib/clipLibrary'
 
 // Loads the person's clips and a preview link for each one
@@ -405,13 +405,15 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
     setWorking(true)
     setError('')
     const files: File[] = []
+    let why = ''
     for (const id of picked) {
       const clip = clips.find((c) => c.id === id)
-      const f = clip ? await libraryClipToFile(clip) : null
-      if (f) files.push(f)
+      const r = clip ? await libraryClipToFileDetailed(clip) : { error: 'clip missing' }
+      if (r.file) files.push(r.file)
+      else if (r.error) why = r.error
     }
     setWorking(false)
-    if (files.length === 0) { setError('Could not load those clips. Please try again.'); return }
+    if (files.length === 0) { setError(`Could not load those clips. Please try again.${why ? ` (${why})` : ''}`); return }
     onAdd(files)
     onClose()
   }

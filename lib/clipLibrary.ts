@@ -91,17 +91,34 @@ export async function renameInLibrary(id: string, name: string): Promise<boolean
 
 // Brings a library clip back as a normal file, so the editors treat it like any clip the person just chose
 export async function libraryClipToFile(clip: LibraryClip): Promise<File | null> {
-  const urls = await signedUrls([clip.path])
-  const url = urls[clip.path]
-  if (!url) return null
+  return (await libraryClipToFileDetailed(clip)).file || null
+}
+
+// Same, but says why it failed so the screen can show something useful
+export async function libraryClipToFileDetailed(clip: LibraryClip): Promise<{ file?: File; error?: string }> {
+  const make = (blob: Blob) => new File([blob], clip.name, { type: clip.mime || blob.type || 'video/mp4' })
+  let why = ''
+  // First try a signed link, then fall back to a signed-in download
   try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const blob = await res.blob()
-    return new File([blob], clip.name, { type: clip.mime || blob.type || 'video/mp4' })
-  } catch {
-    return null
+    const urls = await signedUrls([clip.path])
+    const url = urls[clip.path]
+    if (!url) why = 'no link'
+    else {
+      const res = await fetch(url)
+      if (res.ok) return { file: make(await res.blob()) }
+      why = `link ${res.status}`
+    }
+  } catch (e) {
+    why = `link blocked (${e instanceof Error ? e.message : 'unknown'})`
   }
+  try {
+    const { data, error } = await supabase.storage.from(BUCKET).download(clip.path)
+    if (data) return { file: make(data) }
+    why += `, download ${error?.message || 'failed'}`
+  } catch (e) {
+    why += `, download ${e instanceof Error ? e.message : 'failed'}`
+  }
+  return { error: why }
 }
 
 export async function listAlbums(): Promise<LibraryAlbum[]> {
