@@ -18,6 +18,7 @@ const DASHBOARD_TABS = [
   { id: 'filming', label: 'Filming', icon: '◉' },
   { id: 'uploads', label: 'AI Editor For Any Video', icon: '▲' },
   { id: 'aiuploads', label: 'AI Editor For Generated Idea', icon: '◆' },
+  { id: 'library', label: 'Clip Library', icon: '▤' },
 ]
 
 export default function Sidebar() {

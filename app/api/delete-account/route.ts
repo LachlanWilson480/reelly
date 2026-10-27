@@ -34,6 +34,16 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.storage.from('video-uploads').remove(draftPaths)
     }
 
+    // Also delete the clip library
+    const { data: libraryFiles } = await supabaseAdmin.storage
+      .from('video-uploads')
+      .list(`${userId}/library`, { limit: 1000 })
+
+    if (libraryFiles && libraryFiles.length > 0) {
+      await supabaseAdmin.storage.from('video-uploads').remove(libraryFiles.map((f) => `${userId}/library/${f.name}`))
+    }
+    await supabaseAdmin.from('clip_library').delete().eq('user_id', userId)
+
     // Delete all DB rows
     await supabaseAdmin.from('business_profiles').delete().eq('user_id', userId)
     await supabaseAdmin.from('renders').delete().eq('user_id', userId)

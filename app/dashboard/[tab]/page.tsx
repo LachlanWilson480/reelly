@@ -17,6 +17,7 @@ import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 import CameraControls from '@/components/CameraControls'
+import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
@@ -54,7 +55,7 @@ type Profile = {
   customer_source: string | null
   filming_comfort: string | null}
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler' | 'library' | 'library'
 
 type Idea = {
   id: string
@@ -1087,6 +1088,7 @@ export default function DashboardPage() {
   const carouselInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai'>(null)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
@@ -1544,7 +1546,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = params.tab as Tab | undefined
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "film", "script", "uploads", "aiuploads", "carousel", "scheduler"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "film", "script", "uploads", "aiuploads", "carousel", "scheduler", "library"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
@@ -3444,6 +3446,7 @@ export default function DashboardPage() {
     { id: 'carousel', label: 'Carousel Reels' },
     { id: 'script', label: 'Script Generator' },
     { id: 'scheduler', label: 'Scheduler' },
+    { id: 'library', label: 'Clip Library' },
   ]
 
   const paidStatus = realSubStatus === 'active' || realSubStatus === 'trialing'
@@ -3660,6 +3663,11 @@ export default function DashboardPage() {
             {/* Publish button */}
             <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", whiteSpace: 'nowrap' }}>
               Publish
+            </button>
+
+            {/* Clip library button */}
+            <button onClick={(e) => { e.stopPropagation(); setTab('library'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'library' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'library' ? 600 : 500, color: tab === 'library' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", whiteSpace: 'nowrap' }}>
+              Library
             </button>
 
             </div>
@@ -4667,6 +4675,13 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+          {tab === 'library' && (
+            <ClipLibrary userId={userId} plan={isFreeTier ? 'free' : userPlan} onPlans={() => { window.location.href = '/plans' }} />
+          )}
+          {libraryPicker && (
+            <LibraryPicker userId={userId} onClose={() => setLibraryPicker(null)} onAdd={(files) => { if (libraryPicker === 'ai') addAiFiles(files); else addUploadFiles(files) }} />
+          )}
+
           {tab === 'uploads' && (
             <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -4722,6 +4737,7 @@ export default function DashboardPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
                             <ClipUploadBadge status={clipUploadStatus[`u${slotId}`]} onRetry={() => startClipUpload('u', slotId, uploadSlotFiles[slotId])} />
+                            <SaveToLibraryButton key={`${slotId}-${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}`} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => uploadSlotFiles[slotId] || null} />
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
@@ -4766,6 +4782,10 @@ export default function DashboardPage() {
                 <button type="button" onClick={() => setUploadSlots((prev) => [...prev, (prev[prev.length - 1] ?? -1) + 1])}
                   style={{ background: 'none', border: '1px dashed rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', width: '100%' }}>
                   + Add another clip
+                </button>
+                <button type="button" onClick={() => setLibraryPicker('any')}
+                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', width: '100%', marginTop: 8 }}>
+                  Add from library
                 </button>
                 {uploadLandscapeSlots.size > 0 && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.12)' }}>
@@ -5119,6 +5139,7 @@ export default function DashboardPage() {
                               <button type="button" aria-label="Move clip earlier" disabled={i === 0} onClick={() => moveFilmClip(i, -1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}>▲</button>
                               <button type="button" aria-label="Move clip later" disabled={i === filmClips.length - 1} onClick={() => moveFilmClip(i, 1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === filmClips.length - 1 ? 'default' : 'pointer', opacity: i === filmClips.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}>▼</button>
                             </span>
+                            <SaveToLibraryButton key={cl.url} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => new File([cl.blob], `film-clip-${i + 1}.${cl.ext}`, { type: cl.type })} />
                             <button type="button" onClick={() => startRedoFilmClip(i)} disabled={filmUploading} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', flexShrink: 0 }}>↺ Redo</button>
                           </div>
                         ))}
@@ -5173,6 +5194,7 @@ export default function DashboardPage() {
                     {/* ── STEP 1: Clips per step ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>1 · Upload your clips</p>
+                      <button type="button" onClick={() => setLibraryPicker('ai')} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', marginBottom: 12 }}>Add from library</button>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                         <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 8, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
                           I filmed separate clips per step
