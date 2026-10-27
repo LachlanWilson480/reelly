@@ -70,10 +70,10 @@ type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: stri
 const FONT_OPTIONS = ['Montserrat ExtraBold', 'Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Roboto Bold', 'Open Sans Bold', 'Lato Bold']
 
 const CAPTION_PRESETS = [
-  { id: 'word_by_word', label: 'Word by Word', desc: 'One word at a time as it is spoken' },
-  { id: 'bold_center', label: 'Bold Pop', desc: 'Large Impact, 3 words at a time' },
-  { id: 'minimal_bottom', label: 'Minimal', desc: 'Subtle, clean, 5 words at a time' },
-  { id: 'typewriter', label: 'Typewriter', desc: 'Clean Arial, 4 words at a time' },
+  { id: 'word_by_word', label: 'Word by Word', desc: 'One big word at a time, in the middle of the screen' },
+  { id: 'bold_center', label: 'Bold Pop', desc: '3 words at a time, big bold capitals near the bottom' },
+  { id: 'minimal_bottom', label: 'Minimal', desc: 'Up to 5 small words at a time, on a dark strip' },
+  { id: 'typewriter', label: 'Typewriter', desc: '4 plain words at a time, on a dark strip' },
 ]
 
 type ClipTrimRange = { start: number; end: number; total: number; file: File }
@@ -2308,6 +2308,7 @@ export default function DashboardPage() {
                               <button key={preset.id} title={preset.desc} onClick={() => setPreset(preset.id)}
                                 style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 10, border: chosenPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: chosenPreset === preset.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
                                 <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: chosenPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35, margin: 0 }}>{preset.desc}</p>
                               </button>
                             ))}
                           </div>
