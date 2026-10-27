@@ -320,6 +320,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
   const capPosRef = useRef<{ id: string } | null>(null)
   const trimDragRef = useRef<{ i: number; side: 'l' | 'r'; startX: number; scale: number; start: number; end: number; dur: number } | null>(null)
+  // While a clip end is being dragged the timeline keeps its scale, so the end follows the finger exactly
+  const [trimView, setTrimView] = useState<{ i: number; side: 'l' | 'r'; shift: number; total: number; start: number; end: number } | null>(null)
   // Playback bookkeeping that must not wait for a re-render (this is what kept the voiceover from glitching)
   const indexRef = useRef(0)
   const switchingRef = useRef(false)
@@ -569,7 +571,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     }
   }
 
-  const pct = (t: number) => `${total > 0 ? Math.min(100, Math.max(0, (t / total) * 100)) : 0}%`
+  const scaleTotal = trimView ? trimView.total : total
+  const pct = (t: number) => `${scaleTotal > 0 ? Math.min(100, Math.max(0, (t / scaleTotal) * 100)) : 0}%`
   const timeAt = (clientX: number) => {
     const r = trackRef.current?.getBoundingClientRect()
     if (!r || total <= 0 || r.width <= 0) return 0
@@ -645,18 +648,33 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     pauseTakes()
     setPlaying(false)
     const w = trackRef.current?.getBoundingClientRect().width || 1
-    trimDragRef.current = { i, side, startX: e.clientX, scale: total / w, start: seg.start, end: seg.end != null ? Math.min(seg.end, dur) : dur, dur }
+    const end0 = seg.end != null ? Math.min(seg.end, dur) : dur
+    trimDragRef.current = { i, side, startX: e.clientX, scale: total / w, start: seg.start, end: end0, dur }
+    // Show the clip being trimmed in the preview right away
+    load(i, 0, false)
+    setTrimView({ i, side, shift: 0, total, start: seg.start, end: end0 })
   }
   const moveTrim = (e: React.PointerEvent) => {
     const d = trimDragRef.current
     if (!d || !onTrimClip) return
     const delta = (e.clientX - d.startX) * d.scale
-    if (d.side === 'r') onTrimClip(d.i, d.start, Math.min(d.dur, Math.max(d.start + 0.3, d.end + delta)), d.dur)
-    else onTrimClip(d.i, Math.max(0, Math.min(d.end - 0.3, d.start + delta)), d.end, d.dur)
+    let ns = d.start
+    let ne = d.end
+    if (d.side === 'r') ne = Math.min(d.dur, Math.max(d.start + 0.3, d.end + delta))
+    else ns = Math.max(0, Math.min(d.end - 0.3, d.start + delta))
+    onTrimClip(d.i, ns, ne, d.dur)
+    setTrimView((prev) => (prev ? { ...prev, shift: ns - d.start, start: ns, end: ne } : prev))
+    // The preview shows the exact frame under the end being dragged
+    const v = videoRef.current
+    const seg = segments[d.i]
+    if (v && seg && v.getAttribute('data-src') === previewUrlFor(seg.file)) {
+      try { v.currentTime = d.side === 'l' ? ns : Math.max(ns, ne - 0.05) } catch {}
+    }
   }
   const endTrim = () => {
     const d = trimDragRef.current
     trimDragRef.current = null
+    setTrimView(null)
     if (d) load(d.i, 0, false)
   }
 
@@ -811,12 +829,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               const landing = !!clipDrag && clipDrag.to === i && clipDrag.from !== i
               const edge = landing && clipDrag ? (clipDrag.to > clipDrag.from ? 'inset -3px 0 0 #fff' : 'inset 3px 0 0 #fff') : 'none'
               return (
-                <div key={i} style={{ position: 'relative', flex: len > 0 ? len : 1, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 14 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
+                <div key={i} style={{ position: 'relative', flex: len > 0 ? '0 0 auto' : 1, width: len > 0 ? `${scaleTotal > 0 ? (len / scaleTotal) * 100 : 0}%` : undefined, marginLeft: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${(trimView.shift / scaleTotal) * 100}%` : undefined, marginRight: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${-(trimView.shift / scaleTotal) * 100}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
                   {i + 1}
                   {onTrimClip && !recording && (['l', 'r'] as const).map((side) => (
                     <span key={side} role="separator" aria-label={side === 'l' ? `Trim the start of clip ${i + 1}` : `Trim the end of clip ${i + 1}`}
                       onPointerDown={(e) => startTrim(e, i, side)} onPointerMove={(e) => moveTrim(e)} onPointerUp={() => endTrim()} onPointerCancel={() => endTrim()}
-                      style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 10, background: '#fff', cursor: 'ew-resize', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: side === 'l' ? '6px 0 0 6px' : '0 6px 6px 0' }}>
+                      style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 14, maxWidth: '40%', background: '#fff', cursor: 'ew-resize', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: side === 'l' ? '6px 0 0 6px' : '0 6px 6px 0' }}>
                       <span style={{ width: 2, height: 12, background: 'rgba(0,0,0,0.45)', borderRadius: 1, pointerEvents: 'none' }} />
                     </span>
                   ))}
