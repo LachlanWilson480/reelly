@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { trackRenders } from '@/lib/renderTracker'
+import CameraControls from '@/components/CameraControls'
+import { useCameraControls } from '@/lib/useCameraControls'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 
 export type MultiFilmIdea = {
@@ -19,6 +21,7 @@ export type MultiFilmIdea = {
   tags: unknown
   lines: string[]
   actions: string[]
+  durations?: (number | null)[]
   texts: string[][]
 }
 
@@ -176,7 +179,7 @@ export default function MultiFilm(p: Props) {
   const videoElRef = useRef<HTMLVideoElement | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const wantedRef = useRef(false)
-  const facingRef = useRef<'user' | 'environment'>('user')
+  const facingRef = useRef<'user' | 'environment'>('environment')
   const deviceIdRef = useRef<string | null>(null)
   const orientationRef = useRef<'portrait' | 'landscape'>('portrait')
   const teleRef = useRef<HTMLParagraphElement | null>(null)
@@ -186,7 +189,9 @@ export default function MultiFilm(p: Props) {
   const stampRef = useRef(0)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState('')
-  const [mirrored, setMirrored] = useState(true)
+  const [mirrored, setMirrored] = useState(false)
+  const camx = useCameraControls(() => streamRef.current)
+  const [deviceLandscape, setDeviceLandscape] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -216,7 +221,7 @@ export default function MultiFilm(p: Props) {
       return
     }
     const land = orientationRef.current === 'landscape'
-    const size = { width: { ideal: land ? 1920 : 1080 }, height: { ideal: land ? 1080 : 1920 } }
+    const size = camx.sizeConstraints(land)
     const cam = deviceIdRef.current ? { deviceId: { exact: deviceIdRef.current } } : { facingMode: facingRef.current }
     navigator.mediaDevices.getUserMedia({ video: { ...cam, ...size }, audio: true })
       .then((stream) => {
@@ -229,8 +234,9 @@ export default function MultiFilm(p: Props) {
           const facing = vt.getSettings?.().facingMode
           setMirrored(facing ? facing === 'user' : !/back|rear|environment/i.test(vt.label || ''))
         }
-        if (videoElRef.current) videoElRef.current.srcObject = stream
+        if (videoElRef.current && videoElRef.current.srcObject !== stream) videoElRef.current.srcObject = stream
         setCameraActive(true)
+        camx.onStream(stream)
       })
       .catch((err) => {
         if (deviceIdRef.current && err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
@@ -301,11 +307,61 @@ export default function MultiFilm(p: Props) {
     startCamera()
   }
 
+  const restartCamera = () => {
+    if (isRecording) return
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    setCameraActive(false)
+    startCamera()
+  }
+
+  const pickLens = (id: string) => {
+    if (isRecording || id === camx.lensId) return
+    deviceIdRef.current = id
+    restartCamera()
+  }
+
+  // On phones, follow the way the device is held until the first clip is saved
+  const rotateRef = useRef<(landscape: boolean) => void>(() => {})
+  useEffect(() => {
+    rotateRef.current = (landscape: boolean) => {
+      setDeviceLandscape(landscape)
+      const o = landscape ? 'landscape' : 'portrait'
+      if (stage === 'pick') { setOrientation(o); return }
+      if (stage !== 'filming' || isRecording || pending || videos.some((v) => v.clips.length > 0) || o === orientationRef.current) return
+      orientationRef.current = o
+      setOrientation(o)
+      restartCamera()
+    }
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const touch = window.matchMedia('(pointer: coarse)')
+    const land = window.matchMedia('(orientation: landscape)')
+    const isTouch = () => touch.matches || ((navigator.maxTouchPoints || 0) > 0 && /iPhone|iPad|Android/i.test(navigator.userAgent))
+    const sync = () => {
+      if (!isTouch()) return
+      const nowLandscape = typeof screen !== 'undefined' && screen.orientation?.type ? screen.orientation.type.startsWith('landscape') : land.matches
+      rotateRef.current(nowLandscape)
+    }
+    sync()
+    land.addEventListener('change', sync)
+    window.addEventListener('orientationchange', sync)
+    window.addEventListener('resize', sync)
+    if (typeof screen !== 'undefined' && screen.orientation?.addEventListener) screen.orientation.addEventListener('change', sync)
+    return () => {
+      land.removeEventListener('change', sync)
+      window.removeEventListener('orientationchange', sync)
+      window.removeEventListener('resize', sync)
+      if (typeof screen !== 'undefined' && screen.orientation?.removeEventListener) screen.orientation.removeEventListener('change', sync)
+    }
+  }, [])
+
   const startRecording = async () => {
     if (!streamRef.current || clipTotal === 0) return
     if (!streamIsLive(streamRef.current)) { setRecordError('The camera stopped. It is restarting, press record again in a moment.'); streamRef.current = null; setCameraActive(false); startCamera(); return }
     setRecordError('')
-    for (const n of [3, 2, 1]) {
+    for (let n = camx.timer; n > 0; n--) {
       setCountdown(n)
       await new Promise((r) => setTimeout(r, 1000))
     }
@@ -341,7 +397,7 @@ export default function MultiFilm(p: Props) {
             raf = requestAnimationFrame(draw)
           }
           draw()
-          const cs = canvas.captureStream(30)
+          const cs = canvas.captureStream(camx.frameRate())
           streamRef.current.getAudioTracks().forEach((t) => cs.addTrack(t))
           recordStream = cs
           stopCanvas = () => { cancelAnimationFrame(raf); cs.getVideoTracks().forEach((t) => t.stop()) }
@@ -679,9 +735,22 @@ export default function MultiFilm(p: Props) {
               <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: portrait ? '9 / 16' : '16 / 9', width: frameW }}>
                 <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}>✕</button>
                 {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
-                <button type="button" onClick={flipCamera} disabled={isRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: isRecording ? 'not-allowed' : 'pointer', opacity: isRecording ? 0.4 : 1 }}>⟲</button>
-                <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, zIndex: 3 }}>
+                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                <CameraControls
+                  cam={camx}
+                  cameraActive={cameraActive}
+                  isRecording={isRecording}
+                  counting={countdown !== null}
+                  recordDisabled={clipTotal === 0}
+                  hidden={!!pending}
+                  notice={videos.some((v) => v.clips.length > 0) && !pending && deviceLandscape !== (orientation === 'landscape') ? `Turn your phone ${orientation === 'landscape' ? 'sideways' : 'upright'} to match your other clips` : null}
+                  onRecord={startRecording}
+                  onStop={stopRecording}
+                  onFlip={flipCamera}
+                  onRestart={restartCamera}
+                  onLens={pickLens}
+                />
+                <div style={{ position: 'absolute', bottom: 108, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, zIndex: 3 }}>
                   Video {vi + 1} of {videos.length} · Clip {Math.min(ci + 1, clipTotal)} of {clipTotal}
                 </div>
                 {line && !pending && (
@@ -698,8 +767,8 @@ export default function MultiFilm(p: Props) {
                   </div>
                 )}
                 {action && !pending && (
-                  <div style={{ position: 'absolute', left: 14, right: 14, bottom: 124, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
-                    <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 2px' }}>Action</p>
+                  <div style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
+                    <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>Action{idea.durations?.[ci] ? <span style={{ background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, borderRadius: 12, padding: '2px 10px' }}>about {idea.durations[ci]} seconds</span> : null}</p>
                     <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{action}</p>
                   </div>
                 )}
@@ -715,18 +784,13 @@ export default function MultiFilm(p: Props) {
                   </div>
                 )}
                 {recordError && (
-                  <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
+                  <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 190, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
                 )}
                 {isRecording && (
-                  <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', zIndex: 3 }}>
+                  <div style={{ position: 'absolute', bottom: 108, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', zIndex: 3 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
                     <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                   </div>
-                )}
-                {!pending && (cameraActive || isRecording) && (
-                  <button type="button" onClick={isRecording ? stopRecording : startRecording} disabled={countdown !== null || clipTotal === 0} aria-label={isRecording ? 'Stop recording' : 'Start recording'} style={{ position: 'absolute', left: '50%', bottom: 18, marginLeft: -29, width: 58, height: 58, borderRadius: '50%', border: '3px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 3, cursor: countdown !== null ? 'not-allowed' : 'pointer', opacity: countdown !== null ? 0.5 : 1 }}>
-                    <span style={{ width: isRecording ? 22 : 40, height: isRecording ? 22 : 40, borderRadius: isRecording ? 6 : '50%', background: '#ff3b30', transition: 'all 0.15s ease' }} />
-                  </button>
                 )}
                 {pending && <video key={pending.url} src={pending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, zIndex: 3, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />}
               </div>

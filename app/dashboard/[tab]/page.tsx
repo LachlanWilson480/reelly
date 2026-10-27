@@ -16,6 +16,8 @@ import JSZip from 'jszip'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
+import CameraControls from '@/components/CameraControls'
+import { useCameraControls } from '@/lib/useCameraControls'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 type Profile = {
@@ -1175,21 +1177,8 @@ export default function DashboardPage() {
   const filmFacingRef = useRef<'user' | 'environment'>('environment')
   const filmDeviceIdRef = useRef<string | null>(null)
   const [filmMirrored, setFilmMirrored] = useState(false)
-  // Camera controls, like the ones in the iPhone Camera app
-  const [filmGrid, setFilmGrid] = useState(false)
-  const [filmTimer, setFilmTimer] = useState<0 | 3 | 10>(3)
-  const [filmRes, setFilmRes] = useState<'720' | '1080' | '4k'>('1080')
-  const filmResRef = useRef<'720' | '1080' | '4k'>('1080')
-  const [filmFps, setFilmFps] = useState<24 | 30 | 60>(30)
-  const filmFpsRef = useRef<24 | 30 | 60>(30)
-  const [filmTorchOk, setFilmTorchOk] = useState(false)
-  const [filmTorch, setFilmTorch] = useState(false)
-  const [filmZoomCaps, setFilmZoomCaps] = useState<{ min: number; max: number; step: number } | null>(null)
-  const [filmZoom, setFilmZoom] = useState(1)
-  const [filmLenses, setFilmLenses] = useState<{ id: string; name: string }[]>([])
-  const [filmLensId, setFilmLensId] = useState<string | null>(null)
-  const [filmSettingsOpen, setFilmSettingsOpen] = useState(false)
-  const [filmTimerOpen, setFilmTimerOpen] = useState(false)
+  // Camera controls shared with the several videos recorder: grid, timer, quality, torch, zoom and lenses
+  const cam = useCameraControls(() => filmStreamRef.current)
   const [filmDeviceLandscape, setFilmDeviceLandscape] = useState(false)
   const [filmReview, setFilmReview] = useState(false)
   const [filmRecorderOpen, setFilmRecorderOpen] = useState(false)
@@ -1907,8 +1896,7 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
-    const [longSide, shortSide] = filmResRef.current === '4k' ? [3840, 2160] : filmResRef.current === '720' ? [1280, 720] : [1920, 1080]
-    const filmSize = { width: { ideal: filmOrientationRef.current === 'landscape' ? longSide : shortSide }, height: { ideal: filmOrientationRef.current === 'landscape' ? shortSide : longSide }, frameRate: { ideal: filmFpsRef.current } }
+    const filmSize = cam.sizeConstraints(filmOrientationRef.current === 'landscape')
     const filmCamera = filmDeviceIdRef.current ? { deviceId: { exact: filmDeviceIdRef.current } } : { facingMode: filmFacingRef.current }
     navigator.mediaDevices.getUserMedia({ video: { ...filmCamera, ...filmSize }, audio: true })
       .then(stream => {
@@ -1924,21 +1912,7 @@ export default function DashboardPage() {
         }
         if (filmVideoRef.current && filmVideoRef.current.srcObject !== stream) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
-        // Work out which extras this camera supports (zoom, torch, other lenses)
-        setFilmTorch(false)
-        setFilmZoom(1)
-        try {
-          const caps = (vt?.getCapabilities?.() || {}) as unknown as { torch?: boolean; zoom?: { min: number; max: number; step?: number } }
-          setFilmTorchOk(!!caps.torch)
-          setFilmZoomCaps(caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 } : null)
-        } catch { setFilmTorchOk(false); setFilmZoomCaps(null) }
-        const currentId = vt?.getSettings?.().deviceId || null
-        setFilmLensId(currentId)
-        navigator.mediaDevices.enumerateDevices().then((devs) => {
-          const rear = devs.filter((d) => d.kind === 'videoinput' && /back|rear|environment/i.test(d.label))
-          const isRear = !!currentId && rear.some((d) => d.deviceId === currentId)
-          setFilmLenses(isRear && rear.length > 1 ? rear.map((d) => ({ id: d.deviceId, name: /ultra/i.test(d.label) ? '0.5x' : /tele/i.test(d.label) ? '2x' : '1x' })).sort((a, b) => parseFloat(a.name) - parseFloat(b.name)) : [])
-        }).catch(() => setFilmLenses([]))
+        cam.onStream(stream)
       })
       .catch(err => {
         console.error('Camera error:', err)
@@ -1988,34 +1962,10 @@ export default function DashboardPage() {
     startFilmCamera()
   }
 
-  const changeFilmQuality = (res: '720' | '1080' | '4k', fps: 24 | 30 | 60) => {
-    filmResRef.current = res
-    filmFpsRef.current = fps
-    setFilmRes(res)
-    setFilmFps(fps)
-    restartFilmCamera()
-  }
-
   const pickFilmLens = (id: string) => {
-    if (filmIsRecording || id === filmLensId) return
+    if (filmIsRecording || id === cam.lensId) return
     filmDeviceIdRef.current = id
     restartFilmCamera()
-  }
-
-  const applyFilmTrack = (settings: Record<string, unknown>) => {
-    const vt = filmStreamRef.current?.getVideoTracks()[0]
-    if (!vt) return Promise.resolve(false)
-    return vt.applyConstraints({ advanced: [settings] } as unknown as MediaTrackConstraints).then(() => true).catch(() => false)
-  }
-
-  const toggleFilmTorch = async () => {
-    const next = !filmTorch
-    if (await applyFilmTrack({ torch: next })) setFilmTorch(next)
-  }
-
-  const changeFilmZoom = async (z: number) => {
-    setFilmZoom(z)
-    await applyFilmTrack({ zoom: z })
   }
 
   const changeFilmOrientation = (o: 'portrait' | 'landscape') => {
@@ -2195,6 +2145,13 @@ export default function DashboardPage() {
     return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, '. Then '), durations: Array.from({ length: n }, (_, i) => actions.length === n ? (durations[i] ?? null) : sumGroup(i)) }
   }
 
+  // The on-screen text of each filming step, lined up with n clips
+  const getFilmTexts = (item: FilmingItem, n: number): string[][] => {
+    const per = (item.checklist || []).map((st: string) => extractOnScreenText(st))
+    if (per.length === 0 || n === 0) return []
+    return Array.from({ length: n }, (_, i) => per.slice(Math.floor((i * per.length) / n), Math.floor(((i + 1) * per.length) / n)).flat())
+  }
+
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = [], durations: (number | null)[] = []) => {
     setFilmRecorderOpen(false)
     setFilmSelectedId(id)
@@ -2214,7 +2171,7 @@ export default function DashboardPage() {
     if (!filmStreamRef.current || filmClipCount === 0) return
     if (!streamIsLive(filmStreamRef.current)) { setFilmRecordError('The camera stopped. It is restarting, press record again in a moment.'); filmStreamRef.current = null; setFilmCameraActive(false); startFilmCamera(); return }
     setFilmRecordError('')
-    for (let n = filmTimer; n > 0; n--) {
+    for (let n = cam.timer; n > 0; n--) {
       setFilmCountdown(n)
       await new Promise(r => setTimeout(r, 1000))
     }
@@ -2250,7 +2207,7 @@ export default function DashboardPage() {
             raf = requestAnimationFrame(draw)
           }
           draw()
-          const cs = canvas.captureStream(filmFpsRef.current)
+          const cs = canvas.captureStream(cam.frameRate())
           filmStreamRef.current.getAudioTracks().forEach((t) => cs.addTrack(t))
           recordStream = cs
           stopCanvas = () => {
@@ -2526,9 +2483,10 @@ export default function DashboardPage() {
   const aiIdeaLines = aiIdeaItem ? getFilmLines(aiIdeaItem) : []
   // Everything that can be filmed in the "Several videos" mode, with its lines, actions and on-screen text
   const multiLowComfort = parseComfort(profile?.filming_comfort).level === 'low'
-  const buildMultiIdea = (key: string, title: string, ideaId: string | null, source: 'idea' | 'script', caption: string | null, tags: unknown, lines: string[], actions: string[]): MultiFilmIdea => ({
-    key, title, ideaId, source, caption, tags, lines, actions,
+  const buildMultiIdea = (key: string, title: string, ideaId: string | null, source: 'idea' | 'script', caption: string | null, tags: unknown, lines: string[], actions: string[], durations: (number | null)[] = [], stepTexts: string[][] = []): MultiFilmIdea => ({
+    key, title, ideaId, source, caption, tags, lines, actions, durations,
     texts: Array.from({ length: Math.max(lines.length, actions.length) }, (_, i) => {
+      if (stepTexts[i] && stepTexts[i].length > 0) return stepTexts[i]
       const fromAction = extractOnScreenText(actions[i] || '')
       return fromAction.length > 0 ? fromAction : multiLowComfort && lines[i] ? [lines[i]] : []
     }),
@@ -2536,13 +2494,13 @@ export default function DashboardPage() {
   const multiFilmIdeas: MultiFilmIdea[] = [
     ...filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((i) => {
       const plan = getFilmPlan(i)
-      return buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', i.caption || null, i.tags || null, plan.lines, plan.actions)
+      return buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', i.caption || null, i.tags || null, plan.lines, plan.actions, plan.durations, getFilmTexts(i, Math.max(plan.lines.length, plan.actions.length)))
     }),
     ...dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((i) => buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', null, i.tags || null, [], [])),
     ...savedScripts.map((s) => {
       const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic))
-      const plan = fi ? getFilmPlan(fi) : { lines: splitFilmText(s.script), actions: [] as string[] }
-      return buildMultiIdea(`script-${s.id}`, s.topic, null, 'script', null, null, plan.lines, plan.actions)
+      const plan = fi ? getFilmPlan(fi) : { lines: splitFilmText(s.script), actions: [] as string[], durations: [] as (number | null)[] }
+      return buildMultiIdea(`script-${s.id}`, s.topic, null, 'script', null, null, plan.lines, plan.actions, plan.durations, fi ? getFilmTexts(fi, Math.max(plan.lines.length, plan.actions.length)) : [])
     }),
   ]
   const musicFileUrl = musicFile ? previewUrlFor(musicFile) : null
@@ -5049,63 +5007,22 @@ export default function DashboardPage() {
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}>✕</button>
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "'Poppins', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
-                    <button type="button" className="film-flip" onClick={flipFilmCamera} disabled={filmIsRecording} aria-label="Flip camera" style={{ position: 'absolute', right: 12, top: '45%', width: 46, height: 46, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: filmIsRecording ? 'not-allowed' : 'pointer', opacity: filmIsRecording ? 0.4 : 1 }}>⟲</button>
-                    {filmGrid && (
-                      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', backgroundImage: 'linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)), linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px))' }} />
-                    )}
-                    <div style={{ position: 'absolute', right: 12, top: 'calc(45% + 56px)', zIndex: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <button type="button" aria-label="Grid lines" aria-pressed={filmGrid} onClick={() => setFilmGrid(!filmGrid)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmGrid ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Grid</button>
-                      <button type="button" aria-label="Countdown timer" aria-expanded={filmTimerOpen} disabled={filmIsRecording} onClick={() => { setFilmTimerOpen(!filmTimerOpen); setFilmSettingsOpen(false) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTimerOpen || filmTimer ? 'var(--coral)' : 'rgba(0,0,0,0.55)', opacity: filmIsRecording ? 0.4 : 1 }}>{filmTimer ? `${filmTimer}s` : 'Off'}</button>
-                      {filmTorchOk && (
-                        <button type="button" aria-label="Torch" aria-pressed={filmTorch} onClick={toggleFilmTorch} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTorch ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Light</button>
-                      )}
-                      <button type="button" aria-label="Video quality" aria-expanded={filmSettingsOpen} onClick={() => { setFilmSettingsOpen(!filmSettingsOpen); setFilmTimerOpen(false) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmSettingsOpen ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>{filmRes === '4k' ? '4K' : `${filmRes}p`}</button>
-                    </div>
-                    {filmTimerOpen && (
-                      <div role="group" aria-label="Countdown timer" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, background: 'rgba(8,6,24,0.85)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 190 }}>
-                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Countdown</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {([[0, 'Off'], [3, '3s'], [10, '10s']] as const).map(([v, name]) => (
-                            <button key={name} type="button" onClick={() => setFilmTimer(v)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmTimer === v ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{name}</button>
-                          ))}
-                        </div>
-                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }}>How long to wait after you press record before filming starts, so you have time to get ready.</p>
-                      </div>
-                    )}
-                    {filmSettingsOpen && (
-                      <div role="group" aria-label="Video quality" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, background: 'rgba(8,6,24,0.85)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 190 }}>
-                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Resolution</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {(['720', '1080', '4k'] as const).map((r) => (
-                            <button key={r} type="button" disabled={filmIsRecording} onClick={() => changeFilmQuality(r, filmFps)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmRes === r ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{r === '4k' ? '4K' : `${r}p`}</button>
-                          ))}
-                        </div>
-                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Frame rate</p>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {([24, 30, 60] as const).map((f) => (
-                            <button key={f} type="button" disabled={filmIsRecording} onClick={() => changeFilmQuality(filmRes, f)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmFps === f ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{f}</button>
-                          ))}
-                        </div>
-                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }}>Higher settings give a sharper video but bigger files. If your phone can&apos;t do it, it uses the closest it can.</p>
-                      </div>
-                    )}
-                    {(filmLenses.length > 0 || filmZoomCaps) && !filmPending && (
-                      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 90, zIndex: 3, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.45)', borderRadius: 22, padding: 4 }}>
-                        {filmLenses.length > 0 ? filmLenses.map((l) => (
-                          <button key={l.id} type="button" disabled={filmIsRecording} onClick={() => pickFilmLens(l.id)} style={{ minWidth: 38, height: 32, borderRadius: 16, border: 'none', background: filmLensId === l.id ? 'var(--coral)' : 'transparent', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{l.name}</button>
-                        )) : filmZoomCaps && (
-                          <>
-                            <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, padding: '0 6px' }}>{filmZoom.toFixed(1)}x</span>
-                            <input type="range" aria-label="Zoom" min={filmZoomCaps.min} max={filmZoomCaps.max} step={filmZoomCaps.step} value={filmZoom} onChange={(e) => changeFilmZoom(Number(e.target.value))} style={{ width: 120, accentColor: 'var(--coral)' }} />
-                          </>
-                        )}
-                      </div>
-                    )}
-                    {filmClips.length > 0 && !filmPending && filmDeviceLandscape !== (filmOrientation === 'landscape') && (
-                      <div role="status" style={{ position: 'absolute', left: 14, right: 14, top: '40%', zIndex: 6, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>Turn your phone {filmOrientation === 'landscape' ? 'sideways' : 'upright'} to match your other clips</div>
-                    )}
+                    <CameraControls
+                      cam={cam}
+                      cameraActive={filmCameraActive}
+                      isRecording={filmIsRecording}
+                      counting={filmCountdown !== null}
+                      recordDisabled={filmUploading || filmClipCount === 0}
+                      hidden={!!filmPending}
+                      notice={filmClips.length > 0 && !filmPending && filmDeviceLandscape !== (filmOrientation === 'landscape') ? `Turn your phone ${filmOrientation === 'landscape' ? 'sideways' : 'upright'} to match your other clips` : null}
+                      onRecord={startFilmRecording}
+                      onStop={stopFilmRecording}
+                      onFlip={flipFilmCamera}
+                      onRestart={restartFilmCamera}
+                      onLens={pickFilmLens}
+                    />
                     {filmClipCount > 0 && (
-                      <div style={{ position: 'absolute', bottom: 88, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                      <div style={{ position: 'absolute', bottom: 108, right: 14, zIndex: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
                         Clip {Math.min(filmLineIdx + 1, filmClipCount)} of {filmClipCount}
                       </div>
                     )}
@@ -5128,7 +5045,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmCurrentAction && !filmPending && (
-                      <div style={{ position: 'absolute', left: 14, right: 14, bottom: 124, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
+                      <div style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 14, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
                         <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>Action{filmDurations[filmLineIdx] ? <span style={{ background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, borderRadius: 12, padding: '2px 10px' }}>about {filmDurations[filmLineIdx]} seconds</span> : null}</p>
                         <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmCurrentAction}</p>
                       </div>
@@ -5148,21 +5065,10 @@ export default function DashboardPage() {
                       <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{filmRecordError}</div>
                     )}
                     {filmIsRecording && (
-                      <div style={{ position: 'absolute', bottom: 88, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
+                      <div style={{ position: 'absolute', bottom: 108, left: 14, zIndex: 3, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px' }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
                         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
                       </div>
-                    )}
-                    {!filmPending && (filmCameraActive || filmIsRecording) && (
-                      <button
-                        type="button"
-                        onClick={filmIsRecording ? stopFilmRecording : startFilmRecording}
-                        disabled={filmCountdown !== null || filmUploading || filmClipCount === 0}
-                        aria-label={filmIsRecording ? 'Stop recording' : 'Start recording'}
-                        style={{ position: 'absolute', left: '50%', bottom: 18, marginLeft: -29, width: 58, height: 58, borderRadius: '50%', border: '3px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 3, cursor: (filmCountdown !== null || filmUploading || filmClipCount === 0) ? 'not-allowed' : 'pointer', opacity: (filmCountdown !== null || filmUploading || filmClipCount === 0) ? 0.5 : 1 }}
-                      >
-                        <span style={{ width: filmIsRecording ? 22 : 40, height: filmIsRecording ? 22 : 40, borderRadius: filmIsRecording ? 6 : '50%', background: '#ff3b30', transition: 'all 0.15s ease' }} />
-                      </button>
                     )}
                     {filmPending && (
                       <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
