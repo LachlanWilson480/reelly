@@ -298,7 +298,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const trackRef = useRef<HTMLDivElement | null>(null)
   const scriptBoxRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
-  const dragTakeRef = useRef<{ id: string; grab: number } | null>(null)
+  const dragTakeRef = useRef<{ id: string; grab: number; sx: number; sy: number; moved: boolean } | null>(null)
+  const binRef = useRef<HTMLDivElement | null>(null)
+  // A voiceover block being dragged: the bin shows at the bottom of the screen while it moves
+  const [takeDrag, setTakeDrag] = useState<{ id: string; over: boolean } | null>(null)
   const clipPressRef = useRef<{ from: number; to: number; startX: number; dragging: boolean } | null>(null)
   const [clipDrag, setClipDrag] = useState<{ from: number; to: number } | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -711,16 +714,27 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           </div>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 32, height: 26, borderRadius: 6, background: 'rgba(128,128,128,0.08)', overflow: 'hidden' }}>
             {takes.map((t, ti) => (
-              <div key={t.id} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}. Drag to move it.`}
-                onPointerDown={(e) => { if (recording || total <= 0) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); dragTakeRef.current = { id: t.id, grab: timeAt(e.clientX) - t.start } }}
+              <div key={t.id} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}. Drag to move it, or drag it down to the bin to delete it.`}
+                onPointerDown={(e) => { if (recording || total <= 0) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); dragTakeRef.current = { id: t.id, grab: timeAt(e.clientX) - t.start, sx: e.clientX, sy: e.clientY, moved: false } }}
                 onPointerMove={(e) => {
                   const d = dragTakeRef.current
                   if (!d || d.id !== t.id) return
+                  if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 6) return
+                  d.moved = true
+                  const r = binRef.current?.getBoundingClientRect()
+                  const over = !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+                  setTakeDrag((prev) => (prev && prev.id === t.id && prev.over === over ? prev : { id: t.id, over }))
+                  if (over) return
                   const room = Math.max(0, total - (t.duration > 0 ? t.duration : 0))
                   onMoveTake(t.id, Math.min(room, Math.max(0, timeAt(e.clientX) - d.grab)))
                 }}
-                onPointerUp={() => { dragTakeRef.current = null }}
-                onPointerCancel={() => { dragTakeRef.current = null }}
+                onPointerUp={() => {
+                  const dropped = takeDrag?.over && takeDrag.id === t.id
+                  dragTakeRef.current = null
+                  setTakeDrag(null)
+                  if (dropped) onRemoveTake(t.id)
+                }}
+                onPointerCancel={() => { dragTakeRef.current = null; setTakeDrag(null) }}
                 style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? pct(Math.min(t.duration, Math.max(0, total - t.start))) : `calc(100% - ${pct(t.start)})`, background: `${takeColor(ti)}B3`, border: `1.5px solid ${takeColor(ti)}`, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box', overflow: 'hidden', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
                 <span style={{ color: '#fff', pointerEvents: 'none', fontSize: 11, fontWeight: 600, paddingLeft: 7 }}>{ti + 1}</span>
                 <button type="button" aria-label="Remove this voiceover part"
@@ -743,6 +757,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <span>Middle bar: your voiceover (drag a block to move it)</span>
           {musicUrl && <span>Bottom bar: music</span>}
         </div>
+      {takeDrag && (
+        <div ref={binRef} aria-label="Bin: drop a voiceover here to delete it"
+          style={{ position: 'fixed', left: '50%', bottom: 24, transform: `translateX(-50%) scale(${takeDrag.over ? 1.08 : 1})`, zIndex: 1000, display: 'flex', alignItems: 'center', gap: 10, padding: '14px 26px', borderRadius: 999, background: takeDrag.over ? '#d92d20' : 'rgba(30,30,34,0.92)', border: `1.5px dashed ${takeDrag.over ? '#fff' : 'rgba(255,255,255,0.5)'}`, color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: '0 8px 28px rgba(0,0,0,0.35)', transition: 'background 0.12s, transform 0.12s', pointerEvents: 'none' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+          {takeDrag.over ? 'Release to delete' : 'Drop here to delete'}
+        </div>
+      )}
       </div>
 
       <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
