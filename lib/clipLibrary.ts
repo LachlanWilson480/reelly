@@ -104,7 +104,9 @@ export async function libraryClipToFileDetailed(clip: LibraryClip): Promise<{ fi
     const url = urls[clip.path]
     if (!url) why = 'no link'
     else {
-      const res = await fetch(url)
+      // Go through our own address (see next.config.ts) so the browser does not block the read
+      const local = url.replace(/^https?:\/\/[^/]+\/storage\/v1\//, '/sb-storage/')
+      const res = await fetch(local, { cache: 'no-store' })
       if (res.ok) return { file: make(await res.blob()) }
       why = `link ${res.status}`
     }
