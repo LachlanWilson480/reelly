@@ -94,33 +94,61 @@ export async function libraryClipToFile(clip: LibraryClip): Promise<File | null>
   return (await libraryClipToFileDetailed(clip)).file || null
 }
 
+// Reads a file in small pieces, the same way a video player does. Some connections drop a single big download but handle pieces fine.
+async function fetchInPieces(url: string, total: number): Promise<Blob> {
+  const PIECE = 4 * 1024 * 1024
+  if (!total || total <= PIECE) {
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    return await res.blob()
+  }
+  const parts: Blob[] = []
+  let pos = 0
+  while (pos < total) {
+    const end = Math.min(pos + PIECE, total) - 1
+    let done = false
+    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+      try {
+        const res = await fetch(url, { cache: 'no-store', headers: { Range: `bytes=${pos}-${end}` } })
+        if (res.status === 200) return await res.blob() // the server sent the whole file at once
+        if (res.status !== 206) throw new Error(`status ${res.status}`)
+        parts.push(await res.blob())
+        pos = end + 1
+        done = true
+      } catch (e) {
+        if (attempt === 2) throw e
+      }
+    }
+  }
+  return new Blob(parts)
+}
+
 // Same, but says why it failed so the screen can show something useful
 export async function libraryClipToFileDetailed(clip: LibraryClip): Promise<{ file?: File; error?: string }> {
   const make = (blob: Blob) => new File([blob], clip.name, { type: clip.mime || blob.type || 'video/mp4' })
-  let why = ''
-  // First try a signed link, then fall back to a signed-in download
-  try {
-    const urls = await signedUrls([clip.path])
-    const url = urls[clip.path]
-    if (!url) why = 'no link'
-    else {
-      // Go through our own address (see next.config.ts) so the browser does not block the read
-      const local = url.replace(/^https?:\/\/[^/]+\/storage\/v1\//, '/sb-storage/')
-      const res = await fetch(local, { cache: 'no-store' })
-      if (res.ok) return { file: make(await res.blob()) }
-      why = `link ${res.status}`
+  const why: string[] = []
+  const urls = await signedUrls([clip.path]).catch(() => ({} as Record<string, string>))
+  const url = urls[clip.path]
+  if (!url) why.push('no link')
+  else {
+    // First through our own address (see next.config.js), then straight from storage
+    const local = url.replace(/^https?:\/\/[^/]+\/storage\/v1\//, '/sb-storage/')
+    for (const [label, u] of [['site', local], ['direct', url]] as const) {
+      try {
+        return { file: make(await fetchInPieces(u, clip.size_bytes)) }
+      } catch (e) {
+        why.push(`${label}: ${e instanceof Error ? e.message : 'failed'}`)
+      }
     }
-  } catch (e) {
-    why = `link blocked (${e instanceof Error ? e.message : 'unknown'})`
   }
   try {
     const { data, error } = await supabase.storage.from(BUCKET).download(clip.path)
     if (data) return { file: make(data) }
-    why += `, download ${error?.message || 'failed'}`
+    why.push(`download: ${error?.message || 'failed'}`)
   } catch (e) {
-    why += `, download ${e instanceof Error ? e.message : 'failed'}`
+    why.push(`download: ${e instanceof Error ? e.message : 'failed'}`)
   }
-  return { error: why }
+  return { error: why.join(', ') }
 }
 
 export async function listAlbums(): Promise<LibraryAlbum[]> {
