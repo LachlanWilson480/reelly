@@ -2057,8 +2057,6 @@ export default function DashboardPage() {
   }
 
   const getFilmLines = (item: FilmingItem): string[] => {
-    const silent = silentCaptions(item)
-    if (silent) return silent
     const script = item.script || ''
     const byLine = script.split(/\n+/).map(cleanFilmLine).filter(Boolean)
     const lines = byLine.length > 1 ? byLine : splitFilmText(script)
@@ -2094,7 +2092,8 @@ export default function DashboardPage() {
 
   // The script and actions for one idea, lined up so each clip has its own words and its own action
   const getFilmPlan = (item: FilmingItem): { lines: string[]; actions: string[] } => {
-    const lines = getFilmLines(item)
+    // Silent films only have on-screen text, so nothing goes on the teleprompter
+    const lines = silentCaptions(item) ? [] : getFilmLines(item)
     const actions = getFilmActions(item)
     if (lines.length === 0 || actions.length === 0 || lines.length === actions.length) return { lines, actions }
     const n = Math.min(lines.length, actions.length)
