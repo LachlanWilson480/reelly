@@ -342,3 +342,14 @@ select {
   text-overflow: ellipsis;
 }
 select::-ms-expand { display: none; }
+
+.film-split { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; align-items: start; }
+.film-ideas { max-height: 560px; overflow-y: auto; }
+.film-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) {
+  .film-split { grid-template-columns: 1fr; }
+  .film-ideas { max-height: 320px; }
+}
+@media (max-width: 560px) {
+  .film-fields { grid-template-columns: 1fr; }
+}

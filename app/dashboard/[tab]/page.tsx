@@ -2058,17 +2058,27 @@ export default function DashboardPage() {
     return (item.checklist || []).map((st: string) => { const m = st.match(/say:\s*([\s\S]*)$/i); return m ? cleanFilmLine(m[1]) : '' }).filter(Boolean)
   }
 
-  // What the person should physically do in each clip (camera position, hands, movement), lined up with the script lines
-  const getFilmActions = (item: FilmingItem, lineCount: number): string[] => {
+  // What the person should physically do in each clip (camera position, hands, movement). One entry per step, never repeated.
+  const getFilmActions = (item: FilmingItem): string[] => {
     const dirs = (item.directions || []).map((d: string) => d.trim()).filter(Boolean)
     const fromSteps = (item.checklist || [])
       .map((st: string) => st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '').replace(/[,;.]?\s*(?:and\s+)?say:.*$/i, '').trim())
       .filter(Boolean)
     const withText = (list: string[]) => list.some((s: string) => /on-?screen text/i.test(s))
-    const source = withText(dirs) ? dirs : withText(fromSteps) ? fromSteps : dirs.length > 0 ? dirs : fromSteps
-    if (source.length === 0) return []
-    const count = lineCount > 0 ? lineCount : source.length
-    return Array.from({ length: count }, (_, i) => source[Math.min(source.length - 1, Math.floor((i * source.length) / count))])
+    return withText(dirs) ? dirs : withText(fromSteps) ? fromSteps : dirs.length > 0 ? dirs : fromSteps
+  }
+
+  // Joins a list down to n entries by merging neighbours, so nothing is repeated or dropped
+  const groupFilmList = (list: string[], n: number, glue: string): string[] =>
+    Array.from({ length: n }, (_, i) => list.slice(Math.floor((i * list.length) / n), Math.floor(((i + 1) * list.length) / n)).join(glue))
+
+  // The script and actions for one idea, lined up so each clip has its own words and its own action
+  const getFilmPlan = (item: FilmingItem): { lines: string[]; actions: string[] } => {
+    const lines = getFilmLines(item)
+    const actions = getFilmActions(item)
+    if (lines.length === 0 || actions.length === 0 || lines.length === actions.length) return { lines, actions }
+    const n = Math.min(lines.length, actions.length)
+    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, ' Then ') }
   }
 
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = []) => {
@@ -2412,14 +2422,14 @@ export default function DashboardPage() {
   })
   const multiFilmIdeas: MultiFilmIdea[] = [
     ...filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((i) => {
-      const lines = getFilmLines(i)
-      return buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', i.caption || null, i.tags || null, lines, getFilmActions(i, lines.length))
+      const plan = getFilmPlan(i)
+      return buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', i.caption || null, i.tags || null, plan.lines, plan.actions)
     }),
     ...dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((i) => buildMultiIdea(`idea:${i.id}`, i.title || 'Idea', i.id, 'idea', null, i.tags || null, [], [])),
     ...savedScripts.map((s) => {
       const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic))
-      const lines = fi ? getFilmLines(fi) : splitFilmText(s.script)
-      return buildMultiIdea(`script-${s.id}`, s.topic, null, 'script', null, null, lines, fi ? getFilmActions(fi, lines.length) : [])
+      const plan = fi ? getFilmPlan(fi) : { lines: splitFilmText(s.script), actions: [] as string[] }
+      return buildMultiIdea(`script-${s.id}`, s.topic, null, 'script', null, null, plan.lines, plan.actions)
     }),
   ]
   const musicFileUrl = musicFile ? previewUrlFor(musicFile) : null
@@ -4289,7 +4299,7 @@ export default function DashboardPage() {
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => { selectFilmSource(`idea:${item.id}`, getFilmLines(item), getFilmActions(item, getFilmLines(item).length)); setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          onClick={() => { { const plan = getFilmPlan(item); selectFilmSource(`idea:${item.id}`, plan.lines, plan.actions) }; setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
                         >
                           Film & edit this
@@ -4785,7 +4795,7 @@ export default function DashboardPage() {
 
                         {/* Film tab */}
               {tab === 'film' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 640 : filmReview ? 'none' : 520, margin: filmReview && !filmMulti ? '32px 0' : '32px auto', padding: filmReview && !filmMulti ? 0 : '0 16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 880 : filmReview ? 'none' : 1180, margin: filmReview && !filmMulti ? '32px 0' : '32px auto', padding: filmReview && !filmMulti ? 0 : '0 24px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.'}</p>
@@ -4815,12 +4825,13 @@ export default function DashboardPage() {
                     />
                   ) : (
                   <>
+                  <div className="film-split">
                   <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16 }}>
                     <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div className="film-ideas" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((idea) => (
                         <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, getFilmLines(idea), getFilmActions(idea, getFilmLines(idea).length)); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
+                          <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) { const plan = getFilmPlan(idea); selectFilmSource(`idea:${idea.id}`, plan.lines, plan.actions) } else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
                       ))}
@@ -4840,7 +4851,7 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
                           {savedScripts.map((s) => (
                             <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 8, background: filmSelectedId === `script-${s.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`script-${s.id}`, (() => { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); return fi ? getFilmLines(fi) : splitFilmText(s.script) })(), (() => { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); return fi ? getFilmActions(fi, getFilmLines(fi).length) : [] })()); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
+                              <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); const plan = fi ? getFilmPlan(fi) : { lines: splitFilmText(s.script), actions: [] as string[] }; selectFilmSource(`script-${s.id}`, plan.lines, plan.actions) } else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                             </label>
                           ))}
@@ -4850,23 +4861,37 @@ export default function DashboardPage() {
                     {filmingItems.length === 0 && savedScripts.length === 0 && dbSavedIdeas.length === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>Generate filming instructions for an idea first, or paste your own script below.</p>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  </div>
+                  <div style={{ background: 'var(--sand)', borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Script and actions</h3>
+                    <div className="film-fields">
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
                       </div>
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Actions</p>
-                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={5} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
+                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif' }} />
                       </div>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
                     {filmSelectedId && filmClipCount === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea has no script or actions yet. Generate its filming instructions, or type your own script or actions. You only need one of them.</p>
                     )}
-                  </div>
-                  {!filmReview && (
-                  <>
+                    {filmClipCount > 0 && !filmReview && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Clip plan</p>
+                        {Array.from({ length: filmClipCount }, (_, i) => (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr', gap: 10, alignItems: 'start', padding: '8px 10px', borderRadius: 8, background: 'var(--card-bg)' }}>
+                            <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
+                            <p style={{ fontSize: 12, lineHeight: 1.4, margin: 0, color: filmLines[i] ? 'var(--ink)' : 'var(--text-muted)' }}>{filmLines[i] || 'No script'}</p>
+                            <p style={{ fontSize: 12, lineHeight: 1.4, margin: 0, color: 'var(--text-secondary)' }}>{filmActions[i] || 'No action'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {!filmReview && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {(['portrait', 'landscape'] as const).map((o) => {
                       const locked = filmIsRecording || filmClips.length > 0 || !!filmPending
@@ -4896,8 +4921,10 @@ export default function DashboardPage() {
                   {filmClipCount === 0 && (
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>Choose an idea or add a script or actions to start filming.</p>
                   )}
-                  </>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                  </div>
                   {filmRecorderVisible && typeof document !== 'undefined' && createPortal(
                     <div role="dialog" aria-label="Film your video" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0a10', display: 'flex', flexDirection: 'column', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
                       <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
