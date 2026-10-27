@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
-import { cleanReferralInput } from '@/lib/referralInput'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -20,6 +19,7 @@ export default function SignUpPage() {
   const [otp, setOtp] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  // Referral codes now come only from a referral link (saved in the browser), not a typed field
   const [refCode, setRefCode] = useState('')
   // A friend's link fills this in for them
   useEffect(() => {
@@ -269,17 +269,6 @@ export default function SignUpPage() {
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
-
-              <input
-                type="text"
-                placeholder="Referral code (optional)"
-                value={refCode}
-                onChange={(e) => setRefCode(cleanReferralInput(e.target.value))}
-                disabled={isSigningUp}
-                autoCapitalize="characters"
-                autoComplete="off"
-                style={{ ...inputStyle, marginBottom: 20, opacity: isSigningUp ? 0.7 : 1 }}
-              />
 
               <label
                 style={{
