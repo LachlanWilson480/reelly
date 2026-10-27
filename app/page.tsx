@@ -116,73 +116,95 @@ export default function HomePage() {
           </div>
         </nav>
 
-        <section className="hero-section" style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, margin: '8px 64px 0', padding: '80px 64px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: 64, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 24 }}>
-            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 50, fontWeight: 600, color: '#F1EFE8', maxWidth: 520, lineHeight: 1.1, letterSpacing: -0.5, margin: 0 }}>
+        <section className="hero-section" style={{ position: 'relative', overflow: 'hidden', background: 'radial-gradient(640px 460px at 76% 52%, rgba(255,150,110,0.20), transparent 68%), linear-gradient(135deg, #26215C, #712B13)', borderRadius: 28, margin: '8px 64px 0', padding: '88px 72px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 48, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 28 }}>
+            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 58, fontWeight: 700, color: '#F7F4EC', maxWidth: 560, lineHeight: 1.04, letterSpacing: -1.6, margin: 0 }}>
               Content ideas, filmed and posted in minutes.
             </h1>
-            <p className="hero-subtext" style={{ fontSize: 16, color: '#B8B5AE', maxWidth: 420, lineHeight: 1.65, margin: 0 }}>
+            <p className="hero-subtext" style={{ fontSize: 18, color: '#CFCBE0', maxWidth: 470, lineHeight: 1.65, margin: 0 }}>
               Reelezy gives small businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
             </p>
-            <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '13px 28px', borderRadius: 8, fontSize: 15, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
-              Get started free
-            </Link>
-            <p style={{ fontSize: 13, color: '#B8B5AE', margin: 0 }}>No credit card required.</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <Link href="/signup" style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '15px 32px', borderRadius: 12, fontSize: 16, fontWeight: 600, textDecoration: 'none', display: 'inline-block', boxShadow: '0 10px 28px -12px rgba(255,106,77,0.9)' }}>
+                Get started free
+              </Link>
+              <a href="#how" style={{ color: '#F7F4EC', padding: '14px 26px', borderRadius: 12, fontSize: 16, fontWeight: 600, textDecoration: 'none', display: 'inline-block', border: '1.5px solid rgba(255,255,255,0.3)' }}>
+                See how it works
+              </a>
+            </div>
+            <p style={{ fontSize: 13.5, color: '#CFCBE0', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3ecf9b', display: 'inline-block' }} />
+              No credit card required.
+            </p>
           </div>
 
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20, padding: 4, borderRadius: 999, background: 'rgba(8,6,30,0.35)', border: '1px solid rgba(255,255,255,0.1)' }}>
               {heroSteps.map((step, i) => (
-                <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, backgroundColor: i === heroStep ? 'var(--coral)' : 'rgba(255,255,255,0.08)', transition: 'background-color 0.35s ease' }}>
+                <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 999, backgroundColor: i === heroStep ? 'var(--coral)' : 'transparent', transition: 'background-color 0.35s ease' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#F1EFE8' }}>{i + 1}</span>
                   <span style={{ fontSize: 13, color: '#F1EFE8', whiteSpace: 'nowrap' }}>{step.label}</span>
                 </div>
               ))}
             </div>
-            <div className="hp-phone" aria-hidden="true">
-              <div className="hp-notch" />
-              <div className="hp-screen">
-                {heroStep === 0 && (
-                  <div className="hp-s hp-ideas" key="ideas">
-                    <p className="hp-title">Ideas for this week</p>
-                    {mockIdeas.map((idea, i) => (
-                      <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
-                        <div>
-                          <p className="hp-idea-t">{idea.title}</p>
-                          <p className="hp-idea-h">{idea.tag}</p>
-                        </div>
-                        <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
-                      </div>
-                    ))}
+            <div className="hp-stage" aria-hidden="true">
+              <div className="hp-phone hp-back">
+                <div className="hp-notch" />
+                <div className="hp-screen">
+                  <div className="hp-s hp-film" style={{ animation: 'none' }}>
+                    <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-caption">Booking slots <b>open</b> this week</div>
                   </div>
-                )}
-                {heroStep === 1 && (
-                  <div className="hp-s hp-film" key="film">
-                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                    <div className="hp-prompter">
-                      {phoneLines.map((line, i) => (
-                        <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
+                </div>
+              </div>
+              <div className="hp-phone hp-front">
+                <div className="hp-notch" />
+                <div className="hp-screen">
+                  {heroStep === 0 && (
+                    <div className="hp-s hp-ideas" key="ideas">
+                      <p className="hp-title">Ideas for this week</p>
+                      {mockIdeas.map((idea, i) => (
+                        <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
+                          <div>
+                            <p className="hp-idea-t">{idea.title}</p>
+                            <p className="hp-idea-h">{idea.tag}</p>
+                          </div>
+                          <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
+                        </div>
                       ))}
                     </div>
-                    <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
-                    <div className="hp-clips">Clip 2 of 3</div>
-                    <div className="hp-shutter"><span /></div>
-                  </div>
-                )}
-                {heroStep === 2 && (
-                  <div className="hp-s hp-film" key="edit">
-                    <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                    <div className="hp-done">Render complete</div>
-                    <div className="hp-caption">Booking slots <b>open</b> this week</div>
-                    <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
-                    <div className="hp-progress"><span /></div>
-                  </div>
-                )}
+                  )}
+                  {heroStep === 1 && (
+                    <div className="hp-s hp-film" key="film">
+                      <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                      <div className="hp-prompter">
+                        {phoneLines.map((line, i) => (
+                          <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
+                        ))}
+                      </div>
+                      <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
+                      <div className="hp-clips">Clip 2 of 3</div>
+                      <div className="hp-shutter"><span /></div>
+                    </div>
+                  )}
+                  {heroStep === 2 && (
+                    <div className="hp-s hp-film" key="edit">
+                      <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                      <div className="hp-done">Render complete</div>
+                      <div className="hp-caption">Booking slots <b>open</b> this week</div>
+                      <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
+                      <div className="hp-progress"><span /></div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
           <style>{`@keyframes heroFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-.hp-phone { position: relative; width: 262px; height: 530px; border-radius: 40px; background: #0b0a10; padding: 8px; box-shadow: 0 0 0 1.5px #4a4483, 0 28px 56px rgba(8,6,30,.5); }
+.hp-phone { position: absolute; left: 50%; top: 0; width: 262px; height: 530px; border-radius: 40px; background: #0b0a10; padding: 8px; box-shadow: 0 0 0 1.5px #4a4483, 0 28px 56px rgba(8,6,30,.5); }
+.hp-stage { position: relative; width: 520px; max-width: 100%; height: 590px; }
+.hp-front { z-index: 2; margin-left: -131px; transform: translateX(62px) scale(1.1); transform-origin: top center; }
+.hp-back { z-index: 1; margin-left: -131px; transform: translate(-122px, 34px) rotate(-7deg) scale(0.96); transform-origin: top center; opacity: .5; box-shadow: 0 0 0 1.5px #3b3568, 0 20px 40px rgba(8,6,30,.4); }
 .hp-notch { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 76px; height: 20px; border-radius: 11px; background: #0b0a10; z-index: 6; }
 .hp-screen { position: relative; width: 100%; height: 100%; border-radius: 32px; overflow: hidden; background: #17151f; }
 .hp-s { position: absolute; inset: 0; animation: hpIn .45s ease; }
@@ -225,7 +247,7 @@ export default function HomePage() {
           <p style={{ fontSize: 17, color: 'var(--text-secondary)', fontWeight: 600 }}>Made for small businesses: cafés, salons, trades, makers and market stalls</p>
         </section>
 
-        <section style={{ padding: '48px 64px 0' }}>
+        <section id="how" style={{ padding: '48px 64px 0', scrollMarginTop: 24 }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 600, marginBottom: 12, textAlign: 'center', letterSpacing: -0.3 }}>How it works</h2>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 48, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>From setup to your first posted video in under an hour.</p>
