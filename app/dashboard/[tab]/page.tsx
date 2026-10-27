@@ -4638,9 +4638,6 @@ export default function DashboardPage() {
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                           </div>
                         )}
-                        {uploadAddCaptions && uploadCaptionOwn && uploadSlotFiles[slotId] && (
-                          <input type="text" value={uploadOwnTexts[slotId] ?? (uploadSlotTexts[slotId] || []).join(' ')} onChange={(e) => { const v = e.target.value; setUploadOwnTexts((p) => ({ ...p, [slotId]: v })) }} placeholder="Caption for this clip" maxLength={140} aria-label={`Caption for clip ${slotIndex + 1}`} style={{ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 16, fontFamily: 'Inter, sans-serif' }} />
-                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                         {uploadSlotFiles[slotId] && <button type="button" onClick={() => setTrimOpen((p) => p === `u${slotId}` ? null : `u${slotId}`)} style={{ fontSize: 11, color: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId]) !== 'Trim' ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>{trimButtonLabel(uploadTrims[slotId], uploadSlotFiles[slotId])}</button>}
@@ -4700,7 +4697,7 @@ export default function DashboardPage() {
 
                 {showAdvancedCaptions && (
                   <div style={{ padding: '0 24px 24px' }}>
-                    {renderPreferencesFields()}
+                    {renderPreferencesFields(false)}
                   </div>
                 )}
               </div>
@@ -5129,9 +5126,6 @@ export default function DashboardPage() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
                                 <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
-                                {aiAddCaptions && aiCaptionOwn && (
-                                  <input type="text" value={aiOwnTexts[i] ?? extractOnScreenText(item.directions?.[i] || '').join(' ')} onChange={(e) => { const v = e.target.value; setAiOwnTexts((p) => ({ ...p, [i]: v })) }} placeholder="Caption for this clip" maxLength={140} aria-label={`Caption for clip ${i + 1}`} style={{ ...({ width: '100%', boxSizing: 'border-box', marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--sand)', color: 'var(--ink)', fontSize: 16, fontFamily: 'Inter, sans-serif' }), marginTop: 0, marginBottom: 8 }} />
-                                )}
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -5218,12 +5212,6 @@ export default function DashboardPage() {
                             </label>
                             {aiAddCaptions && (
                               <>
-                                <div role="group" aria-label="Where captions come from" style={{ display: 'flex', gap: 6, margin: '0 0 12px', flexWrap: 'wrap' }}>
-                              {([[false, 'Auto from my voice'], [true, 'Write my own']] as const).map(([own, name]) => (
-                                <button key={name} type="button" aria-pressed={aiCaptionOwn === own} onClick={() => setAiCaptionOwn(own)} style={{ padding: '7px 14px', borderRadius: 20, border: aiCaptionOwn === own ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: aiCaptionOwn === own ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
-                              ))}
-                            </div>
-                            {aiCaptionOwn && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '-4px 0 12px' }}>Type a caption for each clip. Only your captions are used.</p>}
                                 <div style={{ background: '#111', borderRadius: 10, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
                                   <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
                                 </div>
