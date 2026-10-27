@@ -1189,12 +1189,7 @@ export default function DashboardPage() {
   const [filmLenses, setFilmLenses] = useState<{ id: string; name: string }[]>([])
   const [filmLensId, setFilmLensId] = useState<string | null>(null)
   const [filmSettingsOpen, setFilmSettingsOpen] = useState(false)
-  const [filmTip, setFilmTip] = useState('')
-  useEffect(() => {
-    if (!filmTip) return
-    const t = setTimeout(() => setFilmTip(''), 2500)
-    return () => clearTimeout(t)
-  }, [filmTip])
+  const [filmTimerOpen, setFilmTimerOpen] = useState(false)
   const [filmDeviceLandscape, setFilmDeviceLandscape] = useState(false)
   const [filmReview, setFilmReview] = useState(false)
   const [filmRecorderOpen, setFilmRecorderOpen] = useState(false)
@@ -5046,15 +5041,23 @@ export default function DashboardPage() {
                       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', backgroundImage: 'linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)), linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% - 0.5px), rgba(255,255,255,0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% - 0.5px), rgba(255,255,255,0.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px))' }} />
                     )}
                     <div style={{ position: 'absolute', right: 12, top: 'calc(45% + 56px)', zIndex: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <button type="button" aria-label="Grid lines" title="Show grid lines to help line up your shot" aria-pressed={filmGrid} onClick={() => { setFilmGrid(!filmGrid); setFilmTip(filmGrid ? 'Grid off' : 'Grid on: lines to help you line up your shot') }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmGrid ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Grid</button>
-                      <button type="button" aria-label="Countdown timer" title="Countdown before recording starts. Tap to change: 3 seconds, 10 seconds or off." disabled={filmIsRecording} onClick={() => { const next = filmTimer === 0 ? 3 : filmTimer === 3 ? 10 : 0; setFilmTimer(next); setFilmTip(next ? `Timer: recording starts ${next} seconds after you press record` : 'Timer off: recording starts straight away') }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTimer ? 'var(--coral)' : 'rgba(0,0,0,0.55)', opacity: filmIsRecording ? 0.4 : 1 }}>{filmTimer ? `${filmTimer}s` : 'Off'}</button>
+                      <button type="button" aria-label="Grid lines" aria-pressed={filmGrid} onClick={() => setFilmGrid(!filmGrid)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmGrid ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Grid</button>
+                      <button type="button" aria-label="Countdown timer" aria-expanded={filmTimerOpen} disabled={filmIsRecording} onClick={() => { setFilmTimerOpen(!filmTimerOpen); setFilmSettingsOpen(false) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTimerOpen || filmTimer ? 'var(--coral)' : 'rgba(0,0,0,0.55)', opacity: filmIsRecording ? 0.4 : 1 }}>{filmTimer ? `${filmTimer}s` : 'Off'}</button>
                       {filmTorchOk && (
-                        <button type="button" aria-label="Torch" title="Turn the phone light on or off" aria-pressed={filmTorch} onClick={toggleFilmTorch} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTorch ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Light</button>
+                        <button type="button" aria-label="Torch" aria-pressed={filmTorch} onClick={toggleFilmTorch} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmTorch ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>Light</button>
                       )}
-                      <button type="button" aria-label="Video quality" title="Choose video quality and frame rate" aria-expanded={filmSettingsOpen} onClick={() => setFilmSettingsOpen(!filmSettingsOpen)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmSettingsOpen ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>{filmRes === '4k' ? '4K' : `${filmRes}p`}</button>
+                      <button type="button" aria-label="Video quality" aria-expanded={filmSettingsOpen} onClick={() => { setFilmSettingsOpen(!filmSettingsOpen); setFilmTimerOpen(false) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, background: filmSettingsOpen ? 'var(--coral)' : 'rgba(0,0,0,0.55)' }}>{filmRes === '4k' ? '4K' : `${filmRes}p`}</button>
                     </div>
-                    {filmTip && !filmSettingsOpen && (
-                      <div role="status" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, maxWidth: 200, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 12, fontWeight: 600, lineHeight: 1.35 }}>{filmTip}</div>
+                    {filmTimerOpen && (
+                      <div role="group" aria-label="Countdown timer" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, background: 'rgba(8,6,24,0.85)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 190 }}>
+                        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }}>Countdown</p>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {([[0, 'Off'], [3, '3s'], [10, '10s']] as const).map(([v, name]) => (
+                            <button key={name} type="button" onClick={() => setFilmTimer(v)} style={{ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: filmTimer === v ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{name}</button>
+                          ))}
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }}>How long to wait after you press record before filming starts, so you have time to get ready.</p>
+                      </div>
                     )}
                     {filmSettingsOpen && (
                       <div role="group" aria-label="Video quality" style={{ position: 'absolute', right: 62, top: 'calc(45% + 56px)', zIndex: 5, background: 'rgba(8,6,24,0.85)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 190 }}>
