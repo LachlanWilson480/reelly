@@ -5052,6 +5052,7 @@ export default function DashboardPage() {
                       onFlip={flipFilmCamera}
                       onRestart={restartFilmCamera}
                       onLens={pickFilmLens}
+                      onLibrary={() => setLibraryPicker('film')}
                     />
                     {filmClipCount > 0 && (
                       <div style={{ position: 'absolute', bottom: 108, right: 14, zIndex: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
@@ -5117,7 +5118,7 @@ export default function DashboardPage() {
                           </>
                         ) : (
                           <>
-                          <button type="button" onClick={() => setLibraryPicker('film')} disabled={filmIsRecording || filmCountdown !== null} style={{ flexShrink: 0, padding: '11px 16px', borderRadius: 50, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1, fontFamily: 'Inter, sans-serif' }}>Use saved clip</button>
+                          
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : 'Scroll speed'}</span>

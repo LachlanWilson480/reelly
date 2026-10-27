@@ -16,6 +16,7 @@ type Props = {
   onFlip: () => void
   onRestart: () => void
   onLens: (id: string) => void
+  onLibrary?: () => void
 }
 
 const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.65))'
@@ -30,7 +31,7 @@ function Svg({ children }: { children: ReactNode }) {
 }
 
 // The camera controls drawn on top of the picture: left tools, lens picker, and the record row. Shared by both recorders.
-export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens }: Props) {
+export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary }: Props) {
   const lock = isRecording || counting
   const presets = cam.zoomCaps ? [0.5, 1, 2, 5].filter((z) => z >= cam.zoomCaps!.min - 0.01 && z <= cam.zoomCaps!.max + 0.01) : []
   const showArc = !hidden && (cam.lenses.length > 0 || presets.length > 1)
@@ -58,6 +59,15 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
               {cam.timer ? <text x="12" y="16.8" textAnchor="middle" fontSize={cam.timer === 10 ? 8.5 : 10} fontWeight="800" fill="#fff" stroke="none">{cam.timer}</text> : <path d="M4.5 21 20 6" />}
             </svg>
           </button>
+          {onLibrary && (
+            <button type="button" aria-label="Use a saved clip" disabled={lock} onClick={onLibrary} style={{ ...iconBtn, opacity: lock ? 0.4 : 0.9 }}>
+              <Svg>
+                <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
+                <circle cx="9" cy="10" r="1.6" />
+                <path d="m4 17.5 5-4.5 3.5 3 3-2.5 4.5 4" />
+              </Svg>
+            </button>
+          )}
           {cam.torchOk && (
             <button type="button" aria-label="Torch" aria-pressed={cam.torch} onClick={cam.toggleTorch} style={{ ...iconBtn, opacity: cam.torch ? 1 : 0.8 }}>
               <Svg><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" fill={cam.torch ? '#ffd166' : 'none'} stroke={cam.torch ? '#ffd166' : '#fff'} /></Svg>
