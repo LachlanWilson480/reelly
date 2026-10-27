@@ -32,8 +32,10 @@ function useLibrary(userId: string | null) {
   return { clips, albums, urls, loading, refresh }
 }
 
-type View = 'all' | 'none' | string
-const inView = (c: LibraryClip, v: View) => v === 'all' ? true : v === 'none' ? !c.album_id : c.album_id === v
+type View = 'all' | string
+const inView = (c: LibraryClip, v: View) => v === 'all' ? true : c.album_id === v
+// Newest first
+const byDate = (a: LibraryClip, b: LibraryClip) => (b.created_at || '').localeCompare(a.created_at || '')
 
 const albumChip = (on: boolean): React.CSSProperties => ({ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: on ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: on ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' })
 
@@ -53,7 +55,6 @@ function AlbumBar({ clips, albums, view, setView, onCreate }: { clips: LibraryCl
       {albums.map((a) => (
         <button key={a.id} type="button" onClick={() => setView(a.id)} style={albumChip(view === a.id)}>{a.name} ({clips.filter((c) => c.album_id === a.id).length})</button>
       ))}
-      <button type="button" onClick={() => setView('none')} style={albumChip(view === 'none')}>No album ({clips.filter((c) => !c.album_id).length})</button>
       {onCreate && (adding ? (
         <input autoFocus value={name} placeholder="Album name" onChange={(e) => setName(e.target.value)} onBlur={create} onKeyDown={(e) => { if (e.key === 'Enter') void create(); if (e.key === 'Escape') { setAdding(false); setName('') } }} style={{ flexShrink: 0, width: 150, fontSize: 12, padding: '7px 12px', borderRadius: 20, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)' }} />
       ) : (
@@ -107,8 +108,8 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
   const limit = libraryLimitBytes(plan)
   const pct = Math.min(100, Math.round((used / limit) * 100))
   const currentAlbum = albums.find((a) => a.id === view)
-  const shown = clips.filter((c) => inView(c, view) && c.name.toLowerCase().includes(search.trim().toLowerCase()))
-  const viewTitle = view === 'all' ? 'All clips' : view === 'none' ? 'No album' : currentAlbum?.name || 'Album'
+  const shown = clips.filter((c) => inView(c, view) && c.name.toLowerCase().includes(search.trim().toLowerCase())).sort(byDate)
+  const viewTitle = view === 'all' ? 'All clips' : currentAlbum?.name || 'Album'
 
   const addFiles = async (files: File[]) => {
     if (!userId) return
@@ -214,7 +215,6 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
           <p className="lib-side-title" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 6px 12px' }}>Albums</p>
           {sideItem('all', 'All clips', clips.length)}
           {albums.map((a) => sideItem(a.id, a.name, clips.filter((c) => c.album_id === a.id).length))}
-          {sideItem('none', 'No album', clips.filter((c) => !c.album_id).length)}
           {newAlbum !== null ? (
             <input autoFocus value={newAlbum} placeholder="Album name" onChange={(e) => setNewAlbum(e.target.value)} onBlur={() => makeAlbum(newAlbum)} onKeyDown={(e) => { if (e.key === 'Enter') void makeAlbum(newAlbum); if (e.key === 'Escape') setNewAlbum(null) }} style={{ flexShrink: 0, width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', outline: 'none' }} />
           ) : (
@@ -283,7 +283,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
                       <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{formatBytes(c.size_bytes)}</p>
                     </div>
                     <select aria-label="Move to album" value={c.album_id || ''} onChange={(e) => move(c, e.target.value)} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', width: '100%' }}>
-                      <option value="">No album</option>
+                      <option value="">All clips only</option>
                       {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -362,7 +362,7 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
             <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>Your library is empty. Add clips in the Library tab, or press &quot;Save to library&quot; on a clip.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
-              {clips.filter((c) => inView(c, view)).map((c) => {
+              {clips.filter((c) => inView(c, view)).sort(byDate).map((c) => {
                 const on = picked.includes(c.id)
                 return (
                   <button key={c.id} type="button" onClick={() => toggle(c.id)} aria-pressed={on} style={{ padding: 0, textAlign: 'left', background: 'var(--sand)', border: on ? '2px solid var(--coral)' : '2px solid transparent', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
