@@ -93,14 +93,14 @@ export default function SignUpPage() {
   const inputStyle = {
     width: '100%',
     padding: '12px 14px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.2)',
-    background: 'rgba(255,255,255,0.08)',
+    borderRadius: 4,
+    border: '1px solid var(--line)',
+    background: '#FFFFFF',
     fontSize: 14,
-    fontFamily: "'Poppins', sans-serif",
+    fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
     outline: 'none',
     boxSizing: 'border-box' as const,
-    color: '#F1EFE8',
+    color: 'var(--ink)',
   }
 
   return (
@@ -108,7 +108,7 @@ export default function SignUpPage() {
       style={{
         minHeight: '100vh',
         backgroundColor: 'var(--background)',
-        fontFamily: "'Poppins', sans-serif",
+        fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
         color: 'var(--ink)',
       }}
     >
@@ -127,7 +127,7 @@ export default function SignUpPage() {
           <Link
             href="/"
             style={{
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
               fontSize: 22,
               fontWeight: 600,
               color: 'var(--ink)',
@@ -168,20 +168,20 @@ export default function SignUpPage() {
           <div
             className="auth-card"
             style={{
-              background: 'linear-gradient(135deg, #26215C, #712B13)',
-              borderRadius: 24,
+              background: '#FFFFFF', border: '1px solid var(--line)',
+              borderRadius: 4,
               padding: '48px 40px',
               maxWidth: 400,
               width: '100%',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+              boxShadow: 'none',
             }}
           >
             <h1
               style={{
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                 fontSize: 26,
                 fontWeight: 600,
-                color: '#F1EFE8',
+                color: 'var(--ink)',
                 marginBottom: 8,
               }}
             >
@@ -191,7 +191,7 @@ export default function SignUpPage() {
             <p
               style={{
                 fontSize: 14,
-                color: '#D3D1C7',
+                color: 'var(--text-secondary)',
                 marginBottom: 28,
               }}
             >
@@ -202,14 +202,14 @@ export default function SignUpPage() {
             <div style={{ marginBottom: 8, minHeight: 44 }}>
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
             </div>
-            <p style={{ fontSize: 12, color: '#D3D1C7', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
               By continuing with Google you agree to the{' '}
               <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Privacy Policy</a>.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
-              <span style={{ fontSize: 12, color: '#D3D1C7' }}>or</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.15)' }} />
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>or</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
             </div>
             </>}
 
@@ -261,7 +261,7 @@ export default function SignUpPage() {
                     background: 'none',
                     border: 'none',
                     fontSize: 12,
-                    color: '#D3D1C7',
+                    color: 'var(--text-secondary)',
                     cursor: isSigningUp ? 'default' : 'pointer',
                     opacity: isSigningUp ? 0.5 : 1,
                   }}
@@ -277,7 +277,7 @@ export default function SignUpPage() {
                   gap: 10,
                   marginBottom: 20,
                   fontSize: 13,
-                  color: '#D3D1C7',
+                  color: 'var(--text-secondary)',
                   lineHeight: 1.5,
                   cursor: isSigningUp ? 'default' : 'pointer',
                 }}
@@ -309,13 +309,13 @@ export default function SignUpPage() {
                 style={{
                   width: '100%',
                   padding: '13px',
-                  borderRadius: 8,
+                  borderRadius: 4,
                   border: 'none',
                   backgroundColor: 'var(--coral)',
                   color: '#fff',
                   fontSize: 15,
                   fontWeight: 600,
-                  fontFamily: "'Poppins', sans-serif",
+                  fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                   cursor: isSigningUp ? 'wait' : !agreedToTerms ? 'not-allowed' : 'pointer',
                   opacity: isSigningUp || !agreedToTerms ? 0.7 : 1,
                   transition: 'opacity 0.15s ease',
@@ -328,8 +328,8 @@ export default function SignUpPage() {
             {message === 'check-email' ? (
               <div style={{ padding: '8px 0' }}>
                 
-                <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#F1EFE8', textAlign: 'center' }}>Check your email</h2>
-                <p style={{ fontSize: 14, color: 'rgba(241,239,232,0.75)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
+                <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 8, color: 'var(--ink)', textAlign: 'center' }}>Check your email</h2>
+                <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 20, textAlign: 'center' }}>
                   We sent a 6-digit code to <strong>{email}</strong>
                 </p>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
@@ -365,7 +365,7 @@ export default function SignUpPage() {
                         const next = document.getElementById(`otp-${Math.min(pasted.length, 5)}`)
                         if (next) (next as HTMLInputElement).focus()
                       }}
-                      style={{ width: 44, height: 56, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 24, fontFamily: "'Poppins', sans-serif", outline: 'none', color: '#F1EFE8', textAlign: 'center', fontWeight: 700 }}
+                      style={{ width: 44, height: 56, borderRadius: 4, border: '1px solid var(--line)', background: '#FFFFFF', fontSize: 24, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', color: 'var(--ink)', textAlign: 'center', fontWeight: 700 }}
                     />
                   ))}
                 </div>
@@ -382,11 +382,11 @@ export default function SignUpPage() {
                     }
                   }}
                   disabled={otp.length !== 6 || verifying}
-                  style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
+                  style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
                 >
                   {verifying ? 'Verifying...' : 'Confirm account'}
                 </button>
-                <p style={{ fontSize: 12, color: 'rgba(241,239,232,0.4)', textAlign: 'center', marginTop: 12 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 12 }}>
                   Didn&apos;t get it? Check your spam folder.
                 </p>
                 <button
@@ -398,7 +398,7 @@ export default function SignUpPage() {
                 </button>
               </div>
             ) : message ? (
-              <p style={{ marginTop: 20, fontSize: 13, color: '#F1EFE8', textAlign: 'center', lineHeight: 1.5 }}>
+              <p style={{ marginTop: 20, fontSize: 13, color: 'var(--ink)', textAlign: 'center', lineHeight: 1.5 }}>
                 {message}
               </p>
             ) : null}
@@ -407,7 +407,7 @@ export default function SignUpPage() {
               style={{
                 marginTop: 20,
                 fontSize: 13,
-                color: '#D3D1C7',
+                color: 'var(--text-secondary)',
                 textAlign: 'center',
               }}
             >

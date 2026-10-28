@@ -8,3 +8,10 @@ export function modelForPlan(plan: string): string {
   if (plan === 'free') return MODEL_FREE
   return MODEL_BASIC
 }
+
+// The 5.5 models reject {type:'disabled'}; they want 'between_tools' to switch thinking off.
+// Older models still use 'disabled'. Typed loosely because the SDK types may lag behind the API.
+export function thinkingOff(model: string) {
+  const newer = model.includes('-5-')
+  return { type: newer ? 'between_tools' : 'disabled' } as unknown as { type: 'disabled' }
+}

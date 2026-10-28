@@ -14,7 +14,7 @@ export default function ReferPage() {
   }, [])
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>

@@ -20,13 +20,13 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     fontSize: 12,
     fontWeight: 500,
     padding: '8px 12px',
-    borderRadius: 8,
+    borderRadius: 4,
     whiteSpace: 'nowrap',
     zIndex: 9999,
     pointerEvents: 'none',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+    boxShadow: 'none',
     border: '1px solid rgba(128,128,128,0.15)',
-    fontFamily: "'Poppins', sans-serif",
+    fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
   } : {
     position: 'absolute',
     left: 'calc(100% + 10px)',
@@ -37,13 +37,13 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     fontSize: 12,
     fontWeight: 600,
     padding: '7px 12px',
-    borderRadius: 8,
+    borderRadius: 4,
     whiteSpace: 'nowrap',
     zIndex: 9999,
     pointerEvents: 'none',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+    boxShadow: 'none',
     border: '1px solid rgba(128,128,128,0.15)',
-    fontFamily: "'Poppins', sans-serif",
+    fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
   }
 
   return (

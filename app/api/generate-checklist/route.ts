@@ -2,7 +2,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseLocationTypes, multiLocationBrief } from '@/lib/locationTypes'
-import { modelForPlan } from '@/lib/aiModel'
+import { modelForPlan, thinkingOff } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
@@ -263,7 +263,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
       const message = await anthropic.messages.create({
         model,
         max_tokens: 2400,
-        thinking: { type: 'disabled' },
+        thinking: thinkingOff(model),
         messages: [{ role: 'user', content: prompt }],
       })
 

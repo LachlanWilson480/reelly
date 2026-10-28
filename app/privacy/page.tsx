@@ -2,7 +2,7 @@
 
 import Sidebar from '@/components/Sidebar'
 
-const H2 = { fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
+const H2 = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
 const UL = { paddingLeft: 24, marginBottom: 24 } as const
 const LI = { marginBottom: 8 } as const
 const P = { marginBottom: 24 } as const
@@ -12,8 +12,8 @@ export default function PrivacyPage() {
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
-          <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
+          <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
           <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 26 October 2026</p>
 
           <p style={P}>Reelezy (reelezy.com) helps small businesses plan, film and edit social media videos. This policy explains what personal information we collect, how we use it, who we share it with and the choices you have. We handle your information in line with the Australian Privacy Act 1988 and the Australian Privacy Principles.</p>

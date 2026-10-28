@@ -35,7 +35,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
   const fullCaption = [caption, tags].filter(Boolean).join('\n')
 
   return (
-    <div style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
       <div className="render-card-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
         <div style={{ background: '#000' }}>
           {render.output_url ? (
@@ -58,7 +58,7 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
             </div>
           </div>
           {fullCaption ? (
-            <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Caption</p>
                 <button onClick={() => onCopy(fullCaption, `caption-${render.id}`)} style={{ fontSize: 11, color: copied === `caption-${render.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
@@ -72,15 +72,15 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {render.output_url && (isFree ? (
-              <a href="/plans" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--coral)', color: '#fff', borderRadius: 8, padding: '10px 16px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              <a href="/plans" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--coral)', color: '#fff', borderRadius: 4, padding: '10px 16px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
                 Upgrade to download
               </a>
             ) : (
-              <button onClick={() => onDownload(render.output_url!)} style={{ flex: 1, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => onDownload(render.output_url!)} style={{ flex: 1, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 Download
               </button>
             ))}
-            <button onClick={() => onClear(render.id)} style={{ flex: 1, background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
+            <button onClick={() => onClear(render.id)} style={{ flex: 1, background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 4, padding: '10px 12px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}>
               Remove
             </button>
           </div>
@@ -113,11 +113,11 @@ function Folder({ id, title, count, noun, open, onToggle, children }: {
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '14px 18px', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
       >
         <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', color: 'var(--text-muted)' }}>›</span>
         <span style={{ flex: 1 }}>{title}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontFamily: "'Poppins', sans-serif" }}>{count} {noun}{count === 1 ? '' : 's'}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>{count} {noun}{count === 1 ? '' : 's'}</span>
       </button>
       {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>{children}</div>}
     </div>
@@ -224,13 +224,13 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       <div>
-        <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
+        <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your completed videos and carousels with suggested captions and hashtags.</p>
       </div>
 
-      <div style={{ background: 'var(--sand)', borderRadius: 14, padding: '20px 24px', border: '1px solid rgba(128,128,128,0.12)' }}>
+      <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '20px 24px', border: '1px solid rgba(128,128,128,0.12)' }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,106,77,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 4, background: 'rgba(255,106,77,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="var(--coral)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4" x2="7" y2="7.5"/><circle cx="7" cy="9.5" r="0.5" fill="var(--coral)"/></svg>
           </div>
           <div>
@@ -243,7 +243,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       </div>
 
       {renders.length === 0 && carousels.length === 0 && (
-        <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '48px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '48px', textAlign: 'center' }}>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>No completed videos or carousels yet.</p>
           <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Head to AI Editor For Generated Idea, AI Editor For Any Video, or Carousel Reels to create content.</p>
         </div>
@@ -255,7 +255,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
             key={s.key}
             type="button"
             onClick={() => jumpTo(s.key)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 20, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
             {s.label}
             <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{counts[s.key]}</span>
@@ -283,7 +283,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
         {carousels.length === 0 ? emptyNote('No image reels yet.') : (
           <>
             {carousels.map((c) => (
-              <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 16, overflow: 'hidden' }}>
+              <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                 <div className="render-card-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr' }}>
                   <div style={{ background: '#000' }}>
                     {carouselThumbs[c.id] ? (
@@ -294,7 +294,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{new Date(c.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     <p style={{ fontSize: 14, fontWeight: 600 }}>{c.image_paths.length} image carousel</p>
                     {c.caption ? (
-                      <div style={{ background: 'var(--card-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Caption</p>
                           <button onClick={() => copyToClipboard(c.caption!, `caption-${c.id}`)} style={{ fontSize: 11, color: copied === `caption-${c.id}` ? 'var(--coral)' : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>

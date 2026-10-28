@@ -9,9 +9,9 @@ import { supabase } from '@/lib/supabase'
 import ComfortPicker from '@/components/ComfortPicker'
 import { withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
-const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
-const labelStyle = { fontSize: 13, fontWeight: 600, color: '#F1EFE8', marginBottom: 6, display: 'block' as const }
-const sectionTitle = { fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: '#FFFFFF', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 16 }
+const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, display: 'block' as const }
+const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -143,7 +143,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
         <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
           <ReelezyLogo size={44} />
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
 
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
               Let&apos;s get you set up
             </h1>
             <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -166,8 +166,8 @@ export default function OnboardingPage() {
           <form onSubmit={handleSubmit}>
 
             {/* Required fields */}
-            <div style={{ background: 'linear-gradient(135deg, #26215C 0%, #712B13 100%)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(241,239,232,0.5)', marginBottom: 20 }}>The essentials</p>
+            <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '24px', marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 20 }}>The essentials</p>
 
               <Field label="Business name *" value={businessName} onChange={setBusinessName} placeholder="e.g. Jake's Plumbing" />
               <Field label="Industry *" value={industry} onChange={setIndustry} placeholder="e.g. café, hair salon, electrician, market stall" />
@@ -194,21 +194,21 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <ComfortPicker value={comfortLevel} onChange={setComfortLevel} onDark />
+              <ComfortPicker value={comfortLevel} onChange={setComfortLevel} />
             </div>
 
             {/* Optional section toggle */}
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ width: '100%', background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 12, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ width: '100%', background: '#FFFFFF', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span style={{ fontSize: 13, fontWeight: 600 }}>{showOptional ? '− Hide additional details' : '+ Add additional details'}</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>optional</span>
             </button>
 
             {showOptional && (
-              <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 16, border: 'none' }}>
+              <div style={{ background: '#FFFFFF', borderRadius: 4, padding: '24px', marginBottom: 16, border: 'none' }}>
 
                 <p style={sectionTitle}>Voice & audience</p>
                 <Field label="Tone of voice" value={tone} onChange={setTone} placeholder="e.g. playful, professional, edgy" />
@@ -217,11 +217,11 @@ export default function OnboardingPage() {
 
                 <p style={sectionTitle}>Filming setup</p>
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>Preferred filming styles</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: 'var(--ink)' }}>Preferred filming styles</label>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, marginTop: -4 }}>Select all that apply - filming instructions will be tailored to these</p>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {['Talking head', 'Behind the scenes', 'Walk & talk', 'B-roll only', 'Tutorial / how-to', 'Product showcase', 'Day in the life', 'Customer testimonial'].map((style) => (
-                      <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 8, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: filmingStyles.includes(style) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                      <button key={style} type="button" onClick={() => setFilmingStyles(prev => prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style])} style={{ padding: '8px 14px', borderRadius: 4, border: filmingStyles.includes(style) ? '2px solid var(--coral)' : '1px solid var(--line)', background: filmingStyles.includes(style) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
                         {style}
                       </button>
                     ))}
@@ -230,10 +230,10 @@ export default function OnboardingPage() {
                 <Field label="Equipment & setup notes" value={filmingComfort} onChange={setFilmingComfort} placeholder="e.g. iPhone only, have a tripod and ring light, always film solo" />
                 <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} placeholder="Names or roles" />
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: '#F1EFE8' }}>How do you serve your customers?</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: 'var(--ink)' }}>How do you serve your customers?</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {[{ value: 'fixed', label: 'Fixed location' }, { value: 'mobile', label: 'Mobile' }, { value: 'online', label: 'Online store' }].map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setLocationType(toggleLocationType(locationType, opt.value))} style={{ padding: '9px 16px', borderRadius: 8, border: parseLocationTypes(locationType).includes(opt.value) ? '2px solid var(--coral)' : '1px solid rgba(255,255,255,0.2)', background: parseLocationTypes(locationType).includes(opt.value) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: '#F1EFE8', cursor: 'pointer' }}>
+                      <button key={opt.value} type="button" onClick={() => setLocationType(toggleLocationType(locationType, opt.value))} style={{ padding: '9px 16px', borderRadius: 4, border: parseLocationTypes(locationType).includes(opt.value) ? '2px solid var(--coral)' : '1px solid var(--line)', background: parseLocationTypes(locationType).includes(opt.value) ? 'rgba(255,106,77,0.15)' : 'var(--card-bg)', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
                         {opt.label}
                       </button>
                     ))}
@@ -292,7 +292,7 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={loading}
-              style={{ width: '100%', padding: '15px', borderRadius: 10, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              style={{ width: '100%', padding: '15px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? 'Setting up...' : 'Start generating ideas →'}
             </button>

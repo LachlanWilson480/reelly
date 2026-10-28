@@ -128,7 +128,7 @@ export default function HistoryPage() {
     <button
       onClick={() => addBackToMyIdeas(idea)}
       disabled={addingBackId === idea.id}
-      style={{ marginTop: 12, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: addingBackId === idea.id ? 'not-allowed' : 'pointer', opacity: addingBackId === idea.id ? 0.7 : 1 }}
+      style={{ marginTop: 12, background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: addingBackId === idea.id ? 'not-allowed' : 'pointer', opacity: addingBackId === idea.id ? 0.7 : 1 }}
     >
       {addingBackId === idea.id ? 'Adding...' : 'Add back to my ideas'}
     </button>
@@ -138,11 +138,11 @@ export default function HistoryPage() {
     new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav style={{ padding: '24px 48px' }}>
-          <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: 22, fontWeight: 600 }}>
+          <span style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 22, fontWeight: 600 }}>
             History
           </span>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Scripts generated are shown at the bottom of the page.</p>
@@ -151,7 +151,7 @@ export default function HistoryPage() {
         <div style={{ padding: '0 48px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'flex-start' }}>
 
           <div>
-            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Ideas Generated ({ideas.length})
             </h2>
             {ideas.length === 0 && (
@@ -159,7 +159,7 @@ export default function HistoryPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {ideas.map((idea) => (
-                <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                   <button
                     onClick={() => setExpandedId(expandedId === idea.id ? null : idea.id)}
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -190,7 +190,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Filming Instructions ({filmingItems.length})
             </h2>
             {filmingItems.length === 0 && (
@@ -198,7 +198,7 @@ export default function HistoryPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filmingItems.map((idea) => (
-                <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                   <button
                     onClick={() => setExpandedId(expandedId === `film-${idea.id}` ? null : `film-${idea.id}`)}
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -229,7 +229,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Renders ({renders.length})
             </h2>
             {renders.length === 0 && (
@@ -237,7 +237,7 @@ export default function HistoryPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {renders.map((render) => (
-                <div key={render.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                <div key={render.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                   <button
                     onClick={() => setExpandedId(expandedId === `render-${render.id}` ? null : `render-${render.id}`)}
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -257,7 +257,7 @@ export default function HistoryPage() {
                   {expandedId === `render-${render.id}` && (
                     <div style={{ padding: '0 16px 16px' }}>
                       {render.output_url && (
-                        <video controls src={render.output_url} style={{ width: '100%', borderRadius: 8, marginBottom: 10 }} />
+                        <video controls src={render.output_url} style={{ width: '100%', borderRadius: 4, marginBottom: 10 }} />
                       )}
                       {render.title && <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{render.title}</p>}
                       {render.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10 }}>{render.caption}</p>}
@@ -276,7 +276,7 @@ export default function HistoryPage() {
                               document.body.removeChild(a)
                               URL.revokeObjectURL(url)
                             }}
-                            style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                           >
                             Download
                           </button>
@@ -287,7 +287,7 @@ export default function HistoryPage() {
                               await supabase.from('renders').update({ status: 'done' }).eq('id', render.id)
                               setRenders((prev) => prev.map((r) => r.id === render.id ? { ...r, status: 'done' } : r))
                             }}
-                            style={{ background: 'none', border: '1px solid var(--coral)', color: 'var(--coral)', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            style={{ background: 'none', border: '1px solid var(--coral)', color: 'var(--coral)', borderRadius: 4, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                           >
                             Restore to scheduler
                           </button>
@@ -301,7 +301,7 @@ export default function HistoryPage() {
           </div>
 
           <div>
-            <h2 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
               Scripts ({scripts.length})
             </h2>
             {scripts.length === 0 && (
@@ -309,7 +309,7 @@ export default function HistoryPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {scripts.map((s) => (
-                <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 12, overflow: 'hidden' }}>
+                <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                   <button
                     onClick={() => setExpandedId(expandedId === `script-${s.id}` ? null : `script-${s.id}`)}
                     style={{ width: '100%', textAlign: 'left', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer' }}

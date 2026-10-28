@@ -77,10 +77,10 @@ export async function mountGoogleButton(options: {
 
   options.container.innerHTML = ''
   google.accounts.id.renderButton(options.container, {
-    theme: 'filled_black',
+    theme: 'outline',
     size: 'large',
     text: 'continue_with',
-    shape: 'pill',
+    shape: 'rectangular',
     width: 320,
   })
 }

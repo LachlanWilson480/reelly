@@ -23,12 +23,12 @@ export default function ComfortPicker({ value, onChange, onDark = false }: { val
               style={{
                 textAlign: 'left',
                 padding: '12px 14px',
-                borderRadius: 10,
+                borderRadius: 4,
                 border: selected ? '2px solid var(--coral)' : onDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(128,128,128,0.25)',
                 background: selected ? 'rgba(255,106,77,0.15)' : onDark ? 'rgba(255,255,255,0.08)' : 'var(--card-bg)',
                 color: text,
                 cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
               }}
             >
               <span style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{level.title}</span>

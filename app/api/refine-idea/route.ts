@@ -1,7 +1,7 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
-import { modelForPlan } from '@/lib/aiModel'
+import { modelForPlan, thinkingOff } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
@@ -66,7 +66,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
     const model = modelForPlan(plan)
 
     const message = await anthropic.messages.create({
-      thinking: { type: 'disabled' },
+      thinking: thinkingOff(model),
       model,
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],

@@ -49,16 +49,16 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: '#F1EFE8', marginBottom: 16 }
+  const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: '#FFFFFF', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 16 }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: 'linear-gradient(135deg, #26215C, #712B13)', borderRadius: 24, padding: '48px 40px', maxWidth: 400, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '48px 40px', maxWidth: 400, width: '100%', boxShadow: 'none' }}>
         <Link href="/" style={{ display: 'inline-block', marginBottom: 24 }}><ReelezyLogo size={44} /></Link>
-        <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 26, fontWeight: 600, color: '#F1EFE8', marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 26, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
           Set a new password
         </h1>
-        <p style={{ fontSize: 14, color: '#D3D1C7', marginBottom: 28 }}>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28 }}>
           {done ? 'Password updated! Redirecting...' : 'Choose a new password for your account.'}
         </p>
 
@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
                 required
                 style={{ ...inputStyle, paddingRight: 50 }}
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: 13, background: 'none', border: 'none', fontSize: 12, color: '#D3D1C7', cursor: 'pointer' }}>
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 12, top: 13, background: 'none', border: 'none', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
@@ -88,15 +88,15 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              style={{ width: '100%', padding: '13px', borderRadius: 8, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? 'Updating...' : 'Update password'}
             </button>
-            {message && <p style={{ marginTop: 16, fontSize: 13, color: '#F1EFE8', textAlign: 'center' }}>{message}</p>}
+            {message && <p style={{ marginTop: 16, fontSize: 13, color: 'var(--ink)', textAlign: 'center' }}>{message}</p>}
           </form>
         )}
 
-        <p style={{ marginTop: 24, fontSize: 13, color: '#D3D1C7', textAlign: 'center' }}>
+        <p style={{ marginTop: 24, fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
           <Link href="/login" style={{ color: 'var(--coral)', fontWeight: 600 }}>Back to log in</Link>
         </p>
       </div>

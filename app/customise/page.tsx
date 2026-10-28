@@ -70,10 +70,10 @@ export default function CustomisePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '48px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 8 }}>
           Customise generation
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
@@ -81,9 +81,9 @@ export default function CustomisePage() {
         </p>
 
         {plan === 'basic' ? (
-          <div style={{ background: 'var(--sand)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
+          <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '32px', textAlign: 'center' }}>
             
-            <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
+            <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 10 }}>
               Custom guidance is a Pro plan feature
             </h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
@@ -91,7 +91,7 @@ export default function CustomisePage() {
             </p>
             
             <a href="/plans"
-              style={{ display: 'inline-block', backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
+              style={{ display: 'inline-block', backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 4, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
             >
               Upgrade to Pro
             </a>
@@ -106,11 +106,11 @@ export default function CustomisePage() {
               style={{
                 width: '100%',
                 padding: '14px',
-                borderRadius: 8,
+                borderRadius: 4,
                 border: '1px solid rgba(128,128,128,0.25)',
                 background: 'var(--sand)',
                 fontSize: 14,
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                 color: 'var(--ink)',
                 outline: 'none',
                 resize: 'vertical',
@@ -122,7 +122,7 @@ export default function CustomisePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
             >
               {saving ? 'Saving...' : 'Save guidance'}
             </button>

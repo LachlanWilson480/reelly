@@ -179,7 +179,7 @@ export default function PlansPage() {
 
   if (userPlan && userPlan !== 'free' && subDetails) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
         <Sidebar />
         <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
           <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
@@ -187,13 +187,13 @@ export default function PlansPage() {
             <button onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); window.location.href = '/login' }} style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Log out</button>
           </nav>
           <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
-            <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32 }}>
               {subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
             </p>
 
             {/* Plan card */}
-            <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>Current plan</p>
@@ -202,7 +202,7 @@ export default function PlansPage() {
                 <button
                   onClick={openPortal}
                   disabled={portalLoading}
-                  style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: portalLoading ? 0.6 : 1 }}
+                  style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: portalLoading ? 0.6 : 1 }}
                 >
                   {portalLoading ? 'Opening…' : 'Manage billing'}
                 </button>
@@ -214,7 +214,7 @@ export default function PlansPage() {
 
             {/* Weekly usage */}
             {usage && (
-              <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>This week's usage</p>
                 {[
                   { label: 'Content ideas', used: usage.ideas, limit: usageLimits.ideas },
@@ -227,8 +227,8 @@ export default function PlansPage() {
                       <span style={{ fontSize: 13, color: 'var(--ink)' }}>{label}</span>
                       <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label === 'Render minutes (this month)' ? `${String(Math.floor(used/60)).padStart(2,'0')}:${String(Math.floor(used%60)).padStart(2,'0')} / ${String(Math.floor(limit/60)).padStart(2,'0')}:00` : `${used} / ${limit}`}</span>
                     </div>
-                    <div style={{ height: 6, borderRadius: 99, background: 'rgba(128,128,128,0.12)' }}>
-                      <div style={{ height: 6, borderRadius: 99, background: 'var(--coral)', width: `${Math.min(100, (used / limit) * 100)}%`, transition: 'width 0.4s ease' }} />
+                    <div style={{ height: 6, borderRadius: 4, background: 'rgba(128,128,128,0.12)' }}>
+                      <div style={{ height: 6, borderRadius: 4, background: 'var(--coral)', width: `${Math.min(100, (used / limit) * 100)}%`, transition: 'width 0.4s ease' }} />
                     </div>
                   </div>
                 ))}
@@ -240,14 +240,14 @@ export default function PlansPage() {
               const limit = libraryLimitBytes(userPlan === 'top' ? 'top' : userPlan === 'mid' ? 'mid' : 'free')
               const pct = Math.min(100, (libraryUsed / limit) * 100)
               return (
-                <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>Storage</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 13, color: 'var(--ink)' }}>Clip library</span>
                     <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatBytes(libraryUsed)} / {formatBytes(limit)}</span>
                   </div>
-                  <div style={{ height: 6, borderRadius: 99, background: 'rgba(128,128,128,0.12)' }}>
-                    <div style={{ height: 6, borderRadius: 99, background: pct >= 90 ? '#d92d20' : 'var(--coral)', width: `${libraryUsed > 0 ? Math.max(pct, 1) : 0}%`, transition: 'width 0.4s ease' }} />
+                  <div style={{ height: 6, borderRadius: 4, background: 'rgba(128,128,128,0.12)' }}>
+                    <div style={{ height: 6, borderRadius: 4, background: pct >= 90 ? '#d92d20' : 'var(--coral)', width: `${libraryUsed > 0 ? Math.max(pct, 1) : 0}%`, transition: 'width 0.4s ease' }} />
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '12px 0 0', lineHeight: 1.5 }}>This is a running total of the clips you have saved, so it does not reset each week. <Link href="/dashboard/library" style={{ color: 'var(--coral)', fontWeight: 600 }}>Open your library</Link></p>
                 </div>
@@ -270,14 +270,14 @@ export default function PlansPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
         <nav className="plans-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <Link href="/"><ReelezyLogo size={44} /></Link>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="plans-nav-badge" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 20, padding: '6px 14px' }}>
+              <div className="plans-nav-badge" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sand)', borderRadius: 4, padding: '6px 14px' }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
                 <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{businessName || userEmail}</span>
                 {userPlan && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {userPlan === 'free' ? 'Free Plan' : userPlan === 'top' ? 'Pro' : 'Basic'}</span>}
@@ -288,7 +288,7 @@ export default function PlansPage() {
         </nav>
 
         <div style={{ padding: '32px 48px 64px', maxWidth: 1000, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
+          <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
             Plans built for how often you post
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
@@ -303,7 +303,7 @@ export default function PlansPage() {
                 position: 'relative',
                 width: 48,
                 height: 26,
-                borderRadius: 999,
+                borderRadius: 4,
                 border: 'none',
                 background: 'var(--coral)',
                 cursor: 'pointer',
@@ -333,16 +333,16 @@ export default function PlansPage() {
               <div
                 key={tier.id}
                 style={{
-                  background: tier.highlight ? 'linear-gradient(135deg, #26215C, #712B13)' : 'var(--sand)',
-                  borderRadius: 20,
+                  background: tier.highlight ? '#FFFFFF' : 'var(--sand)',
+                  borderRadius: 4,
                   padding: '36px 28px',
-                  border: tier.highlight ? 'none' : '1px solid rgba(128,128,128,0.15)',
+                  border: tier.highlight ? '1px solid var(--coral)' : '1px solid var(--line)',
                 }}
               >
-                <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, color: tier.highlight ? 'var(--ink)' : 'var(--ink)' }}>
                   {tier.name}
                 </h3>
-                <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginBottom: 4, color: tier.highlight ? '#F1EFE8' : 'var(--ink)' }}>
+                <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", marginBottom: 4, color: tier.highlight ? 'var(--ink)' : 'var(--ink)' }}>
                   {effectivePercent ? (
                     <>
                       <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 24 }}>{billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}</span>
@@ -352,19 +352,19 @@ export default function PlansPage() {
                   ) : (billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
                   <span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
                 </p>
-                <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, marginTop: -2, marginBottom: 6, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)' }}>{currency}</p>
+                <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, marginTop: -2, marginBottom: 6, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{currency}</p>
                 {billingInterval === 'yearly' && (
-                  <p style={{ fontSize: 12, color: tier.highlight ? '#D3D1C7' : 'var(--text-muted)', marginBottom: 8 }}>
+                  <p style={{ fontSize: 12, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-muted)', marginBottom: 8 }}>
                     Billed {tier.yearlyPrice} annually
                   </p>
                 )}
-                <p style={{ fontSize: 13, color: tier.highlight ? '#D3D1C7' : 'var(--text-secondary)', marginBottom: 24 }}>
+                <p style={{ fontSize: 13, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-secondary)', marginBottom: 24 }}>
                   {tier.desc}
                 </p>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {tier.features.map((f) => {
                     return (
-                      <li key={f} style={{ fontSize: 14, color: tier.highlight ? '#F1EFE8' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <li key={f} style={{ fontSize: 14, color: tier.highlight ? 'var(--ink)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span>• {f}</span>
                       </li>
                     )
@@ -378,7 +378,7 @@ export default function PlansPage() {
                       width: '100%',
                       textAlign: 'center',
                       padding: '12px',
-                      borderRadius: 8,
+                      borderRadius: 4,
                       backgroundColor: tier.highlight ? 'var(--coral)' : 'transparent',
                       border: tier.highlight ? 'none' : '1px solid var(--ink)',
                       color: tier.highlight ? '#fff' : 'var(--ink)',
@@ -402,12 +402,12 @@ export default function PlansPage() {
                 onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
                 placeholder="Have a code?"
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+                style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
                 onClick={applyDiscount}
                 disabled={discountLoading || !discountInput.trim()}
-                style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
+                style={{ padding: '10px 16px', borderRadius: 4, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
               >
                 {discountLoading ? 'Checking...' : 'Apply'}
               </button>
@@ -430,12 +430,12 @@ export default function PlansPage() {
                       placeholder="Friend's referral code"
                       autoComplete="off"
                       aria-label="Referral code"
-                      style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "'Poppins', sans-serif", width: 200, outline: 'none' }}
+                      style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 200, outline: 'none' }}
                     />
                     <button
                       onClick={applyReferral}
                       disabled={refBusy || !refInput.trim()}
-                      style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}
+                      style={{ padding: '10px 16px', borderRadius: 4, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}
                     >
                       {refBusy ? 'Checking...' : 'Apply'}
                     </button>

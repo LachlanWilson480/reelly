@@ -85,7 +85,7 @@ export default function Sidebar() {
           }}
         >
           <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
-          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
+          {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
         </button>
 
         {showDashboardTabs && (
@@ -96,13 +96,13 @@ export default function Sidebar() {
               alignItems: 'center',
               gap: 10,
               padding: '10px 4px',
-              borderRadius: 8,
+              borderRadius: 4,
               background: 'var(--sand)',
               border: 'none',
               textAlign: 'left',
               color: 'var(--ink)',
               fontSize: 13,
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
               cursor: 'pointer',
               marginBottom: 8,
             }}
@@ -123,12 +123,12 @@ export default function Sidebar() {
                   alignItems: 'center',
                   gap: 10,
                   padding: '10px 4px',
-                  borderRadius: 8,
+                  borderRadius: 4,
                   textDecoration: 'none',
                   color: currentTab === item.id ? 'var(--coral)' : 'var(--ink)',
                   fontWeight: currentTab === item.id ? 600 : 400,
                   fontSize: 13,
-                  fontFamily: "'Poppins', sans-serif",
+                  fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -146,11 +146,11 @@ export default function Sidebar() {
                     alignItems: 'center',
                     gap: 10,
                     padding: '10px 4px',
-                    borderRadius: 8,
+                    borderRadius: 4,
                     textDecoration: 'none',
                     color: 'var(--ink)',
                     fontSize: 13,
-                    fontFamily: "'Poppins', sans-serif",
+                    fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                     whiteSpace: 'nowrap',
                     width: '100%',
                   }}
@@ -173,11 +173,11 @@ export default function Sidebar() {
               alignItems: "center",
               gap: 10,
               padding: "10px 4px",
-              borderRadius: 8,
+              borderRadius: 4,
               textDecoration: "none",
               color: "var(--ink)",
               fontSize: 13,
-              fontFamily: "'Poppins', sans-serif",
+              fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
               whiteSpace: "nowrap",
             }}
           >
@@ -222,7 +222,7 @@ export default function Sidebar() {
           zIndex: 100,
           width: 40,
           height: 40,
-          borderRadius: 10,
+          borderRadius: 4,
           border: '1px solid rgba(128,128,128,0.25)',
           background: 'var(--card-bg)',
           alignItems: 'center',

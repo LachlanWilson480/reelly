@@ -21,10 +21,10 @@ type Props = {
 
 const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.65))'
 const iconBtn: CSSProperties = { width: 44, height: 44, border: 'none', background: 'transparent', color: '#fff', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', filter: shadow, fontSize: 17, fontWeight: 800 }
-const panelBox: CSSProperties = { position: 'absolute', zIndex: 6, background: 'rgba(8,6,24,0.88)', borderRadius: 16, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200 }
+const panelBox: CSSProperties = { position: 'absolute', zIndex: 6, background: 'rgba(8,6,24,0.88)', borderRadius: 4, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200 }
 const panelLabel: CSSProperties = { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }
 const panelNote: CSSProperties = { color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }
-const chip = (on: boolean): CSSProperties => ({ flex: 1, padding: '7px 0', borderRadius: 16, border: 'none', background: on ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' })
+const chip = (on: boolean): CSSProperties => ({ flex: 1, padding: '7px 0', borderRadius: 4, border: 'none', background: on ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
 function Svg({ children }: { children: ReactNode }) {
   return <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -111,19 +111,19 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
       )}
 
       {showArc && (
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 104, zIndex: 3, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.5)', borderRadius: 24, padding: 4 }}>
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 104, zIndex: 3, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.5)', borderRadius: 4, padding: 4 }}>
           {cam.lenses.length > 0
             ? cam.lenses.map((l) => (
-              <button key={l.id} type="button" disabled={lock} onClick={() => onLens(l.id)} style={{ minWidth: 40, height: 34, borderRadius: 17, border: 'none', background: cam.lensId === l.id ? '#fff' : 'transparent', color: cam.lensId === l.id ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{l.name}</button>
+              <button key={l.id} type="button" disabled={lock} onClick={() => onLens(l.id)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: cam.lensId === l.id ? '#fff' : 'transparent', color: cam.lensId === l.id ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{l.name}</button>
             ))
             : presets.map((z) => (
-              <button key={z} type="button" onClick={() => cam.changeZoom(z)} style={{ minWidth: 40, height: 34, borderRadius: 17, border: 'none', background: Math.abs(cam.zoom - z) < 0.05 ? '#fff' : 'transparent', color: Math.abs(cam.zoom - z) < 0.05 ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{z === 0.5 ? '.5x' : `${z}x`}</button>
+              <button key={z} type="button" onClick={() => cam.changeZoom(z)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: Math.abs(cam.zoom - z) < 0.05 ? '#fff' : 'transparent', color: Math.abs(cam.zoom - z) < 0.05 ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{z === 0.5 ? '.5x' : `${z}x`}</button>
             ))}
         </div>
       )}
 
       {notice && !hidden && (
-        <div role="status" style={{ position: 'absolute', left: 14, right: 14, top: '40%', zIndex: 6, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>{notice}</div>
+        <div role="status" style={{ position: 'absolute', left: 14, right: 14, top: '40%', zIndex: 6, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>{notice}</div>
       )}
 
       {!hidden && (cameraActive || isRecording) && (

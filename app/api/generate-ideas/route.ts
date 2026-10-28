@@ -2,7 +2,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseLocationTypes, multiLocationBrief } from '@/lib/locationTypes'
-import { modelForPlan } from '@/lib/aiModel'
+import { modelForPlan, thinkingOff } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
@@ -505,7 +505,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
     const message = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
-      thinking: { type: 'disabled' },
+      thinking: thinkingOff(model),
       system: [{ type: 'text', text: IDEAS_STATIC_RULES, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: prompt }],
     })

@@ -1,28 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111111;
   --coral: #FF6A4D;
   --purple: #7F77DD;
   --teal: #1D9E75;
-  --ink: #2C2C2A;
+  --ink: #111111;
   --cream: #FAEEDA;
-  --sand: #F1EFE8;
+  --sand: #F9F9F9;
   --card-bg: #ffffff;
+  --line: #E5E5E5;
   --text-secondary: #555555;
-  --text-muted: #999999;
-}
-
-html.dark {
-  --background: #16151c;
-  --foreground: #F1EFE8;
-  --ink: #F1EFE8;
-  --sand: #232129;
-  --card-bg: #232129;
-  --text-secondary: #C9C7D1;
-  --text-muted: #9C9AA5;
+  --text-muted: #777777;
+  --serif: var(--font-playfair), 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
 @theme inline {
@@ -35,7 +26,9 @@ html.dark {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Poppins', Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), 'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 
 input[type="checkbox"] {
@@ -44,7 +37,7 @@ input[type="checkbox"] {
   width: 16px;
   height: 16px;
   border: 1.5px solid rgba(128, 128, 128, 0.4);
-  border-radius: 4px;
+  border-radius: 2px;
   background: var(--card-bg, transparent);
   cursor: pointer;
   position: relative;
@@ -214,9 +207,9 @@ input.no-native-spinner {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px #2a1f3d inset !important;
-  -webkit-text-fill-color: #F1EFE8 !important;
-  caret-color: #F1EFE8;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #111111 !important;
+  caret-color: #111111;
 }
 
 /* ── Mobile fixes ── */
@@ -367,3 +360,15 @@ select::-ms-expand { display: none; }
 }
 
 .lib-option:hover, .lib-option:focus-visible { background: rgba(255, 106, 77, 0.12) !important; color: var(--coral) !important; outline: none; }
+
+/* Site-wide look: serif headings, sharp corners, flat surfaces, hairline borders. */
+h1, h2, h3 {
+  font-family: var(--serif) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.015em;
+}
+button, input, select, textarea { font-family: inherit; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}

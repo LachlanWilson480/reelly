@@ -9,9 +9,9 @@ import { authFetch } from '@/lib/authFetch'
 import ComfortPicker from '@/components/ComfortPicker'
 import { parseComfort, withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
-const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 8, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "'Poppins', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
+const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
-const sectionTitle = { fontFamily: "'Poppins', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
+const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -402,7 +402,7 @@ export default function SettingsPage() {
         style={{
           width: 40,
           height: 22,
-          borderRadius: 11,
+          borderRadius: 4,
           border: 'none',
           background: checked ? 'var(--coral)' : 'rgba(128,128,128,0.3)',
           position: 'relative',
@@ -416,10 +416,10 @@ export default function SettingsPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "'Poppins', sans-serif", color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '48px', maxWidth: 700, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 24 }}>
+        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 24 }}>
           Settings
         </h1>
 
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                 fontWeight: section === s ? 600 : 500,
                 color: section === s ? 'var(--ink)' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                 textTransform: 'capitalize',
               }}
             >
@@ -452,7 +452,7 @@ export default function SettingsPage() {
             onClick={(e) => { if ((e.target as HTMLElement).closest('button[type="button"]')) setDirty(true) }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 12, background: 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 4, background: 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                 {logoUrl ? (
                   <img src={logoUrl} alt="Business logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
@@ -464,7 +464,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => logoInputRef.current?.click()}
                   disabled={uploadingLogo}
-                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
+                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '8px 14px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
                 >
                   {uploadingLogo ? 'Uploading...' : 'Upload logo'}
                 </button>
@@ -489,7 +489,7 @@ export default function SettingsPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setLocationType(toggleLocationType(locationType, opt.value))}
-                    style={{ padding: "10px 16px", borderRadius: 8, border: parseLocationTypes(locationType).includes(opt.value) ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: parseLocationTypes(locationType).includes(opt.value) ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                    style={{ padding: "10px 16px", borderRadius: 4, border: parseLocationTypes(locationType).includes(opt.value) ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: parseLocationTypes(locationType).includes(opt.value) ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
                   >
                     {opt.label}
                   </button>
@@ -519,7 +519,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "'Poppins', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
+              style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
             >
               {showOptional ? '− Hide additional details' : '+ Show more details (improves your idea and filming generations)'}
             </button>
@@ -572,16 +572,16 @@ export default function SettingsPage() {
             )}
 
             {dirty && !saving && (
-              <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'var(--sand)', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 12, padding: '12px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 14, fontSize: 13 }}>
+              <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'var(--sand)', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '12px 16px', boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14, fontSize: 13 }}>
                 <span>You have unsaved changes. Save them so they apply to your ideas.</span>
-                <button type="button" onClick={(e) => { e.stopPropagation(); handleSaveProfile() }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save now</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handleSaveProfile() }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save now</button>
               </div>
             )}
 
             <button
               onClick={handleSaveProfile}
               disabled={saving}
-              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: 16, display: 'block' }}
+              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: 16, display: 'block' }}
             >
               {saving ? 'Saving...' : 'Save changes'}
             </button>
@@ -591,8 +591,8 @@ export default function SettingsPage() {
 
         {section === 'account' && (
           <div>
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
                 Email
               </h3>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 14 }}>{email}</p>
@@ -606,15 +606,15 @@ export default function SettingsPage() {
               <button
                 onClick={handleChangeEmail}
                 disabled={changingEmail || !newEmail}
-                style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: changingEmail || !newEmail ? 'not-allowed' : 'pointer', opacity: changingEmail || !newEmail ? 0.5 : 1 }}
+                style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: changingEmail || !newEmail ? 'not-allowed' : 'pointer', opacity: changingEmail || !newEmail ? 0.5 : 1 }}
               >
                 {changingEmail ? 'Updating...' : 'Update email'}
               </button>
               {emailMessage && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10 }}>{emailMessage}</p>}
             </div>
 
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
               <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -636,15 +636,15 @@ export default function SettingsPage() {
               <button
                 onClick={handleChangePassword}
                 disabled={changingPassword || !newPassword}
-                style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: changingPassword || !newPassword ? 'not-allowed' : 'pointer', opacity: changingPassword || !newPassword ? 0.5 : 1 }}
+                style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: changingPassword || !newPassword ? 'not-allowed' : 'pointer', opacity: changingPassword || !newPassword ? 0.5 : 1 }}
               >
                 {changingPassword ? 'Updating...' : 'Update password'}
               </button>
               {passwordMessage && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 10 }}>{passwordMessage}</p>}
             </div>
 
-            <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 16, padding: '24px' }}>
-              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
+            <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '24px' }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
                 Delete account
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
@@ -663,7 +663,7 @@ export default function SettingsPage() {
                   backgroundColor: 'var(--coral)',
                   color: '#fff',
                   padding: '10px 20px',
-                  borderRadius: 8,
+                  borderRadius: 4,
                   fontSize: 13,
                   fontWeight: 600,
                   border: 'none',
@@ -681,7 +681,7 @@ export default function SettingsPage() {
 
         {section === 'notifications' && (
           <div>
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '24px' }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
               <Toggle
                 label="Render complete"
                 desc="Get an email when your video finishes rendering."
@@ -698,7 +698,7 @@ export default function SettingsPage() {
             <button
               onClick={handleSaveNotifications}
               disabled={savingNotifications}
-              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 16, opacity: savingNotifications ? 0.7 : 1 }}
+              style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 24px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 16, opacity: savingNotifications ? 0.7 : 1 }}
             >
               {savingNotifications ? 'Saving...' : 'Save preferences'}
             </button>
@@ -707,13 +707,13 @@ export default function SettingsPage() {
 
         {section === 'billing' && (
           <div>
-            <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px', marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
                 Current Plan
               </h3>
               {subPlan ? (
                 <>
-                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", marginTop: 8, marginBottom: 4 }}>
                     {subPlan === 'top' ? 'Pro' : subPlan === 'mid' ? 'Basic' : 'Basic'}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
@@ -727,7 +727,7 @@ export default function SettingsPage() {
                 </>
               ) : (
                 <>
-                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "'Poppins', sans-serif", marginTop: 8, marginBottom: 4 }}>
+                  <p style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", marginTop: 8, marginBottom: 4 }}>
                     Free
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -739,8 +739,8 @@ export default function SettingsPage() {
 
             {subPlan && subStatus === 'active' && (
               <>
-                <div style={{ background: 'var(--sand)', borderRadius: 16, padding: '28px' }}>
-                  <h3 style={{ fontFamily: "'Poppins', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+                  <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     Cancel Subscription
                   </h3>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
@@ -749,7 +749,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleCancelSubscription}
                     disabled={subCancelling}
-                    style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid rgba(255,106,77,0.4)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subCancelling ? 'not-allowed' : 'pointer', opacity: subCancelling ? 0.6 : 1 }}
+                    style={{ padding: '10px 18px', borderRadius: 4, border: '1px solid rgba(255,106,77,0.4)', background: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: subCancelling ? 'not-allowed' : 'pointer', opacity: subCancelling ? 0.6 : 1 }}
                   >
                     {subCancelling ? 'Cancelling...' : 'Cancel subscription'}
                   </button>
@@ -758,7 +758,7 @@ export default function SettingsPage() {
             )}
 
             {subMessage && (
-              <p style={{ fontSize: 13, color: 'var(--ink)', marginTop: 16, padding: '12px 16px', background: 'var(--card-bg)', borderRadius: 8 }}>
+              <p style={{ fontSize: 13, color: 'var(--ink)', marginTop: 16, padding: '12px 16px', background: 'var(--card-bg)', borderRadius: 4 }}>
                 {subMessage}
               </p>
             )}

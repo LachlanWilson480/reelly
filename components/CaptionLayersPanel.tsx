@@ -30,7 +30,7 @@ export default function CaptionLayersPanel({ value, onChange, position, landscap
   const moved = value.onScreen.x !== undefined || value.onScreen.y !== undefined || value.speech.x !== undefined || value.speech.y !== undefined
 
   return (
-    <div style={{ margin: '4px 0 14px', padding: 12, borderRadius: 12, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)' }}>
+    <div style={{ margin: '4px 0 14px', padding: 12, borderRadius: 4, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)' }}>
       <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', margin: '0 0 8px' }}>Caption layers</p>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -45,7 +45,7 @@ export default function CaptionLayersPanel({ value, onChange, position, landscap
           ))}
           <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>Drag each label in the frame to where you want that layer to appear.</p>
           {moved && (
-            <button type="button" onClick={() => onChange({ onScreen: { on: value.onScreen.on }, speech: { on: value.speech.on } })} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 8, padding: '5px 10px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Reset positions</button>
+            <button type="button" onClick={() => onChange({ onScreen: { on: value.onScreen.on }, speech: { on: value.speech.on } })} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '5px 10px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Reset positions</button>
           )}
         </div>
         <div
@@ -53,7 +53,7 @@ export default function CaptionLayersPanel({ value, onChange, position, landscap
           onPointerMove={(e) => { if (dragRef.current) move(e.clientX, e.clientY) }}
           onPointerUp={() => { dragRef.current = null }}
           onPointerCancel={() => { dragRef.current = null }}
-          style={{ position: 'relative', width: landscape ? 220 : 124, aspectRatio: landscape ? '16 / 9' : '9 / 16', borderRadius: 12, background: 'linear-gradient(160deg,#2b2b31,#141417)', border: '2px solid rgba(128,128,128,0.35)', overflow: 'hidden', touchAction: 'none', userSelect: 'none', flexShrink: 0 }}
+          style={{ position: 'relative', width: landscape ? 220 : 124, aspectRatio: landscape ? '16 / 9' : '9 / 16', borderRadius: 4, background: 'linear-gradient(160deg,#2b2b31,#141417)', border: '2px solid rgba(128,128,128,0.35)', overflow: 'hidden', touchAction: 'none', userSelect: 'none', flexShrink: 0 }}
         >
           {LAYERS.map((l) => {
             const pt = layerPoint(value, l.key, position)
@@ -67,7 +67,7 @@ export default function CaptionLayersPanel({ value, onChange, position, landscap
                   try { frameRef.current?.setPointerCapture(e.pointerId) } catch {}
                   move(e.clientX, e.clientY)
                 }}
-                style={{ position: 'absolute', left: `${pt.x * 100}%`, top: `${pt.y * 100}%`, transform: 'translate(-50%, -50%)', padding: '3px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800, lineHeight: 1.1, textAlign: 'center', whiteSpace: 'nowrap', cursor: on ? 'grab' : 'default', opacity: on ? 1 : 0.3, background: l.key === 'onScreen' ? '#FF6A4D' : '#fff', color: l.key === 'onScreen' ? '#fff' : '#111', boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }}
+                style={{ position: 'absolute', left: `${pt.x * 100}%`, top: `${pt.y * 100}%`, transform: 'translate(-50%, -50%)', padding: '3px 6px', borderRadius: 4, fontSize: 10, fontWeight: 800, lineHeight: 1.1, textAlign: 'center', whiteSpace: 'nowrap', cursor: on ? 'grab' : 'default', opacity: on ? 1 : 0.3, background: l.key === 'onScreen' ? '#FF6A4D' : '#fff', color: l.key === 'onScreen' ? '#fff' : '#111', boxShadow: 'none' }}
               >{l.key === 'onScreen' ? 'Layer 1' : 'Layer 2'}</div>
             )
           })}
