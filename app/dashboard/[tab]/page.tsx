@@ -802,7 +802,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             </div>
           )
         })}
-        {autoCap && !recording && (
+        {autoCap && hasClips && !recording && (
           <div aria-label="Auto captions position" title="Drag to move where your auto captions appear"
             onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true }}
             onPointerMove={(e) => {
