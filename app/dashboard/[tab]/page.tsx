@@ -1135,7 +1135,9 @@ export default function DashboardPage() {
   const carouselInputRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai' | 'film'>(null)
+  const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai' | 'film' | 'slot' | 'step'>(null)
+  // Which clip spot the library picker is filling (an upload slot id, or an AI step number)
+  const [libraryTarget, setLibraryTarget] = useState<number>(0)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
   const [keyEvents, setKeyEvents] = useState<{ id: string; event_text: string; created_at: string }[]>([])
   const [showKeyEventsPanel, setShowKeyEventsPanel] = useState(false)
@@ -4942,13 +4944,19 @@ export default function DashboardPage() {
           {libraryPicker && (
             <LibraryPicker
               userId={userId}
-              single={libraryPicker === 'film'}
-              title={libraryPicker === 'film' ? 'Use a saved clip' : undefined}
+              single={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step'}
+              title={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step' ? 'Use a saved clip' : undefined}
               onClose={() => setLibraryPicker(null)}
               onAdd={(files) => {
                 if (libraryPicker === 'film') {
                   const f = files[0]
                   if (f) { setFilmRecordError(''); setFilmPending({ blob: f, ext: (f.name.split('.').pop() || 'mp4').toLowerCase(), type: f.type || 'video/mp4', url: URL.createObjectURL(f) }) }
+                } else if (libraryPicker === 'slot') {
+                  const f = files[0]
+                  if (f && userId) { setUploadSlotFiles((prev) => ({ ...prev, [libraryTarget]: f })); startClipUpload('u', libraryTarget, f) }
+                } else if (libraryPicker === 'step') {
+                  const f = files[0]
+                  if (f) { setStepUploads((prev) => ({ ...prev, [libraryTarget]: f })); startClipUpload('a', libraryTarget, f) }
                 } else if (libraryPicker === 'ai') addAiFiles(files)
                 else addUploadFiles(files)
               }}
@@ -5032,6 +5040,7 @@ export default function DashboardPage() {
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               + Choose clip
                             </button>
+                            <button type="button" onClick={() => { setLibraryTarget(slotId); setLibraryPicker('slot') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                           </div>
                         )}
@@ -5518,6 +5527,7 @@ export default function DashboardPage() {
                                   style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 4, padding: '2px', transition: 'border-color 0.15s' }}
                                 >
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
+                                  <button type="button" onClick={() => { setLibraryTarget(0); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
                                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                 </div>
                               )}
@@ -5563,6 +5573,7 @@ export default function DashboardPage() {
                                     style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 4, padding: '2px', transition: 'border-color 0.15s' }}
                                   >
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
+                                    <button type="button" onClick={() => { setLibraryTarget(i); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                   </div>
                                 )}
