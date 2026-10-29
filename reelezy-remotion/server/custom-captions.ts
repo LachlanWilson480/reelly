@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 const execFileAsync = promisify(execFile);
 const FFMPEG_PATH = process.env.FFMPEG_PATH || `${process.env.HOME}/bin/ffmpeg`;
 
-export type CustomCaption = { text: string; start: number; end: number; x: number; y: number };
+export type CustomCaption = { text: string; start: number; end: number; x: number; y: number; font?: string; size?: number; color?: string; bg?: string | null };
 export type CustomCaptionStyle = { fontFamily?: string; size?: number; color?: string; borderColor?: string; backgroundColor?: string };
 
 const FONT_DIR = '/usr/share/fonts/truetype/liberation';
@@ -37,17 +37,23 @@ export async function burnCustomCaptions(
 
   // Sizes are designed for a 1080 wide video, so scale them with the output size
   const sizeScale = Math.max(0.5, Math.min(outputWidth, outputHeight) / 1080);
-  const baseSize = Math.min(200, Math.max(16, style.size || 60));
-  const fontSize = Math.max(18, Math.round(baseSize * sizeScale));
-  const borderW = Math.max(1, Math.round(baseSize * 0.07 * sizeScale));
-  const fontColor = /^#[0-9a-fA-F]{6}$/.test(style.color || '') ? style.color! : '#FFFFFF';
-  const borderColor = /^#[0-9a-fA-F]{6}$/.test(style.borderColor || '') ? style.borderColor! : '#000000';
-  const boxPart = /^#[0-9a-fA-F]{6}$/.test(style.backgroundColor || '') ? `:box=1:boxcolor=0x${style.backgroundColor!.slice(1)}@0.85:boxborderw=${Math.round(baseSize * 0.22 * sizeScale)}` : '';
-  const fontFile = path.join(FONT_DIR, FONTS[style.fontFamily || ''] || FONTS['Sans Bold']);
-  const fontPart = fs.existsSync(fontFile) ? `:fontfile='${fontFile}'` : '';
+  const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+  // Each caption can override the shared look with its own font, size, colour and background
+  const look = (it: CustomCaption) => {
+    const baseSize = Math.min(200, Math.max(16, it.size || style.size || 60));
+    const fontSize = Math.max(18, Math.round(baseSize * sizeScale));
+    const borderW = Math.max(1, Math.round(baseSize * 0.07 * sizeScale));
+    const fontColor = isHex(it.color) ? it.color : isHex(style.color) ? style.color : '#FFFFFF';
+    const borderColor = isHex(style.borderColor) ? style.borderColor : '#000000';
+    const bg = it.bg === null ? undefined : isHex(it.bg) ? it.bg : isHex(style.backgroundColor) ? style.backgroundColor : undefined;
+    const boxPart = bg ? `:box=1:boxcolor=0x${bg.slice(1)}@0.85:boxborderw=${Math.round(baseSize * 0.22 * sizeScale)}` : '';
+    const fontFile = path.join(FONT_DIR, FONTS[it.font || ''] || FONTS[style.fontFamily || ''] || FONTS['Sans Bold']);
+    const fontPart = fs.existsSync(fontFile) ? `:fontfile='${fontFile}'` : '';
+    return { fontSize, borderW, fontColor, borderColor, boxPart, fontPart };
+  };
 
-  const maxChars = Math.max(8, Math.floor((outputWidth * 0.86) / (fontSize * 0.6)));
-  const wrap = (text: string) => {
+  const wrap = (text: string, fontSize: number) => {
+    const maxChars = Math.max(8, Math.floor((outputWidth * 0.86) / (fontSize * 0.6)));
     const lines: string[] = [];
     let cur = '';
     for (const w of text.split(/\s+/).filter(Boolean)) {
@@ -63,10 +69,11 @@ export async function burnCustomCaptions(
     .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]');
   const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-  const lineH = Math.round(fontSize * 1.2);
 
   const filters = items.flatMap((c) => {
-    const lines = wrap(c.text);
+    const { fontSize, borderW, fontColor, borderColor, boxPart, fontPart } = look(c);
+    const lineH = Math.round(fontSize * 1.2);
+    const lines = wrap(c.text, fontSize);
     const x = clamp01(c.x).toFixed(4);
     const y = clamp01(c.y).toFixed(4);
     const enable = `between(t,${Math.max(0, c.start).toFixed(3)},${Math.max(c.start, c.end).toFixed(3)})`;

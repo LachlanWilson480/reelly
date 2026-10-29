@@ -90,7 +90,16 @@ const fmtTrimTime = (s: number) => {
 
 type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
-type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number }
+// Optional per-caption text settings: anything left out uses the shared Caption look
+type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; font?: string; size?: number; color?: string; bg?: string | null }
+const CAPTION_TEXT_FONTS: { name: string; css: string; weight: number }[] = [
+  { name: 'Sans', css: 'Arial, Helvetica, sans-serif', weight: 400 },
+  { name: 'Sans Bold', css: "Arial Black, Arial, sans-serif", weight: 900 },
+  { name: 'Serif', css: "Georgia, 'Times New Roman', serif", weight: 400 },
+  { name: 'Serif Bold', css: "Georgia, 'Times New Roman', serif", weight: 800 },
+  { name: 'Mono Bold', css: "'Courier New', monospace", weight: 800 },
+  { name: 'Narrow Bold', css: "'Arial Narrow', Arial, sans-serif", weight: 800 },
+]
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
 type OverlayItem = { file: File; kind: 'image' | 'video'; url: string; x: number; y: number; size: number; start: number; end: number | null }
@@ -716,8 +725,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       <div ref={stageRef} style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 4, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
         <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
         {captionStyle && caps.filter((c) => globalTime >= c.start && globalTime < c.end).map((c) => {
-          const unit = (captionStyle.size / 1080) * 100
+          const unit = ((c.size ?? captionStyle.size) / 1080) * 100
           const sel = selCap === c.id
+          const cFont = CAPTION_TEXT_FONTS.find((f) => f.name === c.font)
+          const cBg = c.bg !== undefined ? c.bg : captionStyle.background
           return (
             <div key={c.id} aria-label={`Caption: ${c.text}`}
               onPointerDown={(e) => { if (recording || !onCaptions) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id); capPosRef.current = { id: c.id } }}
@@ -729,7 +740,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               }}
               onPointerUp={() => { capPosRef.current = null }}
               onPointerCancel={() => { capPosRef.current = null }}
-              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere', ...(captionStyle.background ? { background: captionStyle.background, padding: '0.25em 0.5em', borderRadius: 4, width: 'auto', maxWidth: '88%', boxDecorationBreak: 'clone' as const, WebkitBoxDecorationBreak: 'clone' as const } : {}) }}>
+              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: cFont ? cFont.css : "Arial Black, 'Poppins', sans-serif", fontWeight: cFont ? cFont.weight : 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere', ...(cBg ? { background: cBg, padding: '0.25em 0.5em', borderRadius: 4, width: 'auto', maxWidth: '88%', boxDecorationBreak: 'clone' as const, WebkitBoxDecorationBreak: 'clone' as const } : {}) }}>
               {c.text}
             </div>
           )
@@ -799,20 +810,20 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
-        {scriptLines.length > 0 && !recording && countdown === null && (
+        {scriptLines.length > 0 && showScript && !recording && countdown === null && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
             <span title="1x is a normal talking speed">Script speed while you record</span>
             <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
             <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28 }}>{scriptSpeed}x</span>
           </label>
         )}
-        {!recording ? (
+        {!recording ? (showScript || countdown !== null ? (
           <button type="button" onClick={startRecording} disabled={!hasClips || countdown !== null}
             style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
             {countdown !== null ? 'Get ready' : 'Record voiceover'}
           </button>
-        ) : (
+        ) : null) : (
           <button type="button" onClick={stopRecording}
             style={{ ...choiceBtn(), background: '#d92d20', border: '1px solid #d92d20', color: '#fff' }}>Stop recording</button>
         )}
@@ -963,6 +974,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
         {recording
           ? 'Recording. Your clips play silently while you talk. Press Stop recording when you are done.'
+          : !showScript
+            ? 'To talk over your clips, press Record voiceover in the Audio section. Music, captions and transitions are added when you create the video.'
           : takes.length === 0
             ? 'Drag the timeline or press play, pause where you want to start talking, then press Record voiceover. Music, captions and transitions are added when you create the video.'
             : 'Pause where you want the next part to start and press Record voiceover again. A new recording replaces the old one where they overlap.'}
@@ -1310,6 +1323,7 @@ export default function DashboardPage() {
   const [scriptOpen, setScriptOpen] = useState(false)
   const [selCap, setSelCap] = useState<string | null>(null)
   const [capDraft, setCapDraft] = useState('')
+  const [openCapStyle, setOpenCapStyle] = useState<string | null>(null)
   const playheadRef = useRef({ t: 0, total: 0 })
   const handlePlayhead = useCallback((t: number, total: number) => { playheadRef.current = { t, total } }, [])
   // Original sound stays full volume on its own and drops under a voiceover until the user picks a level
@@ -2479,15 +2493,45 @@ export default function DashboardPage() {
         </p>
         {caps.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-            {caps.map((c) => (
-              <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {caps.map((c) => {
+              const patch = (p: Partial<CustomCaption>) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, ...p } : x)))
+              const open = openCapStyle === c.id
+              const customised = c.font !== undefined || c.size !== undefined || c.color !== undefined || c.bg !== undefined
+              const lab = { fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' } as const
+              return (
+              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input type="text" value={c.text} maxLength={140} aria-label="Edit caption" onFocus={() => setSelCap(c.id)}
                   onChange={(e) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))}
                   style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: `1px solid ${sel?.id === c.id ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{c.start.toFixed(1)}s to {c.end.toFixed(1)}s</span>
+                <button type="button" onClick={() => setOpenCapStyle(open ? null : c.id)} aria-expanded={open} style={{ ...choiceBtn(open || customised), flexShrink: 0 }}>Text</button>
                 <button type="button" onClick={() => { setCaps(caps.filter((x) => x.id !== c.id)); if (selCap === c.id) setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0 }}>Delete</button>
               </div>
-            ))}
+              {open && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
+                  <div><label style={lab}>Font</label>
+                    <select value={c.font ?? ''} onChange={(e) => patch({ font: e.target.value || undefined })} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>
+                      <option value="">Same as the look</option>
+                      {CAPTION_TEXT_FONTS.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+                    </select></div>
+                  <div><label style={lab}>Size</label>
+                    <input type="number" min={16} max={200} placeholder={String(Number(captionFontSize) || 60)} value={c.size ?? ''} onChange={(e) => { const n = Number(e.target.value); patch({ size: e.target.value === '' || !Number.isFinite(n) ? undefined : Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                  <div><label style={lab}>Colour</label>
+                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                  <div><label style={lab}>Background</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, flex: 1, minWidth: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
+                      <button type="button" onClick={() => patch({ bg: null })} disabled={c.bg === null || (c.bg === undefined && !captionBg)} style={{ ...choiceBtn(), padding: '0 10px', height: 36, fontSize: 12 }}>None</button>
+                    </div></div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <button type="button" onClick={() => patch({ font: undefined, size: undefined, color: undefined, bg: undefined })} disabled={!customised} style={{ ...choiceBtn(false, !customised), height: 36, fontSize: 12 }}>Use shared look</button>
+                  </div>
+                </div>
+              )}
+              </div>
+              )
+            })}
           </div>
         )}
         {caps.length > 0 && captionTimingNote && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>{captionTimingNote}</p>}
@@ -2507,7 +2551,7 @@ export default function DashboardPage() {
         {renderAutoCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it.')}
+        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press Text on a caption to change its own font, size and colours.')}
         {renderOwnCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>

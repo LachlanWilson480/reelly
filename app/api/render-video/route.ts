@@ -233,12 +233,17 @@ export async function POST(req: NextRequest) {
 
     // Captions the user typed on the timeline: text, when it shows and where it sits (kept small and plain)
     const num01 = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d)
-    const cleanCaptions = (Array.isArray(customCaptions) ? customCaptions : []).slice(0, 30).flatMap((c: { text?: unknown; start?: unknown; end?: unknown; x?: unknown; y?: unknown }) => {
+    const cleanCaptions = (Array.isArray(customCaptions) ? customCaptions : []).slice(0, 30).flatMap((c: { text?: unknown; start?: unknown; end?: unknown; x?: unknown; y?: unknown; font?: unknown; size?: unknown; color?: unknown; bg?: unknown }) => {
       const text = typeof c?.text === 'string' ? c.text.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 140) : ''
       const start = Number(c?.start)
       const end = Number(c?.end)
       if (!text || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return []
-      return [{ text, start: Math.max(0, start), end: Math.min(3600, end), x: num01(c?.x, 0.5), y: num01(c?.y, 0.7) }]
+      const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : undefined)
+      const size = typeof c?.size === 'number' && Number.isFinite(c.size) ? Math.min(200, Math.max(16, c.size)) : undefined
+      const font = typeof c?.font === 'string' ? c.font.slice(0, 40) : undefined
+      // bg: a colour, or null for no background even when the shared look has one
+      const bg = c?.bg === null ? null : hex(c?.bg)
+      return [{ text, start: Math.max(0, start), end: Math.min(3600, end), x: num01(c?.x, 0.5), y: num01(c?.y, 0.7), font, size, color: hex(c?.color), ...(bg !== undefined ? { bg } : {}) }]
     })
     const capStyle = customCaptionStyle && typeof customCaptionStyle === 'object' ? customCaptionStyle : {}
     // Call render server with the real renderId
