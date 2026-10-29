@@ -189,7 +189,7 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
 
 // Audio section: the original sound of the clips, then voiceover, then music, each with its own
 // volume. Recording itself happens under the preview so it can start wherever the preview was paused.
-function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, onOpenRecord, musicPicker }: {
+function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, scriptSpeed, onScriptSpeed, onOpenRecord, musicPicker }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -202,6 +202,8 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   musicVol: number
   onMusicVol: (v: number) => void
   scriptLabel?: string
+  scriptSpeed: number
+  onScriptSpeed: (v: number) => void
   onOpenRecord: () => void
   musicPicker: React.ReactNode
 }) {
@@ -245,6 +247,14 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
             : 'Opens the preview. Pause where you want to start, then press Record voiceover there. You get a 2 second countdown.'}
         </p>
 
+        {scriptLabel && (
+          <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) auto', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
+            <span title="1x is a normal talking speed">Script speed</span>
+            <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => onScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
+            <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28, color: 'var(--text-muted)' }}>{scriptSpeed}x{scriptSpeed === 1 ? ' (talking pace)' : ''}</span>
+          </label>
+        )}
+
         {takes.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             {takes.map((t, i) => (
@@ -287,7 +297,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, selCap, onSelCap, onPlayhead }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -295,6 +305,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   musicVol: number
   scriptLines: string[]
   showScript?: boolean
+  scriptSpeed?: number
   selCap?: string | null
   onSelCap?: (id: string | null) => void
   onPlayhead?: (t: number, total: number) => void
@@ -322,7 +333,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
   // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
-  const [scriptSpeed, setScriptSpeed] = useState(1)
   const ovDragRef = useRef(false)
   const ovVideoRef = useRef<HTMLVideoElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -823,13 +833,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
-        {scriptLines.length > 0 && showScript && !recording && countdown === null && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            <span title="1x is a normal talking speed">Script speed while you record</span>
-            <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
-            <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28 }}>{scriptSpeed}x</span>
-          </label>
-        )}
         {!recording ? (showScript || countdown !== null ? (
           <button type="button" onClick={startRecording} disabled={!hasClips || countdown !== null}
             style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -998,7 +1001,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, selCap, onSelCap, onPlayhead }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1006,6 +1009,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   musicVol: number
   scriptLines: string[]
   showScript?: boolean
+  scriptSpeed?: number
   selCap?: string | null
   onSelCap?: (id: string | null) => void
   onPlayhead?: (t: number, total: number) => void
@@ -1037,7 +1041,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -1334,6 +1338,7 @@ export default function DashboardPage() {
   const [voiceScript, setVoiceScript] = useState<{ id: string; label: string; lines: string[] } | null>(null)
   // Opened from Audio > Record voiceover: shows the script on the preview before recording starts
   const [scriptOpen, setScriptOpen] = useState(false)
+  const [scriptSpeed, setScriptSpeed] = useState(1)
   const [selCap, setSelCap] = useState<string | null>(null)
   const [capDraft, setCapDraft] = useState('')
   const [openCapStyle, setOpenCapStyle] = useState<string | null>(null)
@@ -2392,6 +2397,8 @@ export default function DashboardPage() {
         onMusicVol={setMusicVol}
         onTakeVolume={setTakeVolume}
         scriptLabel={scriptLabel}
+        scriptSpeed={scriptSpeed}
+        onScriptSpeed={setScriptSpeed}
         onOpenRecord={() => { setScriptOpen(true); document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
         onAddFile={addVoiceFile}
         onRemoveTake={removeVoiceTake}
@@ -5138,6 +5145,7 @@ export default function DashboardPage() {
                 onCaptions={setUploadCaps}
                 onTrimClip={trimUploadClip}
                 showScript={scriptOpen}
+                scriptSpeed={scriptSpeed}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -5651,6 +5659,7 @@ export default function DashboardPage() {
                 onCaptions={setAiCaps}
                 onTrimClip={trimAiClip}
                 showScript={scriptOpen}
+                scriptSpeed={scriptSpeed}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
