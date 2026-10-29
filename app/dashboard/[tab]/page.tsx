@@ -8,6 +8,7 @@ import { PLAN_LIMITS } from '@/lib/planLimits'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import Dropdown from '@/components/Dropdown'
+import ColorSelect from '@/components/ColorSelect'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -253,7 +254,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
         {scriptLabel && (
           <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) 44px', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
             <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is talking pace)</span></span>
-            <input type="range" min={1} max={5} step={0.5} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
+            <input type="range" min={0.5} max={5} step={0.25} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
               onChange={(e) => setSpeedDraft(Number(e.target.value))}
               onPointerUp={() => onScriptSpeed(speedDraft)} onKeyUp={() => onScriptSpeed(speedDraft)} onBlur={() => onScriptSpeed(speedDraft)} />
             <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)', textAlign: 'right' }}>{speedDraft}x</span>
@@ -1094,13 +1095,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       )}
       </div>
 
-      {(recording || showScript) && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-        {recording
-          ? 'Recording. Your clips play silently while you talk. Press Stop recording when you are done.'
-          : takes.length === 0
-            ? 'Drag the timeline or press play, pause where you want to start talking, then press Record voiceover. Music, captions and transitions are added when you create the video.'
-            : 'Pause where you want the next part to start and press Record voiceover again. A new recording replaces the old one where they overlap.'}
-      </p>}
       {micError && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '6px 0 0' }}>{micError}</p>}
     </div>
   )
@@ -1186,21 +1180,17 @@ const choiceBtn = (active = false, disabled = false) => ({
   opacity: disabled ? 0.6 : 1,
 }) as const
 
-function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extractError, uploadStatus, onOpenLibrary, onPickFile, onExtract, onClear, onRetry }: {
+function MusicPicker({ libraryName, musicFile, extractedPath, uploadStatus, onOpenLibrary, onPickFile, onClear, onRetry }: {
   libraryName: string | null
   musicFile: File | null
   extractedPath: string | null
-  extracting: boolean
-  extractError: string
   uploadStatus: ClipUploadState | undefined
   onOpenLibrary: () => void
   onPickFile: (f: File | null) => void
-  onExtract: (f: File) => void
   onClear: () => void
   onRetry: () => void
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
-  const videoRef = useRef<HTMLInputElement | null>(null)
   const chosen = libraryName ? `${libraryName} (from the library)` : musicFile ? musicFile.name : extractedPath ? 'Sound taken from your video' : null
   return (
     <div>
@@ -1209,13 +1199,9 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional.</span>
       </div>
       <input ref={fileRef} type="file" accept="audio/*" onChange={(e) => { onPickFile(e.target.files?.[0] || null); e.target.value = '' }} style={{ display: 'none' }} />
-      <input ref={videoRef} type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onExtract(f); e.target.value = '' }} style={{ display: 'none' }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Browse the library</button>
         <button type="button" onClick={() => fileRef.current?.click()} style={choiceBtn(!!musicFile && !libraryName)}>Upload a song</button>
-        <button type="button" onClick={() => videoRef.current?.click()} disabled={extracting} style={choiceBtn(!!extractedPath && !libraryName && !musicFile, extracting)}>
-          {extracting ? 'Getting the sound...' : 'Use sound from a video'}
-        </button>
       </div>
       {chosen ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
@@ -1228,7 +1214,28 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
           Skip this to keep your clips&apos; own sound.
         </p>
       )}
-      {extractError && <p style={{ fontSize: 11, color: 'var(--coral)', marginTop: 6 }}>{extractError}</p>}
+    </div>
+  )
+}
+
+// Its own card under Audio: take the sound from another video and use it as the music
+function ExtractAudioCard({ extracting, extractedPath, error, onExtract, onClear }: { extracting: boolean; extractedPath: string | null; error: string; onExtract: (f: File) => void; onClear: () => void }) {
+  const videoRef = useRef<HTMLInputElement | null>(null)
+  return (
+    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Extract audio from another video</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 14px' }}>Pull the sound out of a different video and use it as your music.</p>
+      <input ref={videoRef} type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onExtract(f); e.target.value = '' }} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => videoRef.current?.click()} disabled={extracting} style={choiceBtn(!!extractedPath, extracting)}>{extracting ? 'Getting the sound...' : extractedPath ? 'Choose a different video' : 'Choose a video'}</button>
+        {extractedPath && !extracting && (
+          <>
+            <span style={{ fontSize: 13, color: 'var(--ink)' }}>Using the sound from your video</span>
+            <button type="button" onClick={onClear} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Remove</button>
+          </>
+        )}
+      </div>
+      {error && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '8px 0 0' }}>{error}</p>}
     </div>
   )
 }
@@ -2498,6 +2505,7 @@ export default function DashboardPage() {
 
   // The Audio section: original sound, voiceover and music in their own card
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
+    <>
     <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
       <AudioPanel
         takes={voiceTakes}
@@ -2520,18 +2528,17 @@ export default function DashboardPage() {
             libraryName={libraryMusicName}
             musicFile={musicFile}
             extractedPath={extractedMusicPath}
-            extracting={extractingAudio}
-            extractError={extractAudioError}
             uploadStatus={clipUploadStatus['m']}
             onOpenLibrary={() => setShowMusicLibrary(musicTarget)}
             onPickFile={pickMusicFile}
-            onExtract={handleExtractAudio}
             onClear={clearMusic}
             onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
           />
         }
       />
     </div>
+    <ExtractAudioCard extracting={extractingAudio} extractedPath={extractedMusicPath} error={extractAudioError} onExtract={handleExtractAudio} onClear={clearMusic} />
+    </>
   )
 
   // Simple blocks shared by both editors. m says which editor's settings to use.
@@ -2582,14 +2589,9 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><Dropdown ariaLabel="Caption font" value={captionFontFamily} onChange={setCaptionFontFamily} options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><ColorSelect ariaLabel="Caption text colour" value={captionColor} onChange={(v) => setCaptionColor(v ?? '#FFFFFF')} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
-                                <div style={{ position: 'relative' }}>
-                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: captionBg ? 1 : 0.45 }} />
-                                  {captionBg && (
-                                    <button type="button" onClick={() => setCaptionBg(null)} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
-                                  )}
-                                </div></div>
+                                <ColorSelect ariaLabel="Caption background colour" allowNone value={captionBg} onChange={setCaptionBg} /></div>
                             </div>
     </div>
   )
@@ -2650,18 +2652,13 @@ export default function DashboardPage() {
               {open && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
                   <div><label style={lab}>Font</label>
-                    <Dropdown ariaLabel="Caption font" value={c.font ?? ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Same as the look' }, ...CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))]} /></div>
+                    <Dropdown ariaLabel="Caption font" value={c.font && c.font !== 'Sans Bold' ? c.font : ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Sans Bold (default)' }, ...CAPTION_TEXT_FONTS.filter((f) => f.name !== 'Sans Bold').map((f) => ({ value: f.name, label: f.name }))]} /></div>
                   <div><label style={lab}>Size</label>
                     <input type="number" min={16} max={200} value={c.size ?? (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                   <div><label style={lab}>Colour</label>
-                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
+                    <ColorSelect ariaLabel="Caption text colour" value={c.color ?? captionColor} onChange={(v) => patch({ color: v ?? undefined })} /></div>
                   <div><label style={lab}>Background</label>
-                    <div style={{ position: 'relative' }}>
-                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
-                      {(c.bg !== undefined ? c.bg : captionBg) && (
-                        <button type="button" onClick={() => patch({ bg: null })} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
-                      )}
-                    </div></div>
+                    <ColorSelect ariaLabel="Caption background colour" allowNone value={c.bg !== undefined ? c.bg : captionBg} onChange={(v) => patch({ bg: v })} /></div>
                   <div><label style={lab}>Link</label>
                     <button type="button" aria-pressed={allLinked} disabled={allLinked}
                       aria-label={allLinked ? 'All captions share one look' : 'Make every caption match this one'}
