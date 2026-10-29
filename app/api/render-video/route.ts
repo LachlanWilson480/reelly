@@ -247,6 +247,7 @@ export async function POST(req: NextRequest) {
             size: Number.isFinite(Number(capStyle.size)) ? Math.min(200, Math.max(16, Number(capStyle.size))) : undefined,
             color: typeof capStyle.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(capStyle.color) ? capStyle.color : undefined,
             borderColor: typeof capStyle.borderColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(capStyle.borderColor) ? capStyle.borderColor : undefined,
+            backgroundColor: typeof capStyle.backgroundColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(capStyle.backgroundColor) ? capStyle.backgroundColor : undefined,
           },
         } : undefined,
         userId,

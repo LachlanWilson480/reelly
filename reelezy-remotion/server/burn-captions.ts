@@ -25,6 +25,7 @@ type CaptionStyle = {
   color?: string;
   position?: 'top' | 'center' | 'bottom';
   borderColor?: string;
+  backgroundColor?: string;
 };
 
 type PresetConfig = {
@@ -143,6 +144,8 @@ export async function burnCaptions(
   const fontColor = captionStyle.color || preset.fontColor;
   const borderColor = captionStyle.borderColor || preset.borderColor;
   const uppercase = preset.uppercase;
+  // A background colour chosen by the user wins over the preset's own box
+  const customBox = /^#[0-9a-fA-F]{6}$/.test(captionStyle.backgroundColor || '') ? `:box=1:boxcolor=0x${captionStyle.backgroundColor!.slice(1)}@0.85:boxborderw=${Math.round(14 * sizeScale)}` : '';
 
   // Map position override
   const positionOverride = captionStyle.position;
@@ -206,7 +209,7 @@ export async function burnCaptions(
       .replace(/\[/g, "\\[")
       .replace(/\]/g, "\\]");
 
-    const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '';
+    const boxPart = customBox || (preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '');
     const adjStart = Math.max(0, group.start);
     const adjEnd = nextGroup ? Math.min(group.end, nextGroup.start) : group.end;
 
@@ -234,7 +237,7 @@ export async function burnCaptions(
     return lines.map((line, li) => {
       const safe = line.replace(/'/g, "\u2019").replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
       const offset = Math.round((li - (lines.length - 1) / 2) * lineH);
-      const boxPart = preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '';
+      const boxPart = customBox || (preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '');
       return `drawtext=text='${safe}':enable='between(t,${seg.start.toFixed(3)},${seg.end.toFixed(3)})':fontsize=${textFont}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(textPos)}':y='max(12,min(h-text_h-12,${baseCenterY}+(${offset})-text_h/2))'${boxPart}${fontFilePart}`;
     });
   });

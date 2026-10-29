@@ -82,7 +82,9 @@ export async function POST(req: NextRequest) {
   const userId = authed.userId
     const rl = await rateLimit(`ai:${userId}`, 20, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    const { idea, profile, customization, styleOverride, peopleCountOverride, filmingMode, videoLength } = await req.json()
+    const { idea, profile, customization, styleOverride, peopleCountOverride, filmingMode, videoLength, sceneCount: rawSceneCount } = await req.json()
+    // Optional: how many scenes (filming steps) the person wants. Anything unusual is ignored.
+    const sceneCount = Number.isInteger(rawSceneCount) && rawSceneCount >= 1 && rawSceneCount <= 15 ? (rawSceneCount as number) : null
 
     if (!idea) {
       return NextResponse.json({ error: 'No idea provided' }, { status: 400 })
@@ -178,14 +180,15 @@ export async function POST(req: NextRequest) {
     const seasonalNote = ideaIsSeasonal && profile.local_seasonal_context ? `\nSeasonal context (only use if directly relevant to this idea): ${profile.local_seasonal_context}` : ''
 
     const lengthNote = videoLength ? `\nVIDEO LENGTH: Target ${videoLength} seconds total. Adjust number of steps and timing accordingly.` : ''
+    const sceneNote = sceneCount && filmingMode !== 'single' && filmingMode !== 'quick' ? `\nSCENES: The person asked for exactly ${sceneCount} ${sceneCount === 1 ? 'scene' : 'scenes'}. Generate exactly ${sceneCount} filming ${sceneCount === 1 ? 'step' : 'steps'}, no more and no fewer, and spread the time across them (about ${Math.max(1, Math.round((videoLength || 30) / sceneCount))} seconds each).` : ''
 
     const filmingModeNote = filmingMode === 'single'
       ? '\nFILMING MODE: Single shot. Generate exactly ONE filming step, maximum 2 sentences. Just the camera position and movement - no dialogue in the step. Keep it simple: where to stand, where to point the phone, any movement. The full script handles what to say. Also generate exactly ONE direction in the directions array matching this step.'
       : filmingMode === 'multi'
       ? `\nFILMING MODE: Multi-shot showcase reel.
 STRICT RULES:
-- Generate exactly ${Math.round((videoLength || 30) / 2)} clips (one clip every 2 seconds)
-- Each clip is 2 seconds long, NO exceptions
+${sceneCount ? `- Generate exactly ${sceneCount} clips, each about ${Math.max(1, Math.round((videoLength || 30) / sceneCount))} seconds long` : `- Generate exactly ${Math.round((videoLength || 30) / 2)} clips (one clip every 2 seconds)
+- Each clip is 2 seconds long, NO exceptions`}
 - Each step = one single camera shot only (one angle, one subject, one movement)
 - 80% of clips are silent b-roll: close-ups, details, textures, actions, reactions, products
 - Only 20% of clips have spoken words - keep those under 6 words each
@@ -216,7 +219,7 @@ SILENT FILM (overrides every other rule about dialogue, words to say, voiceover 
 - script = the on-screen text captions only, one per line separated by \\n, never spoken-word phrasing
 ` : ''
 
-    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}
+    const prompt = `You are a filming coach. Turn this video idea into a precise filming checklist.${filmingModeNote}${lengthNote}${sceneNote}
 
 BUSINESS:
 ${profileBrief}

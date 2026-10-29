@@ -372,3 +372,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   outline: 2px solid var(--coral);
   outline-offset: 2px;
 }
+
+/* Film review: the preview sits beside the controls, like the editor */
+.film-review { display: flex; flex-direction: column; gap: 20px; }
+.film-review .fr-left { width: 100%; margin: 0 auto; }
+@media (min-width: 1024px) {
+  .film-review { display: grid; grid-template-columns: var(--fr-col, 380px) minmax(0, 1fr); column-gap: 32px; align-items: start; }
+  .film-review .fr-left { position: sticky; top: 24px; margin: 0; }
+}

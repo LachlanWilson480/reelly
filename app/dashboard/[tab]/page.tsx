@@ -91,7 +91,7 @@ const fmtTrimTime = (s: number) => {
 type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
 type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number }
-type PreviewCaptionStyle = { color: string; border: string; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
+type PreviewCaptionStyle = { color: string; border: string; background: string | null; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
 const voiceoverExt = (b: Blob) => {
   const t = (b.type || '').toLowerCase()
@@ -305,7 +305,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
   const [showScript, setShowScript] = useState(true)
-  const [scriptSpeed, setScriptSpeed] = useState(1)
+  // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
+  const [scriptSpeed, setScriptSpeed] = useState(3)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -691,8 +692,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   useEffect(() => {
     const box = scriptBoxRef.current
     if (!box || total <= 0 || box.scrollHeight <= box.clientHeight) return
-    box.scrollTop = Math.min(1, (globalTime / total) * scriptSpeed) * (box.scrollHeight - box.clientHeight)
-  }, [globalTime, total, recording, showScript, scriptSpeed])
+    const words = scriptLines.join(' ').split(/\s+/).filter(Boolean).length
+    const talkSecs = Math.max(3, words / 2.3)
+    box.scrollTop = Math.min(1, (globalTime * scriptSpeed) / talkSecs) * (box.scrollHeight - box.clientHeight)
+  }, [globalTime, total, recording, showScript, scriptSpeed, scriptLines])
 
   return (
     <div>
@@ -712,7 +715,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               }}
               onPointerUp={() => { capPosRef.current = null }}
               onPointerCancel={() => { capPosRef.current = null }}
-              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
+              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere', ...(captionStyle.background ? { background: captionStyle.background, padding: '0.25em 0.5em', borderRadius: 4, width: 'auto', maxWidth: '88%', boxDecorationBreak: 'clone' as const, WebkitBoxDecorationBreak: 'clone' as const } : {}) }}>
               {c.text}
             </div>
           )
@@ -765,8 +768,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         )}
         {scriptLines.length > 0 && !recording && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            Script speed
-            <input type="range" min={0.5} max={2} step={0.25} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
+            <span title="1x is a normal talking speed">Script speed</span>
+            <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
             <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28 }}>{scriptSpeed}x</span>
           </label>
         )}
@@ -1228,6 +1231,8 @@ export default function DashboardPage() {
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
   const [videoLength, setVideoLength] = useState<number>(30)
+  // How many scenes the filming instructions should have. null means let the AI decide.
+  const [sceneCount, setSceneCount] = useState<number | null>(null)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
@@ -1292,6 +1297,8 @@ export default function DashboardPage() {
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
+  // Optional coloured box behind the captions
+  const [captionBgOn, setCaptionBgOn] = useState(false)
   const [captionBgColor, setCaptionBgColor] = useState('#000000')
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
   const [captionLayers, setCaptionLayers] = useState<CaptionLayers>(DEFAULT_CAPTION_LAYERS)
@@ -2065,7 +2072,7 @@ export default function DashboardPage() {
     const tick = (now: number) => {
       if (!last) last = now
       // Read the speed every frame so the slider works while the line is moving
-      const secs = Math.max(4, words / (1.3 * (filmScrollSpeedRef.current / 3)))
+      const secs = Math.max(2, words / (2.3 * (filmScrollSpeedRef.current / 3)))
       progress = Math.min(1, progress + (now - last) / (secs * 1000))
       last = now
       el.style.transform = `translateX(-${distance * progress}px)`
@@ -2298,13 +2305,14 @@ export default function DashboardPage() {
   const previewCaptionStyle: PreviewCaptionStyle = {
     color: captionColor,
     border: captionBorderColor,
+    background: captionBgOn ? captionBgColor : null,
     size: Number(captionFontSize) || 60,
     onScreen: layerPoint(captionLayers, 'onScreen', captionPosition),
     speech: layerPoint(captionLayers, 'speech', captionPosition),
   }
 
   // Captions are sent as plain data: text, when it shows and where it sits
-  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor }
+  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor, backgroundColor: captionBgOn ? captionBgColor : undefined }
   const captionTimingNote = cutDeadSpace ? 'Smart Trim is switched off for this video while it has captions, so they stay in time.' : undefined
 
   // Dragging the ends of a clip on the timeline sets its trim
@@ -2400,6 +2408,7 @@ export default function DashboardPage() {
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}><input type="checkbox" checked={captionBgOn} onChange={(e) => setCaptionBgOn(e.target.checked)} aria-label="Show a background behind captions" />Background</label><input type="color" value={captionBgColor} disabled={!captionBgOn} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, opacity: captionBgOn ? 1 : 0.4 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
                             </div>
                           </details>
@@ -2668,7 +2677,7 @@ export default function DashboardPage() {
           authFetch("/api/generate-checklist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode, videoLength }),
+            body: JSON.stringify({ idea, profile, customization: profile.custom_guidance, userId, peopleCountOverride: profile.video_people_count, filmingMode, videoLength, sceneCount }),
           }).then(async (res) => {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || "Request failed")
@@ -3206,6 +3215,7 @@ export default function DashboardPage() {
               font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
               position: captionPosition,
               borderColor: captionBorderColor,
+              backgroundColor: captionBgOn ? captionBgColor : undefined,
             },
             layers: resolveCaptionLayers(captionLayers, captionPosition, aiOwnMode),
           }
@@ -3363,6 +3373,7 @@ export default function DashboardPage() {
               font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
               position: captionPosition,
               borderColor: captionBorderColor,
+              backgroundColor: captionBgOn ? captionBgColor : undefined,
             },
             layers: resolveCaptionLayers(captionLayers, captionPosition, uploadOwnMode),
           }
@@ -4184,6 +4195,18 @@ export default function DashboardPage() {
                         ))}
                       </div>
                     </div>
+                    {filmingMode !== 'single' && filmingMode !== 'quick' && (
+                      <div style={{ maxWidth: '100%', minWidth: 190 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Scenes</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 34 }}>
+                          <input type="range" min={1} max={15} step={1} value={sceneCount ?? Math.min(15, Math.max(3, Math.round(videoLength / 5)))} onChange={(e) => setSceneCount(Number(e.target.value))} aria-label="Number of scenes" style={{ width: 120, accentColor: 'var(--coral)' }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 38, fontVariantNumeric: 'tabular-nums' }}>{sceneCount ?? 'Auto'}</span>
+                          {sceneCount !== null && (
+                            <button type="button" onClick={() => setSceneCount(null)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' }}>Auto</button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div style={{ maxWidth: '100%' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -4902,7 +4925,7 @@ export default function DashboardPage() {
 
                         {/* Film tab */}
               {tab === 'film' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 880 : filmReview ? 'none' : 1180, margin: filmReview && !filmMulti ? '32px 0' : '32px auto', padding: filmReview && !filmMulti ? 0 : '0 24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 880 : 1180, margin: '32px auto', padding: '0 24px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.'}</p>
@@ -4932,7 +4955,7 @@ export default function DashboardPage() {
                     />
                   ) : (
                   <>
-                  <div className="film-split">
+                  <div className="film-split" style={filmReview ? { display: 'none' } : undefined}>
                   <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16 }}>
                     <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div className="film-ideas" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -5133,11 +5156,8 @@ export default function DashboardPage() {
                     document.body
                   )}
                   {filmReview && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
-                      </div>
+                    <div className="film-review" style={{ ['--fr-col' as string]: filmOrientation === 'landscape' ? 'minmax(380px, 640px)' : '380px' }}>
+                      <div className="fr-left">
                       <div style={filmBezelStyle}>
                       <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
                         {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
@@ -5147,6 +5167,12 @@ export default function DashboardPage() {
                       {filmNotch}
                       </div>
                       <button type="button" onClick={() => setFilmPlayIdx(0)} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '7px 16px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>▶ Play from the start</button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+                      <div>
+                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
+                      </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {filmClips.map((cl, i) => (
                           <div key={cl.url} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 4, background: filmPlayIdx === i ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: filmPlayIdx === i ? '1px solid var(--coral)' : '1px solid transparent' }}>
@@ -5172,6 +5198,7 @@ export default function DashboardPage() {
                         <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Open in full editor</button>
                       </div>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
+                      </div>
                     </div>
                   )}
                   </>

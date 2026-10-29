@@ -15,6 +15,13 @@ const Points = ({ items }: { items: readonly string[] }) => (
   </ul>
 )
 
+// Step points shown as a horizontal row of bordered cards
+const Cards = ({ items }: { items: readonly string[] }) => (
+  <ul className="lp-cards">
+    {items.map((pt) => (<li key={pt}>{pt}</li>))}
+  </ul>
+)
+
 // A wordmark that reads on white (the supplied logo image has white lettering)
 const Logo = ({ size = 22 }: { size?: number }) => (
   <span className="lp-logo" style={{ fontSize: size }}>
@@ -140,6 +147,7 @@ export default function HomePage() {
             </p>
             <div className="lp-hero-actions">
               <Link href="/signup" className="lp-btn">Get started free</Link>
+              <a href="#how" className="lp-textlink">See how it works</a>
             </div>
             <p className="lp-hero-note">No credit card required.</p>
           </div>
@@ -208,10 +216,12 @@ export default function HomePage() {
           <div className="lp-steps">
             {steps.map((st, i) => (
               <div key={st.title} className="lp-step">
-                <p className="lp-num">{i + 1}</p>
-                <h3 className="lp-h3">{st.title}</h3>
-                <p className="lp-sub">{st.desc}</p>
-                <Points items={st.points} />
+                <div className="lp-step-head">
+                  <p className="lp-num">{i + 1}</p>
+                  <h3 className="lp-h3">{st.title}</h3>
+                  <p className="lp-sub">{st.desc}</p>
+                </div>
+                <Cards items={st.points} />
               </div>
             ))}
           </div>
