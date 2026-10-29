@@ -302,7 +302,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -327,6 +327,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
+  onOverlayTime?: (start: number, end: number | null) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -654,8 +655,28 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     rowEnds[r] = c.end
     capRows[c.id] = r
   })
-  const capTop = musicUrl ? 94 : 64
-  const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62)
+  const ovTop = musicUrl ? 94 : 64
+  const capTop = ovTop + (overlay ? 28 : 0)
+  const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62) + (overlay ? 28 : 0)
+  // Overlay bar: drag to move, drag the white ends to change when it starts and stops
+  const ovDragTimeRef = useRef<{ mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
+  const moveOvTime = (e: React.PointerEvent) => {
+    const d = ovDragTimeRef.current
+    if (!d || total <= 0 || !onOverlayTime) return
+    const w = trackRef.current?.getBoundingClientRect().width || 1
+    const delta = (e.clientX - d.startX) * (total / w)
+    let st = d.start, en = d.end
+    if (d.mode === 'move') { const len = d.end - d.start; st = Math.min(Math.max(0, total - len), Math.max(0, d.start + delta)); en = st + len }
+    else if (d.mode === 'l') st = Math.min(d.end - 0.3, Math.max(0, d.start + delta))
+    else en = Math.max(d.start + 0.3, Math.min(total, d.end + delta))
+    onOverlayTime(st, en >= total - 0.05 ? null : en)
+  }
+  const startOvTime = (e: React.PointerEvent, mode: 'move' | 'l' | 'r') => {
+    if (recording || !overlay || !onOverlayTime) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    ovDragTimeRef.current = { mode, startX: e.clientX, start: overlay.start, end: overlay.end ?? total }
+  }
   const updateCap = (id: string, patch: Partial<CustomCaption>) => onCaptions?.(caps.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   // Pinch to resize: two fingers on a caption (touch), or a trackpad pinch over it
   const ptrsRef = useRef(new Map<number, { x: number; y: number }>())
@@ -1015,6 +1036,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           {musicUrl && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
           )}
+          {overlay && total > 0 && (
+            <div title="Overlay. Drag to move it, drag the white ends to change when it shows."
+              onPointerDown={(e) => startOvTime(e, 'move')} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
+              style={{ position: 'absolute', top: ovTop, height: 22, left: pct(Math.min(overlay.start, total)), width: pct(Math.max(0, Math.min(total, overlay.end ?? total) - Math.min(overlay.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: 'rgba(74,111,165,0.6)', border: '1.5px solid #4a6fa5', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+              <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>Overlay</span>
+              {!recording && (['l', 'r'] as const).map((side) => (
+                <span key={side} aria-label={side === 'l' ? 'Change when the overlay starts' : 'Change when the overlay ends'}
+                  /* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */
+                  onPointerDown={(e) => startOvTime(e, side)} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
+                  style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 8, background: '#fff', cursor: 'ew-resize', touchAction: 'none', borderRadius: side === 'l' ? '4px 0 0 4px' : '0 4px 4px 0' }} />
+              ))}
+            </div>
+          )}
           {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
           {caps.map((c) => {
             const sel = selCap === c.id
@@ -1039,6 +1073,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <span>Clips{onTrimClip ? ' (drag the white ends to trim)' : ''}</span>
           <span>Voiceover</span>
           {musicUrl && <span>Music</span>}
+          {overlay && <span>Overlay</span>}
           {caps.length > 0 && <span>Your captions</span>}
         </div>
       {takeDrag && (
@@ -1062,7 +1097,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1087,6 +1122,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
+  onOverlayTime?: (start: number, end: number | null) => void
 }) {
   const [fileOver, setFileOver] = useState(false)
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
@@ -1104,7 +1140,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -2539,9 +2575,11 @@ export default function DashboardPage() {
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, flex: 1, minWidth: 0, opacity: captionBg ? 1 : 0.45 }} />
-                                  <button type="button" onClick={() => setCaptionBg(null)} disabled={!captionBg} style={{ ...choiceBtn(!captionBg), padding: '0 12px', height: 40, fontSize: 13 }}>None</button>
+                                <div style={{ position: 'relative' }}>
+                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: captionBg ? 1 : 0.45 }} />
+                                  {captionBg && (
+                                    <button type="button" onClick={() => setCaptionBg(null)} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
+                                  )}
                                 </div></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><Dropdown ariaLabel="Caption position" value={captionPosition} onChange={(v) => { setCaptionPosition(v as 'bottom' | 'top' | 'center'); setCaptionLayers((l) => ({ onScreen: { ...l.onScreen, x: undefined, y: undefined }, speech: { ...l.speech, x: undefined, y: undefined } })) }} options={[{ value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }]} /></div>
                             </div>
@@ -2552,6 +2590,9 @@ export default function DashboardPage() {
     const caps = m === 'upload' ? uploadCaps : aiCaps
     const setCaps = m === 'upload' ? setUploadCaps : setAiCaps
     const canAdd = m === 'upload' ? uploadSlots.some((id) => !!uploadSlotFiles[id]) : Object.keys(stepUploads).length > 0
+    // Captions are linked while they all share one look. Editing one caption's look unlinks just that caption.
+    const sig = (x: CustomCaption) => JSON.stringify([x.font ?? null, x.size ?? null, x.color ?? null, x.bg === undefined ? 'u' : x.bg])
+    const allLinked = caps.every((x) => sig(x) === sig(caps[0]))
     const add = () => {
       const { t, total } = playheadRef.current
       const text = capDraft.trim()
@@ -2560,7 +2601,9 @@ export default function DashboardPage() {
       const end = Math.min(total, start + 3)
       const stacked = caps.filter((c) => c.start < end && c.end > start).length
       const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
-      setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12) }])
+      // A new caption joins the linked look, so it matches the others straight away
+      const look = caps.length > 0 && allLinked ? { font: caps[0].font, size: caps[0].size, color: caps[0].color, bg: caps[0].bg } : {}
+      setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12), ...look }])
       setSelCap(id)
       setCapDraft('')
     }
@@ -2599,31 +2642,28 @@ export default function DashboardPage() {
               {open && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
                   <div><label style={lab}>Font</label>
-                    {customised
-                      ? <Dropdown ariaLabel="Caption font" value={c.font ?? 'Sans Bold'} onChange={(v) => patch({ font: v })} options={CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))} />
-                      : <Dropdown ariaLabel="Caption font" disabled value="" onChange={() => {}} options={[{ value: '', label: 'Same as the look' }]} />}</div>
+                    <Dropdown ariaLabel="Caption font" value={c.font ?? ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Same as the look' }, ...CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))]} /></div>
                   <div><label style={lab}>Size</label>
-                    <input type="number" min={16} max={200} disabled={!customised} value={customised ? (c.size ?? (Number(captionFontSize) || 60)) : (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40, opacity: customised ? 1 : 0.55 }} /></div>
+                    <input type="number" min={16} max={200} value={c.size ?? (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                   <div><label style={lab}>Colour</label>
-                    <input type="color" disabled={!customised} value={(customised ? c.color : undefined) ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: customised ? 1 : 0.55 }} /></div>
+                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
                   <div><label style={lab}>Background</label>
                     <div style={{ position: 'relative' }}>
-                      <input type="color" disabled={!customised} value={(customised ? (c.bg !== undefined ? c.bg : captionBg) : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: !customised ? 0.55 : (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
-                      {customised && (c.bg !== undefined ? c.bg : captionBg) && (
+                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
+                      {(c.bg !== undefined ? c.bg : captionBg) && (
                         <button type="button" onClick={() => patch({ bg: null })} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
                       )}
                     </div></div>
                   <div><label style={lab}>Link</label>
-                    <button type="button" aria-pressed={!customised} aria-label={customised ? 'Link this caption to the shared caption look' : 'Unlink this caption from the shared caption look'}
-                      title={customised ? 'Linked off: this caption has its own look. Press to link it to the shared look.' : 'Linked: this caption follows the shared caption look. Press to give it its own look.'}
-                      onClick={() => patch(customised ? { font: undefined, size: undefined, color: undefined, bg: undefined } : { font: 'Sans Bold', size: Number(captionFontSize) || 60, color: captionColor, bg: captionBg })}
-                      style={{ ...choiceBtn(!customised), width: '100%', height: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <button type="button" aria-pressed={allLinked} disabled={allLinked}
+                      aria-label={allLinked ? 'All captions share one look' : 'Make every caption match this one'}
+                      title={allLinked ? 'Linked: all your captions share this look.' : 'Press to make every caption match this one. Until you do, each caption keeps its own look.'}
+                      onClick={() => setCaps(caps.map((x) => ({ ...x, font: c.font, size: c.size, color: c.color, bg: c.bg })))}
+                      style={{ ...choiceBtn(allLinked), width: '100%', height: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: allLinked ? 'default' : 'pointer', opacity: 1 }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        {customised
-                          ? <><path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" /><path d="M8 3 6 1M16 21l2 2M3 8 1 6" /></>
-                          : <><path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" /><path d="M8 12h8" /></>}
+                        <path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" />{allLinked && <path d="M8 12h8" />}
                       </svg>
-                      <span style={{ fontSize: 12 }}>{customised ? 'Unlinked' : 'Linked'}</span>
+                      <span style={{ fontSize: 12 }}>{allLinked ? 'Linked' : 'Link'}</span>
                     </button></div>
                 </div>
               )}
@@ -2664,7 +2704,7 @@ export default function DashboardPage() {
     <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Overlay</p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it, and set when it shows on the timeline.</p>
       </div>
       <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
       {!overlay ? (
@@ -2687,15 +2727,8 @@ export default function DashboardPage() {
               Size
               <input type="range" min={10} max={100} step={5} value={Math.round(overlay.size * 100)} onChange={(e) => patchOverlay({ size: Number(e.target.value) / 100 })} aria-label="Overlay size" style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
             </label>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
-              Shows from (seconds)
-              <input type="number" min={0} step={0.5} value={overlay.start} onChange={(e) => patchOverlay({ start: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inputStyle, marginBottom: 0, marginTop: 6, fontSize: 12 }} />
-            </label>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
-              Until (seconds, empty = the end)
-              <input type="number" min={0} step={0.5} value={overlay.end ?? ''} placeholder="End" onChange={(e) => patchOverlay({ end: e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0) })} style={{ ...inputStyle, marginBottom: 0, marginTop: 6, fontSize: 12 }} />
-            </label>
           </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>Drag its bar on the preview timeline to choose when it shows, and drag the white ends to make it shorter or longer.</p>
         </>
       )}
       {overlayError && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0 }}>{overlayError}</p>}
@@ -3282,7 +3315,7 @@ export default function DashboardPage() {
     overlayUploadRef.current = null
     setOverlay((prev) => {
       if (prev) URL.revokeObjectURL(prev.url)
-      return { file, kind, url: URL.createObjectURL(file), x: 0.5, y: 0.2, size: 0.35, start: 0, end: null }
+      return { file, kind, url: URL.createObjectURL(file), x: 0.5, y: 0.2, size: 0.35, start: playheadRef.current.total > 0 && playheadRef.current.t < playheadRef.current.total - 0.5 ? playheadRef.current.t : 0, end: null }
     })
   }
   const clearOverlay = () => {
@@ -5242,6 +5275,7 @@ export default function DashboardPage() {
                 onPlayhead={handlePlayhead}
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
+                onOverlayTime={(start, end) => patchOverlay({ start, end })}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -5752,6 +5786,7 @@ export default function DashboardPage() {
                 onPlayhead={handlePlayhead}
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
+                onOverlayTime={(start, end) => patchOverlay({ start, end })}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
