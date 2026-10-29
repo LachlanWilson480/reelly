@@ -763,14 +763,27 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               : <video ref={ovVideoRef} src={overlay.url} muted loop playsInline style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />}
           </div>
         )}
-        {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (
-          <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, zIndex: 2, pointerEvents: 'none', padding: '44px 18px 30px', background: 'linear-gradient(rgba(8,6,24,0.8) 70%, rgba(8,6,24,0))' }}>
-            <p key={`cur${scriptIdx}`} className="scr-cur" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: '#fff', margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{scriptLines[scriptIdx]}</p>
-            {scriptLines[scriptIdx + 1] && (
-              <p key={`next${scriptIdx}`} className="scr-next" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.35, color: 'rgba(255,255,255,0.5)', margin: '10px 0 0' }}>{scriptLines[scriptIdx + 1]}</p>
-            )}
-          </div>
-        )}
+        {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
+          // A real teleprompter: the text glides up at reading pace and the line being read sits on a fixed reading line.
+          const SLOT = 84
+          const dur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, scriptLines[i].split(/\s+/).filter(Boolean).length / 2.3)) - scriptStarts[i]
+          const live = recording ? spokenSecs : 0
+          const f = Math.min(scriptLines.length - 0.001, scriptIdx + Math.min(1, Math.max(0, (live - scriptStarts[scriptIdx]) / dur(scriptIdx))))
+          return (
+            <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '46%', zIndex: 2, pointerEvents: 'none', overflow: 'hidden', background: 'linear-gradient(rgba(8,6,24,0.86) 62%, rgba(8,6,24,0))', WebkitMaskImage: 'linear-gradient(#000 78%, transparent)', maskImage: 'linear-gradient(#000 78%, transparent)' }}>
+              <span aria-hidden style={{ position: 'absolute', left: 8, top: 44 + 14, width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '9px solid var(--coral)' }} />
+              <div style={{ position: 'absolute', left: 26, right: 16, top: 44, transform: `translateY(${-f * SLOT}px)`, transition: recording ? 'transform 0.4s linear' : 'transform 0.3s ease' }}>
+                {scriptLines.map((l, i) => {
+                  const d = Math.abs(i - f)
+                  const near = Math.max(0, 1 - d)
+                  return (
+                    <p key={i} style={{ height: SLOT, margin: 0, overflow: 'hidden', fontSize: 19, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.3, color: '#fff', opacity: Math.max(0.12, 1 - d * 0.55), transform: `scale(${1 + 0.12 * near})`, transformOrigin: 'left top', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
         {countdown !== null && (
           <div aria-live="assertive" style={{ position: 'absolute', inset: 0, zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)', pointerEvents: 'none' }}>
             <span key={countdown} className="scr-cur" style={{ fontSize: 96, fontWeight: 700, color: '#fff', fontFamily: 'var(--serif)' }}>{countdown}</span>
