@@ -4,13 +4,14 @@ import { useEffect, useId, useRef, useState } from 'react'
 export type DropdownOption = { value: string; label: string }
 
 // A drop-down that matches the rest of the site (the browser's own menu cannot be styled).
-export default function Dropdown({ value, onChange, options, ariaLabel, style, height = 40 }: {
+export default function Dropdown({ value, onChange, options, ariaLabel, style, height = 40, disabled = false }: {
   value: string
   onChange: (value: string) => void
   options: DropdownOption[]
   ariaLabel?: string
   style?: React.CSSProperties
   height?: number
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [up, setUp] = useState(false)
@@ -59,8 +60,8 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
   return (
     <div ref={wrapRef} style={{ position: 'relative', width: '100%', ...style }}>
       <button type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={ariaLabel}
-        onClick={() => (open ? setOpen(false) : openList())} onKeyDown={onKey}
-        style={{ width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px', borderRadius: 4, border: `1px solid ${open ? 'var(--ink)' : 'rgba(128,128,128,0.25)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box' }}>
+        disabled={disabled} onClick={() => (open ? setOpen(false) : openList())} onKeyDown={onKey}
+        style={{ width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px', borderRadius: 4, border: `1px solid ${open ? 'var(--ink)' : 'rgba(128,128,128,0.25)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', boxSizing: 'border-box' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.label ?? value}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
       </button>

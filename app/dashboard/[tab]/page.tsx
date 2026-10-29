@@ -2599,19 +2599,32 @@ export default function DashboardPage() {
               {open && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
                   <div><label style={lab}>Font</label>
-                    <Dropdown ariaLabel="Caption font" value={c.font ?? ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Same as the look' }, ...CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))]} /></div>
+                    {customised
+                      ? <Dropdown ariaLabel="Caption font" value={c.font ?? 'Sans Bold'} onChange={(v) => patch({ font: v })} options={CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))} />
+                      : <Dropdown ariaLabel="Caption font" disabled value="" onChange={() => {}} options={[{ value: '', label: 'Same as the look' }]} />}</div>
                   <div><label style={lab}>Size</label>
-                    <input type="number" min={16} max={200} placeholder={String(Number(captionFontSize) || 60)} value={c.size ?? ''} onChange={(e) => { const n = Number(e.target.value); patch({ size: e.target.value === '' || !Number.isFinite(n) ? undefined : Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
+                    <input type="number" min={16} max={200} disabled={!customised} value={customised ? (c.size ?? (Number(captionFontSize) || 60)) : (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40, opacity: customised ? 1 : 0.55 }} /></div>
                   <div><label style={lab}>Colour</label>
-                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
+                    <input type="color" disabled={!customised} value={(customised ? c.color : undefined) ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: customised ? 1 : 0.55 }} /></div>
                   <div><label style={lab}>Background</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, flex: 1, minWidth: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
-                      <button type="button" onClick={() => patch({ bg: null })} disabled={c.bg === null || (c.bg === undefined && !captionBg)} style={{ ...choiceBtn(), padding: '0 12px', height: 40, fontSize: 13 }}>None</button>
+                    <div style={{ position: 'relative' }}>
+                      <input type="color" disabled={!customised} value={(customised ? (c.bg !== undefined ? c.bg : captionBg) : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, opacity: !customised ? 0.55 : (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
+                      {customised && (c.bg !== undefined ? c.bg : captionBg) && (
+                        <button type="button" onClick={() => patch({ bg: null })} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
+                      )}
                     </div></div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <button type="button" onClick={() => patch({ font: undefined, size: undefined, color: undefined, bg: undefined })} disabled={!customised} style={{ ...choiceBtn(false, !customised), height: 40, padding: '0 14px', fontSize: 13, whiteSpace: 'nowrap' }}>Use shared look</button>
-                  </div>
+                  <div><label style={lab}>Link</label>
+                    <button type="button" aria-pressed={!customised} aria-label={customised ? 'Link this caption to the shared caption look' : 'Unlink this caption from the shared caption look'}
+                      title={customised ? 'Linked off: this caption has its own look. Press to link it to the shared look.' : 'Linked: this caption follows the shared caption look. Press to give it its own look.'}
+                      onClick={() => patch(customised ? { font: undefined, size: undefined, color: undefined, bg: undefined } : { font: 'Sans Bold', size: Number(captionFontSize) || 60, color: captionColor, bg: captionBg })}
+                      style={{ ...choiceBtn(!customised), width: '100%', height: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        {customised
+                          ? <><path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" /><path d="M8 3 6 1M16 21l2 2M3 8 1 6" /></>
+                          : <><path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" /><path d="M8 12h8" /></>}
+                      </svg>
+                      <span style={{ fontSize: 12 }}>{customised ? 'Unlinked' : 'Linked'}</span>
+                    </button></div>
                 </div>
               )}
               </div>
