@@ -7,6 +7,7 @@ import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import Dropdown from '@/components/Dropdown'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -301,7 +302,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -313,6 +314,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   selCap?: string | null
   onSelCap?: (id: string | null) => void
   onPlayhead?: (t: number, total: number) => void
+  autoCap?: { x: number; y: number } | null
+  onAutoCapMove?: (x: number, y: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -654,6 +657,27 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const capTop = musicUrl ? 94 : 64
   const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62)
   const updateCap = (id: string, patch: Partial<CustomCaption>) => onCaptions?.(caps.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+  // Pinch to resize: two fingers on a caption (touch), or a trackpad pinch over it
+  const ptrsRef = useRef(new Map<number, { x: number; y: number }>())
+  const pinchRef = useRef<{ id: string; dist: number; size: number } | null>(null)
+  const autoDragRef = useRef(false)
+  const latestRef = useRef<{ caps: CustomCaption[]; size: number; update: (id: string, p: Partial<CustomCaption>) => void }>({ caps: [], size: 60, update: () => {} })
+  useEffect(() => { latestRef.current = { caps, size: captionStyle?.size ?? 60, update: updateCap } })
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      const id = (e.target as HTMLElement).closest('[data-capid]')?.getAttribute('data-capid')
+      const cap = id ? latestRef.current.caps.find((c) => c.id === id) : undefined
+      if (!cap) return
+      e.preventDefault()
+      const next = Math.round((cap.size ?? latestRef.current.size) * Math.exp(-Math.max(-25, Math.min(25, e.deltaY)) * 0.01))
+      latestRef.current.update(cap.id, { size: Math.min(200, Math.max(16, next)) })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
   const moveCap = (e: React.PointerEvent) => {
     const d = capDragRef.current
     if (!d || total <= 0) return
@@ -745,20 +769,55 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const cBg = c.bg !== undefined ? c.bg : captionStyle.background
           return (
             <div key={c.id} aria-label={`Caption: ${c.text}`}
-              onPointerDown={(e) => { if (recording || !onCaptions) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id); capPosRef.current = { id: c.id } }}
+              data-capid={c.id}
+              onPointerDown={(e) => {
+                if (recording || !onCaptions) return
+                e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id)
+                ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+                if (ptrsRef.current.size === 1) capPosRef.current = { id: c.id }
+                else if (ptrsRef.current.size === 2) {
+                  const [a, b] = Array.from(ptrsRef.current.values())
+                  pinchRef.current = { id: c.id, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, size: c.size ?? captionStyle.size }
+                  capPosRef.current = null
+                }
+              }}
               onPointerMove={(e) => {
+                if (ptrsRef.current.has(e.pointerId)) ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+                const pin = pinchRef.current
+                if (pin && ptrsRef.current.size >= 2) {
+                  const [a, b] = Array.from(ptrsRef.current.values())
+                  const d = Math.hypot(a.x - b.x, a.y - b.y)
+                  updateCap(pin.id, { size: Math.min(200, Math.max(16, Math.round(pin.size * (d / pin.dist)))) })
+                  return
+                }
                 const p = capPosRef.current
                 const box = stageRef.current?.getBoundingClientRect()
                 if (!p || !box) return
                 updateCap(p.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)) })
               }}
-              onPointerUp={() => { capPosRef.current = null }}
-              onPointerCancel={() => { capPosRef.current = null }}
+              onPointerUp={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
+              onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: cFont ? cFont.css : "Arial Black, 'Poppins', sans-serif", fontWeight: cFont ? cFont.weight : 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere', ...(cBg ? { background: cBg, padding: '0.25em 0.5em', borderRadius: 4, width: 'auto', maxWidth: '88%', boxDecorationBreak: 'clone' as const, WebkitBoxDecorationBreak: 'clone' as const } : {}) }}>
               {c.text}
             </div>
           )
         })}
+        {autoCap && !recording && (
+          <div aria-label="Auto captions position" title="Drag to move where your auto captions appear"
+            onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true }}
+            onPointerMove={(e) => {
+              if (!autoDragRef.current || !onAutoCapMove) return
+              const box = stageRef.current?.getBoundingClientRect()
+              if (!box) return
+              onAutoCapMove(Math.min(0.9, Math.max(0.1, (e.clientX - box.left) / box.width)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)))
+            }}
+            onPointerUp={() => { autoDragRef.current = false }}
+            onPointerCancel={() => { autoDragRef.current = false }}
+            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 4, border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, fontWeight: 700 }}>
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.3" /><circle cx="8" cy="2" r="1.3" /><circle cx="2" cy="7" r="1.3" /><circle cx="8" cy="7" r="1.3" /><circle cx="2" cy="12" r="1.3" /><circle cx="8" cy="12" r="1.3" /></svg>
+            Auto captions
+          </div>
+        )}
         {overlay && globalTime >= overlay.start && (overlay.end === null || globalTime < overlay.end) && (
           <div aria-label="Overlay"
             onPointerDown={(e) => { if (recording || !onOverlayMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = true }}
@@ -991,21 +1050,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       )}
       </div>
 
-      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+      {(recording || showScript) && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
         {recording
           ? 'Recording. Your clips play silently while you talk. Press Stop recording when you are done.'
-          : !showScript
-            ? 'To talk over your clips, press Record voiceover in the Audio section. Music, captions and transitions are added when you create the video.'
           : takes.length === 0
             ? 'Drag the timeline or press play, pause where you want to start talking, then press Record voiceover. Music, captions and transitions are added when you create the video.'
             : 'Pause where you want the next part to start and press Record voiceover again. A new recording replaces the old one where they overlap.'}
-      </p>
+      </p>}
       {micError && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '6px 0 0' }}>{micError}</p>}
     </div>
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1017,6 +1074,8 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   selCap?: string | null
   onSelCap?: (id: string | null) => void
   onPlayhead?: (t: number, total: number) => void
+  autoCap?: { x: number; y: number } | null
+  onAutoCapMove?: (x: number, y: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -1045,7 +1104,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -1360,6 +1419,7 @@ export default function DashboardPage() {
   const [captionBg, setCaptionBg] = useState<string | null>(null)
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
   const [captionLayers, setCaptionLayers] = useState<CaptionLayers>(DEFAULT_CAPTION_LAYERS)
+  const moveAutoCap = useCallback((x: number, y: number) => setCaptionLayers((l) => ({ ...l, speech: { ...l.speech, x, y } })), [])
 
   const refreshStats = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -2474,16 +2534,16 @@ export default function DashboardPage() {
       <div style={{ background: '#111', borderRadius: 4, height: 84, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
                             <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>Your caption</p>
                           </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><Dropdown ariaLabel="Caption font" value={captionFontFamily} onChange={setCaptionFontFamily} options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
                                 <div style={{ display: 'flex', gap: 6 }}>
-                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, flex: 1, minWidth: 0, opacity: captionBg ? 1 : 0.45 }} />
-                                  <button type="button" onClick={() => setCaptionBg(null)} disabled={!captionBg} style={{ ...choiceBtn(!captionBg), padding: '0 10px', height: 36, fontSize: 12 }}>None</button>
+                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, flex: 1, minWidth: 0, opacity: captionBg ? 1 : 0.45 }} />
+                                  <button type="button" onClick={() => setCaptionBg(null)} disabled={!captionBg} style={{ ...choiceBtn(!captionBg), padding: '0 12px', height: 40, fontSize: 13 }}>None</button>
                                 </div></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><Dropdown ariaLabel="Caption position" value={captionPosition} onChange={(v) => { setCaptionPosition(v as 'bottom' | 'top' | 'center'); setCaptionLayers((l) => ({ onScreen: { ...l.onScreen, x: undefined, y: undefined }, speech: { ...l.speech, x: undefined, y: undefined } })) }} options={[{ value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }]} /></div>
                             </div>
     </div>
   )
@@ -2515,7 +2575,7 @@ export default function DashboardPage() {
           <button type="button" onClick={add} disabled={!canAdd || !capDraft.trim()} style={{ ...choiceBtn(false, !canAdd || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Shows for 3 seconds at the playhead. Drag it on the preview to place it.
+          Shows for 3 seconds at the playhead. Drag it on the preview to place it, and pinch it to make it bigger or smaller.
         </p>
         {caps.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
@@ -2529,29 +2589,28 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input type="text" value={c.text} maxLength={140} aria-label="Edit caption" onFocus={() => setSelCap(c.id)}
                   onChange={(e) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))}
-                  style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: `1px solid ${sel?.id === c.id ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+                  style={{ flex: 1, minWidth: 0, height: 40, boxSizing: 'border-box', padding: '0 12px', borderRadius: 4, border: `1px solid ${sel?.id === c.id ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{c.start.toFixed(1)}s to {c.end.toFixed(1)}s</span>
-                <button type="button" onClick={() => setOpenCapStyle(open ? null : c.id)} aria-expanded={open} style={{ ...choiceBtn(open || customised), flexShrink: 0 }}>Text</button>
-                <button type="button" onClick={() => { setCaps(caps.filter((x) => x.id !== c.id)); if (selCap === c.id) setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0 }}>Delete</button>
+                <button type="button" onClick={() => setOpenCapStyle(open ? null : c.id)} aria-expanded={open} aria-label="Text settings for this caption" title="Text settings" style={{ ...choiceBtn(open || customised), flexShrink: 0, height: 40, width: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="13" cy="8" r="1.5" /></svg>
+                </button>
+                <button type="button" onClick={() => { setCaps(caps.filter((x) => x.id !== c.id)); if (selCap === c.id) setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0, height: 40, padding: '0 14px' }}>Delete</button>
               </div>
               {open && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
                   <div><label style={lab}>Font</label>
-                    <select value={c.font ?? ''} onChange={(e) => patch({ font: e.target.value || undefined })} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>
-                      <option value="">Same as the look</option>
-                      {CAPTION_TEXT_FONTS.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
-                    </select></div>
+                    <Dropdown ariaLabel="Caption font" value={c.font ?? ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Same as the look' }, ...CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.name }))]} /></div>
                   <div><label style={lab}>Size</label>
-                    <input type="number" min={16} max={200} placeholder={String(Number(captionFontSize) || 60)} value={c.size ?? ''} onChange={(e) => { const n = Number(e.target.value); patch({ size: e.target.value === '' || !Number.isFinite(n) ? undefined : Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                    <input type="number" min={16} max={200} placeholder={String(Number(captionFontSize) || 60)} value={c.size ?? ''} onChange={(e) => { const n = Number(e.target.value); patch({ size: e.target.value === '' || !Number.isFinite(n) ? undefined : Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                   <div><label style={lab}>Colour</label>
-                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                    <input type="color" value={c.color ?? captionColor} onChange={(e) => patch({ color: e.target.value })} aria-label="Caption text colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0 }} /></div>
                   <div><label style={lab}>Background</label>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, flex: 1, minWidth: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
-                      <button type="button" onClick={() => patch({ bg: null })} disabled={c.bg === null || (c.bg === undefined && !captionBg)} style={{ ...choiceBtn(), padding: '0 10px', height: 36, fontSize: 12 }}>None</button>
+                      <input type="color" value={(c.bg !== undefined ? c.bg : captionBg) ?? '#000000'} onChange={(e) => patch({ bg: e.target.value })} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 40, marginBottom: 0, flex: 1, minWidth: 0, opacity: (c.bg !== undefined ? c.bg : captionBg) ? 1 : 0.45 }} />
+                      <button type="button" onClick={() => patch({ bg: null })} disabled={c.bg === null || (c.bg === undefined && !captionBg)} style={{ ...choiceBtn(), padding: '0 12px', height: 40, fontSize: 13 }}>None</button>
                     </div></div>
                   <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <button type="button" onClick={() => patch({ font: undefined, size: undefined, color: undefined, bg: undefined })} disabled={!customised} style={{ ...choiceBtn(false, !customised), height: 36, fontSize: 12 }}>Use shared look</button>
+                    <button type="button" onClick={() => patch({ font: undefined, size: undefined, color: undefined, bg: undefined })} disabled={!customised} style={{ ...choiceBtn(false, !customised), height: 40, padding: '0 14px', fontSize: 13, whiteSpace: 'nowrap' }}>Use shared look</button>
                   </div>
                 </div>
               )}
@@ -2577,7 +2636,7 @@ export default function DashboardPage() {
         {renderAutoCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press Text on a caption to change its own font, size and colours.')}
+        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press the three dots on a caption to change its own font, size and colours.')}
         {renderOwnCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
@@ -2635,25 +2694,20 @@ export default function DashboardPage() {
     const resolution = m === 'ai' ? aiResolution : uploadResolution
     const setResolution = m === 'ai' ? setAiResolution : setUploadResolution
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 8px' }}>Quality</p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {([['high', '1080p', 'Basic and Pro'], ['4k', '4K', 'Pro only']] as const).map(([val, label, desc]) => (
-              <button key={val} type="button" onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setResolution(val) }} style={{ flex: 1, padding: '10px 12px', borderRadius: 4, border: resolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: resolution === val ? 'var(--coral)' : 'var(--ink)', margin: 0 }}>{label}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 8px' }}>Smart Trim</p>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '10px 14px' }}>
-            <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Cut silences and dead air</span>
-          </label>
-        </div>
+      <div className="vs-grid">
+        <p className="vs-q" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: 0 }}>Quality</p>
+        <p className="vs-t" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: 0 }}>Smart Trim</p>
+        {([['high', '1080p', 'Basic and Pro'], ['4k', '4K', 'Pro only']] as const).map(([val, label, desc]) => (
+          <button key={val} type="button" onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setResolution(val) }}
+            style={{ minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 4, border: resolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: resolution === val ? 'var(--coral)' : 'var(--ink)', margin: 0 }}>{label}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{desc}</p>
+          </button>
+        ))}
+        <label style={{ minHeight: 64, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '10px 14px' }}>
+          <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Cut silences and dead air</span>
+        </label>
       </div>
     )
   }
@@ -3730,6 +3784,15 @@ export default function DashboardPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .vs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
+        .vs-grid .vs-q { grid-column: 1 / 3; }
+        .vs-grid .vs-t { grid-column: 3; }
+        @media (max-width: 640px) {
+          .vs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .vs-grid .vs-q { grid-column: 1 / 3; }
+          .vs-grid .vs-t { grid-column: 1 / 3; margin-top: 6px; }
+          .vs-grid label { grid-column: 1 / 3; }
+        }
         .rly-spinner {
           display: inline-block;
           width: 13px;
@@ -5000,7 +5063,7 @@ export default function DashboardPage() {
                         <button type="button" aria-label="Move clip down" disabled={slotIndex === uploadSlots.length - 1} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) + 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 10, lineHeight: 1.2, cursor: slotIndex === uploadSlots.length - 1 ? 'default' : 'pointer', opacity: slotIndex === uploadSlots.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}>▼</button>
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{slotIndex + 1}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: '0 1 auto', minWidth: 0 }}>
                         <input
                           ref={(el) => { if (el) el.dataset.slotid = String(slotId) }}
                           className={`upload-slot-input-${slotId}`}
@@ -5159,6 +5222,8 @@ export default function DashboardPage() {
                 onTrimClip={trimUploadClip}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
+                autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
+                onAutoCapMove={moveAutoCap}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -5492,7 +5557,6 @@ export default function DashboardPage() {
                     {/* ── STEP 1: Clips per step ── */}
                     <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>1 · Upload your clips</p>
-                      <button type="button" onClick={() => setLibraryPicker('ai')} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '6px 12px', fontSize: 12, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', marginBottom: 12 }}>Add from library</button>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                         <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 4, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
                           I filmed separate clips per step
@@ -5517,6 +5581,7 @@ export default function DashboardPage() {
                                   <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
                                   <ClipUploadBadge status={clipUploadStatus['a0']} onRetry={() => startClipUpload('a', 0, stepUploads[0])} />
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                                  <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
                                 </div>
                               ) : (
                                 <div
@@ -5531,10 +5596,6 @@ export default function DashboardPage() {
                                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                 </div>
                               )}
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-
-                              {stepUploads[0] && <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>}
                             </div>
                           </div>
                         </div>
@@ -5558,6 +5619,13 @@ export default function DashboardPage() {
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <ClipUploadBadge status={clipUploadStatus[`a${i}`]} onRetry={() => { const f = stepUploads[i]; if (f) startClipUpload('a', i, f) }} />
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                                    <button type="button" onClick={() => {
+                                    setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    forgetClipUpload('a', i)
+                                    setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
+                                    void authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
+                                  }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
                                   </div>
                                 ) : (
                                   <div
@@ -5576,17 +5644,6 @@ export default function DashboardPage() {
                                     <button type="button" onClick={() => { setLibraryTarget(i); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                   </div>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                                {(stepUploads[i] || stepUploadNames[i]) && (
-                                  <button type="button" onClick={() => {
-                                    setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
-                                    setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
-                                    forgetClipUpload('a', i)
-                                    setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
-                                    void authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
-                                  }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
                                 )}
                               </div>
                             </div>
@@ -5675,6 +5732,8 @@ export default function DashboardPage() {
                 onTrimClip={trimAiClip}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
+                autoCap={aiAddCaptions && !aiCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
+                onAutoCapMove={moveAutoCap}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}

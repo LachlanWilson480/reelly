@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import CaptionLayersPanel from '@/components/CaptionLayersPanel'
+import Dropdown from '@/components/Dropdown'
 import { type CaptionLayers, resolveCaptionLayers } from '@/lib/captionLayers'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -121,10 +122,10 @@ function SettingsFields({ value, onChange, props }: { value: Settings; onChange:
             <details style={{ marginTop: 8 }}>
               <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Font, size, colour and position</summary>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginTop: 8 }}>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Font</p><select value={value.fontFamily} onChange={(e) => onChange({ fontFamily: e.target.value })} style={field}>{props.fontOptions.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Font</p><Dropdown height={34} ariaLabel="Caption font" value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} options={props.fontOptions.map((f) => ({ value: f, label: f }))} /></div>
                 <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Size</p><input type="text" inputMode="numeric" value={value.fontSize || ''} onFocus={(e) => e.target.select()} onChange={(e) => onChange({ fontSize: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} onBlur={() => { if (value.fontSize < 10) onChange({ fontSize: 36 }) }} style={field} /></div>
                 <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Colour</p><input type="color" value={value.color} onChange={(e) => onChange({ color: e.target.value })} style={{ ...field, padding: 3, height: 34 }} /></div>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Position</p><select value={value.position} onChange={(e) => onChange({ position: e.target.value as Settings['position'] })} style={field}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Position</p><Dropdown height={34} ariaLabel="Caption position" value={value.position} onChange={(v) => onChange({ position: v as Settings['position'] })} options={[{ value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }]} /></div>
               </div>
             </details>
           </div>

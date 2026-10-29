@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Dropdown from '@/components/Dropdown'
 import { parseLocationTypes, toggleLocationType } from '@/lib/locationTypes'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState } from 'react'
@@ -176,17 +177,7 @@ export default function OnboardingPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Country *</label>
-                  <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
-                    <option value="AU" style={{ color: '#1a1a1a', background: '#ffffff' }}>Australia</option>
-                    <option value="NZ" style={{ color: '#1a1a1a', background: '#ffffff' }}>New Zealand</option>
-                    <option value="UK" style={{ color: '#1a1a1a', background: '#ffffff' }}>United Kingdom</option>
-                    <option value="IE" style={{ color: '#1a1a1a', background: '#ffffff' }}>Ireland</option>
-                    <option value="US" style={{ color: '#1a1a1a', background: '#ffffff' }}>United States</option>
-                    <option value="CA" style={{ color: '#1a1a1a', background: '#ffffff' }}>Canada</option>
-                    <option value="ZA" style={{ color: '#1a1a1a', background: '#ffffff' }}>South Africa</option>
-                    <option value="SG" style={{ color: '#1a1a1a', background: '#ffffff' }}>Singapore</option>
-                    <option value="OTHER" style={{ color: '#1a1a1a', background: '#ffffff' }}>Other</option>
-                  </select>
+                  <Dropdown ariaLabel="Country" value={country} onChange={setCountry} options={[{ value: 'AU', label: 'Australia' }, { value: 'NZ', label: 'New Zealand' }, { value: 'UK', label: 'United Kingdom' }, { value: 'IE', label: 'Ireland' }, { value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }, { value: 'ZA', label: 'South Africa' }, { value: 'SG', label: 'Singapore' }, { value: 'OTHER', label: 'Other' }]} />
                 </div>
                 <div>
                   <label style={labelStyle}>Business location(s) *</label>
