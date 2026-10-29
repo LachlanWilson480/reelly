@@ -6,7 +6,7 @@ import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -180,7 +180,7 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
 
 // Audio section: the original sound of the clips, then voiceover, then music, each with its own
 // volume. Recording itself happens under the preview so it can start wherever the preview was paused.
-function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, musicPicker }: {
+function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, onOpenRecord, musicPicker }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -193,6 +193,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   musicVol: number
   onMusicVol: (v: number) => void
   scriptLabel?: string
+  onOpenRecord: () => void
   musicPicker: React.ReactNode
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -223,19 +224,17 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
         <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" style={choiceBtn()}
-            onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Go to the preview to record</button>
+          <button type="button" style={{ ...choiceBtn(), display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={onOpenRecord}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
+            Record voiceover
+          </button>
           <button type="button" style={choiceBtn()} onClick={() => fileRef.current?.click()}>Upload a recording</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Pause the preview where you want to start, then press Record voiceover.
+          {scriptLabel
+            ? <>Opens your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview. Pause where you want to start, then press Record voiceover there. You get a 2 second countdown.</>
+            : 'Opens the preview. Pause where you want to start, then press Record voiceover there. You get a 2 second countdown.'}
         </p>
-
-        {scriptLabel && (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '12px 0 0' }}>
-            Script: <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong> shows over the preview.
-          </p>
-        )}
 
         {takes.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
@@ -279,13 +278,17 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote, overlay, onOverlayMove }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, selCap, onSelCap, onPlayhead }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
   musicUrl: string | null
   musicVol: number
   scriptLines: string[]
+  showScript?: boolean
+  selCap?: string | null
+  onSelCap?: (id: string | null) => void
+  onPlayhead?: (t: number, total: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -295,7 +298,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   captions?: CustomCaption[]
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
-  captionNote?: string
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
 }) {
@@ -332,8 +334,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const recWallRef = useRef(0)
   const pickRef = useRef<HTMLInputElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
-  const [selCap, setSelCap] = useState<string | null>(null)
-  const [capDraft, setCapDraft] = useState('')
+  const setSelCap = (id: string | null) => onSelCap?.(id)
+  const [countdown, setCountdown] = useState<number | null>(null)
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
   const capPosRef = useRef<{ id: string } | null>(null)
   const trimDragRef = useRef<{ i: number; side: 'l' | 'r'; startX: number; scale: number; start: number; end: number; dur: number } | null>(null)
@@ -538,7 +540,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   const startRecording = async () => {
     setMicError('')
-    if (segments.length === 0 || recording) return
+    if (segments.length === 0 || recording || countdown !== null) return
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setMicError('Recording is not supported in this browser. Use Upload a recording instead.')
       return
@@ -546,6 +548,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
       streamRef.current = stream
+      // Two second countdown so they can get ready before the clips start playing
+      setCountdown(2)
+      await new Promise((r) => window.setTimeout(r, 1000))
+      setCountdown(1)
+      await new Promise((r) => window.setTimeout(r, 1000))
+      setCountdown(null)
       const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
       const mimeType = preferred.find((m) => MediaRecorder.isTypeSupported(m))
       const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
@@ -569,7 +577,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       const v = videoRef.current
       let began = false
       const begin = () => {
-        if (began || rec.state !== 'inactive') return
+        if (began || rec.state !== 'inactive' || !stream.active) return
         began = true
         recWallRef.current = uploadStamp()
         rec.start()
@@ -579,6 +587,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       seekGlobal(startAt, true)
     } catch (e) {
       stopTracks()
+      setCountdown(null)
       const name = (e as { name?: string })?.name
       setMicError(name === 'NotAllowedError' || name === 'SecurityError'
         ? 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then try again.'
@@ -607,6 +616,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   }
 
   const hasClips = segments.length > 0
+  useEffect(() => { onPlayhead?.(globalTime, total) }, [onPlayhead, globalTime, total])
 
   // ---- Captions: each one is a block on the timeline. Blocks that overlap in time sit on their own row (layer).
   const caps = captions || []
@@ -621,17 +631,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const capTop = musicUrl ? 94 : 64
   const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62)
   const updateCap = (id: string, patch: Partial<CustomCaption>) => onCaptions?.(caps.map((c) => (c.id === id ? { ...c, ...patch } : c)))
-  const addCaption = () => {
-    const text = capDraft.trim()
-    if (!text || !onCaptions || total <= 0 || caps.length >= 30) return
-    const start = globalTime >= total - 0.5 ? Math.max(0, total - 3) : globalTime
-    const end = Math.min(total, start + 3)
-    const stacked = caps.filter((c) => c.start < end && c.end > start).length
-    const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
-    onCaptions([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12) }])
-    setSelCap(id)
-    setCapDraft('')
-  }
   const moveCap = (e: React.PointerEvent) => {
     const d = capDragRef.current
     if (!d || total <= 0) return
@@ -753,7 +752,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               : <video ref={ovVideoRef} src={overlay.url} muted loop playsInline style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />}
           </div>
         )}
-        {scriptLines.length > 0 && recording && (
+        {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (
           <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, zIndex: 2, pointerEvents: 'none', padding: '44px 18px 30px', background: 'linear-gradient(rgba(8,6,24,0.8) 70%, rgba(8,6,24,0))' }}>
             <p key={`cur${scriptIdx}`} className="scr-cur" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: '#fff', margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{scriptLines[scriptIdx]}</p>
             {scriptLines[scriptIdx + 1] && (
@@ -761,7 +760,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             )}
           </div>
         )}
-        {!playing && hasClips && (
+        {countdown !== null && (
+          <div aria-live="assertive" style={{ position: 'absolute', inset: 0, zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)', pointerEvents: 'none' }}>
+            <span key={countdown} className="scr-cur" style={{ fontSize: 96, fontWeight: 700, color: '#fff', fontFamily: 'var(--serif)' }}>{countdown}</span>
+          </div>
+        )}
+        {!playing && !recording && countdown === null && hasClips && (
           <button type="button" onClick={toggle} aria-label="Play preview"
             style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}>▶</button>
         )}
@@ -789,13 +793,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       {musicUrl && <audio ref={(el) => { audioEls.current['music'] = el }} src={musicUrl} preload="auto" />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={toggle} disabled={!hasClips || recording}
+        <button type="button" onClick={toggle} disabled={!hasClips || recording || countdown !== null}
           style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: !hasClips || recording ? 'default' : 'pointer', opacity: !hasClips || recording ? 0.4 : 1, flexShrink: 0 }}>
           {playing ? '❚❚' : '▶'}
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
-        {scriptLines.length > 0 && !recording && (
+        {scriptLines.length > 0 && !recording && countdown === null && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
             <span title="1x is a normal talking speed">Script speed while you record</span>
             <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
@@ -803,10 +807,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           </label>
         )}
         {!recording ? (
-          <button type="button" onClick={startRecording} disabled={!hasClips}
-            style={{ ...choiceBtn(false, !hasClips), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" onClick={startRecording} disabled={!hasClips || countdown !== null}
+            style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
-            Record voiceover
+            {countdown !== null ? 'Get ready' : 'Record voiceover'}
           </button>
         ) : (
           <button type="button" onClick={stopRecording}
@@ -947,34 +951,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           {musicUrl && <span>Music</span>}
           {caps.length > 0 && <span>Your captions</span>}
         </div>
-      {onCaptions && (
-        <div style={{ marginTop: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 8px' }}>Type your own captions</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input type="text" value={capDraft} maxLength={140} disabled={!hasClips} placeholder="Type a caption" aria-label="Type a caption"
-              onChange={(e) => setCapDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCaption() } }}
-              style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
-            <button type="button" onClick={addCaption} disabled={!hasClips || !capDraft.trim()} style={{ ...choiceBtn(false, !hasClips || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-            Shows for 3 seconds at the playhead. Drag it on the preview to place it, or drag its bar to time it.
-          </p>
-          {(() => {
-            const sel = caps.find((x) => x.id === selCap)
-            if (!sel) return null
-            return (
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-                <input type="text" value={sel.text} maxLength={140} aria-label="Edit the selected caption"
-                  onChange={(e) => updateCap(sel.id, { text: e.target.value })}
-                  style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: '1px solid var(--coral)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
-                <button type="button" onClick={() => { onCaptions(caps.filter((x) => x.id !== sel.id)); setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0 }}>Delete</button>
-              </div>
-            )
-          })()}
-          {captionNote && caps.length > 0 && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>{captionNote}</p>}
-        </div>
-      )}
       {takeDrag && (
         <div ref={binRef} aria-label="Bin: drop a voiceover here to delete it"
           style={{ position: 'fixed', left: '50%', bottom: 24, transform: `translateX(-50%) scale(${takeDrag.over ? 1.08 : 1})`, zIndex: 1000, display: 'flex', alignItems: 'center', gap: 10, padding: '14px 26px', borderRadius: 4, background: takeDrag.over ? '#d92d20' : 'rgba(30,30,34,0.92)', border: `1.5px dashed ${takeDrag.over ? '#fff' : 'rgba(255,255,255,0.5)'}`, color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: 'none', transition: 'background 0.12s, transform 0.12s', pointerEvents: 'none' }}>
@@ -996,13 +972,17 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote, overlay, onOverlayMove }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, selCap, onSelCap, onPlayhead }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
   musicUrl: string | null
   musicVol: number
   scriptLines: string[]
+  showScript?: boolean
+  selCap?: string | null
+  onSelCap?: (id: string | null) => void
+  onPlayhead?: (t: number, total: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -1012,7 +992,6 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   captions?: CustomCaption[]
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
-  captionNote?: string
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
 }) {
@@ -1032,7 +1011,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} captionNote={captionNote} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -1327,6 +1306,12 @@ export default function DashboardPage() {
   const [originalVolPick, setOriginalVolPick] = useState<number | null>(null)
   const [musicVol, setMusicVol] = useState(35)
   const [voiceScript, setVoiceScript] = useState<{ id: string; label: string; lines: string[] } | null>(null)
+  // Opened from Audio > Record voiceover: shows the script on the preview before recording starts
+  const [scriptOpen, setScriptOpen] = useState(false)
+  const [selCap, setSelCap] = useState<string | null>(null)
+  const [capDraft, setCapDraft] = useState('')
+  const playheadRef = useRef({ t: 0, total: 0 })
+  const handlePlayhead = useCallback((t: number, total: number) => { playheadRef.current = { t, total } }, [])
   // Original sound stays full volume on its own and drops under a voiceover until the user picks a level
   const originalVol = originalVolPick ?? (voiceTakes.length > 0 ? 35 : 100)
   const [assetPaths, setAssetPaths] = useState<Record<string, string>>({})
@@ -2380,6 +2365,7 @@ export default function DashboardPage() {
         onMusicVol={setMusicVol}
         onTakeVolume={setTakeVolume}
         scriptLabel={scriptLabel}
+        onOpenRecord={() => { setScriptOpen(true); document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
         onAddFile={addVoiceFile}
         onRemoveTake={removeVoiceTake}
         statuses={clipUploadStatus}
@@ -2462,6 +2448,53 @@ export default function DashboardPage() {
     </div>
   )
 
+  const renderOwnCaptions = (m: 'upload' | 'ai') => {
+    const caps = m === 'upload' ? uploadCaps : aiCaps
+    const setCaps = m === 'upload' ? setUploadCaps : setAiCaps
+    const canAdd = m === 'upload' ? uploadSlots.some((id) => !!uploadSlotFiles[id]) : Object.keys(stepUploads).length > 0
+    const add = () => {
+      const { t, total } = playheadRef.current
+      const text = capDraft.trim()
+      if (!text || !canAdd || total <= 0 || caps.length >= 30) return
+      const start = t >= total - 0.5 ? Math.max(0, total - 3) : t
+      const end = Math.min(total, start + 3)
+      const stacked = caps.filter((c) => c.start < end && c.end > start).length
+      const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
+      setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12) }])
+      setSelCap(id)
+      setCapDraft('')
+    }
+    const sel = caps.find((x) => x.id === selCap)
+    return (
+      <div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input type="text" value={capDraft} maxLength={140} disabled={!canAdd} placeholder={canAdd ? 'Type a caption' : 'Add a clip first'} aria-label="Type a caption"
+            onChange={(e) => setCapDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+            style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+          <button type="button" onClick={add} disabled={!canAdd || !capDraft.trim()} style={{ ...choiceBtn(false, !canAdd || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
+          Shows for 3 seconds at the playhead. Drag it on the preview to place it.
+        </p>
+        {caps.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+            {caps.map((c) => (
+              <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="text" value={c.text} maxLength={140} aria-label="Edit caption" onFocus={() => setSelCap(c.id)}
+                  onChange={(e) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))}
+                  style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: `1px solid ${sel?.id === c.id ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{c.start.toFixed(1)}s to {c.end.toFixed(1)}s</span>
+                <button type="button" onClick={() => { setCaps(caps.filter((x) => x.id !== c.id)); if (selCap === c.id) setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0 }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {caps.length > 0 && captionTimingNote && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>{captionTimingNote}</p>}
+      </div>
+    )
+  }
+
   // The Captions card: auto captions, then the look, then typed captions
   const renderCaptionsCard = (m: 'upload' | 'ai') => (
     <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -2474,8 +2507,8 @@ export default function DashboardPage() {
         {renderAutoCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('2. Your own captions', 'Type them under the preview, then drag the bar on the timeline to time them.')}
-        <button type="button" style={choiceBtn()} onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to the preview</button>
+        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it.')}
+        {renderOwnCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         {subHead('3. Caption look', 'Font, size, colours and where they sit. Applies to both kinds.')}
@@ -5047,7 +5080,10 @@ export default function DashboardPage() {
                 captions={uploadCaps}
                 onCaptions={setUploadCaps}
                 onTrimClip={trimUploadClip}
-                captionNote={uploadCaps.length > 0 ? captionTimingNote : undefined}
+                showScript={scriptOpen}
+                selCap={selCap}
+                onSelCap={setSelCap}
+                onPlayhead={handlePlayhead}
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
@@ -5557,7 +5593,10 @@ export default function DashboardPage() {
                 captions={aiCaps}
                 onCaptions={setAiCaps}
                 onTrimClip={trimAiClip}
-                captionNote={aiCaps.length > 0 ? captionTimingNote : undefined}
+                showScript={scriptOpen}
+                selCap={selCap}
+                onSelCap={setSelCap}
+                onPlayhead={handlePlayhead}
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
