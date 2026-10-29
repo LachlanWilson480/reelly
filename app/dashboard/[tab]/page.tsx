@@ -1370,6 +1370,7 @@ export default function DashboardPage() {
   const [filmActionsText, setFilmActionsText] = useState('')
   const [filmDurations, setFilmDurations] = useState<(number | null)[]>([])
   const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
+  const filmSegFiles = useMemo(() => filmClips.map((c, i) => new File([c.blob], `film-${i}.${c.ext}`, { type: c.type })), [filmClips])
   const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
   const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
@@ -2590,7 +2591,7 @@ export default function DashboardPage() {
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><Dropdown ariaLabel="Caption font" value={captionFontFamily} onChange={setCaptionFontFamily} options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><ColorSelect ariaLabel="Caption text colour" value={captionColor} onChange={(v) => setCaptionColor(v ?? '#FFFFFF')} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
+                              <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
                                 <ColorSelect ariaLabel="Caption background colour" allowNone value={captionBg} onChange={setCaptionBg} /></div>
                             </div>
     </div>
@@ -2657,7 +2658,7 @@ export default function DashboardPage() {
                     <input type="number" min={16} max={200} value={c.size ?? (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                   <div><label style={lab}>Colour</label>
                     <ColorSelect ariaLabel="Caption text colour" value={c.color ?? captionColor} onChange={(v) => patch({ color: v ?? undefined })} /></div>
-                  <div><label style={lab}>Background</label>
+                  <div style={{ gridColumn: 'span 2' }}><label style={lab}>Background</label>
                     <ColorSelect ariaLabel="Caption background colour" allowNone value={c.bg !== undefined ? c.bg : captionBg} onChange={(v) => patch({ bg: v })} /></div>
                   <div><label style={lab}>Link</label>
                     <button type="button" aria-pressed={allLinked} disabled={allLinked}
@@ -3418,6 +3419,16 @@ export default function DashboardPage() {
   const setTakeVolume = (id: string, volume: number) => setVoiceTakes((prev) => prev.map((t) => (t.id === id ? { ...t, volume } : t)))
 
   const moveVoiceTake = (id: string, start: number) => setVoiceTakes((prev) => prev.map((t) => (t.id === id ? { ...t, start } : t)))
+
+  const reorderFilmClip = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= filmClips.length || to >= filmClips.length) return
+    const mv = <T,>(arr: T[]) => { const n = arr.slice(); const [x] = n.splice(from, 1); n.splice(to, 0, x); return n }
+    setFilmClips(mv(filmClips))
+    const ls = splitScriptLines(filmScript)
+    if (from < ls.length && to < ls.length) setFilmScript(mv(ls).join('\n'))
+    setFilmActionsText((prev) => { const l = splitScriptLines(prev); return from < l.length && to < l.length ? mv(l).join('\n') : prev })
+    setFilmPlayIdx(to)
+  }
 
   const moveFilmClip = (i: number, dir: -1 | 1) => {
     const j = i + dir
@@ -5527,19 +5538,8 @@ export default function DashboardPage() {
                     document.body
                   )}
                   {filmReview && (
-                    <div className="film-review" style={{ ['--fr-col' as string]: filmOrientation === 'landscape' ? 'minmax(380px, 640px)' : '380px' }}>
-                      <div className="fr-left">
-                      <div style={filmBezelStyle}>
-                      <div style={{ position: 'relative', background: '#17151f', borderRadius: filmOrientation === 'landscape' ? 22 : 34, overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: '100%' }}>
-                        {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                    <video key={filmPlayIdx} src={filmClips[filmPlayIdx]?.url} autoPlay controls playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} onEnded={() => { if (filmPlayIdx + 1 < filmClips.length) setFilmPlayIdx(filmPlayIdx + 1) }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ position: 'absolute', top: filmOrientation === 'landscape' ? 12 : 44, left: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>Clip {filmPlayIdx + 1} of {filmClips.length}</div>
-                      </div>
-                      {filmNotch}
-                      </div>
-                      <button type="button" onClick={() => setFilmPlayIdx(0)} style={{ alignSelf: 'flex-start', background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '7px 16px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>▶ Play from the start</button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+                    <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                      <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                       <div>
                         <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
@@ -5559,10 +5559,9 @@ export default function DashboardPage() {
                         ))}
                       </div>
                       {renderAudioSection('upload', voiceScript?.label)}
-                      <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '20px 24px 24px' }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 18px' }}>Preferences</p>
-                        {renderPreferencesFields()}
-                      </div>
+                      {renderCaptionsCard('upload')}
+                      {renderOverlayCard()}
+                      {renderVideoSettings('upload')}
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } gateRenderAction(() => { finishFilm(filmClips, true) }) }} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmUploading ? 'Saving…' : freeQuotaExceeded ? 'Upgrade to render' : 'Render video'}</button>
@@ -5570,6 +5569,31 @@ export default function DashboardPage() {
                       </div>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
                       </div>
+                      <EditorPreview
+                        onReorderClip={reorderFilmClip}
+                        captionStyle={previewCaptionStyle}
+                        captions={uploadCaps}
+                        onCaptions={setUploadCaps}
+                        showScript={scriptOpen}
+                        scriptSpeed={scriptSpeed}
+                        autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
+                        onAutoCapMove={moveAutoCap}
+                        selCap={selCap}
+                        onSelCap={setSelCap}
+                        onPlayhead={handlePlayhead}
+                        overlay={overlay}
+                        onOverlayMove={moveOverlay}
+                        onOverlayTime={(start, end) => patchOverlay({ start, end })}
+                        segments={filmSegFiles.map((f) => ({ file: f, start: 0.3, end: null }))}
+                        takes={voiceTakes}
+                        originalVol={originalVol}
+                        musicUrl={previewMusicUrl}
+                        musicVol={musicVol}
+                        scriptLines={voiceScript?.lines ?? splitScriptLines(filmScript)}
+                        onAddTake={addVoiceTake}
+                        onRemoveTake={removeVoiceTake}
+                        onMoveTake={moveVoiceTake}
+                      />
                     </div>
                   )}
                   </>
