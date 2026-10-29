@@ -208,6 +208,8 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   musicPicker: React.ReactNode
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
+  // Moves smoothly while dragging; the page only updates when you let go
+  const [speedDraft, setSpeedDraft] = useState(scriptSpeed)
   const card = { border: '1px solid rgba(128,128,128,0.22)', borderRadius: 4, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
   const heading = (title: string, hint: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -248,10 +250,12 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
         </p>
 
         {scriptLabel && (
-          <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) auto', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
-            <span title="1x is a normal talking speed">Script speed</span>
-            <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => onScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
-            <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28, color: 'var(--text-muted)' }}>{scriptSpeed}x{scriptSpeed === 1 ? ' (talking pace)' : ''}</span>
+          <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) 44px', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
+            <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is talking pace)</span></span>
+            <input type="range" min={1} max={5} step={0.5} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
+              onChange={(e) => setSpeedDraft(Number(e.target.value))}
+              onPointerUp={() => onScriptSpeed(speedDraft)} onKeyUp={() => onScriptSpeed(speedDraft)} onBlur={() => onScriptSpeed(speedDraft)} />
+            <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)', textAlign: 'right' }}>{speedDraft}x</span>
           </label>
         )}
 
