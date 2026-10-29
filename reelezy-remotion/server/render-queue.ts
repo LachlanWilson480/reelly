@@ -10,6 +10,7 @@ import { correctTranscript } from "./correct-transcript";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
 import { clipTextSegments } from "./clip-texts";
+import { applyOverlay, type OverlayInput } from "./overlay";
 import { burnCustomCaptions, type CustomCaption, type CustomCaptionStyle } from "./custom-captions";
 
 type ClipInput = {
@@ -55,6 +56,7 @@ type JobData = {
   captionStyle?: CaptionStyle | null;
   captionTextOnly?: boolean;
   customCaptions?: { items: CustomCaption[]; style: CustomCaptionStyle };
+  overlay?: OverlayInput;
   watermark?: boolean;
   userId?: string;
   renderId?: string;
@@ -112,7 +114,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -221,6 +223,22 @@ export const makeRenderQueue = ({
         if (cancelled) throw new Error('Cancelled');
       }
 
+
+      // Step 5c: an image or video the person laid over the finished video
+      if (overlay) {
+        setProgress(jobId, 84, job.data, cancel);
+        console.info(`[${jobId}] Step 5c: adding ${overlay.kind} overlay`);
+        try {
+          const overlaid = await applyOverlay(finalPath, overlay, outputWidth, outputHeight);
+          if (captionCleanup) captionCleanup();
+          captionCleanup = overlaid.cleanup;
+          finalPath = overlaid.outputPath;
+        } catch (err) {
+          // A broken overlay should not lose the whole video, so carry on without it
+          console.error(`[${jobId}] Overlay failed, continuing without it:`, err);
+        }
+        if (cancelled) throw new Error('Cancelled');
+      }
 
       // Watermark step (free plan)
       if (watermark) {

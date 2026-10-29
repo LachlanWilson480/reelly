@@ -91,6 +91,10 @@ const fmtTrimTime = (s: number) => {
 type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
 type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number }
+// An image or video the person lays over their video. x and y are the centre as a share of the frame,
+// size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
+type OverlayItem = { file: File; kind: 'image' | 'video'; url: string; x: number; y: number; size: number; start: number; end: number | null }
+
 type PreviewCaptionStyle = { color: string; border: string; background: string | null; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
 const voiceoverExt = (b: Blob) => {
@@ -275,7 +279,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote, overlay, onOverlayMove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -292,6 +296,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   captionNote?: string
+  overlay?: OverlayItem | null
+  onOverlayMove?: (x: number, y: number) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -304,9 +310,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recording, setRecording] = useState(false)
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
-  const [showScript, setShowScript] = useState(true)
   // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
-  const [scriptSpeed, setScriptSpeed] = useState(3)
+  const [scriptSpeed, setScriptSpeed] = useState(1)
+  const ovDragRef = useRef(false)
+  const ovVideoRef = useRef<HTMLVideoElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -688,14 +695,22 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     if (d) load(d.i, 0, false)
   }
 
-  // The script on the preview follows the playhead, also when the timeline is dragged while paused
+  // A video overlay plays while the preview plays
   useEffect(() => {
-    const box = scriptBoxRef.current
-    if (!box || total <= 0 || box.scrollHeight <= box.clientHeight) return
-    const words = scriptLines.join(' ').split(/\s+/).filter(Boolean).length
-    const talkSecs = Math.max(3, words / 2.3)
-    box.scrollTop = Math.min(1, (globalTime * scriptSpeed) / talkSecs) * (box.scrollHeight - box.clientHeight)
-  }, [globalTime, total, recording, showScript, scriptSpeed, scriptLines])
+    const v = ovVideoRef.current
+    if (!v) return
+    if (playing || recording) { v.play().catch(() => {}) } else { v.pause() }
+  }, [playing, recording, overlay])
+
+  // While a voiceover is being recorded the script shows one line at a time, with the next line smaller and faded.
+  // 1x moves at a normal talking pace (about 2.3 words a second).
+  const scriptStarts = (() => {
+    let t = 0
+    return scriptLines.map((l) => { const st = t; t += Math.max(1.2, l.split(/\s+/).filter(Boolean).length / 2.3); return st })
+  })()
+  const spokenSecs = Math.max(0, globalTime - recFrom) * scriptSpeed
+  let scriptIdx = 0
+  scriptStarts.forEach((st, i) => { if (spokenSecs >= st) scriptIdx = i })
 
   return (
     <div>
@@ -720,13 +735,30 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             </div>
           )
         })}
-        {scriptLines.length > 0 && (recording || showScript) && (
-          <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '52%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.82) 72%, rgba(8,6,24,0))' }}>
-            <div ref={scriptBoxRef} style={{ height: '100%', overflow: 'hidden', padding: `${recording ? 40 : 16}px 18px 22px` }}>
-              {scriptLines.map((line, i) => (
-                <p key={i} style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.45, color: '#fff', margin: '0 0 12px', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{line}</p>
-              ))}
-            </div>
+        {overlay && globalTime >= overlay.start && (overlay.end === null || globalTime < overlay.end) && (
+          <div aria-label="Overlay"
+            onPointerDown={(e) => { if (recording || !onOverlayMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = true }}
+            onPointerMove={(e) => {
+              if (!ovDragRef.current || !onOverlayMove) return
+              const box = stageRef.current?.getBoundingClientRect()
+              if (!box) return
+              onOverlayMove(Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)))
+            }}
+            onPointerUp={() => { ovDragRef.current = false }}
+            onPointerCancel={() => { ovDragRef.current = false }}
+            style={{ position: 'absolute', left: `${overlay.x * 100}%`, top: `${overlay.y * 100}%`, width: `${overlay.size * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 2, cursor: onOverlayMove ? 'grab' : 'default', touchAction: 'none' }}>
+            {overlay.kind === 'image'
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={overlay.url} alt="" draggable={false} style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />
+              : <video ref={ovVideoRef} src={overlay.url} muted loop playsInline style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />}
+          </div>
+        )}
+        {scriptLines.length > 0 && recording && (
+          <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, zIndex: 2, pointerEvents: 'none', padding: '44px 18px 30px', background: 'linear-gradient(rgba(8,6,24,0.8) 70%, rgba(8,6,24,0))' }}>
+            <p key={`cur${scriptIdx}`} className="scr-cur" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: '#fff', margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{scriptLines[scriptIdx]}</p>
+            {scriptLines[scriptIdx + 1] && (
+              <p key={`next${scriptIdx}`} className="scr-next" style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.35, color: 'rgba(255,255,255,0.5)', margin: '10px 0 0' }}>{scriptLines[scriptIdx + 1]}</p>
+            )}
           </div>
         )}
         {!playing && hasClips && (
@@ -764,11 +796,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
         {scriptLines.length > 0 && !recording && (
-          <button type="button" onClick={() => setShowScript((v) => !v)} style={choiceBtn(showScript)}>{showScript ? 'Hide script' : 'Show script'}</button>
-        )}
-        {scriptLines.length > 0 && !recording && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            <span title="1x is a normal talking speed">Script speed</span>
+            <span title="1x is a normal talking speed">Script speed while you record</span>
             <input type="range" min={1} max={5} step={0.5} value={scriptSpeed} onChange={(e) => setScriptSpeed(Number(e.target.value))} aria-label="Script scroll speed" style={{ width: 90, accentColor: 'var(--coral)' }} />
             <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28 }}>{scriptSpeed}x</span>
           </label>
@@ -967,7 +996,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, captionNote, overlay, onOverlayMove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -984,6 +1013,8 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   captionNote?: string
+  overlay?: OverlayItem | null
+  onOverlayMove?: (x: number, y: number) => void
 }) {
   const [fileOver, setFileOver] = useState(false)
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
@@ -1001,7 +1032,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} captionNote={captionNote} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} captionNote={captionNote} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -1231,6 +1262,11 @@ export default function DashboardPage() {
   const [stepUploadNames, setStepUploadNames] = useState<Record<number, string>>({})
   const [filmingMode, setFilmingMode] = useState<'default' | 'multi' | 'single' | 'quick'>('default')
   const [videoLength, setVideoLength] = useState<number>(30)
+  // An image or video laid over the finished video
+  const overlayInputRef = useRef<HTMLInputElement | null>(null)
+  const [overlay, setOverlay] = useState<OverlayItem | null>(null)
+  const [overlayError, setOverlayError] = useState('')
+  const overlayUploadRef = useRef<{ file: File; path: string } | null>(null)
   // How many scenes the filming instructions should have. null means let the AI decide.
   const [sceneCount, setSceneCount] = useState<number | null>(null)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
@@ -1297,9 +1333,8 @@ export default function DashboardPage() {
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
-  // Optional coloured box behind the captions
-  const [captionBgOn, setCaptionBgOn] = useState(false)
-  const [captionBgColor, setCaptionBgColor] = useState('#000000')
+  // Optional coloured box behind the captions. null means transparent.
+  const [captionBg, setCaptionBg] = useState<string | null>(null)
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
   const [captionLayers, setCaptionLayers] = useState<CaptionLayers>(DEFAULT_CAPTION_LAYERS)
 
@@ -2305,14 +2340,14 @@ export default function DashboardPage() {
   const previewCaptionStyle: PreviewCaptionStyle = {
     color: captionColor,
     border: captionBorderColor,
-    background: captionBgOn ? captionBgColor : null,
+    background: captionBg,
     size: Number(captionFontSize) || 60,
     onScreen: layerPoint(captionLayers, 'onScreen', captionPosition),
     speech: layerPoint(captionLayers, 'speech', captionPosition),
   }
 
   // Captions are sent as plain data: text, when it shows and where it sits
-  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor, backgroundColor: captionBgOn ? captionBgColor : undefined }
+  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor, backgroundColor: captionBg ?? undefined }
   const captionTimingNote = cutDeadSpace ? 'Smart Trim is switched off for this video while it has captions, so they stay in time.' : undefined
 
   // Dragging the ends of a clip on the timeline sets its trim
@@ -2377,6 +2412,7 @@ export default function DashboardPage() {
   )
 
   // Auto captions: the words from the person's voice, added for them
+  // Auto captions: the words from the person's voice, added for them
   const renderAutoCaptions = (m: 'upload' | 'ai') => {
     const on = m === 'ai' ? aiAddCaptions : uploadAddCaptions
     const setOn = m === 'ai' ? setAiAddCaptions : setUploadAddCaptions
@@ -2390,10 +2426,8 @@ export default function DashboardPage() {
         </label>
         {on && (
           <>
-                          <div style={{ background: '#111', borderRadius: 4, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
-                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>Caption</p>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 10 }}>
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>Choose how the words appear:</p>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 0 }}>
                             {CAPTION_PRESETS.map((preset) => (
                               <button key={preset.id} title={preset.desc} onClick={() => setPreset(preset.id)}
                                 style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 4, border: chosenPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: chosenPreset === preset.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
@@ -2402,34 +2436,94 @@ export default function DashboardPage() {
                               </button>
                             ))}
                           </div>
-                          <details>
-                            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none', marginBottom: 10 }}>Advanced caption options</summary>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}><input type="checkbox" checked={captionBgOn} onChange={(e) => setCaptionBgOn(e.target.checked)} aria-label="Show a background behind captions" />Background</label><input type="color" value={captionBgColor} disabled={!captionBgOn} onChange={(e) => setCaptionBgColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, opacity: captionBgOn ? 1 : 0.4 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
-                            </div>
-                          </details>
           </>
         )}
       </div>
     )
   }
 
-  // The Captions card: auto captions and typed captions, clearly separate
+  // Caption style: one place for how every caption looks, whether typed or from the voice
+  const renderCaptionStyle = () => (
+    <div>
+      <div style={{ background: '#111', borderRadius: 4, height: 84, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
+                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>Your caption</p>
+                          </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><select value={captionFontFamily} onChange={(e) => setCaptionFontFamily(e.target.value)} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}>{FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><input type="color" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0 }} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <input type="color" value={captionBg ?? '#000000'} onChange={(e) => setCaptionBg(e.target.value)} aria-label="Caption background colour" style={{ ...inputStyle, padding: 4, height: 36, marginBottom: 0, flex: 1, minWidth: 0, opacity: captionBg ? 1 : 0.45 }} />
+                                  <button type="button" onClick={() => setCaptionBg(null)} disabled={!captionBg} style={{ ...choiceBtn(!captionBg), padding: '0 10px', height: 36, fontSize: 12 }}>None</button>
+                                </div></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value as 'bottom' | 'top' | 'center')} style={{ ...inputStyle, marginBottom: 0, fontSize: 12 }}><option value="bottom">Bottom</option><option value="center">Center</option><option value="top">Top</option></select></div>
+                            </div>
+    </div>
+  )
+
+  // The Captions card: auto captions, then the look, then typed captions
   const renderCaptionsCard = (m: 'upload' | 'ai') => (
     <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Captions</p>
       <div>
-        {subHead('Auto captions', 'Words from your voice, added for you.')}
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Captions</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Add words from your voice, type your own, or both. They all use the same look.</p>
+      </div>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        {subHead('1. Auto captions', 'Words from your voice, added for you.')}
         {renderAutoCaptions(m)}
       </div>
-      <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 }}>
-        {subHead('Type your own captions', 'Your own words, timed on the timeline.')}
-        <button type="button" style={choiceBtn()} onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Go to the preview to add them</button>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        {subHead('2. Your own captions', 'Type them under the preview, then drag the bar on the timeline to time them.')}
+        <button type="button" style={choiceBtn()} onClick={() => document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to the preview</button>
       </div>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        {subHead('3. Caption look', 'Font, size, colours and where they sit. Applies to both kinds.')}
+        {renderCaptionStyle()}
+      </div>
+    </div>
+  )
+
+  // Overlay: an image or video laid over the video, such as a logo or a b-roll clip
+  const renderOverlayCard = () => (
+    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div>
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Overlay</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it.</p>
+      </div>
+      <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
+      {!overlay ? (
+        <div><button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Add an image or video</button></div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 10 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 4, overflow: 'hidden', background: '#111', flexShrink: 0 }}>
+              {overlay.kind === 'image'
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={overlay.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <video src={overlay.url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            </div>
+            <p style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overlay.file.name}</p>
+            <button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Change</button>
+            <button type="button" style={choiceBtn()} onClick={clearOverlay}>Remove</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
+              Size
+              <input type="range" min={10} max={100} step={5} value={Math.round(overlay.size * 100)} onChange={(e) => patchOverlay({ size: Number(e.target.value) / 100 })} aria-label="Overlay size" style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
+            </label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
+              Shows from (seconds)
+              <input type="number" min={0} step={0.5} value={overlay.start} onChange={(e) => patchOverlay({ start: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inputStyle, marginBottom: 0, marginTop: 6, fontSize: 12 }} />
+            </label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
+              Until (seconds, empty = the end)
+              <input type="number" min={0} step={0.5} value={overlay.end ?? ''} placeholder="End" onChange={(e) => patchOverlay({ end: e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0) })} style={{ ...inputStyle, marginBottom: 0, marginTop: 6, fontSize: 12 }} />
+            </label>
+          </div>
+        </>
+      )}
+      {overlayError && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0 }}>{overlayError}</p>}
     </div>
   )
 
@@ -2473,6 +2567,10 @@ export default function DashboardPage() {
       <div>
         {subHead('Auto captions', 'Words from your voice, added for you.')}
         {renderAutoCaptions('upload')}
+      </div>
+      <div>
+        {subHead('Caption look', 'Font, size, colours and where they sit.')}
+        {renderCaptionStyle()}
       </div>
       {renderVideoSettingsBody('upload')}
     </div>
@@ -3005,6 +3103,38 @@ export default function DashboardPage() {
   }
 
   // Music and voiceover files upload in the background too ('m' = music file, 'v:<id>' = a voiceover part)
+  const pickOverlay = (file: File | null) => {
+    if (!file) return
+    const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null
+    if (!kind) { setOverlayError('Choose an image or a video file.'); return }
+    if (file.size > 50 * 1024 * 1024) { setOverlayError('That file is over 50 MB. Try a smaller one.'); return }
+    setOverlayError('')
+    overlayUploadRef.current = null
+    setOverlay((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url)
+      return { file, kind, url: URL.createObjectURL(file), x: 0.5, y: 0.2, size: 0.35, start: 0, end: null }
+    })
+  }
+  const clearOverlay = () => {
+    overlayUploadRef.current = null
+    setOverlayError('')
+    setOverlay((prev) => { if (prev) URL.revokeObjectURL(prev.url); return null })
+  }
+  const moveOverlay = (x: number, y: number) => setOverlay((prev) => (prev ? { ...prev, x, y } : prev))
+  const patchOverlay = (patch: Partial<OverlayItem>) => setOverlay((prev) => (prev ? { ...prev, ...patch } : prev))
+  // Uploads the overlay file when the video is made, and returns what the server needs
+  const uploadOverlay = async () => {
+    if (!overlay || !userId) return null
+    let path = overlayUploadRef.current?.file === overlay.file ? overlayUploadRef.current.path : null
+    if (!path) {
+      path = `${userId}/overlay-${Date.now()}-${overlay.file.name.replace(/[^\w.-]+/g, '_')}`
+      const { error } = await supabase.storage.from('video-uploads').upload(path, overlay.file, overlay.file.type ? { contentType: overlay.file.type } : undefined)
+      if (error) throw new Error(`Overlay upload failed: ${error.message}`)
+      overlayUploadRef.current = { file: overlay.file, path }
+    }
+    return { path, kind: overlay.kind, x: overlay.x, y: overlay.y, size: overlay.size, start: overlay.start, end: overlay.end }
+  }
+
   const startAssetUpload = (key: string, blob: Blob, fileName: string) => {
     if (!userId) return
     setAssetPaths((prev) => { const n = { ...prev }; delete n[key]; return n })
@@ -3215,12 +3345,13 @@ export default function DashboardPage() {
               font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
               position: captionPosition,
               borderColor: captionBorderColor,
-              backgroundColor: captionBgOn ? captionBgColor : undefined,
+              backgroundColor: captionBg ?? undefined,
             },
             layers: resolveCaptionLayers(captionLayers, captionPosition, aiOwnMode),
           }
         : null
 
+      const overlayPayload = await uploadOverlay()
       const res = await authFetch("/api/render-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3242,6 +3373,7 @@ export default function DashboardPage() {
           cutDeadSpace: cutDeadSpace && aiCaps.length === 0,
           customCaptions: aiCaps,
           customCaptionStyle,
+          overlay: overlayPayload,
           
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
@@ -3373,16 +3505,17 @@ export default function DashboardPage() {
               font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
               position: captionPosition,
               borderColor: captionBorderColor,
-              backgroundColor: captionBgOn ? captionBgColor : undefined,
+              backgroundColor: captionBg ?? undefined,
             },
             layers: resolveCaptionLayers(captionLayers, captionPosition, uploadOwnMode),
           }
         : null
 
+      const overlayPayload = await uploadOverlay()
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlay: overlayPayload }),
       })
 
       const data = await res.json()
@@ -3506,6 +3639,10 @@ export default function DashboardPage() {
           margin-right: 7px;
           flex-shrink: 0;
         }
+        .scr-cur { animation: scrIn 0.3s ease; }
+        .scr-next { animation: scrNext 0.5s ease; mask-image: linear-gradient(#000 40%, transparent); -webkit-mask-image: linear-gradient(#000 40%, transparent); }
+        @keyframes scrIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes scrNext { from { opacity: 0; } to { opacity: 1; } }
         .rly-spinner-coral {
           border-color: rgba(255,106,77,0.3);
           border-top-color: var(--coral);
@@ -3513,7 +3650,7 @@ export default function DashboardPage() {
         @media (min-width: 1024px) {
           .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
           .ed-split > .ed-main { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; }
-          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky !important; top: 24px; align-self: start; margin: 0; }
+          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky !important; top: 16px; align-self: start; margin: 0; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; }
         }
       `}</style>
       {showOverageModal && (
@@ -4842,6 +4979,7 @@ export default function DashboardPage() {
 
               {/* ── CAPTIONS ── */}
               {renderCaptionsCard('upload')}
+              {renderOverlayCard()}
 
               {/* ── VIDEO SETTINGS ── */}
               {renderVideoSettings('upload')}
@@ -4910,6 +5048,8 @@ export default function DashboardPage() {
                 onCaptions={setUploadCaps}
                 onTrimClip={trimUploadClip}
                 captionNote={uploadCaps.length > 0 ? captionTimingNote : undefined}
+                overlay={overlay}
+                onOverlayMove={moveOverlay}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -5356,6 +5496,7 @@ export default function DashboardPage() {
 
                     {/* ── CAPTIONS ── */}
                     {renderCaptionsCard('ai')}
+                    {renderOverlayCard()}
 
                     {/* ── VIDEO SETTINGS ── */}
                     {renderVideoSettings('ai')}
@@ -5417,6 +5558,8 @@ export default function DashboardPage() {
                 onCaptions={setAiCaps}
                 onTrimClip={trimAiClip}
                 captionNote={aiCaps.length > 0 ? captionTimingNote : undefined}
+                overlay={overlay}
+                onOverlayMove={moveOverlay}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
                 takes={voiceTakes}
                 originalVol={originalVol}

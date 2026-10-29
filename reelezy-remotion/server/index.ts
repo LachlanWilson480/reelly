@@ -59,7 +59,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, userId, renderId, watermark, callbackUrl } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -142,6 +142,17 @@ function setupApp() {
                 .filter((c: { text?: unknown; start?: unknown; end?: unknown }) => c && typeof c.text === 'string' && Number.isFinite(Number(c.start)) && Number.isFinite(Number(c.end)))
                 .map((c: { text: string; start: unknown; end: unknown; x?: unknown; y?: unknown }) => ({ text: c.text.slice(0, 140), start: Number(c.start), end: Number(c.end), x: Number.isFinite(Number(c.x)) ? Number(c.x) : 0.5, y: Number.isFinite(Number(c.y)) ? Number(c.y) : 0.7 })),
               style: customCaptions.style && typeof customCaptions.style === 'object' ? customCaptions.style : {},
+            }
+          : undefined,
+        overlay: overlay && typeof overlay.url === 'string' && overlay.url.startsWith('https://') && (overlay.kind === 'image' || overlay.kind === 'video')
+          ? {
+              url: overlay.url,
+              kind: overlay.kind,
+              x: Math.min(1, Math.max(0, Number(overlay.x) || 0.5)),
+              y: Math.min(1, Math.max(0, Number(overlay.y) || 0.2)),
+              size: Math.min(1, Math.max(0.05, Number(overlay.size) || 0.35)),
+              start: Math.max(0, Number(overlay.start) || 0),
+              end: overlay.end === null || overlay.end === undefined ? null : Math.max(0, Number(overlay.end) || 0),
             }
           : undefined,
         watermark: watermark === true,

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -130,6 +130,26 @@ export async function POST(req: NextRequest) {
     if (!musicUrl && musicPath) {
       const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(musicPath, 21600)
       if (!error && data) musicUrl = data.signedUrl
+    }
+
+    // Optional image or video laid over the finished video. Only files in this person's own folder are allowed.
+    let overlayInfo: { url: string; kind: 'image' | 'video'; x: number; y: number; size: number; start: number; end: number | null } | undefined
+    if (rawOverlay && typeof rawOverlay === 'object' && typeof rawOverlay.path === 'string') {
+      if (!rawOverlay.path.startsWith(`${userId}/`) || rawOverlay.path.includes('..')) {
+        return NextResponse.json({ error: 'Invalid overlay path' }, { status: 403 })
+      }
+      const { data: ovData, error: ovError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(rawOverlay.path, 21600)
+      if (ovError || !ovData) return NextResponse.json({ error: 'Could not read the overlay file. Please add it again.' }, { status: 400 })
+      const num = (v: unknown, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : d)
+      overlayInfo = {
+        url: ovData.signedUrl,
+        kind: rawOverlay.kind === 'video' ? 'video' : 'image',
+        x: num(rawOverlay.x, 0, 1, 0.5),
+        y: num(rawOverlay.y, 0, 1, 0.2),
+        size: num(rawOverlay.size, 0.05, 1, 0.35),
+        start: num(rawOverlay.start, 0, 36000, 0),
+        end: rawOverlay.end === null || rawOverlay.end === undefined ? null : num(rawOverlay.end, 0, 36000, 36000),
+      }
     }
 
     const trims: ClipTrim[] = Array.isArray(clipTrims) ? clipTrims : []
@@ -240,6 +260,7 @@ export async function POST(req: NextRequest) {
         cutDeadSpace: cutDeadSpace === true,
         captionStyle: captionStyle || null,
         captionTextOnly: captionTextOnly === true,
+        overlay: overlayInfo,
         customCaptions: cleanCaptions.length > 0 ? {
           items: cleanCaptions,
           style: {
