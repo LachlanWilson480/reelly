@@ -363,8 +363,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const stageRef = useRef<HTMLDivElement | null>(null)
   const setSelCap = (id: string | null) => onSelCap?.(id)
   const [countdown, setCountdown] = useState<number | null>(null)
+  const [holdF, setHoldF] = useState<number | null>(null)
+  const scriptFRef = useRef(0)
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
-  const capPosRef = useRef<{ id: string } | null>(null)
+  const capPosRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
+  const grabRef = useRef({ dx: 0, dy: 0 })
+  const frac = (e: { clientX: number; clientY: number }) => { const r = stageRef.current?.getBoundingClientRect(); return r && r.width > 0 ? { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height } : { x: 0.5, y: 0.5 } }
   const trimDragRef = useRef<{ i: number; side: 'l' | 'r'; startX: number; scale: number; start: number; end: number; dur: number } | null>(null)
   // While a clip end is being dragged the timeline keeps its scale, so the end follows the finger exactly
   const [trimView, setTrimView] = useState<{ i: number; side: 'l' | 'r'; shift: number; total: number; start: number; end: number } | null>(null)
@@ -462,6 +466,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     videoRef.current?.pause()
     pauseTakes()
     setPlaying(false)
+    setHoldF(scriptFRef.current)
     setRecording(false)
   }
 
@@ -597,6 +602,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       }
       recorderRef.current = rec
       pauseTakes()
+      setHoldF(null)
       setRecFrom(startAt)
       setRecording(true)
       setPlaying(true)
@@ -778,6 +784,11 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const spokenSecs = Math.max(0, globalTime - recFrom) * scriptSpeed
   let scriptIdx = 0
   scriptStarts.forEach((st, i) => { if (spokenSecs >= st) scriptIdx = i })
+  const scriptDur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, (scriptLines[i] || '').split(/\s+/).filter(Boolean).length / 2.3)) - scriptStarts[i]
+  // Where the script has got to. It stops at the last line and stays there after recording ends.
+  const liveF = scriptLines.length === 0 ? 0 : Math.min(scriptLines.length - 1, scriptIdx + Math.min(1, Math.max(0, (spokenSecs - scriptStarts[scriptIdx]) / scriptDur(scriptIdx))))
+  const scriptF = recording ? liveF : countdown !== null ? 0 : (holdF ?? 0)
+  useEffect(() => { scriptFRef.current = scriptF })
 
   return (
     <div>
@@ -795,7 +806,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 if (recording || !onCaptions) return
                 e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id)
                 ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-                if (ptrsRef.current.size === 1) capPosRef.current = { id: c.id }
+                if (ptrsRef.current.size === 1) { const pf = frac(e); capPosRef.current = { id: c.id, dx: c.x - pf.x, dy: c.y - pf.y } }
                 else if (ptrsRef.current.size === 2) {
                   const [a, b] = Array.from(ptrsRef.current.values())
                   pinchRef.current = { id: c.id, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, size: c.size ?? captionStyle.size }
@@ -814,7 +825,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 const p = capPosRef.current
                 const box = stageRef.current?.getBoundingClientRect()
                 if (!p || !box) return
-                updateCap(p.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)) })
+                updateCap(p.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + p.dx)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + p.dy)) })
               }}
               onPointerUp={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
@@ -825,12 +836,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         })}
         {autoCap && hasClips && !recording && (
           <div aria-label="Auto captions position" title="Drag to move where your auto captions appear"
-            onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true }}
+            onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true; const pf = frac(e); grabRef.current = { dx: autoCap.x - pf.x, dy: autoCap.y - pf.y } }}
             onPointerMove={(e) => {
               if (!autoDragRef.current || !onAutoCapMove) return
               const box = stageRef.current?.getBoundingClientRect()
               if (!box) return
-              onAutoCapMove(Math.min(0.9, Math.max(0.1, (e.clientX - box.left) / box.width)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)))
+              onAutoCapMove(Math.min(0.9, Math.max(0.1, (e.clientX - box.left) / box.width + grabRef.current.dx)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)))
             }}
             onPointerUp={() => { autoDragRef.current = false }}
             onPointerCancel={() => { autoDragRef.current = false }}
@@ -841,12 +852,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         )}
         {overlay && globalTime >= overlay.start && (overlay.end === null || globalTime < overlay.end) && (
           <div aria-label="Overlay"
-            onPointerDown={(e) => { if (recording || !onOverlayMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = true }}
+            onPointerDown={(e) => { if (recording || !onOverlayMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = true; const pf = frac(e); grabRef.current = { dx: overlay.x - pf.x, dy: overlay.y - pf.y } }}
             onPointerMove={(e) => {
               if (!ovDragRef.current || !onOverlayMove) return
               const box = stageRef.current?.getBoundingClientRect()
               if (!box) return
-              onOverlayMove(Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height)))
+              onOverlayMove(Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + grabRef.current.dx)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)))
             }}
             onPointerUp={() => { ovDragRef.current = false }}
             onPointerCancel={() => { ovDragRef.current = false }}
@@ -860,9 +871,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
           // A real teleprompter: the text glides up at reading pace and the line being read sits on a fixed reading line.
           const SLOT = 84
-          const dur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, scriptLines[i].split(/\s+/).filter(Boolean).length / 2.3)) - scriptStarts[i]
-          const live = recording ? spokenSecs : 0
-          const f = Math.min(scriptLines.length - 0.001, scriptIdx + Math.min(1, Math.max(0, (live - scriptStarts[scriptIdx]) / dur(scriptIdx))))
+          const f = scriptF
           return (
             <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '46%', zIndex: 2, pointerEvents: 'none', overflow: 'hidden', background: 'linear-gradient(rgba(8,6,24,0.86) 62%, rgba(8,6,24,0))', WebkitMaskImage: 'linear-gradient(#000 78%, transparent)', maskImage: 'linear-gradient(#000 78%, transparent)' }}>
               <span aria-hidden style={{ position: 'absolute', left: 8, top: 44 + 14, width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '9px solid var(--coral)' }} />
@@ -2581,7 +2590,6 @@ export default function DashboardPage() {
                                     <button type="button" onClick={() => setCaptionBg(null)} aria-label="Remove the background" title="Remove the background" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>×</button>
                                   )}
                                 </div></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Position</label><Dropdown ariaLabel="Caption position" value={captionPosition} onChange={(v) => { setCaptionPosition(v as 'bottom' | 'top' | 'center'); setCaptionLayers((l) => ({ onScreen: { ...l.onScreen, x: undefined, y: undefined }, speech: { ...l.speech, x: undefined, y: undefined } })) }} options={[{ value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }]} /></div>
                             </div>
     </div>
   )
