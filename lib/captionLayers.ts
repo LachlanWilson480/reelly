@@ -9,7 +9,7 @@ export const DEFAULT_CAPTION_LAYERS: CaptionLayers = { onScreen: { on: true }, s
 
 export function autoLayerY(layer: LayerKey, position: CaptionPosition): number {
   if (position === 'top') return layer === 'onScreen' ? 0.1 : 0.24
-  if (position === 'center') return layer === 'onScreen' ? 0.38 : 0.52
+  if (position === 'center') return layer === 'onScreen' ? 0.38 : 0.64
   return layer === 'onScreen' ? 0.66 : 0.8
 }
 

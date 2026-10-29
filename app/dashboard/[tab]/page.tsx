@@ -226,7 +226,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
       {/* 1. Original audio */}
       <div>
         {heading('Original audio', 'The sound recorded in your clips.')}
-        <VolumeRow label="Volume" value={originalVol} onChange={onOriginalVol} color="#4a6fa5" />
+        <VolumeRow label="Volume" value={originalVol} onChange={onOriginalVol} color="var(--coral)" />
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
           {takes.length > 0 ? 'Turned down under your voiceover.' : 'Drag to Off to mute your clips.'}
         </p>
