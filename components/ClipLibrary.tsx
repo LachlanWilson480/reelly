@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   type LibraryClip, type LibraryAlbum, type LibraryPlan,
-  createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFileDetailed, libraryLimitBytes, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
+  createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFileDetailed, libraryLimitBytes, libraryMaxClips, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
 } from '@/lib/clipLibrary'
 
 // Loads the person's clips and a preview link for each one
@@ -138,6 +138,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 
   const used = clips.reduce((n, c) => n + (c.size_bytes || 0), 0)
   const limit = libraryLimitBytes(plan)
+  const maxClips = libraryMaxClips(plan)
   const pct = Math.min(100, Math.round((used / limit) * 100))
   const currentAlbum = albums.find((a) => a.id === view)
   const sel = selected.filter((id) => clips.some((c) => c.id === id))
@@ -150,11 +151,12 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     if (vids.length === 0) { setMessage('Only video files can go in the library.'); return }
     setMessage('')
     let usedNow = used
+    let countNow = clips.length
     const problems: string[] = []
     setBusy((n) => n + vids.length)
     for (const f of vids) {
-      const r = await saveToLibrary(userId, f, usedNow, limit, currentAlbum ? currentAlbum.id : null)
-      if (r.clip) usedNow += r.clip.size_bytes
+      const r = await saveToLibrary(userId, f, usedNow, limit, currentAlbum ? currentAlbum.id : null, countNow, maxClips)
+      if (r.clip) { usedNow += r.clip.size_bytes; countNow++ }
       else if (r.error) problems.push(`${f.name}: ${r.error}`)
       setBusy((n) => n - 1)
     }
@@ -246,7 +248,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
           <div style={{ minWidth: 200 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5, gap: 12 }}>
               <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{formatBytes(used)}</span>
-              <span style={{ color: 'var(--text-muted)' }}>of {formatBytes(limit)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>of {formatBytes(limit)} · {clips.length}/{maxClips} clips</span>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: 'rgba(128,128,128,0.2)', overflow: 'hidden' }}>
               <div style={{ width: `${Math.max(pct, used > 0 ? 2 : 0)}%`, height: '100%', background: pct >= 90 ? '#d92d20' : 'var(--coral)' }} />
@@ -477,7 +479,7 @@ export function SaveToLibraryButton({ userId, plan, getFile, dark }: { userId: s
     setMsg('')
     const clips = await listLibrary()
     const used = clips.reduce((n, c) => n + (c.size_bytes || 0), 0)
-    const r = await saveToLibrary(userId, f, used, libraryLimitBytes(plan))
+    const r = await saveToLibrary(userId, f, used, libraryLimitBytes(plan), null, clips.length, libraryMaxClips(plan))
     if (r.clip) setState('saved')
     else { setState('error'); setMsg(r.error || 'Could not save.') }
   }

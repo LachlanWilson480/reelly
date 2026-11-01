@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
 )
 
 // This route is called by Vercel Cron every minute
-// Currently stubs out - will post to Instagram/TikTok/Facebook once OAuth is connected
+// Posting connections are not live yet, so due posts are flagged 'needs_connection' (never 'posted').
 export async function GET(req: NextRequest) {
   try {
     // Verify this is a legitimate cron call
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date()
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000)
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
     // Find posts due to be published
     const { data: duePosts, error } = await supabaseAdmin
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('status', 'scheduled')
       .lte('scheduled_for', now.toISOString())
-      .gte('scheduled_for', fiveMinutesAgo.toISOString())
+      .gte('scheduled_for', dayAgo.toISOString())
 
     if (error) throw error
     if (!duePosts || duePosts.length === 0) {
@@ -36,21 +36,11 @@ export async function GET(req: NextRequest) {
 
     for (const post of duePosts) {
       try {
-        // TODO: Get user's Instagram access token from business_profiles
-        // const { data: profile } = await supabaseAdmin
-        //   .from('business_profiles')
-        //   .select('instagram_access_token, instagram_user_id')
-        //   .eq('user_id', post.user_id)
-        //   .single()
-        //
-        // if (profile?.instagram_access_token) {
-        //   await postToInstagram(profile.instagram_access_token, profile.instagram_user_id, post)
-        // }
-
-        // For now mark as posted (stub)
+        // Direct posting needs a connection to each platform (or a posting service). Until one is set up,
+        // never claim the post went out: mark it so the person knows to post it by hand.
         await supabaseAdmin
           .from('scheduled_posts')
-          .update({ status: 'posted', posted_at: now.toISOString() })
+          .update({ status: 'needs_connection', error_text: 'Posting connections are not live yet. Download the video and post it yourself.' })
           .eq('id', post.id)
 
         processed++

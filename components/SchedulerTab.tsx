@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
+import { ProfilesCard, Queue, ScheduleForm, useSocialProfiles, type ScheduledPost } from '@/components/PublisherPanel'
+import { connectedPlatforms, type PlatformId } from '@/lib/socialProfiles'
 
 type Render = {
   id: string
@@ -22,13 +25,15 @@ type Carousel = {
   created_at: string
 }
 
-function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
+function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree, connected, onScheduled }: {
   render: Render
   copied: string | null
   onCopy: (text: string, key: string) => void
   onDownload: (url: string) => void
   onClear: (id: string) => void
   isFree?: boolean
+  connected: PlatformId[]
+  onScheduled: () => void
 }) {
   const caption = render.caption || ''
   const tags = render.tags || ''
@@ -84,6 +89,9 @@ function RenderCard({ render, copied, onCopy, onDownload, onClear, isFree }: {
               Remove
             </button>
           </div>
+          {render.output_url && (isFree
+            ? <a href="/plans" style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600 }}>Upgrade to schedule posts</a>
+            : <ScheduleForm renderId={render.id} title={render.title || ''} caption={caption} tags={tags} videoUrl={render.output_url} connected={connected} onScheduled={onScheduled} />)}
           {tags && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <p style={{ fontSize: 12, color: 'var(--coral)', flex: 1 }}>{tags}</p>
@@ -124,12 +132,28 @@ function Folder({ id, title, count, noun, open, onToggle, children }: {
   )
 }
 
+async function fetchQueue(): Promise<ScheduledPost[]> {
+  try {
+    const res = await authFetch('/api/scheduled-posts')
+    return res.ok ? (await res.json()).posts || [] : []
+  } catch { return [] }
+}
+
 export default function SchedulerTab({ userId, carousels, isFree = false }: { userId: string | null; carousels: Carousel[]; isFree?: boolean }) {
   const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
   const [carouselThumbs, setCarouselThumbs] = useState<Record<string, string>>({})
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
+  const { profiles, loaded: profilesLoaded, save: saveProfiles } = useSocialProfiles(userId)
+  const [queue, setQueue] = useState<ScheduledPost[]>([])
+  const connected = connectedPlatforms(profiles)
+  const loadQueue = () => { fetchQueue().then(setQueue) }
+  const cancelPost = async (id: string) => {
+    const res = await authFetch('/api/update-scheduled-post', { method: 'POST', body: JSON.stringify({ postId: id, updates: { status: 'cancelled' } }) })
+    if (res.ok) setQueue((q) => q.map((p) => (p.id === id ? { ...p, status: 'cancelled' } : p)))
+  }
+  useEffect(() => { if (userId) fetchQueue().then(setQueue) }, [userId])
 
   useEffect(() => {
     if (!userId) return
@@ -214,7 +238,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     { key: 'reel', label: 'Image reels' },
   ]
 
-  if (loading) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
+  if (loading || !profilesLoaded) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
 
   const emptyNote = (text: string) => (
     <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '4px 2px', margin: 0 }}>{text}</p>
@@ -224,23 +248,15 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       <div>
-        <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ready to post</h2>
+        <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Publish</h2>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your completed videos and carousels with suggested captions and hashtags.</p>
       </div>
 
-      <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '20px 24px', border: '1px solid rgba(128,128,128,0.12)' }}>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 4, background: 'rgba(255,106,77,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="var(--coral)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="4" x2="7" y2="7.5"/><circle cx="7" cy="9.5" r="0.5" fill="var(--coral)"/></svg>
-          </div>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>In-app scheduling coming soon</p>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              We&apos;re building direct Instagram, TikTok and Facebook posting. In the meantime, all your rendered videos are available to download below, complete with captions, descriptions and hashtags ready to paste when you post.
-            </p>
-          </div>
-        </div>
-      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+        Schedule a finished video for a date and time. Automatic posting is still being switched on, so for now a post that comes due is marked &quot;Not posted&quot; and the video is ready to download and post yourself.
+      </p>
+      <ProfilesCard profiles={profiles} onSave={saveProfiles} />
+      <Queue posts={queue} onCancel={cancelPost} onDownload={downloadVideo} />
 
       {renders.length === 0 && carousels.length === 0 && (
         <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '48px', textAlign: 'center' }}>
@@ -267,7 +283,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
         {scriptRenders.length === 0
           ? emptyNote('No finished videos from your scripts yet.')
           : scriptRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} connected={connected} onScheduled={loadQueue} />
             ))}
       </Folder>
 
@@ -275,7 +291,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
         {ideaRenders.length === 0
           ? emptyNote('No finished videos from your content ideas yet.')
           : ideaRenders.map((render) => (
-              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
+              <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} connected={connected} onScheduled={loadQueue} />
             ))}
       </Folder>
 
@@ -317,7 +333,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       {otherRenders.length > 0 && (
         <Folder id="folder-other" title="Other renders" count={otherRenders.length} noun="video" open={isOpen('other')} onToggle={() => toggleFolder('other')}>
           {otherRenders.map((render) => (
-            <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} />
+            <RenderCard key={render.id} render={render} copied={copied} onCopy={copyToClipboard} onDownload={downloadVideo} onClear={clearRender} isFree={isFree} connected={connected} onScheduled={loadQueue} />
           ))}
         </Folder>
       )}

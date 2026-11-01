@@ -7,6 +7,7 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import ComfortPicker from '@/components/ComfortPicker'
 import { withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
@@ -75,6 +76,40 @@ export default function OnboardingPage() {
   const [communityTies, setCommunityTies] = useState('')
   const [notes, setNotes] = useState('')
 
+  // Website scan: read the business's own site and fill in the form (never overwrites what is already typed)
+  const [scanUrl, setScanUrl] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [scanNote, setScanNote] = useState('')
+  const [scanned, setScanned] = useState(false)
+  const [socials, setSocials] = useState<Record<string, string>>({})
+  const handleScan = async () => {
+    if (!scanUrl.trim() || scanning) return
+    setScanning(true); setScanNote('')
+    try {
+      const res = await authFetch('/api/scan-website', { method: 'POST', body: JSON.stringify({ website: scanUrl }) })
+      const data = await res.json()
+      if (!res.ok) { setScanNote(data.error || 'We could not read that website.'); setScanning(false); return }
+      const p = data.profile as Record<string, string>
+      const fill = (cur: string, next: string, set: (v: string) => void) => { if (!cur.trim() && next) set(next) }
+      fill(businessName, p.businessName, setBusinessName); fill(industry, p.industry, setIndustry); fill(suburb, p.suburb, setSuburb)
+      fill(coreServices, p.coreServices, setCoreServices); fill(tone, p.tone, setTone); fill(customerDescription, p.customerDescription, setCustomerDescription)
+      fill(keySellingPoint, p.keySellingPoint, setKeySellingPoint); fill(signatureService, p.signatureService, setSignatureService)
+      fill(pricePositioning, p.pricePositioning, setPricePositioning); fill(yearsInBusiness, p.yearsInBusiness, setYearsInBusiness)
+      fill(teamSize, p.teamSize, setTeamSize); fill(brandColors, p.brandColors, setBrandColors); fill(taglines, p.taglines, setTaglines)
+      fill(currentPromotions, p.currentPromotions, setCurrentPromotions); fill(notes, p.overview, setNotes)
+      if (p.country) setCountry(p.country)
+      setWebsite(data.website || scanUrl.trim())
+      const found = (data.socials || {}) as Record<string, string>
+      setSocials(found)
+      fill(instagramHandle, found.instagram ? '@' + found.instagram.split('/').pop() : '', setInstagramHandle)
+      fill(tiktokHandle, found.tiktok ? found.tiktok.split('/').pop() || '' : '', setTiktokHandle)
+      setShowOptional(true)
+      setScanned(true)
+      setScanNote(p.overview ? `${p.overview} Check the details below and fix anything that is off.` : 'Done. Check the details below and fix anything that is off.')
+    } catch { setScanNote('We could not read that website. Fill the form in by hand.') }
+    setScanning(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!businessName.trim() || !industry.trim() || !suburb.trim() || !coreServices.trim()) {
@@ -133,6 +168,11 @@ export default function OnboardingPage() {
       notes,
     })
 
+    // Social pages found on the website get saved for the publisher. Ignored if that column is not set up yet.
+    if (!error && Object.keys(socials).length > 0) {
+      await supabase.from('business_profiles').update({ social_profiles: socials }).eq('user_id', user.id)
+    }
+
     setLoading(false)
     localStorage.setItem('reelezy-has-logged-in', 'true')
 
@@ -165,6 +205,17 @@ export default function OnboardingPage() {
           </div>
 
           <form onSubmit={handleSubmit}>
+
+            {/* Website scan */}
+            <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '24px', marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 6 }}>Skip the typing</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.5 }}>Paste your website and we will fill in your details and find your social pages. It takes about 20 seconds.</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={scanUrl} onChange={(e) => setScanUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScan() } }} placeholder="yourbusiness.com.au" aria-label="Your website" style={{ ...inputStyle, marginBottom: 0 }} />
+                <button type="button" onClick={handleScan} disabled={scanning || !scanUrl.trim()} style={{ flexShrink: 0, padding: '0 18px', borderRadius: 4, border: 'none', background: 'var(--ink)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: scanning || !scanUrl.trim() ? 'not-allowed' : 'pointer', opacity: scanning || !scanUrl.trim() ? 0.6 : 1 }}>{scanning ? 'Reading your site...' : scanned ? 'Scan again' : 'Fill it in for me'}</button>
+              </div>
+              {scanNote && <p role="status" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '10px 0 0', lineHeight: 1.5 }}>{scanNote}</p>}
+            </div>
 
             {/* Required fields */}
             <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '24px', marginBottom: 16 }}>

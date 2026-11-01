@@ -1,19 +1,25 @@
-// Wordmark drawn in code so it reads on a white page (the old logo image had white lettering).
+// Reelezy logo, drawn in code so it stays sharp and matches the site: a coral tile with a play triangle
+// and a trim bar (the same handle you drag in the editor), next to a serif wordmark like the landing page headlines.
+export function ReelezyMark({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect width="40" height="40" rx="6" fill="#FF6A4D" />
+      <rect x="9" y="10" width="4" height="20" rx="1" fill="#FFFFFF" />
+      <path d="M18 10.5v19L33 20z" fill="#FFFFFF" />
+    </svg>
+  )
+}
+
 export function ReelezyLogo({ size = 44 }: { size?: number }) {
-  const fs = Math.round(size * 0.52)
+  const mark = Math.round(size * 0.66)
+  const fs = Math.round(size * 0.58)
   return (
     <span
       aria-label="Reelezy"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: fs, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)', lineHeight: 1, height: size }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(mark * 0.34), fontFamily: 'var(--serif)', fontSize: fs, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1, height: size }}
     >
-      <svg width={fs * 1.25} height={fs * 1.25} viewBox="0 0 40 40" aria-hidden="true">
-        <rect x="5" y="14" width="30" height="21" rx="3" fill="#FF6A4D" />
-        <path d="M5 10.5 31 3.5l1.4 4.8L6.4 15.3Z" fill="#E4553A" />
-        <rect x="5" y="14" width="30" height="5" fill="#E4553A" />
-        <rect x="12" y="23" width="9" height="7" rx="1.5" fill="#FFFFFF" />
-        <path d="m22.5 25.2 5.5-2.4v7.4l-5.5-2.4Z" fill="#FFFFFF" />
-      </svg>
-      <span>Reel<b style={{ color: '#FF6A4D', fontWeight: 600 }}>ezy</b></span>
+      <ReelezyMark size={mark} />
+      <span>Reelezy</span>
     </span>
   )
 }

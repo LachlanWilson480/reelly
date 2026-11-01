@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { PLAN_LIMITS } from '@/lib/planLimits'
+import { LIBRARY_LIMITS } from '@/lib/planLimits'
 
 export type LibraryClip = {
   id: string
@@ -17,12 +17,17 @@ export type LibraryAlbum = { id: string; name: string; created_at: string }
 export type LibraryPlan = 'free' | 'basic' | 'mid' | 'top'
 
 const BUCKET = 'video-uploads'
-export const MAX_LIBRARY_FILE_BYTES = 500 * 1024 * 1024
+export const MAX_LIBRARY_FILE_BYTES = LIBRARY_LIMITS.maxFileMb * 1024 * 1024
 
 // How much each plan can keep in the library. 'mid' is the paid Basic plan; 'basic' and 'free' both mean no paid plan.
 export function libraryLimitBytes(plan: LibraryPlan): number {
-  const mb = plan === 'top' ? PLAN_LIMITS.top.storageMb : plan === 'mid' ? PLAN_LIMITS.basic.storageMb : 500
+  const mb = plan === 'top' ? LIBRARY_LIMITS.top.storageMb : plan === 'mid' ? LIBRARY_LIMITS.basic.storageMb : LIBRARY_LIMITS.free.storageMb
   return mb * 1024 * 1024
+}
+
+// The most clips each plan can keep in the library
+export function libraryMaxClips(plan: LibraryPlan): number {
+  return plan === 'top' ? LIBRARY_LIMITS.top.maxClips : plan === 'mid' ? LIBRARY_LIMITS.basic.maxClips : LIBRARY_LIMITS.free.maxClips
 }
 
 export function formatBytes(n: number): string {
@@ -60,9 +65,10 @@ const videoLength = (file: File): Promise<number | null> =>
   })
 
 // Saves a file to the library. Returns the new clip, or a plain-English reason it could not be saved.
-export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null): Promise<{ clip?: LibraryClip; error?: string }> {
+export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null, usedCount = 0, maxCount = Infinity): Promise<{ clip?: LibraryClip; error?: string }> {
   if (!isVideoName(file)) return { error: 'Only video files can go in the library.' }
   if (file.size > MAX_LIBRARY_FILE_BYTES) return { error: 'That clip is over 500 MB, which is too big for the library.' }
+  if (usedCount >= maxCount) return { error: `Your library is full (${maxCount} clips). Delete a clip or upgrade your plan to add more.` }
   if (usedBytes + file.size > limitBytes) return { error: `Not enough library space. You have ${formatBytes(Math.max(0, limitBytes - usedBytes))} left.` }
   const safe = file.name.replace(/[^\w.-]+/g, '_')
   const path = `${userId}/library/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${safe}`
@@ -72,7 +78,7 @@ export async function saveToLibrary(userId: string, file: File, usedBytes: numbe
   const { data, error } = await supabase.from('clip_library').insert({ user_id: userId, name: file.name, path, size_bytes: file.size, mime: file.type || null, duration, ...(albumId ? { album_id: albumId } : {}) }).select('*').single()
   if (error || !data) {
     await supabase.storage.from(BUCKET).remove([path])
-    return { error: 'Could not save the clip to your library. Please try again.' }
+    return { error: error?.message && /library/i.test(error.message) ? error.message : 'Could not save the clip to your library. Please try again.' }
   }
   return { clip: data as LibraryClip }
 }

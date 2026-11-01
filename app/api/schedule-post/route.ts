@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    if (!Array.isArray(platforms) || platforms.length === 0) {
+      return NextResponse.json({ error: 'Choose at least one place to post' }, { status: 400 })
+    }
+
     if (new Date(scheduledFor) < new Date()) {
       return NextResponse.json({ error: 'Scheduled time must be in the future' }, { status: 400 })
     }
@@ -33,7 +37,7 @@ export async function POST(req: NextRequest) {
         tags: tags || null,
         video_url: videoUrl || null,
         scheduled_for: scheduledFor,
-        platforms: platforms || ['instagram'],
+        platforms: Array.isArray(platforms) ? platforms.filter((p: unknown) => typeof p === 'string' && ['youtube', 'tiktok', 'instagram', 'linkedin', 'facebook'].includes(p)) : [],
         status: 'scheduled',
       })
       .select()

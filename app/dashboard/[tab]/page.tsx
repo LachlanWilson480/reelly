@@ -9,6 +9,7 @@ import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layer
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import Dropdown from '@/components/Dropdown'
 import ColorSelect from '@/components/ColorSelect'
+import CollapsibleBox from '@/components/CollapsibleBox'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -222,8 +223,6 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   const divider = { borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 } as const
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Audio</p>
-
       {/* 1. Original audio */}
       <div>
         {heading('Original audio', 'The sound recorded in your clips.')}
@@ -1222,9 +1221,11 @@ function MusicPicker({ libraryName, musicFile, extractedPath, uploadStatus, onOp
 function ExtractAudioCard({ extracting, extractedPath, error, onExtract, onClear }: { extracting: boolean; extractedPath: string | null; error: string; onExtract: (f: File) => void; onClear: () => void }) {
   const videoRef = useRef<HTMLInputElement | null>(null)
   return (
-    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Extract audio from another video</p>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 14px' }}>Pull the sound out of a different video and use it as your music.</p>
+    <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Extract audio</p>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Use the sound from another video as your music.</span>
+      </div>
       <input ref={videoRef} type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onExtract(f); e.target.value = '' }} style={{ display: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={() => videoRef.current?.click()} disabled={extracting} style={choiceBtn(!!extractedPath, extracting)}>{extracting ? 'Getting the sound...' : extractedPath ? 'Choose a different video' : 'Choose a video'}</button>
@@ -2506,8 +2507,7 @@ export default function DashboardPage() {
 
   // The Audio section: original sound, voiceover and music in their own card
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
-    <>
-    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+    <CollapsibleBox title="Audio" summary={[`Clip sound ${originalVol === 0 ? 'off' : `${originalVol}%`}`, voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : '', extractedMusicPath ? 'Sound from a video' : (libraryMusicName || musicFile?.name) ? 'Music added' : 'No music'].filter(Boolean).join(' · ')}>
       <AudioPanel
         takes={voiceTakes}
         originalVol={originalVol}
@@ -2537,9 +2537,8 @@ export default function DashboardPage() {
           />
         }
       />
-    </div>
-    <ExtractAudioCard extracting={extractingAudio} extractedPath={extractedMusicPath} error={extractAudioError} onExtract={handleExtractAudio} onClear={clearMusic} />
-    </>
+      <ExtractAudioCard extracting={extractingAudio} extractedPath={extractedMusicPath} error={extractAudioError} onExtract={handleExtractAudio} onClear={clearMusic} />
+    </CollapsibleBox>
   )
 
   // Simple blocks shared by both editors. m says which editor's settings to use.
@@ -2685,11 +2684,8 @@ export default function DashboardPage() {
 
   // The Captions card: auto captions, then the look, then typed captions
   const renderCaptionsCard = (m: 'upload' | 'ai') => (
-    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Captions</p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Add words from your voice, type your own, or both. They all use the same look.</p>
-      </div>
+    <CollapsibleBox title="Captions" summary={[(m === 'ai' ? aiAddCaptions : uploadAddCaptions) ? `Auto: ${CAPTION_PRESETS.find((p) => p.id === (m === 'ai' ? aiCaptionPreset : captionPreset))?.label ?? 'on'}` : 'Auto captions off', (m === 'ai' ? aiCaps : uploadCaps).length > 0 ? `${(m === 'ai' ? aiCaps : uploadCaps).length} of your own` : ''].filter(Boolean).join(' · ')}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Add words from your voice, type your own, or both. They all use the same look.</p>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         {subHead('1. Auto captions', 'Words from your voice, added for you.')}
         {renderAutoCaptions(m)}
@@ -2702,15 +2698,14 @@ export default function DashboardPage() {
         {subHead('3. Caption look', 'Font, size, colours and where they sit. Applies to both kinds.')}
         {renderCaptionStyle()}
       </div>
-    </div>
+    </CollapsibleBox>
   )
 
   // Overlay: an image or video laid over the video, such as a logo or a b-roll clip
   const renderOverlayCard = () => (
-    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <CollapsibleBox title="Overlay" summary={overlay ? overlay.file.name : 'None'}>
       <div>
-        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Overlay</p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it, and set when it shows on the timeline.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it, and set when it shows on the timeline.</p>
       </div>
       <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
       {!overlay ? (
@@ -2738,7 +2733,7 @@ export default function DashboardPage() {
         </>
       )}
       {overlayError && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0 }}>{overlayError}</p>}
-    </div>
+    </CollapsibleBox>
   )
 
   // Video quality and Smart Trim
@@ -2764,10 +2759,9 @@ export default function DashboardPage() {
     )
   }
   const renderVideoSettings = (m: 'upload' | 'ai') => (
-    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 14px' }}>Video settings</p>
+    <CollapsibleBox title="Video settings" summary={[(m === 'ai' ? aiResolution : uploadResolution) === '4k' ? '4K' : '1080p', cutDeadSpace ? 'Cuts silences' : ''].filter(Boolean).join(' · ')}>
       {renderVideoSettingsBody(m)}
-    </div>
+    </CollapsibleBox>
   )
 
   // Used by the review screen after filming
