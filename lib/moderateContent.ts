@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { logUsage } from '@/lib/logUsage'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -32,6 +33,7 @@ ${numbered}`,
         },
       ],
     })
+    logUsage('moderation', 'claude-haiku-4-5', message)
 
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'

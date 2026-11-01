@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
 import { comfortRule, parseComfort } from '@/lib/filmingComfort'
+import { logUsage } from '@/lib/logUsage'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -269,6 +270,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
         thinking: thinkingOff(model),
         messages: [{ role: 'user', content: prompt }],
       })
+      logUsage('generate-checklist', model, message)
 
       const textBlock = message.content.find((b) => b.type === 'text')
       const rawText = textBlock && 'text' in textBlock ? textBlock.text : '{}'
