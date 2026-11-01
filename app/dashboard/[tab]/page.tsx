@@ -5034,8 +5034,8 @@ export default function DashboardPage() {
                         .map((s: string) => s.trim())
                         .filter((s: string) => s.length > 0)
                         .map((sentence: string, i: number, arr: string[]) => (
-                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 20, paddingBottom: 20, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
-                            <p style={{ fontSize: 22, color: 'var(--ink)', lineHeight: 1.7, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{sentence}</p>
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 12, paddingBottom: 12, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                            <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{sentence}</p>
                           </div>
                         ))
                       }
