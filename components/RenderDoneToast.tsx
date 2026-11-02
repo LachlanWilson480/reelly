@@ -99,7 +99,7 @@ export default function RenderDoneToast() {
         @media (max-width: 640px) { .rdt { left: 12px; right: 12px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom)); } }
         @media (prefers-reduced-motion: reduce) { .rdt { animation: none; } .rdt-spin { animation: none !important; } }
       `}</style>
-      <div className="rdt" role="status" aria-live="polite" style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, boxShadow: 'none', overflow: 'hidden', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+      <div className="rdt" role="status" aria-live="polite" style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, boxShadow: '0 6px 24px rgba(0,0,0,0.10)', overflow: 'hidden', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
         {ready.length > 0 ? (
           <div style={{ padding: 14, display: 'flex', gap: 14, alignItems: 'center' }}>
             <div style={{ width: 58, height: 104, borderRadius: 4, overflow: 'hidden', background: '#0b0a10', flexShrink: 0, position: 'relative' }}>
@@ -113,20 +113,20 @@ export default function RenderDoneToast() {
                 {ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
               </p>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {ready.length === 1 && ready[0].title ? ready[0].title : 'Download them or schedule them to post.'}
+                {ready.length === 1 && ready[0].title ? ready[0].title : 'Schedule it to post, or download it from Publish.'}
               </p>
               {pending.length > 0 && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{pending.length} still rendering</p>}
-              {failed.length > 0 && <p style={{ fontSize: 11, color: '#ff8a7a', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
+              {failed.length > 0 && <p style={{ fontSize: 11, color: '#D92D20', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Open Publish</button>
-                <button onClick={dismiss} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
+                <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Open Publish</button>
+                <button onClick={dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
               </div>
             </div>
           </div>
         ) : pending.length > 0 ? (
           <div style={{ padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="rdt-spin" aria-hidden="true" style={{ width: 18, height: 18, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.18)', borderTopColor: 'var(--coral)', animation: 'rdtSpin 0.9s linear infinite', flexShrink: 0 }} />
+              <span className="rdt-spin" aria-hidden="true" style={{ width: 18, height: 18, borderRadius: '50%', border: '2.5px solid var(--line)', borderTopColor: 'var(--coral)', animation: 'rdtSpin 0.9s linear infinite', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
                   {total > 1 ? `Rendering ${finished + 1} of ${total} videos` : 'Rendering your video'}
@@ -144,7 +144,7 @@ export default function RenderDoneToast() {
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{failed.length === 1 ? 'A video could not be rendered' : `${failed.length} videos could not be rendered`}</p>
               <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>Please try filming and rendering it again.</p>
             </div>
-            <button onClick={dismiss} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
+            <button onClick={dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
           </div>
         )}
       </div>
