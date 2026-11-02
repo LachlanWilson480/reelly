@@ -24,6 +24,8 @@ import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/Cl
 import { useCameraControls } from '@/lib/useCameraControls'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
+import Icon from '@/components/Icon'
+import OverviewPanel from '@/components/OverviewPanel'
 type Profile = {
   business_name: string
   industry: string
@@ -213,14 +215,14 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   const fileRef = useRef<HTMLInputElement | null>(null)
   // Moves smoothly while dragging; the page only updates when you let go
   const [speedDraft, setSpeedDraft] = useState(scriptSpeed)
-  const card = { border: '1px solid rgba(128,128,128,0.22)', borderRadius: 4, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
+  const card = { border: '1px solid var(--line)', borderRadius: 4, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
   const heading = (title: string, hint: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>{title}</p>
       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{hint}</span>
     </div>
   )
-  const divider = { borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 } as const
+  const divider = { borderTop: '1px solid var(--line)', paddingTop: 18 } as const
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* 1. Original audio */}
@@ -276,7 +278,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
                   <span style={{ flex: 1 }} />
                   <ClipUploadBadge status={statuses[`v:${t.id}`]} onRetry={() => onRetry(t.id)} />
                   <button type="button" onClick={() => onRemoveTake(t.id)}
-                    style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>Remove</button>
+                    style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>Remove</button>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <VolumeRow label="Volume" value={t.volume} onChange={(v) => onTakeVolume(t.id, v)} color={takeColor(i)} />
@@ -880,7 +882,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                   const d = Math.abs(i - f)
                   const near = Math.max(0, 1 - d)
                   return (
-                    <p key={i} style={{ height: SLOT, margin: 0, overflow: 'hidden', fontSize: 19, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.3, color: '#fff', opacity: Math.max(0.12, 1 - d * 0.55), transform: `scale(${1 + 0.12 * near})`, transformOrigin: 'left top', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
+                    <p key={i} style={{ height: SLOT, margin: 0, overflow: 'hidden', fontSize: 20, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.3, color: '#fff', opacity: Math.max(0.12, 1 - d * 0.55), transform: `scale(${1 + 0.12 * near})`, transformOrigin: 'left top', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
                   )
                 })}
               </div>
@@ -894,10 +896,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         )}
         {!playing && !recording && countdown === null && hasClips && (
           <button type="button" onClick={toggle} aria-label="Play preview"
-            style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}>▶</button>
+            style={{ position: 'absolute', inset: 0, margin: 'auto', width: 56, height: 56, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 22, cursor: 'pointer', paddingLeft: 4 }}><Icon n="play" /></button>
         )}
         {recording && (
-          <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 4, padding: '3px 10px' }}>● Recording</span>
+          <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 4, padding: '3px 10px' }}>Recording</span>
         )}
         {!hasClips && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>
@@ -922,7 +924,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={toggle} disabled={!hasClips || recording || countdown !== null}
           style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: !hasClips || recording ? 'default' : 'pointer', opacity: !hasClips || recording ? 0.4 : 1, flexShrink: 0 }}>
-          {playing ? '❚❚' : '▶'}
+          {playing ? <Icon n="pause" /> : <Icon n="play" />}
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
@@ -994,7 +996,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               const landing = !!clipDrag && clipDrag.to === i && clipDrag.from !== i
               const edge = landing && clipDrag ? (clipDrag.to > clipDrag.from ? 'inset -3px 0 0 #fff' : 'inset 3px 0 0 #fff') : 'none'
               return (
-                <div key={i} style={{ position: 'relative', flex: len > 0 ? '0 0 auto' : 1, width: len > 0 ? `${scaleTotal > 0 ? (len / scaleTotal) * 100 : 0}%` : undefined, marginLeft: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${(trimView.shift / scaleTotal) * 100}%` : undefined, marginRight: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${-(trimView.shift / scaleTotal) * 100}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
+                <div key={i} style={{ position: 'relative', flex: len > 0 ? '0 0 auto' : 1, width: len > 0 ? `${scaleTotal > 0 ? (len / scaleTotal) * 100 : 0}%` : undefined, marginLeft: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${(trimView.shift / scaleTotal) * 100}%` : undefined, marginRight: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${-(trimView.shift / scaleTotal) * 100}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 11, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
                   {i + 1}
                   {onTrimClip && !recording && (['l', 'r'] as const).map((side) => (
                     <span key={side} role="separator" aria-label={side === 'l' ? `Trim the start of clip ${i + 1}` : `Trim the end of clip ${i + 1}`}
@@ -1035,7 +1037,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 <button type="button" aria-label="Remove this voiceover part"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onRemoveTake(t.id) }}
-                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: '0 6px' }}>×</button>
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: '0 6px' }}><Icon n="close" /></button>
               </div>
             ))}
             {recording && (
@@ -1043,12 +1045,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             )}
           </div>
           {musicUrl && (
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
+            <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
           )}
           {overlay && total > 0 && (
             <div title="Overlay. Drag to move it, drag the white ends to change when it shows."
               onPointerDown={(e) => startOvTime(e, 'move')} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
-              style={{ position: 'absolute', top: ovTop, height: 22, left: pct(Math.min(overlay.start, total)), width: pct(Math.max(0, Math.min(total, overlay.end ?? total) - Math.min(overlay.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: 'rgba(74,111,165,0.6)', border: '1.5px solid #4a6fa5', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+              style={{ position: 'absolute', top: ovTop, height: 22, left: pct(Math.min(overlay.start, total)), width: pct(Math.max(0, Math.min(total, overlay.end ?? total) - Math.min(overlay.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: 'rgba(74,111,165,0.6)', border: '1.5px solid #4a6fa5', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
               <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>Overlay</span>
               {!recording && (['l', 'r'] as const).map((side) => (
                 <span key={side} aria-label={side === 'l' ? 'Change when the overlay starts' : 'Change when the overlay ends'}
@@ -1069,7 +1071,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             return (
               <div key={c.id} title={`Caption: ${c.text}. Drag to move it, drag the white ends to change how long it shows.`}
                 onPointerDown={(e) => startCapDrag(e, c, 'move')} onPointerMove={(e) => moveCap(e)} onPointerUp={() => { capDragRef.current = null }} onPointerCancel={() => { capDragRef.current = null }}
-                style={{ position: 'absolute', top: capTop + (capRows[c.id] ?? 0) * 26, height: 22, left: pct(c.start), width: pct(Math.max(0, c.end - c.start)), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: sel ? 'var(--coral)' : 'rgba(255,106,77,0.55)', border: `1.5px solid ${sel ? '#fff' : 'var(--coral)'}`, color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+                style={{ position: 'absolute', top: capTop + (capRows[c.id] ?? 0) * 26, height: 22, left: pct(c.start), width: pct(Math.max(0, c.end - c.start)), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: sel ? 'var(--coral)' : 'rgba(255,106,77,0.55)', border: `1.5px solid ${sel ? '#fff' : 'var(--coral)'}`, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
                 <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.text}</span>
                 {!recording && grip('l')}
                 {!recording && grip('r')}
@@ -1140,7 +1142,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
     >
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
       {fileOver && (
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 15, fontWeight: 700 }}>Drop a video to add it as a clip</div>
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
       <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
@@ -1169,7 +1171,7 @@ const uploadStamp = () => Date.now()
 // One look for every choice button in the Music and Voiceover sections
 const choiceBtn = (active = false, disabled = false) => ({
   background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)',
-  border: active ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)',
+  border: active ? '1px solid var(--coral)' : '1px solid var(--line)',
   borderRadius: 4,
   padding: '9px 14px',
   fontSize: 13,
@@ -1221,7 +1223,7 @@ function MusicPicker({ libraryName, musicFile, extractedPath, uploadStatus, onOp
 function ExtractAudioCard({ extracting, extractedPath, error, onExtract, onClear }: { extracting: boolean; extractedPath: string | null; error: string; onExtract: (f: File) => void; onClear: () => void }) {
   const videoRef = useRef<HTMLInputElement | null>(null)
   return (
-    <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 18 }}>
+    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Extract audio</p>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Use the sound from another video as your music.</span>
@@ -2568,7 +2570,7 @@ export default function DashboardPage() {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 0 }}>
                             {CAPTION_PRESETS.map((preset) => (
                               <button key={preset.id} title={preset.desc} onClick={() => setPreset(preset.id)}
-                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 4, border: chosenPreset === preset.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: chosenPreset === preset.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                                style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 4, border: chosenPreset === preset.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: chosenPreset === preset.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
                                 <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, color: chosenPreset === preset.id ? 'var(--coral)' : 'var(--ink)' }}>{preset.label}</p>
                                 <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35, margin: 0 }}>{preset.desc}</p>
                               </button>
@@ -2624,7 +2626,7 @@ export default function DashboardPage() {
           <input type="text" value={capDraft} maxLength={140} disabled={!canAdd} placeholder={canAdd ? 'Type a caption' : 'Add a clip first'} aria-label="Type a caption"
             onChange={(e) => setCapDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-            style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
+            style={{ flex: 1, minWidth: 0, padding: '9px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
           <button type="button" onClick={add} disabled={!canAdd || !capDraft.trim()} style={{ ...choiceBtn(false, !canAdd || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
@@ -2746,12 +2748,12 @@ export default function DashboardPage() {
         <p className="vs-t" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: 0 }}>Smart Trim</p>
         {([['high', '1080p', 'Basic and Pro'], ['4k', '4K', 'Pro only']] as const).map(([val, label, desc]) => (
           <button key={val} type="button" onClick={() => { if (val === '4k' && userPlan !== 'top') { window.location.href = '/plans'; return } setResolution(val) }}
-            style={{ minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 4, border: resolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            style={{ minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 4, border: resolution === val ? '2px solid var(--coral)' : '1px solid var(--line)', background: resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: resolution === val ? 'var(--coral)' : 'var(--ink)', margin: 0 }}>{label}</p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{desc}</p>
           </button>
         ))}
-        <label style={{ minHeight: 64, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '10px 14px' }}>
+        <label style={{ minHeight: 64, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: cutDeadSpace ? '2px solid var(--coral)' : '1px solid var(--line)', borderRadius: 4, padding: '10px 14px' }}>
           <input type="checkbox" checked={cutDeadSpace} onChange={(e) => setCutDeadSpace(e.target.checked)} />
           <span style={{ fontSize: 13, fontWeight: 600, color: cutDeadSpace ? 'var(--coral)' : 'var(--ink)' }}>Cut silences and dead air</span>
         </label>
@@ -3833,7 +3835,7 @@ export default function DashboardPage() {
 
 
 
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
   const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
 
   return (
@@ -3885,7 +3887,7 @@ export default function DashboardPage() {
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => { setShowOverageModal(false); setPendingRenderAction(null) }}
-                style={{ flex: 1, padding: "10px 16px", borderRadius: 4, border: "1px solid rgba(128,128,128,0.3)", background: "transparent", fontSize: 14, color: "var(--ink)", cursor: "pointer" }}
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 4, border: "1px solid var(--line)", background: "transparent", fontSize: 14, color: "var(--ink)", cursor: "pointer" }}
               >
                 Exit
               </button>
@@ -3916,7 +3918,7 @@ export default function DashboardPage() {
         <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
           <ReelezyLogo size={44} />
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="/settings?section=billing" className="plan-badge" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid rgba(128,128,128,0.2)", borderRadius: 4, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
+            <a href="/settings?section=billing" className="plan-badge" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid var(--line)", borderRadius: 4, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
               {realSubPlan && realSubStatus !== 'active'
                 ? `${realSubPlan === "top" ? "Pro" : realSubPlan === "mid" ? "Basic" : "Basic"} Plan (${realSubStatus})`
@@ -3945,14 +3947,14 @@ export default function DashboardPage() {
               </a>
             </div>
           )}
-          <div style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '40px 36px', marginBottom: 28 }}>
-            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 26, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+          <div className="dash-hero" style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '40px 36px', marginBottom: 28 }}>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
               Welcome back, {profile?.business_name}
             </h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
               {profile?.industry} · {profile?.suburb}
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
+            <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
               {stats.map((s) => (
                 s.tab ? (
                   <button
@@ -3976,7 +3978,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ position: 'relative', marginBottom: 28 }}>
-            <div ref={(el) => { navScrollRef.current = el; if (el) setTimeout(checkNavEnd, 0) }} onScroll={checkNavEnd} className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid rgba(128,128,128,0.15)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
+            <div ref={(el) => { navScrollRef.current = el; if (el) setTimeout(checkNavEnd, 0) }} onScroll={checkNavEnd} className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--line)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
             <button onClick={(e) => { e.stopPropagation(); setTab('overview'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
@@ -3986,10 +3988,10 @@ export default function DashboardPage() {
             {/* Create dropdown */}
             <div ref={createBtnRef} style={{ position: 'relative' }}>
               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'create' ? null : 'create') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['ideas','script'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['ideas','script'].includes(tab) ? 600 : 500, color: ['ideas','script'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Create <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+                Create <span style={{ fontSize: 11, opacity: 0.6 }}><Icon n="down" /></span>
               </button>
               {openDropdown === 'create' && (
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(createBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(createBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
                   {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'script', label: 'Script Generator' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
                     <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
                       {item.label}{(item as {pro?: boolean}).pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)' }}>Pro</span> : ''}
@@ -4017,10 +4019,10 @@ export default function DashboardPage() {
             {/* Edit dropdown */}
             <div ref={editBtnRef} style={{ position: 'relative' }}>
               <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'edit' ? null : 'edit') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Edit <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+                Edit <span style={{ fontSize: 11, opacity: 0.6 }}><Icon n="down" /></span>
               </button>
               {openDropdown === 'edit' && (
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
+                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 100, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
                   {[{ id: 'aiuploads', label: 'AI Editor For Generated Idea' }, { id: 'uploads', label: 'AI Editor For Any Video' }].map((item) => (
                     <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
                       {item.label}
@@ -4043,12 +4045,15 @@ export default function DashboardPage() {
             </div>
             {/* Scroll arrow */}
             <div style={{ position: 'absolute', right: 0, top: 0, bottom: 1, width: 48, background: 'linear-gradient(to right, transparent, var(--background) 70%)', display: navAtEnd ? 'none' : 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, pointerEvents: 'none' }}>
-              <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>›</span>
+              <span style={{ fontSize: 18, color: 'var(--text-muted)' }}><Icon n="forward" /></span>
             </div>
           </div>
 
 
 
+          {tab === 'overview' && (
+            <OverviewPanel isFree={isFreeTier} ideasReady={ideas.length} onGo={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
+          )}
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
               <button
@@ -4063,7 +4068,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   {ideas.length > 0 ? `You have ${ideas.length} ideas ready to review.` : `Generate ideas tailored for ${profile?.suburb}.`}
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Content Ideas →</p>
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Content Ideas</p>
               </button>
               <button
                 onClick={() => setTab('aiuploads')}
@@ -4077,7 +4082,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Upload clips and get them stitched with captions and sound automatically.
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to AI Editor For Generated Idea →</p>
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to AI Editor For Generated Idea</p>
               </button>
               <button
                 onClick={() => setTab('scheduler')}
@@ -4086,11 +4091,12 @@ export default function DashboardPage() {
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
                 <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
-                  Scheduler
+                  Publish
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Plan and schedule your videos across Instagram, TikTok and Facebook.
+                  Connect your accounts and schedule your videos to YouTube, TikTok, Instagram, LinkedIn and Facebook.
                 </p>
+                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Publish</p>
               </button>
             </div>
           )}
@@ -4113,7 +4119,7 @@ export default function DashboardPage() {
                         onChange={(e) => setWeeklyObjectives(e.target.value)}
                         rows={3}
                         placeholder="e.g. Promote our new croissant for 2 videos, introduce Jacob our new baker. More humour this week."
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'none', boxSizing: 'border-box' as const, lineHeight: 1.5 }}
                       />
                     </div>
                   </div>
@@ -4125,11 +4131,11 @@ export default function DashboardPage() {
                     >
                       {generatingIdeas ? <><span className='rly-spinner' />Generating...</> : ideas.length > 0 ? 'Generate more' : 'Generate ideas'}
                     </button>
-                    <button onClick={undoIdeas} disabled={batchIndex <= 0} title="Previous batch" style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '9px 12px', fontSize: 15, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}>←</button>
+                    <button onClick={undoIdeas} disabled={batchIndex <= 0} title="Previous batch" style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 12px', fontSize: 16, color: batchIndex > 0 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex > 0 ? 'pointer' : 'not-allowed', opacity: batchIndex > 0 ? 1 : 0.5, lineHeight: 1 }}><Icon n="back" /></button>
                     {weeklyBatches.length > 0 && (
                       <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{batchIndex + 1} of {weeklyBatches.length}</span>
                     )}
-                    <button onClick={redoIdeas} disabled={batchIndex >= weeklyBatches.length - 1} title="Next batch" style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '9px 12px', fontSize: 15, color: batchIndex < weeklyBatches.length - 1 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex < weeklyBatches.length - 1 ? 'pointer' : 'not-allowed', opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}>→</button>
+                    <button onClick={redoIdeas} disabled={batchIndex >= weeklyBatches.length - 1} title="Next batch" style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 12px', fontSize: 16, color: batchIndex < weeklyBatches.length - 1 ? 'var(--ink)' : 'var(--text-muted)', cursor: batchIndex < weeklyBatches.length - 1 ? 'pointer' : 'not-allowed', opacity: batchIndex < weeklyBatches.length - 1 ? 1 : 0.5, lineHeight: 1 }}><Icon n="forward" /></button>
                   </div>
                 </div>
 
@@ -4137,23 +4143,23 @@ export default function DashboardPage() {
                 <div className="ideas-row2" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   {/* Seasonal */}
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Content style</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Content style</p>
                     <div className="ideas-style-cards" style={{ display: 'flex', gap: 6 }}>
                       {([
                         { id: 'seasonal', label: 'Seasonal', desc: 'Tied to upcoming dates & events', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg> },
                         { id: 'mix', label: 'Mix', desc: 'Seasonal + timeless blend', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5" fill="currentColor" fillOpacity="0.15"/><line x1="7" y1="1.5" x2="7" y2="12.5"/></svg> },
                         { id: 'evergreen', label: 'Timeless', desc: 'Works any time of year', icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,3.5 7,7 9.5,9"/></svg> },
                       ] as { id: 'seasonal' | 'mix' | 'evergreen'; label: string; desc: string; icon: React.ReactNode }[]).map((opt) => (
-                        <button key={opt.id} type="button" onClick={() => setSeasonalMode(opt.id)} style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: seasonalMode === opt.id ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", textAlign: 'left' as const }}>
+                        <button key={opt.id} type="button" onClick={() => setSeasonalMode(opt.id)} style={{ flex: 1, padding: '7px 10px', borderRadius: 4, border: seasonalMode === opt.id ? '1.5px solid var(--coral)' : '1px solid var(--line)', background: seasonalMode === opt.id ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", textAlign: 'left' as const }}>
                           <p style={{ fontSize: 12, fontWeight: 600, color: seasonalMode === opt.id ? 'var(--coral)' : 'var(--ink)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>{opt.icon}{opt.label}</p>
-                          <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</p>
                         </button>
                       ))}
                     </div>
                   </div>
                   {/* Tone */}
                   <div className="ideas-tone" style={{ flexShrink: 0 }}>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Tone</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 6 }}>Tone</p>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {([
                         { id: null, label: 'Default' },
@@ -4162,7 +4168,7 @@ export default function DashboardPage() {
                         { id: 'humorous', label: 'Humorous' },
                         { id: 'heartfelt', label: 'Inspirational' },
                       ] as { id: string | null; label: string }[]).map((t) => (
-                        <button key={t.id ?? 'default'} type="button" onClick={() => setToneOverride(t.id)} style={{ padding: '4px 10px', borderRadius: 4, border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: toneOverride === t.id ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)', fontSize: 11, fontWeight: toneOverride === t.id ? 600 : 400, cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                        <button key={t.id ?? 'default'} type="button" onClick={() => setToneOverride(t.id)} style={{ padding: '4px 10px', borderRadius: 4, border: toneOverride === t.id ? '1.5px solid var(--coral)' : '1px solid var(--line)', background: toneOverride === t.id ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: toneOverride === t.id ? 'var(--coral)' : 'var(--text-secondary)', fontSize: 11, fontWeight: toneOverride === t.id ? 600 : 400, cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
                           {t.label}
                         </button>
                       ))}
@@ -4187,7 +4193,7 @@ export default function DashboardPage() {
                     </span>
                   </p>
                   {usageInfo.used >= usageInfo.limit && userPlan !== 'top' && (
-                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>{userPlan === 'mid' ? 'Upgrade to Pro →' : 'Upgrade to Basic →'}</a>
+                    <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none' }}>{userPlan === 'mid' ? 'Upgrade to Pro' : 'Upgrade to Basic'}</a>
                   )}
                 </div>
               )}
@@ -4203,7 +4209,7 @@ export default function DashboardPage() {
                     onChange={(e) => setNewKeyEvent(e.target.value)}
                     rows={2}
                     placeholder="What's happening in your business right now?"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 }}
                   />
                   <button
                     onClick={addKeyEvent}
@@ -4222,13 +4228,13 @@ export default function DashboardPage() {
                             style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}
                             aria-label="Delete event"
                           >
-                            ×
+                            <Icon n="close" />
                           </button>
                         </div>
                       ))}
                     </div>
                   )}
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.15)' }}>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                     <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Weekly performance suggestions</p>
                     <p style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '8px 10px', background: 'var(--card-bg)', borderRadius: 4 }}>
                     </p>
@@ -4250,13 +4256,13 @@ export default function DashboardPage() {
 
               {ideas.length > 0 && (
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 14px' }}>
-                  ☆ Star an idea to save and get filming instructions
+                  Star an idea to save and get filming instructions
                 </p>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                 {ideas.map((idea) => (
-                  <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '22px', position: 'relative' }}>
+                  <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', position: 'relative' }}>
                     <button
                       onClick={() => toggleSave(idea.id)}
                       style={{
@@ -4270,15 +4276,15 @@ export default function DashboardPage() {
                         color: savedIds.has(idea.id) ? 'var(--coral)' : 'var(--text-muted)',
                       }}
                     >
-                      {savedIds.has(idea.id) ? '★' : '☆'}
+                      {savedIds.has(idea.id) ? <Icon n="star" /> : <Icon n="starOutline" />}
                     </button>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                       {idea.source === 'script' && (
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', background: 'rgba(255,106,77,0.12)', color: 'var(--coral)', borderRadius: 4, padding: '2px 7px', border: '1px solid rgba(255,106,77,0.25)' }}>From script</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', background: 'rgba(255,106,77,0.12)', color: 'var(--coral)', borderRadius: 4, padding: '2px 7px', border: '1px solid rgba(255,106,77,0.25)' }}>From script</span>
                       )}
                     </div>
-                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 24 }}>
+                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 10, paddingRight: 24 }}>
                       {idea.title}
                     </h3>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
@@ -4288,12 +4294,12 @@ export default function DashboardPage() {
                       {idea.description}
                     </p>                    <p style={{ fontSize: 12, color: 'var(--coral)' }}>{(() => { try { const t = JSON.parse(idea.tags); return Array.isArray(t) ? t.join(" ") : idea.tags } catch { return idea.tags } })()}</p>
                     {savedIds.has(idea.id) && (
-                      <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginTop: 14, paddingTop: 12 }}>
+                      <div style={{ borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 12 }}>
                         <button
                           onClick={() => setTab('myideas')}
                           style={{ background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '5px 12px', fontSize: 12, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600 }}
                         >
-                          View in My Ideas →
+                          View in My Ideas
                         </button>
                       </div>
                     )}
@@ -4305,7 +4311,7 @@ export default function DashboardPage() {
                             value={refineInstruction}
                             onChange={(e) => setRefineInstruction(e.target.value)}
                             placeholder="e.g. make it funnier, shorter, more casual..."
-                            style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", color: "var(--ink)", fontSize: 12, marginBottom: 8, boxSizing: "border-box" }}
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--line)", background: "var(--card-bg)", color: "var(--ink)", fontSize: 12, marginBottom: 8, boxSizing: "border-box" }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
@@ -4317,7 +4323,7 @@ export default function DashboardPage() {
                             </button>
                             <button
                               onClick={() => { setRefiningId(null); setRefineInstruction("") }}
-                              style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 4, padding: "6px 12px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
+                              style={{ background: "none", border: "1px solid var(--line)", borderRadius: 4, padding: "6px 12px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
                             >
                               Cancel
                             </button>
@@ -4346,7 +4352,7 @@ export default function DashboardPage() {
                   </p>
                   <button
                     onClick={() => router.push('/history')}
-                    style={{ marginTop: 14, background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                    style={{ marginTop: 14, background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
                   >
                     View old ideas
                   </button>
@@ -4361,7 +4367,7 @@ export default function DashboardPage() {
                       </p>
                       <button
                         onClick={() => router.push('/history')}
-                        style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
                       >
                         View old ideas
                       </button>
@@ -4375,7 +4381,7 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {savedIdeas.map((idea) => (
-                      <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '22px', position: 'relative' }}>
+                      <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', position: 'relative' }}>
                         <button
                           onClick={() => toggleSave(idea.id)}
                           style={{
@@ -4383,17 +4389,17 @@ export default function DashboardPage() {
                             top: 16,
                             right: 16,
                             background: 'none',
-                            border: '1px solid rgba(200,50,50,0.4)',
+                            border: '1px solid rgba(217,45,32,0.4)',
                             borderRadius: 4,
                             padding: '3px 10px',
                             cursor: 'pointer',
                             fontSize: 12,
-                            color: 'rgba(200,50,50,0.8)',
+                            color: 'rgba(217,45,32,0.8)',
                           }}
                         >
                           Remove
                         </button>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 10, paddingRight: 90 }}>
+                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 10, paddingRight: 90 }}>
                           {idea.title}
                         </h3>
                         <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
@@ -4410,7 +4416,7 @@ export default function DashboardPage() {
                             onBlur={() => setEditingNotesId(null)}
                             autoFocus
                             placeholder="Add your own notes or tweaks for this idea..."
-                            style={{ width: '100%', marginTop: 12, padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", minHeight: 70, resize: 'vertical', boxSizing: 'border-box' }}
+                            style={{ width: '100%', marginTop: 12, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", minHeight: 70, resize: 'vertical', boxSizing: 'border-box' }}
                           />
                         ) : idea.notes ? (
                           <div onClick={() => setEditingNotesId(idea.id)} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 4, background: 'var(--card-bg)', cursor: 'pointer' }}>
@@ -4443,7 +4449,7 @@ export default function DashboardPage() {
               {/* Scripts subsection */}
               {savedScripts.length > 0 && (
                 <div style={{ marginTop: 40 }}>
-                  <div style={{ borderTop: '1px solid rgba(128,128,128,0.12)', marginBottom: 24 }} />
+                  <div style={{ borderTop: '1px solid var(--line)', marginBottom: 24 }} />
                   <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Scripts generated</p>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -4471,7 +4477,7 @@ export default function DashboardPage() {
                                     .eq('title', s.topic)
                                   setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === s.topic)))
                                 }}
-                                style={{ background: 'none', border: '1px solid rgba(200,50,50,0.4)', borderRadius: 4, padding: '3px 10px', fontSize: 12, color: 'rgba(200,50,50,0.8)', cursor: 'pointer' }}
+                                style={{ background: 'none', border: '1px solid rgba(217,45,32,0.4)', borderRadius: 4, padding: '3px 10px', fontSize: 12, color: 'rgba(217,45,32,0.8)', cursor: 'pointer' }}
                               >
                                 Remove
                               </button>
@@ -4479,7 +4485,7 @@ export default function DashboardPage() {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             {s.script.split(/(?<=[.!?])\s+/).map((sentence: string, i: number, arr: string[]) => (
-                              <div key={i} style={{ paddingTop: i === 0 ? 0 : 8, paddingBottom: 8, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                              <div key={i} style={{ paddingTop: i === 0 ? 0 : 8, paddingBottom: 8, borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none' }}>
                                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
                               </div>
                             ))}
@@ -4496,7 +4502,7 @@ export default function DashboardPage() {
           {tab === 'filming' && (
             <div>
               {savedIdeas.length > 0 && (
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '22px', marginBottom: 24 }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 24 }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                     Select ideas to film
                   </h3>
@@ -4543,12 +4549,12 @@ export default function DashboardPage() {
                       </>
                     )}
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--line)' }}>
                     <div style={{ maxWidth: '100%' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Video length</p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {[{ val: 15, label: '15s' }, { val: 30, label: '30s' }, { val: 45, label: '45s' }, { val: 60, label: '1 min' }].map((opt) => (
-                          <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 4, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: videoLength === opt.val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          <button key={opt.val} type="button" onClick={() => setVideoLength(opt.val)} style={{ padding: '6px 12px', borderRadius: 4, border: videoLength === opt.val ? '2px solid var(--coral)' : '1px solid var(--line)', background: videoLength === opt.val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: videoLength === opt.val ? 600 : 400, color: videoLength === opt.val ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             {opt.label}
                           </button>
                         ))}
@@ -4576,7 +4582,7 @@ export default function DashboardPage() {
                           { id: 'quick', label: 'Limited time', tip: 'Busy? 2-3 simple steps, 15-25 seconds total. Grab your phone and film in under 2 minutes.' },
                         ].map((mode) => (
                           <Tooltip key={mode.id} text={mode.tip} position="bottom">
-                            <button type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 4, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: filmingMode === mode.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <button type="button" onClick={() => setFilmingMode(mode.id as 'default' | 'multi' | 'single' | 'quick')} style={{ padding: '6px 12px', borderRadius: 4, border: filmingMode === mode.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: filmingMode === mode.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, fontWeight: filmingMode === mode.id ? 600 : 400, color: filmingMode === mode.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {mode.label}
                             </button>
                           </Tooltip>
@@ -4606,7 +4612,7 @@ export default function DashboardPage() {
                 <div style={{ paddingTop: 4, marginBottom: 16 }}>
                   <button
                     onClick={clearFilming}
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 4, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
+                    style={{ background: "none", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 14px", fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}
                   >
                     Clear
                   </button>
@@ -4630,8 +4636,8 @@ export default function DashboardPage() {
                   {filmingItems.map((item) => (
                     <div key={item.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                       {/* Header */}
-                      <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(128,128,128,0.12)' }}>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+                      <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid var(--line)' }}>
+                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
                           {item.title}
                         </h3>
                         <p style={{ fontSize: 12, color: 'var(--coral)' }}>{item.tags}</p>
@@ -4639,11 +4645,11 @@ export default function DashboardPage() {
 
                       {/* What you'll need */}
                       {item.prep && item.prep.length > 0 && (
-                        <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(128,128,128,0.12)', background: 'rgba(128,128,128,0.04)' }}>
+                        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--line)', background: 'rgba(128,128,128,0.04)' }}>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>What you'll need</p>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {item.prep.map((p, i) => (
-                              <span key={i} style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.18)', borderRadius: 4, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <span key={i} style={{ fontSize: 12, color: 'var(--ink)', background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                                 {p}
                               </span>
                             ))}
@@ -4652,7 +4658,7 @@ export default function DashboardPage() {
                       )}
 
                       {/* Filming steps */}
-                      <div style={{ padding: '16px 24px', borderBottom: item.caption || item.script ? '1px solid rgba(128,128,128,0.12)' : 'none' }}>
+                      <div style={{ padding: '16px 24px', borderBottom: item.caption || item.script ? '1px solid var(--line)' : 'none' }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Filming steps</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {item.checklist.map((step, i) => {
@@ -4666,11 +4672,11 @@ export default function DashboardPage() {
                                 </div>
                                 <div style={{ flex: 1 }}>
                                   {timeRange && (
-                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>
                                       {timeRange}
                                     </span>
                                   )}
-                                  <p style={{ fontSize: 15, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{silentCaptions(item) ? simplifyFilmAction(instruction) : instruction}</p>
+                                  <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{silentCaptions(item) ? simplifyFilmAction(instruction) : instruction}</p>
                                 </div>
                               </div>
                             )
@@ -4680,7 +4686,7 @@ export default function DashboardPage() {
 
                       {/* Caption */}
                       {item.caption && (
-                        <div style={{ padding: '16px 24px', borderBottom: item.script ? '1px solid rgba(128,128,128,0.12)' : 'none', background: 'rgba(128,128,128,0.04)' }}>
+                        <div style={{ padding: '16px 24px', borderBottom: item.script ? '1px solid var(--line)' : 'none', background: 'rgba(128,128,128,0.04)' }}>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Suggested caption</p>
                           <p style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.6 }}>{item.caption}</p>
                         </div>
@@ -4714,7 +4720,7 @@ export default function DashboardPage() {
                                 const editKey = `${item.id}-${i}`
                                 const isEditing = editingScriptItemId === editKey
                                 return (
-                                  <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                                  <div key={i} style={{ paddingTop: i === 0 ? 0 : 14, paddingBottom: 14, borderBottom: i < sentences.length - 1 ? '1px solid var(--line)' : 'none' }}>
                                     {sentenceDirections[i] && (
                                       <p style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 5 }}>{sentenceDirections[i]}</p>
                                     )}
@@ -4745,13 +4751,13 @@ export default function DashboardPage() {
                                             setEditingScriptItemId(null)
                                             await supabase.from('ideas').update({ checklist: { steps: newChecklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
                                           }} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--coral)', border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>Save</button>
-                                          <button onClick={() => setEditingScriptItemId(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>Cancel</button>
+                                          <button onClick={() => setEditingScriptItemId(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>Cancel</button>
                                         </div>
                                       </div>
                                     ) : (
                                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                                         <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.65, flex: 1 }}>{sentence}</p>
-                                        <button onClick={() => { setEditingScriptItemId(editKey); setEditingScriptText(sentence) }} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}>Edit</button>
+                                        <button onClick={() => { setEditingScriptItemId(editKey); setEditingScriptText(sentence) }} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}>Edit</button>
                                       </div>
                                     )}
                                   </div>
@@ -4762,7 +4768,7 @@ export default function DashboardPage() {
                         </div>
                       )}
                       {/* Film & edit CTA */}
-                      <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(128,128,128,0.12)', display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ padding: '16px 24px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => { { const plan = getFilmPlan(item); selectFilmSource(`idea:${item.id}`, plan.lines, plan.actions, plan.durations) }; setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                           style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
@@ -4783,7 +4789,7 @@ export default function DashboardPage() {
             <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '48px', textAlign: 'center' }}>
               <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Carousel Posts</h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Carousel posts are available on the Pro plan.</p>
-              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 4, fontWeight: 600, textDecoration: 'none' }}>Upgrade to Pro →</a>
+              <a href="/plans" style={{ fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 4, fontWeight: 600, textDecoration: 'none' }}>Upgrade to Pro</a>
             </div>
           )}
           {tab === 'carousel' && isProPlan && (
@@ -4838,7 +4844,7 @@ export default function DashboardPage() {
                         }}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--card-bg)', borderRadius: 4, cursor: 'grab' }}
                       >
-                        <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>⠿</span>
+                        <span style={{ fontSize: 14, color: 'var(--text-muted)' }}><Icon n="grip" /></span>
                         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{i + 1}</span>
                         <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
                         <button
@@ -4846,7 +4852,7 @@ export default function DashboardPage() {
                           onClick={() => removeCarouselFile(i)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}
                         >
-                          ×
+                          <Icon n="close" />
                         </button>
                       </div>
                     ))}
@@ -4859,7 +4865,7 @@ export default function DashboardPage() {
                   onChange={(e) => setCarouselCaption(e.target.value)}
                   rows={2}
                   placeholder="Write a caption for this carousel..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
                 />
 
                 {carouselError && (
@@ -4883,7 +4889,7 @@ export default function DashboardPage() {
                     </h3>
                     <button
                       onClick={downloadAllCarousels}
-                      style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
+                      style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
                     >
                       Download all
                     </button>
@@ -4930,13 +4936,13 @@ export default function DashboardPage() {
               {!isProPlan && (
                 <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.2)', borderRadius: 4, padding: '14px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Basic plan includes 20 scripts per week. Pro plan includes 96 scripts per week.</p>
-                  <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 16 }}>Upgrade to Pro →</a>
+                  <a href="/plans" style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 16 }}>Upgrade to Pro</a>
                 </div>
               )}
               <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '32px', marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Script Generator</h3>
-                  <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '6px 12px', textAlign: 'center', flexShrink: 0 }}>
+                  <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 12px', textAlign: 'center', flexShrink: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{scriptsThisWeek} / {isFreeTier ? 3 : isProPlan ? 96 : 20}</p>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>scripts</p>
                   </div>
@@ -4965,7 +4971,7 @@ export default function DashboardPage() {
                       key={opt.id}
                       type="button"
                       onClick={() => setScriptLength(opt.id as "short" | "medium" | "long")}
-                      style={{ padding: "8px 14px", borderRadius: 4, border: scriptLength === opt.id ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
+                      style={{ padding: "8px 14px", borderRadius: 4, border: scriptLength === opt.id ? "2px solid var(--coral)" : "1px solid var(--line)", background: "var(--card-bg)", fontSize: 12, color: "var(--ink)", cursor: "pointer" }}
                     >
                       {opt.label}
                     </button>
@@ -5012,7 +5018,7 @@ export default function DashboardPage() {
                         <button
                           key={s.id}
                           onClick={() => { setGeneratedScript(s.script); setScriptTopic(s.topic) }}
-                          style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', cursor: 'pointer', width: '100%' }}
+                          style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', cursor: 'pointer', width: '100%' }}
                         >
                           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{s.topic}</p>
                           <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.length ? `${s.length}` : ''}{s.style ? ` · ${s.style}` : ''} · {new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
@@ -5026,7 +5032,7 @@ export default function DashboardPage() {
                   <div style={{ background: "var(--card-bg)", borderRadius: 4, padding: "24px" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Full script</p>
-                      <button onClick={() => setGeneratedScript(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>← Back to history</button>
+                      <button onClick={() => setGeneratedScript(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Back to history</button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                       {generatedScript
@@ -5034,7 +5040,7 @@ export default function DashboardPage() {
                         .map((s: string) => s.trim())
                         .filter((s: string) => s.length > 0)
                         .map((sentence: string, i: number, arr: string[]) => (
-                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 12, paddingBottom: 12, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 12, paddingBottom: 12, borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none' }}>
                             <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{sentence}</p>
                           </div>
                         ))
@@ -5111,12 +5117,12 @@ export default function DashboardPage() {
                           return next
                         })
                       }}
-                      style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'grab', border: '1px solid rgba(128,128,128,0.1)' }}
+                      style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'grab', border: '1px solid var(--line)' }}
                     >
-                      <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>⠿</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}><Icon n="grip" /></span>
                       <span style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                        <button type="button" aria-label="Move clip up" disabled={slotIndex === 0} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) - 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 10, lineHeight: 1.2, cursor: slotIndex === 0 ? 'default' : 'pointer', opacity: slotIndex === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}>▲</button>
-                        <button type="button" aria-label="Move clip down" disabled={slotIndex === uploadSlots.length - 1} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) + 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 10, lineHeight: 1.2, cursor: slotIndex === uploadSlots.length - 1 ? 'default' : 'pointer', opacity: slotIndex === uploadSlots.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}>▼</button>
+                        <button type="button" aria-label="Move clip up" disabled={slotIndex === 0} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) - 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 11, lineHeight: 1.2, cursor: slotIndex === 0 ? 'default' : 'pointer', opacity: slotIndex === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}><Icon n="up" /></button>
+                        <button type="button" aria-label="Move clip down" disabled={slotIndex === uploadSlots.length - 1} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) + 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 11, lineHeight: 1.2, cursor: slotIndex === uploadSlots.length - 1 ? 'default' : 'pointer', opacity: slotIndex === uploadSlots.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}><Icon n="down" /></button>
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{slotIndex + 1}</span>
                       <div style={{ flex: '0 1 auto', minWidth: 0 }}>
@@ -5138,7 +5144,7 @@ export default function DashboardPage() {
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
                             <ClipUploadBadge status={clipUploadStatus[`u${slotId}`]} onRetry={() => startClipUpload('u', slotId, uploadSlotFiles[slotId])} />
                             <SaveToLibraryButton key={`${slotId}-${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}`} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => uploadSlotFiles[slotId] || null} />
-                            <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                            <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                         ) : (
                           <div
@@ -5159,8 +5165,8 @@ export default function DashboardPage() {
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               + Choose clip
                             </button>
-                            <button type="button" onClick={() => { setLibraryTarget(slotId); setLibraryPicker('slot') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                            <button type="button" onClick={() => { setLibraryTarget(slotId); setLibraryPicker('slot') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
+                            <span className="dnd-hint" style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                           </div>
                         )}
                       </div>
@@ -5173,7 +5179,7 @@ export default function DashboardPage() {
                             forgetClipUpload('u', slotId)
                             setUploadSpeechSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
                             setUploadLandscapeSlots((prev) => { const n = new Set(prev); n.delete(slotId); return n })
-                          }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
+                          }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}><Icon n="close" /></button>
                         )}
                       </div>
                     </div>
@@ -5185,16 +5191,16 @@ export default function DashboardPage() {
                   + Add another clip
                 </button>
                 <button type="button" onClick={() => setLibraryPicker('any')}
-                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', width: '100%', marginTop: 8 }}>
+                  style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '7px 14px', fontSize: 12, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', width: '100%', marginTop: 8 }}>
                   Add from library
                 </button>
                 {uploadLandscapeSlots.size > 0 && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.12)' }}>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                     <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>How should landscape clips appear?</p>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep as-is' }].map((opt) => (
                         <button key={opt.id} type="button" onClick={() => setLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')}
-                          style={{ padding: '6px 12px', borderRadius: 4, border: landscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: landscapeHandling === opt.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: landscapeHandling === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: landscapeHandling === opt.id ? 600 : 400 }}>
+                          style={{ padding: '6px 12px', borderRadius: 4, border: landscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: landscapeHandling === opt.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: landscapeHandling === opt.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontWeight: landscapeHandling === opt.id ? 600 : 400 }}>
                           {opt.label}
                         </button>
                       ))}
@@ -5215,9 +5221,9 @@ export default function DashboardPage() {
 
               {/* ── Render ── */}
               {uploading && (
-                <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.06)', borderRadius: 4, border: '1px solid rgba(200,50,50,0.3)' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(220,60,60)', marginBottom: 2 }}>Uploading your clips...</p>
-                  <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
+                <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
+                  <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
                 </div>
               )}
               {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)' }}>{uploadError}</p>}
@@ -5230,14 +5236,14 @@ export default function DashboardPage() {
                   startUploadAndRender()
                 }}
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
-                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
+                style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
                 {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
               </button>
 
               {/* ── Result ── */}
               {renderId && (
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
                   {renderStatus !== 'done' && renderStatus !== 'failed' && (
                     <>
@@ -5257,10 +5263,10 @@ export default function DashboardPage() {
                       <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} src={outputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 4, marginTop: 12 }} />
                       {renderOverQuota ? (
                         <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                          Upgrade to download ↗
+                          Upgrade to download
                         </button>
                       ) : (
-                        isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                        isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(outputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}><Icon n="down" /></button>
                       )}
                     </>
                   )}
@@ -5333,10 +5339,10 @@ export default function DashboardPage() {
                   <>
                   <div className="film-split" style={filmReview ? { display: 'none' } : undefined}>
                   <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16 }}>
-                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
+                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div className="film-ideas" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((idea) => (
-                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                        <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid var(--line)', cursor: 'pointer' }}>
                           <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) { const plan = getFilmPlan(idea); selectFilmSource(`idea:${idea.id}`, plan.lines, plan.actions, plan.durations) } else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                           <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                         </label>
@@ -5345,7 +5351,7 @@ export default function DashboardPage() {
                         <>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>My ideas</p>
                           {dbSavedIdeas.filter((i) => i.source !== 'script' && !filmingItems.some((f) => f.id === i.id)).map((idea) => (
-                            <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                            <label key={idea.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `idea:${idea.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `idea:${idea.id}` ? '1px solid var(--coral)' : '1px solid var(--line)', cursor: 'pointer' }}>
                               <input type="checkbox" checked={filmSelectedId === `idea:${idea.id}`} onChange={(e) => { if (e.target.checked) selectFilmSource(`idea:${idea.id}`, []); else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{idea.title}</span>
                             </label>
@@ -5356,7 +5362,7 @@ export default function DashboardPage() {
                         <>
                           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 0 2px', margin: 0 }}>Custom scripts</p>
                           {savedScripts.map((s) => (
-                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `script-${s.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: 'pointer' }}>
+                            <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: filmSelectedId === `script-${s.id}` ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: filmSelectedId === `script-${s.id}` ? '1px solid var(--coral)' : '1px solid var(--line)', cursor: 'pointer' }}>
                               <input type="checkbox" checked={filmSelectedId === `script-${s.id}`} onChange={(e) => { if (e.target.checked) { const fi = filmingItems.find((f) => f.id === `script-${s.id}` || (f.source === 'script' && f.title === s.topic)); const plan = fi ? getFilmPlan(fi) : { lines: splitFilmText(s.script), actions: [] as string[], durations: [] as (number | null)[] }; selectFilmSource(`script-${s.id}`, plan.lines, plan.actions, plan.durations) } else selectFilmSource(null, []) }} style={{ marginTop: 2, cursor: 'pointer', accentColor: '#FF6A4D', flexShrink: 0 }} />
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>{s.topic}</span>
                             </label>
@@ -5369,15 +5375,15 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Script and actions</h3>
+                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 4px' }}>Script and actions</h3>
                     <div className="film-fields">
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
+                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Actions</p>
-                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmDurations([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.2)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
+                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmDurations([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
@@ -5409,9 +5415,9 @@ export default function DashboardPage() {
                           onClick={() => changeFilmOrientation(o)}
                           disabled={locked}
                           title={locked && !active ? 'Finish or clear your clips to change orientation' : undefined}
-                          style={{ flex: 1, padding: '9px 12px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1 }}
+                          style={{ flex: 1, padding: '9px 12px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid var(--line)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1 }}
                         >
-                          {o === 'portrait' ? '▯ Portrait' : '▭ Landscape'}
+                          {o === 'portrait' ? 'Portrait' : 'Landscape'}
                         </button>
                       )
                     })}
@@ -5420,7 +5426,7 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => setFilmRecorderOpen(true)}
                     disabled={filmClipCount === 0}
-                    style={{ padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: filmClipCount === 0 ? 'not-allowed' : 'pointer', opacity: filmClipCount === 0 ? 0.5 : 1, boxShadow: filmClipCount === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}
+                    style={{ padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: filmClipCount === 0 ? 'not-allowed' : 'pointer', opacity: filmClipCount === 0 ? 0.5 : 1, boxShadow: filmClipCount === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}
                   >
                     {filmClips.length > 0 ? `Continue filming (clip ${Math.min(filmLineIdx + 1, filmClipCount)} of ${filmClipCount})` : 'Start filming'}
                   </button>
@@ -5435,7 +5441,7 @@ export default function DashboardPage() {
                     <div role="dialog" aria-label="Film your video" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#0b0a10', display: 'flex', flexDirection: 'column', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
                       <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
-                      <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}>✕</button>
+                      <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <CameraControls
@@ -5466,13 +5472,13 @@ export default function DashboardPage() {
                             <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
                           </div>
                         ) : (
-                          <p style={{ color: '#fff', fontSize: 17, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{filmCurrentLine}</p>
+                          <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{filmCurrentLine}</p>
                         )}
                         {filmLines[filmLineIdx + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx + 1]}</p>}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slower</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slower</span>
                           <input type="range" min={1} max={10} value={filmScrollSpeed} aria-label="Teleprompter speed" onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ flex: 1, minWidth: 0, accentColor: 'var(--coral)' }} />
-                          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Faster</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Faster</span>
                         </div>
                       </div>
                     )}
@@ -5512,8 +5518,8 @@ export default function DashboardPage() {
                           <>
                             <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : `Clip ${filmLineIdx + 1} of ${filmClipCount}`}</p>
                             <SaveToLibraryButton dark key={filmPending.url} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => new File([filmPending.blob], `film-clip.${filmPending.ext}`, { type: filmPending.type })} />
-                            <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>↺ Redo</button>
-                            <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmRedoIdx !== null ? '✓ Save clip' : filmLineIdx + 1 >= filmClipCount ? '✓ Review video' : '✓ Save & next'}</button>
+                            <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Redo</button>
+                            <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmRedoIdx !== null ? 'Save clip' : filmLineIdx + 1 >= filmClipCount ? 'Review video' : 'Save & next'}</button>
                           </>
                         ) : (
                           <>
@@ -5535,7 +5541,7 @@ export default function DashboardPage() {
                     <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                       <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                       <div>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Review your video</h3>
+                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Review your video</h3>
                         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -5544,11 +5550,11 @@ export default function DashboardPage() {
                             <button type="button" onClick={() => setFilmPlayIdx(i)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{i + 1}</button>
                             <p style={{ flex: 1, fontSize: 13, lineHeight: 1.4, margin: 0 }}>{filmLines[i] || filmActions[i] || `Clip ${i + 1}`}</p>
                             <span style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                              <button type="button" aria-label="Move clip earlier" disabled={i === 0} onClick={() => moveFilmClip(i, -1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}>▲</button>
-                              <button type="button" aria-label="Move clip later" disabled={i === filmClips.length - 1} onClick={() => moveFilmClip(i, 1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === filmClips.length - 1 ? 'default' : 'pointer', opacity: i === filmClips.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}>▼</button>
+                              <button type="button" aria-label="Move clip earlier" disabled={i === 0} onClick={() => moveFilmClip(i, -1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.25 : 0.8, color: 'var(--ink)' }}><Icon n="up" /></button>
+                              <button type="button" aria-label="Move clip later" disabled={i === filmClips.length - 1} onClick={() => moveFilmClip(i, 1)} style={{ background: 'none', border: 'none', padding: '0 6px', fontSize: 11, lineHeight: 1.3, cursor: i === filmClips.length - 1 ? 'default' : 'pointer', opacity: i === filmClips.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}><Icon n="down" /></button>
                             </span>
                             <SaveToLibraryButton key={cl.url} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => new File([cl.blob], `film-clip-${i + 1}.${cl.ext}`, { type: cl.type })} />
-                            <button type="button" onClick={() => startRedoFilmClip(i)} disabled={filmUploading} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', flexShrink: 0 }}>↺ Redo</button>
+                            <button type="button" onClick={() => startRedoFilmClip(i)} disabled={filmUploading} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', flexShrink: 0 }}>Redo</button>
                           </div>
                         ))}
                       </div>
@@ -5559,7 +5565,7 @@ export default function DashboardPage() {
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } gateRenderAction(() => { finishFilm(filmClips, true) }) }} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmUploading ? 'Saving…' : freeQuotaExceeded ? 'Upgrade to render' : 'Render video'}</button>
-                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Open in full editor</button>
+                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Open in full editor</button>
                       </div>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
                       </div>
@@ -5600,7 +5606,7 @@ export default function DashboardPage() {
 <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
 
               {/* ── Select idea ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+              <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Select an idea to film</p>
                 {filmingItems.length === 0 ? (
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Generate filming instructions first in the Filming tab, then come back here to upload your clips.</p>
@@ -5610,7 +5616,7 @@ export default function DashboardPage() {
                       <button
                         key={item.id}
                         onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([]); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
-                        style={{ padding: '8px 14px', borderRadius: 4, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
+                        style={{ padding: '8px 14px', borderRadius: 4, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
                       </button>
@@ -5625,13 +5631,13 @@ export default function DashboardPage() {
                 return (
                   <>
                     {/* ── STEP 1: Clips per step ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+                    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>1 · Upload your clips</p>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                        <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 4, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: !aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
+                        <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 4, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid var(--line)', background: !aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
                           I filmed separate clips per step
                         </button>
-                        <button type="button" onClick={() => setAiSingleClipMode(true)} style={{ padding: '8px 16px', borderRadius: 4, border: aiSingleClipMode ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
+                        <button type="button" onClick={() => setAiSingleClipMode(true)} style={{ padding: '8px 16px', borderRadius: 4, border: aiSingleClipMode ? '2px solid var(--coral)' : '1px solid var(--line)', background: aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
                           I filmed one long video
                         </button>
                       </div>
@@ -5643,15 +5649,15 @@ export default function DashboardPage() {
                             setStepUploads({ 0: file })
                             startClipUpload('a', 0, file)
                           }} style={{ display: 'none' }} />
-                          <div style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
+                          <div style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)' }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {stepUploads[0] ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
                                   <ClipUploadBadge status={clipUploadStatus['a0']} onRetry={() => startClipUpload('a', 0, stepUploads[0])} />
-                                  <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
-                                  <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                                  <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                                  <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                 </div>
                               ) : (
                                 <div
@@ -5662,8 +5668,8 @@ export default function DashboardPage() {
                                   style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 4, padding: '2px', transition: 'border-color 0.15s' }}
                                 >
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
-                                  <button type="button" onClick={() => { setLibraryTarget(0); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
-                                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                                  <button type="button" onClick={() => { setLibraryTarget(0); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
+                                  <span className="dnd-hint" style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                 </div>
                               )}
                             </div>
@@ -5677,25 +5683,25 @@ export default function DashboardPage() {
                           const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
                           return (
                             <React.Fragment key={i}>
-<div key={i} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, border: '1px solid rgba(128,128,128,0.1)' }}>
-                              <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}>⠿</span>
+<div key={i} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, border: '1px solid var(--line)' }}>
+                              <span style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}><Icon n="grip" /></span>
                               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>{i + 1}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                {timeRange && <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
+                                {timeRange && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>{timeRange}</span>}
                                 <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <ClipUploadBadge status={clipUploadStatus[`a${i}`]} onRetry={() => { const f = stepUploads[i]; if (f) startClipUpload('a', i, f) }} />
-                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
+                                    <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                     <button type="button" onClick={() => {
                                     setStepUploads((prev) => { const n = {...prev}; delete n[i]; return n })
                                     setStepUploadPaths((prev) => { const n = {...prev}; delete n[i]; return n })
                                     forgetClipUpload('a', i)
                                     setStepUploadNames((prev) => { const n = {...prev}; delete n[i]; return n })
                                     void authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
-                                  }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                                  }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                   </div>
                                 ) : (
                                   <div
@@ -5711,8 +5717,8 @@ export default function DashboardPage() {
                                     style={{ display: 'flex', alignItems: 'center', gap: 8, border: '2px dashed transparent', borderRadius: 4, padding: '2px', transition: 'border-color 0.15s' }}
                                   >
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
-                                    <button type="button" onClick={() => { setLibraryTarget(i); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
-                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
+                                    <button type="button" onClick={() => { setLibraryTarget(i); setLibraryPicker('step') }} style={{ background: 'none', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
+                                    <span className="dnd-hint" style={{ fontSize: 11, color: 'var(--text-muted)' }}>or drag & drop</span>
                                   </div>
                                 )}
                               </div>
@@ -5727,7 +5733,7 @@ export default function DashboardPage() {
                           <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Landscape clips: how should they appear?</p>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             {[{ id: 'crop', label: 'Crop & zoom' }, { id: 'blur', label: 'Blurred bars' }, { id: 'landscape', label: 'Keep landscape' }].map((opt) => (
-                              <button key={opt.id} type="button" onClick={() => setAiLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 4, border: aiLandscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>{opt.label}</button>
+                              <button key={opt.id} type="button" onClick={() => setAiLandscapeHandling(opt.id as 'crop' | 'blur' | 'landscape')} style={{ padding: '7px 14px', borderRadius: 4, border: aiLandscapeHandling === opt.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}>{opt.label}</button>
                             ))}
                           </div>
                         </div>
@@ -5746,9 +5752,9 @@ export default function DashboardPage() {
 
                     {/* ── Render ── */}
                     {aiUploading && (
-                      <div style={{ padding: '12px 16px', background: 'rgba(200,50,50,0.06)', borderRadius: 4, border: '1px solid rgba(200,50,50,0.3)' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(220,60,60)', marginBottom: 2 }}>Uploading your clips...</p>
-                        <p style={{ fontSize: 12, color: 'rgba(220,60,60,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
+                      <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
+                        <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
                       </div>
                     )}
                     {aiEditorError && (
@@ -5758,13 +5764,13 @@ export default function DashboardPage() {
                     <button
                       onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
-                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 15, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
+                      style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
                       {freeQuotaExceeded ? 'Upgrade to render more videos' : aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
                     </button>
 
                     {aiRenderId && (
-                      <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+                      <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                         <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
                         {aiRenderStatus !== 'done' && aiRenderStatus !== 'failed' && (
                           <>
@@ -5780,10 +5786,10 @@ export default function DashboardPage() {
                             <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 4, marginTop: 12 }} />
                             {aiRenderOverQuota ? (
                               <button onClick={() => window.location.href = '/plans'} style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                                Upgrade to download ↗
+                                Upgrade to download
                               </button>
                             ) : (
-                              isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}>↓</button>
+                              isFreeTier ? <a href="/plans" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--sand)', color: 'var(--coral)', border: '1px solid var(--coral)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>Upgrade to download</a> : <button onClick={() => downloadVideo(aiOutputUrl, 'reelezy-video.mp4')} title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, width: 38, height: 38, fontSize: 16, cursor: 'pointer' }}><Icon n="down" /></button>
                             )}
                           </>
                         )}
@@ -5850,7 +5856,7 @@ export default function DashboardPage() {
                 onClick={() => { setShowProfileNudge(false); window.location.href = '/settings' }}
                 style={{ flex: 2, padding: '11px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >
-                Fill out my profile →
+                Fill out my profile
               </button>
             </div>
           </div>
@@ -5880,7 +5886,7 @@ export default function DashboardPage() {
                     onClick={() => togglePreviewTrack(track.id, track.url)}
                     style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "var(--coral)", color: "#fff", fontSize: 14, cursor: "pointer", flexShrink: 0 }}
                   >
-                    {previewingTrackId === track.id ? "❚❚" : "▶"}
+                    {previewingTrackId === track.id ? <Icon n="pause" /> : <Icon n="play" />}
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</p>
@@ -5889,7 +5895,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => selectLibraryTrack(track.id, track.name, track.url, showMusicLibrary)}
-                    style={{ background: "none", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 4, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "var(--ink)", cursor: "pointer" }}
+                    style={{ background: "none", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "var(--ink)", cursor: "pointer" }}
                   >
                     Use this track
                   </button>

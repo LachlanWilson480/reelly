@@ -3,6 +3,7 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Icon from '@/components/Icon'
 import {
   type LibraryClip, type LibraryAlbum, type LibraryPlan,
   createAlbum, deleteAlbum, deleteFromLibrary, formatBytes, isVideoName, libraryClipToFileDetailed, libraryLimitBytes, libraryMaxClips, listAlbums, listLibrary, moveToAlbum, renameAlbum, renameInLibrary, saveToLibrary, signedUrls,
@@ -51,12 +52,12 @@ function PickMenu({ label, options, onPick }: { label: string; options: { value:
   }, [open])
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 4, border: open ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 4, border: open ? '1px solid var(--coral)' : '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
         {label}
         <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open && (
-        <div role="listbox" aria-label={label} style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, minWidth: 180, maxHeight: 260, overflowY: 'auto', background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: 6, boxShadow: 'none' }}>
+        <div role="listbox" aria-label={label} style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, minWidth: 180, maxHeight: 260, overflowY: 'auto', background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 6, boxShadow: 'none' }}>
           {options.map((o) => (
             <button key={o.value} type="button" role="option" aria-selected={false} onClick={() => { setOpen(false); onPick(o.value) }} className="lib-option" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 4, border: 'none', background: 'transparent', color: 'var(--ink)', fontSize: 13, fontWeight: 500, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</button>
           ))}
@@ -65,7 +66,7 @@ function PickMenu({ label, options, onPick }: { label: string; options: { value:
     </div>
   )
 }
-const albumChip = (on: boolean): React.CSSProperties => ({ flexShrink: 0, padding: '7px 14px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: on ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' })
+const albumChip = (on: boolean): React.CSSProperties => ({ flexShrink: 0, padding: '7px 14px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' })
 
 // The row of album buttons used in the Library tab and in the picker
 function AlbumBar({ clips, albums, view, setView, onCreate }: { clips: LibraryClip[]; albums: LibraryAlbum[]; view: View; setView: (v: View) => void; onCreate?: (name: string) => Promise<void> }) {
@@ -241,7 +242,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Clip library</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Clip library</h2>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Upload a clip once, then use it in any video.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
@@ -307,7 +308,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
               )}
             </div>
             {clips.length > 0 && (
-              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clips" aria-label="Search clips" style={{ fontSize: 13, padding: '8px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', width: 200, maxWidth: '100%' }} />
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clips" aria-label="Search clips" style={{ fontSize: 13, padding: '8px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', width: 200, maxWidth: '100%' }} />
             )}
           </div>
 
@@ -334,7 +335,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
           ) : shown.length === 0 ? (
             <div style={{ border: '2px dashed rgba(128,128,128,0.3)', borderRadius: 4, padding: '56px 20px', textAlign: 'center' }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', margin: '0 0 6px' }}>{search ? 'No clips match that search' : clips.length === 0 ? 'Your library is empty' : 'Nothing in here yet'}</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 6px' }}>{search ? 'No clips match that search' : clips.length === 0 ? 'Your library is empty' : 'Nothing in here yet'}</p>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>{search ? 'Try a different name.' : <>Drag videos here, or press &quot;Save to library&quot; on a clip in the editor.</>}</p>
               {!search && <button type="button" onClick={() => inputRef.current?.click()} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{currentAlbum ? `+ Upload to ${currentAlbum.name}` : '+ Upload clips'}</button>}
             </div>
@@ -344,11 +345,11 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
                 <div key={c.id} draggable
                   onDragStart={(e) => { dragIds.current = sel.includes(c.id) ? sel : [c.id]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'reelly-clips') }}
                   onDragEnd={() => { dragIds.current = []; setDropTarget(null) }}
-                  style={{ position: 'relative', background: 'var(--card-bg)', borderRadius: 4, overflow: 'hidden', border: sel.includes(c.id) ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)', boxShadow: sel.includes(c.id) ? '0 0 0 3px rgba(255,106,77,0.25)' : 'none', display: 'flex', flexDirection: 'column' }}>
+                  style={{ position: 'relative', background: 'var(--card-bg)', borderRadius: 4, overflow: 'hidden', border: sel.includes(c.id) ? '2px solid var(--coral)' : '1px solid var(--line)', boxShadow: sel.includes(c.id) ? '0 0 0 3px rgba(255,106,77,0.25)' : 'none', display: 'flex', flexDirection: 'column' }}>
                   <button type="button" role="checkbox" aria-checked={sel.includes(c.id)} aria-label={`Select ${c.name}`} onClick={() => toggleSel(c.id)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, width: 18, height: 18, borderRadius: 4, border: sel.includes(c.id) ? '1.5px solid var(--coral)' : '1.5px solid rgba(255,255,255,0.9)', background: sel.includes(c.id) ? 'var(--coral)' : 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer', transition: 'background 0.15s ease, border-color 0.15s ease' }}>{sel.includes(c.id) && <svg width="9" height="8" viewBox="0 0 12 10" aria-hidden="true"><path d="M1.5 5.2l3 3 6-6.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>}</button>
                   <button type="button" onClick={() => setPlaying(c)} aria-label={`Play ${c.name}`} style={{ position: 'relative', display: 'block', width: '100%', aspectRatio: '3 / 4', padding: 0, border: 'none', background: '#17151f', cursor: 'pointer', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', inset: 0 }}><Thumb url={urls[c.path]} /></div>
-                    <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</span>
+                    <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}><Icon n="play" /></span>
                     {c.duration ? <span style={{ position: 'absolute', right: 8, bottom: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px' }}>{fmtDuration(c.duration)}</span> : null}
                   </button>
                   <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -384,7 +385,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: 'min(92vw, 420px)', width: '100%' }}>
             <video src={urls[playing.path]} controls autoPlay playsInline style={{ width: '100%', maxHeight: '82vh', borderRadius: 4, background: '#000', display: 'block' }} />
             <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: '10px 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playing.name}</p>
-            <button type="button" onClick={() => setPlaying(null)} aria-label="Close" style={{ position: 'absolute', top: -14, right: -14, width: 34, height: 34, borderRadius: '50%', border: 'none', background: '#fff', color: '#111', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>×</button>
+            <button type="button" onClick={() => setPlaying(null)} aria-label="Close" style={{ position: 'absolute', top: -14, right: -14, width: 34, height: 34, borderRadius: '50%', border: 'none', background: '#fff', color: '#111', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}><Icon n="close" /></button>
           </div>
         </div>,
         document.body
@@ -424,9 +425,9 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
   return createPortal(
     <div role="dialog" aria-label="Add from library" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg, #fff)', color: 'var(--ink)', borderRadius: 4, width: '100%', maxWidth: 760, maxHeight: '86vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(128,128,128,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title || 'Add from library'}</p>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}><Icon n="close" /></button>
         </div>
         <div style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
           {clips.length > 0 && albums.length > 0 && (
@@ -445,7 +446,7 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
                     <div style={{ position: 'relative', aspectRatio: '16 / 10', background: '#17151f' }}>
                       <Thumb url={urls[c.path]} />
                       {on && <span style={{ position: 'absolute', left: 8, top: 8, width: 22, height: 22, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{picked.indexOf(c.id) + 1}</span>}
-                      {c.duration ? <span style={{ position: 'absolute', right: 6, bottom: 6, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '1px 7px' }}>{fmtDuration(c.duration)}</span> : null}
+                      {c.duration ? <span style={{ position: 'absolute', right: 6, bottom: 6, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '1px 7px' }}>{fmtDuration(c.duration)}</span> : null}
                     </div>
                     <p style={{ margin: 0, padding: '7px 9px', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>{c.name}</p>
                   </button>
@@ -455,8 +456,8 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
           )}
           {error && <p role="alert" style={{ fontSize: 12, color: '#d92d20', marginTop: 12 }}>{error}</p>}
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(128,128,128,0.15)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: '1px solid rgba(128,128,128,0.35)', borderRadius: 4, padding: '9px 18px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>Cancel</button>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 18px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>Cancel</button>
           <button type="button" onClick={add} disabled={picked.length === 0 || working} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: picked.length === 0 || working ? 'not-allowed' : 'pointer', opacity: picked.length === 0 || working ? 0.55 : 1 }}>
             {working ? 'Adding…' : picked.length === 0 ? (single ? 'Choose a clip' : 'Choose clips') : single ? 'Use this clip' : `Add ${picked.length} ${picked.length === 1 ? 'clip' : 'clips'}`}
           </button>
@@ -487,7 +488,7 @@ export function SaveToLibraryButton({ userId, plan, getFile, dark }: { userId: s
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <button type="button" onClick={save} disabled={state === 'saving' || state === 'saved'} style={dark ? { fontSize: 13, fontWeight: 600, color: state === 'saved' ? '#34c759' : '#fff', background: 'transparent', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 4, padding: '13px 18px', fontFamily: 'var(--font-geist-sans), Inter, sans-serif', whiteSpace: 'nowrap', cursor: state === 'saving' || state === 'saved' ? 'default' : 'pointer' } : { fontSize: 11, color: state === 'saved' ? '#1a9d4a' : 'var(--text-muted)', background: 'none', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '3px 8px', cursor: state === 'saving' || state === 'saved' ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
-        {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved to library ✓' : 'Save to library'}
+        {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved to library' : 'Save to library'}
       </button>
       {state === 'error' && <span role="alert" style={{ fontSize: 11, color: dark ? '#ff8a80' : '#d92d20' }}>{msg}</span>}
     </span>

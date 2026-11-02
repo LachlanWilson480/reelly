@@ -1,17 +1,11 @@
-// Reelezy logo, drawn in code so it stays sharp and matches the site: a coral tile with a play triangle
-// and a trim bar (the same handle you drag in the editor), next to a serif wordmark like the landing page headlines.
+// Reelezy logo: the clapperboard mark (public/logo-mark.png) next to a serif wordmark like the landing page headlines.
 export function ReelezyMark({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <rect width="40" height="40" rx="6" fill="#FF6A4D" />
-      <rect x="9" y="10" width="4" height="20" rx="1" fill="#FFFFFF" />
-      <path d="M18 10.5v19L33 20z" fill="#FFFFFF" />
-    </svg>
-  )
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/logo-mark.png" alt="" width={size} height={size} style={{ flexShrink: 0, display: 'block' }} />
 }
 
 export function ReelezyLogo({ size = 44 }: { size?: number }) {
-  const mark = Math.round(size * 0.66)
+  const mark = Math.round(size * 1.0)
   const fs = Math.round(size * 0.58)
   return (
     <span

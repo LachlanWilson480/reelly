@@ -27,6 +27,20 @@ export default function SignUpPage() {
     return () => clearTimeout(t)
   }, [])
 
+  // Sent here from the login page when there was no account for that email
+  const [noAccountEmail, setNoAccountEmail] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const q = new URLSearchParams(window.location.search)
+        const e = (q.get('email') || '').slice(0, 200)
+        if (e) setEmail(e)
+        if (q.get('notice') === 'noaccount' && e) setNoAccountEmail(e)
+      } catch {}
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -198,6 +212,12 @@ export default function SignUpPage() {
               Create your account to get started.
             </p>
 
+            {noAccountEmail && message !== 'check-email' && (
+              <p role="status" style={{ margin: '0 0 20px', padding: '12px 14px', borderRadius: 4, background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.35)', fontSize: 13, lineHeight: 1.5, color: 'var(--ink)' }}>
+                We could not find an account for <strong>{noAccountEmail}</strong>. Create one below, it takes about a minute.
+              </p>
+            )}
+
             {message !== 'check-email' && <>
             <div style={{ marginBottom: 8, minHeight: 44 }}>
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
@@ -313,7 +333,7 @@ export default function SignUpPage() {
                   border: 'none',
                   backgroundColor: 'var(--coral)',
                   color: '#fff',
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: 600,
                   fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
                   cursor: isSigningUp ? 'wait' : !agreedToTerms ? 'not-allowed' : 'pointer',
@@ -382,7 +402,7 @@ export default function SignUpPage() {
                     }
                   }}
                   disabled={otp.length !== 6 || verifying}
-                  style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
+                  style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: otp.length !== 6 || verifying ? 'not-allowed' : 'pointer', opacity: otp.length !== 6 || verifying ? 0.6 : 1 }}
                 >
                   {verifying ? 'Verifying...' : 'Confirm account'}
                 </button>
@@ -394,7 +414,7 @@ export default function SignUpPage() {
                   onClick={() => { setMessage(''); setOtp('') }}
                   style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: 'var(--coral)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
-                  ← Back to email options
+                  Back to email options
                 </button>
               </div>
             ) : message ? (

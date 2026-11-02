@@ -23,7 +23,19 @@ export default function LoginPage() {
     const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setMessage(error.message)
+      if (/invalid login credentials/i.test(error.message)) {
+        // Wrong password or no account at all. If there is no account, send them to sign up with their email filled in.
+        try {
+          const res = await fetch('/api/account-exists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+          if (res.ok && (await res.json()).exists === false) {
+            router.push(`/signup?notice=noaccount&email=${encodeURIComponent(email.trim())}`)
+            return
+          }
+        } catch { /* fall through to the plain message */ }
+        setMessage('That email and password do not match. Try again, or use Forgot password.')
+        return
+      }
+      setMessage(/email not confirmed/i.test(error.message) ? 'Please confirm your email first. Check your inbox for our message.' : error.message)
       return
     }
 
@@ -90,7 +102,7 @@ export default function LoginPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
           <div className="auth-card" style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '48px 40px', maxWidth: 400, width: '100%', boxShadow: 'none' }}>
-            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 26, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
               Log in to Reelezy
             </h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28 }}>
@@ -117,7 +129,7 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <button type="submit" style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer' }}>
+              <button type="submit" style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer' }}>
                 Log in
               </button>
             </form>

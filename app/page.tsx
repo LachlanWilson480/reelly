@@ -8,6 +8,7 @@ import { supabase, consumeRecoveryFlag } from '@/lib/supabase'
 import { CURRENCY_PRICES, PLAN_COPY } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import './landing.css'
+import Icon from '@/components/Icon'
 
 const Points = ({ items }: { items: readonly string[] }) => (
   <ul className="lp-list">
@@ -22,16 +23,11 @@ const Cards = ({ items }: { items: readonly string[] }) => (
   </ul>
 )
 
-// A wordmark that reads on white (the supplied logo image has white lettering)
+// The clapperboard mark (public/logo-mark.png) with the wordmark beside it
 const Logo = ({ size = 22 }: { size?: number }) => (
   <span className="lp-logo" style={{ fontSize: size }}>
-    <svg width={size * 1.25} height={size * 1.25} viewBox="0 0 40 40" aria-hidden="true">
-      <rect x="5" y="14" width="30" height="21" rx="3" fill="#FF6A4D" />
-      <path d="M5 10.5 31 3.5l1.4 4.8L6.4 15.3Z" fill="#E4553A" />
-      <rect x="5" y="14" width="30" height="5" fill="#E4553A" />
-      <rect x="12" y="23" width="9" height="7" rx="1.5" fill="#FFFFFF" />
-      <path d="m22.5 25.2 5.5-2.4v7.4l-5.5-2.4Z" fill="#FFFFFF" />
-    </svg>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/logo-mark.png" alt="" width={Math.round(size * 1.5)} height={Math.round(size * 1.5)} style={{ display: 'block', flexShrink: 0 }} />
     <span>Reel<b>ezy</b></span>
   </span>
 )
@@ -47,7 +43,7 @@ export default function HomePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setHeroStep((prev) => (prev + 1) % 3)
-    }, 3000)
+    }, 3600)
     return () => clearInterval(interval)
   }, [])
 
@@ -119,10 +115,11 @@ export default function HomePage() {
   ]
 
   const heroSteps = [
-    { label: 'Generate ideas' },
-    { label: 'Film with a script' },
-    { label: 'Auto-edited video' },
+    { label: 'Preview and edit your reel' },
+    { label: 'Filmed by a real business' },
+    { label: 'Posted to your social accounts' },
   ]
+  const platformRows = ['YouTube', 'TikTok', 'Instagram', 'LinkedIn', 'Facebook']
 
   return (
     <div className="lp">
@@ -157,48 +154,38 @@ export default function HomePage() {
               <div className="hp-notch" />
               <div className="hp-screen">
                 {heroStep === 0 && (
-                  <div className="hp-s hp-ideas" key="ideas">
-                    <p className="hp-title">Ideas for this week</p>
-                    {mockIdeas.map((idea, i) => (
-                      <div key={idea.title} className="hp-idea" style={{ animationDelay: `${i * 90}ms` }}>
-                        <div>
-                          <p className="hp-idea-t">{idea.title}</p>
-                          <p className="hp-idea-h">{idea.tag}</p>
-                        </div>
-                        <span className={i === 0 ? 'hp-star hp-star-on' : 'hp-star'}>★</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {heroStep === 1 && (
-                  <div className="hp-s hp-film" key="film">
-                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                    <div className="hp-prompter">
-                      {phoneLines.map((line, i) => (
-                        <p key={line} className={i === 1 ? 'hp-line hp-line-on' : 'hp-line'}>{line}</p>
-                      ))}
-                    </div>
-                    <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
-                    <div className="hp-clips">Clip 2 of 3</div>
-                    <div className="hp-shutter"><span /></div>
-                  </div>
-                )}
-                {heroStep === 2 && (
                   <div className="hp-s hp-film" key="edit">
                     <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                    <div className="hp-done">Render complete</div>
+                    <div className="hp-bar-top">Preview</div>
                     <div className="hp-caption">Booking slots <b>open</b> this week</div>
                     <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
                     <div className="hp-progress"><span /></div>
                   </div>
                 )}
+                {heroStep === 1 && (
+                  <div className="hp-s hp-film" key="real">
+                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    {/* Drop a short clip of a real business at public/hero-demo.mp4 and it plays here */}
+                    <video className="hp-video" src="/hero-demo.mp4" autoPlay muted loop playsInline preload="metadata" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    <div className="hp-bar-top">A real salon, filmed on a phone</div>
+                    <div className="hp-caption">Here&apos;s the mistake I see <b>every week</b></div>
+                  </div>
+                )}
+                {heroStep === 2 && (
+                  <div className="hp-s hp-post" key="post">
+                    <p className="hp-title">Posting your reel</p>
+                    {platformRows.map((name, i) => (
+                      <div key={name} className="hp-plat" style={{ animationDelay: `${i * 160}ms` }}>
+                        <span>{name}</span>
+                        <i style={{ animationDelay: `${i * 160 + 200}ms` }} />
+                        <b style={{ animationDelay: `${i * 160 + 900}ms` }}>Posted</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="lp-tabs" aria-hidden="true">
-              {heroSteps.map((step, i) => (
-                <span key={step.label} className={i === heroStep ? 'on' : ''}>{i + 1}. {step.label}</span>
-              ))}
-            </div>
+            <p className="lp-stage-cap" aria-live="off">{heroSteps[heroStep].label}</p>
           </div>
         </div>
       </header>
@@ -245,7 +232,7 @@ export default function HomePage() {
                 {mockIdeas.map((idea, i) => (
                   <div key={idea.title} className="lp-idea">
                     <div><strong>{idea.title}</strong><span>{idea.tag}</span></div>
-                    <em className={i === 0 ? 'on' : ''}>★</em>
+                    <em className={i === 0 ? 'on' : ''}><Icon n="star" /></em>
                   </div>
                 ))}
               </div>

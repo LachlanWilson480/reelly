@@ -13,6 +13,7 @@ import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } from '@/lib/pricing'
 import { useCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
+import { PLAN_LIMITS } from '@/lib/planLimits'
 import { cleanReferralInput } from '@/lib/referralInput'
 
 export default function PlansPage() {
@@ -166,12 +167,10 @@ export default function PlansPage() {
   }
 
   const planLabel = userPlan === 'top' ? 'Pro' : userPlan === 'mid' ? 'Basic' : 'Free'
-  const renderMinuteLimit = userPlan === 'top' ? 3600 : userPlan === 'mid' ? 3600 : 1500
-  const usageLimits = {
-    ideas: userPlan === 'top' ? 210 : userPlan === 'mid' ? 95 : 24,
-    scripts: userPlan === 'top' ? 96 : userPlan === 'mid' ? 20 : 1,
-    filming: userPlan === 'top' ? 98 : userPlan === 'mid' ? 50 : 7,
-  }
+  // Same numbers as the dashboard counters (lib/planLimits.ts)
+  const planCaps = userPlan === 'top' ? PLAN_LIMITS.top : PLAN_LIMITS.basic
+  const renderMinuteLimit = planCaps.renderMinutes * 60
+  const usageLimits = { ideas: planCaps.ideasPerWeek, scripts: planCaps.scriptsPerWeek, filming: planCaps.filmingPerWeek }
 
   if (!accountLoaded || !accountCurrency) {
     return <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)' }} />
@@ -193,7 +192,7 @@ export default function PlansPage() {
             </p>
 
             {/* Plan card */}
-            <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>Current plan</p>
@@ -214,7 +213,7 @@ export default function PlansPage() {
 
             {/* Weekly usage */}
             {usage && (
-              <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>This week's usage</p>
                 {[
                   { label: 'Content ideas', used: usage.ideas, limit: usageLimits.ideas },
@@ -240,7 +239,7 @@ export default function PlansPage() {
               const limit = libraryLimitBytes(userPlan === 'top' ? 'top' : userPlan === 'mid' ? 'mid' : 'free')
               const pct = Math.min(100, (libraryUsed / limit) * 100)
               return (
-                <div style={{ background: 'var(--card-bg)', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 16 }}>Storage</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 13, color: 'var(--ink)' }}>Clip library</span>
@@ -288,10 +287,10 @@ export default function PlansPage() {
         </nav>
 
         <div style={{ padding: '32px 48px 64px', maxWidth: 1000, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 32, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
+          <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>
             Plans built for how often you post
           </h1>
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
+          <p style={{ fontSize: 16, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
             Every plan includes AI content ideas and filming checklists. Pricing scales with how many reels you make each month. All prices are in {currency}.
           </p>
 
@@ -350,7 +349,7 @@ export default function PlansPage() {
                       {discountedPrice(billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
                     </>
                   ) : (billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
-                  <span style={{ fontSize: 15, fontWeight: 400 }}>/mo</span>
+                  <span style={{ fontSize: 16, fontWeight: 400 }}>/mo</span>
                 </p>
                 <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, marginTop: -2, marginBottom: 6, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{currency}</p>
                 {billingInterval === 'yearly' && (
@@ -402,7 +401,7 @@ export default function PlansPage() {
                 onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
                 placeholder="Have a code?"
-                style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+                style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
                 onClick={applyDiscount}
@@ -430,7 +429,7 @@ export default function PlansPage() {
                       placeholder="Friend's referral code"
                       autoComplete="off"
                       aria-label="Referral code"
-                      style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 200, outline: 'none' }}
+                      style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 200, outline: 'none' }}
                     />
                     <button
                       onClick={applyReferral}

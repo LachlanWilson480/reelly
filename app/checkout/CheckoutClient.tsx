@@ -57,7 +57,7 @@ function PayForm({ dueLabel, returnUrl, onSuccess }: { dueLabel: string; returnU
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
-        style={{ width: '100%', marginTop: 20, padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: 'inherit', cursor: !stripe || submitting ? 'not-allowed' : 'pointer', opacity: !stripe || submitting ? 0.7 : 1 }}
+        style={{ width: '100%', marginTop: 20, padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'inherit', cursor: !stripe || submitting ? 'not-allowed' : 'pointer', opacity: !stripe || submitting ? 0.7 : 1 }}
       >
         {submitting ? 'Processing…' : `Subscribe · ${dueLabel}`}
       </button>
@@ -215,7 +215,7 @@ export default function CheckoutClient() {
 
   const panel = (title: string, text: string, extra?: React.ReactNode) => (
     <div style={{ maxWidth: 420, margin: '0 auto', textAlign: 'center' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 8px' }}>{title}</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px' }}>{title}</h2>
       <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>{text}</p>
       {extra}
     </div>
@@ -238,14 +238,14 @@ export default function CheckoutClient() {
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--coral)', margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="30" height="30" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.6 8.4l2.9 2.9 6-6.4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 8px' }}>You&apos;re on {planName}</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px' }}>You&apos;re on {planName}</h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>Payment received. Taking you to your dashboard…</p>
       </div>
     )
   } else {
     right = (
       <div style={{ maxWidth: 460, margin: '0 auto' }}>
-        <h2 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px' }}>Payment details</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 4px' }}>Payment details</h2>
         {email && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 22px' }}>Your receipt will go to {email}</p>}
         {referred && (
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
@@ -262,7 +262,7 @@ export default function CheckoutClient() {
                 placeholder="Referral code (optional)"
                 autoComplete="off"
                 aria-label="Referral code"
-                style={{ flex: 1, minWidth: 0, padding: '11px 14px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit' }}
+                style={{ flex: 1, minWidth: 0, padding: '11px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit' }}
               />
               <button type="button" onClick={applyReferral} disabled={refBusy || !refInput.trim()} style={{ padding: '11px 18px', borderRadius: 4, border: '1px solid var(--coral)', background: 'transparent', color: 'var(--coral)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}>{refBusy ? 'Checking…' : 'Apply'}</button>
             </div>

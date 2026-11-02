@@ -9,7 +9,7 @@ import { authFetch } from '@/lib/authFetch'
 import ComfortPicker from '@/components/ComfortPicker'
 import { parseComfort, withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
-const inputStyle = { width: '100%', padding: '11px 13px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
+const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
 const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
 
@@ -392,7 +392,7 @@ export default function SettingsPage() {
   }
 
   const Toggle = ({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '14px 0', borderBottom: '1px solid var(--line)' }}>
       <div style={{ paddingRight: 16 }}>
         <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{label}</p>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{desc}</p>
@@ -423,7 +423,7 @@ export default function SettingsPage() {
           Settings
         </h1>
 
-        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(128,128,128,0.15)', marginBottom: 28, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line)', marginBottom: 28, flexWrap: 'wrap' }}>
           {(['profile', 'account', 'notifications', 'billing'] as const).map((s) => (
             <button
               key={s}
@@ -464,7 +464,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => logoInputRef.current?.click()}
                   disabled={uploadingLogo}
-                  style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '8px 14px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
+                  style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
                 >
                   {uploadingLogo ? 'Uploading...' : 'Upload logo'}
                 </button>
@@ -489,7 +489,7 @@ export default function SettingsPage() {
                     key={opt.value}
                     type="button"
                     onClick={() => setLocationType(toggleLocationType(locationType, opt.value))}
-                    style={{ padding: "10px 16px", borderRadius: 4, border: parseLocationTypes(locationType).includes(opt.value) ? "2px solid var(--coral)" : "1px solid rgba(128,128,128,0.25)", background: parseLocationTypes(locationType).includes(opt.value) ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
+                    style={{ padding: "10px 16px", borderRadius: 4, border: parseLocationTypes(locationType).includes(opt.value) ? "2px solid var(--coral)" : "1px solid var(--line)", background: parseLocationTypes(locationType).includes(opt.value) ? "rgba(255,106,77,0.08)" : "var(--card-bg)", fontSize: 13, color: "var(--ink)", cursor: "pointer" }}
                   >
                     {opt.label}
                   </button>
@@ -519,9 +519,9 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ background: 'none', border: '1px solid rgba(128,128,128,0.3)', borderRadius: 4, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
+              style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginTop: 4, marginBottom: 8 }}
             >
-              {showOptional ? '− Hide additional details' : '+ Show more details (improves your idea and filming generations)'}
+              {showOptional ? 'Hide additional details' : '+ Show more details (improves your idea and filming generations)'}
             </button>
 
             {showOptional && (
@@ -572,7 +572,7 @@ export default function SettingsPage() {
             )}
 
             {dirty && !saving && (
-              <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'var(--sand)', color: 'var(--ink)', border: '1px solid rgba(128,128,128,0.25)', borderRadius: 4, padding: '12px 16px', boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14, fontSize: 13 }}>
+              <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'var(--sand)', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px', boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 14, fontSize: 13 }}>
                 <span>You have unsaved changes. Save them so they apply to your ideas.</span>
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleSaveProfile() }} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save now</button>
               </div>
@@ -592,7 +592,7 @@ export default function SettingsPage() {
         {section === 'account' && (
           <div>
             <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                 Email
               </h3>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 14 }}>{email}</p>
@@ -614,7 +614,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                 Change password
               </h3>
               <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -644,7 +644,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '24px' }}>
-              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
+              <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--coral)' }}>
                 Delete account
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
@@ -707,7 +707,7 @@ export default function SettingsPage() {
 
         {section === 'billing' && (
           <div>
-            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px', marginBottom: 20 }}>
+            <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 20 }}>
               <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
                 Current Plan
               </h3>
@@ -731,7 +731,7 @@ export default function SettingsPage() {
                     Free
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    You're on the Free plan. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View paid plans →</a>
+                    You're on the Free plan. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View paid plans</a>
                   </p>
                 </>
               )}
@@ -739,7 +739,7 @@ export default function SettingsPage() {
 
             {subPlan && subStatus === 'active' && (
               <>
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '28px' }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     Cancel Subscription
                   </h3>

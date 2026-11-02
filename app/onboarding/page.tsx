@@ -13,7 +13,7 @@ import { withComfort, type ComfortLevel } from '@/lib/filmingComfort'
 
 const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: '#FFFFFF', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 16 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6, display: 'block' as const }
-const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
+const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginTop: 24, marginBottom: 12 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
@@ -196,10 +196,10 @@ export default function OnboardingPage() {
 
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 30, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
               Let&apos;s get you set up
             </h1>
-            <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               Four quick fields and you&apos;re generating content ideas in under a minute.
             </p>
           </div>
@@ -243,7 +243,7 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setShowOptional(!showOptional)}
-              style={{ width: '100%', background: '#FFFFFF', border: '1px solid rgba(128,128,128,0.15)', borderRadius: 4, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ width: '100%', background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '14px', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: 'pointer', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span style={{ fontSize: 13, fontWeight: 600 }}>{showOptional ? '− Hide additional details' : '+ Add additional details'}</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>optional</span>
@@ -336,7 +336,7 @@ export default function OnboardingPage() {
               disabled={loading}
               style={{ width: '100%', padding: '15px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
-              {loading ? 'Setting up...' : 'Start generating ideas →'}
+              {loading ? 'Setting up...' : 'Start generating ideas'}
             </button>
 
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 12 }}>

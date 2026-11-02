@@ -25,7 +25,7 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     zIndex: 9999,
     pointerEvents: 'none',
     boxShadow: 'none',
-    border: '1px solid rgba(128,128,128,0.15)',
+    border: '1px solid var(--line)',
     fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
   } : {
     position: 'absolute',
@@ -42,7 +42,7 @@ export default function Tooltip({ text, children, position = 'right' }: { text: 
     zIndex: 9999,
     pointerEvents: 'none',
     boxShadow: 'none',
-    border: '1px solid rgba(128,128,128,0.15)',
+    border: '1px solid var(--line)',
     fontFamily: "var(--font-geist-sans), 'Inter', sans-serif",
   }
 

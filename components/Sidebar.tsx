@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Tooltip from './Tooltip'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import Icon from '@/components/Icon'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,9 +15,9 @@ const supabase = createClient(
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: '▦' },
   { id: 'ideas', label: 'Content Ideas', icon: '◈' },
-  { id: 'myideas', label: 'My Ideas', icon: '★' },
+  { id: 'myideas', label: 'My Ideas', icon: <Icon n="star" /> },
   { id: 'filming', label: 'Filming', icon: '◉' },
-  { id: 'uploads', label: 'AI Editor For Any Video', icon: '▲' },
+  { id: 'uploads', label: 'AI Editor For Any Video', icon: <Icon n="up" /> },
   { id: 'aiuploads', label: 'AI Editor For Generated Idea', icon: '◆' },
   { id: 'library', label: 'Clip Library', icon: '▤' },
 ]
@@ -84,7 +85,7 @@ export default function Sidebar() {
             width: '100%',
           }}
         >
-          <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? '✕' : expanded ? '←' : '☰'}</span>
+          <span style={{ width: 20, textAlign: 'center' }}>{isMobileDrawer ? <Icon n="close" /> : expanded ? <Icon n="back" /> : <Icon n="menu" />}</span>
           {(expanded || isMobileDrawer) && <span style={{ fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{isMobileDrawer ? 'Close' : 'Collapse'}</span>}
         </button>
 
@@ -107,7 +108,7 @@ export default function Sidebar() {
               marginBottom: 8,
             }}
           >
-            <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>⌂</span>
+            <span style={{ width: 20, textAlign: 'center', fontSize: 16, flexShrink: 0 }}>⌂</span>
             <span>Full menu</span>
           </button>
         )}
@@ -132,7 +133,7 @@ export default function Sidebar() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ width: 20, textAlign: 'center', fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             ))
@@ -155,7 +156,7 @@ export default function Sidebar() {
                     width: '100%',
                   }}
                 >
-                  <span style={{ width: 20, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                  <span style={{ width: 20, textAlign: 'center', fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
                   {(expanded || isMobileDrawer) && <span>{item.label}</span>}
                 </Link>
               </Tooltip>
@@ -181,7 +182,7 @@ export default function Sidebar() {
               whiteSpace: "nowrap",
             }}
           >
-            <span style={{ width: 20, textAlign: "center", fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+            <span style={{ width: 20, textAlign: "center", fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
             {(expanded || isMobileDrawer) && <span>{item.label}</span>}
           </Link>
         ))}
@@ -200,7 +201,7 @@ export default function Sidebar() {
           height: '100vh',
           width: expanded ? 200 : 56,
           backgroundColor: 'var(--card-bg)',
-          borderRight: '1px solid rgba(128,128,128,0.15)',
+          borderRight: '1px solid var(--line)',
           display: 'flex',
           flexDirection: 'column',
           padding: '20px 12px',
@@ -223,7 +224,7 @@ export default function Sidebar() {
           width: 40,
           height: 40,
           borderRadius: 4,
-          border: '1px solid rgba(128,128,128,0.25)',
+          border: '1px solid var(--line)',
           background: 'var(--card-bg)',
           alignItems: 'center',
           justifyContent: 'center',
@@ -254,7 +255,7 @@ export default function Sidebar() {
               height: '100vh',
               width: 220,
               backgroundColor: 'var(--card-bg)',
-              borderRight: '1px solid rgba(128,128,128,0.15)',
+              borderRight: '1px solid var(--line)',
               display: 'flex',
               flexDirection: 'column',
               padding: '20px 12px',

@@ -331,7 +331,7 @@ export default function HistoryPage() {
                       {s.script
                         .split(/(?<=[.!?])\s+/)
                         .map((sentence, i, arr) => (
-                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 10, paddingBottom: 10, borderBottom: i < arr.length - 1 ? '1px solid rgba(128,128,128,0.1)' : 'none' }}>
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 10, paddingBottom: 10, borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none' }}>
                             <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
                           </div>
                         ))

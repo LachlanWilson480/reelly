@@ -467,6 +467,17 @@ Return exactly ${batchSize} ideas as a JSON array. Each idea must have: title, h
     const profileBrief = compressProfile(profile)
     const comfortLine = comfortRule(profile.filming_comfort)
 
+    // Learn from this business's own best posts (views from their connected accounts)
+    let winnersContext = ''
+    try {
+      const { data: m } = await supabaseAdmin.from('post_metrics').select('views, likes, scheduled_posts(title)').eq('user_id', userId).order('views', { ascending: false }).limit(3)
+      const titles = ((m || []) as unknown as { views: number; scheduled_posts: { title: string } | { title: string }[] | null }[])
+        .filter((r) => r.views > 0)
+        .map((r) => (Array.isArray(r.scheduled_posts) ? r.scheduled_posts[0]?.title : r.scheduled_posts?.title))
+        .filter((t): t is string => !!t)
+      if (titles.length > 0) winnersContext = titles.map((t) => `- ${t}`).join('\n')
+    } catch { /* metrics are optional */ }
+
     const prompt = weeklyObjectives?.trim()
       ? `You are a social media content assistant. Generate exactly ${batchSize} short-form social video ideas as a JSON array.
 
@@ -488,6 +499,7 @@ Location: ${locationBrief}${locationRule}
 ${seasonalBlock && !objectivesBlock ? `\n${seasonalBlock}` : ''}
 ${keyEventsContext && !objectivesBlock ? `\nRecent biz events (weave in at most 1 idea):\n${keyEventsContext}` : ''}
 ${pastIdeasContext ? `\nDo NOT repeat these already-generated angles:\n${pastIdeasContext}` : ''}
+${winnersContext ? `\nThese past posts performed best for this business. Reuse what made them work (topic, format, hook style) in at most half the ideas, without copying them:\n${winnersContext}` : ''}
 ${toneOverride ? `\nTONE OVERRIDE: The user has selected '${toneOverride}' tone for this batch - let this flavour every idea's hook and description language, while still sounding like a real person talking, not an ad.` : ''}${effectiveCustomization ? `\nOwner guidance (follow unless unsafe): ${effectiveCustomization}` : ''}
 
 HARD RULES:

@@ -1,60 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { postVideo, supabaseAdmin, isConfigured, type Conn } from '@/lib/platforms'
+import { isPlatform } from '@/lib/platforms'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const maxDuration = 300
 
-// This route is called by Vercel Cron every minute
-// Posting connections are not live yet, so due posts are flagged 'needs_connection' (never 'posted').
+type Result = { status: 'posted' | 'failed' | 'not_connected'; id?: string; url?: string; error?: string }
+
+// Called by Vercel Cron. Posts every due video to each connected account, and records exactly what happened per platform.
 export async function GET(req: NextRequest) {
   try {
-    // Verify this is a legitimate cron call
     const authHeader = req.headers.get('authorization')
     if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const now = new Date()
-    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-
-    // Find posts due to be published
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const { data: duePosts, error } = await supabaseAdmin
-      .from('scheduled_posts')
-      .select('*')
-      .eq('status', 'scheduled')
-      .lte('scheduled_for', now.toISOString())
-      .gte('scheduled_for', dayAgo.toISOString())
-
+      .from('scheduled_posts').select('*').eq('status', 'scheduled')
+      .lte('scheduled_for', now.toISOString()).gte('scheduled_for', weekAgo.toISOString())
+      .order('scheduled_for', { ascending: true }).limit(10)
     if (error) throw error
-    if (!duePosts || duePosts.length === 0) {
-      return NextResponse.json({ processed: 0 })
-    }
+    if (!duePosts || duePosts.length === 0) return NextResponse.json({ processed: 0 })
 
     let processed = 0
-
     for (const post of duePosts) {
-      try {
-        // Direct posting needs a connection to each platform (or a posting service). Until one is set up,
-        // never claim the post went out: mark it so the person knows to post it by hand.
-        await supabaseAdmin
-          .from('scheduled_posts')
-          .update({ status: 'needs_connection', error_text: 'Posting connections are not live yet. Download the video and post it yourself.' })
-          .eq('id', post.id)
+      // Claim it first so an overlapping run cannot post it twice
+      const { data: claimed } = await supabaseAdmin.from('scheduled_posts').update({ status: 'posting', attempts: (post.attempts || 0) + 1 }).eq('id', post.id).eq('status', 'scheduled').select('id')
+      if (!claimed || claimed.length === 0) continue
 
-        processed++
-      } catch (err) {
-        await supabaseAdmin
-          .from('scheduled_posts')
-          .update({ status: 'failed', error_text: err instanceof Error ? err.message : 'Unknown error' })
-          .eq('id', post.id)
+      const results: Record<string, Result> = { ...(post.results || {}) }
+      const { data: conns } = await supabaseAdmin.from('social_connections').select('*').eq('user_id', post.user_id).in('platform', post.platforms)
+      for (const platform of post.platforms as string[]) {
+        if (!isPlatform(platform) || results[platform]?.status === 'posted') continue
+        const conn = (conns as Conn[] | null)?.find((c) => c.platform === platform)
+        if (!conn || conn.status !== 'connected' || !isConfigured(platform)) { results[platform] = { status: 'not_connected', error: 'Account not connected' }; continue }
+        if (!post.video_url) { results[platform] = { status: 'failed', error: 'No video attached' }; continue }
+        try {
+          const out = await postVideo(conn, { title: post.title, caption: post.caption || '', videoUrl: post.video_url })
+          results[platform] = { status: 'posted', id: out.id, url: out.url }
+        } catch (e) {
+          results[platform] = { status: 'failed', error: (e instanceof Error ? e.message : 'Unknown error').slice(0, 300) }
+        }
       }
-    }
 
+      const list = Object.values(results)
+      const posted = list.filter((r) => r.status === 'posted').length
+      const status = posted === list.length ? 'posted' : posted > 0 ? 'partial' : list.every((r) => r.status === 'not_connected') ? 'needs_connection' : 'failed'
+      const firstError = list.find((r) => r.error)?.error || null
+      await supabaseAdmin.from('scheduled_posts').update({ status, results, posted_at: posted > 0 ? new Date().toISOString() : null, error_text: status === 'posted' ? null : firstError }).eq('id', post.id)
+      processed++
+    }
     return NextResponse.json({ processed })
   } catch (error) {
-    console.error('cron error:', error)
+    console.error('cron error:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json({ error: 'Cron failed' }, { status: 500 })
   }
 }

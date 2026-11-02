@@ -13,6 +13,7 @@ import CameraControls from '@/components/CameraControls'
 import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
+import Icon from '@/components/Icon'
 
 export type MultiFilmIdea = {
   key: string
@@ -95,10 +96,10 @@ const blobDuration = (blob: Blob): Promise<number> =>
   })
 
 const label11: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }
-const pill = (active: boolean): React.CSSProperties => ({ padding: '9px 14px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.3)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' })
-const primaryBtn = (disabled = false): React.CSSProperties => ({ padding: '14px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, boxShadow: disabled ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' })
-const ghostBtn: React.CSSProperties = { padding: '12px 18px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.35)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
-const field: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.25)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
+const pill = (active: boolean): React.CSSProperties => ({ padding: '9px 14px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid var(--line)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' })
+const primaryBtn = (disabled = false): React.CSSProperties => ({ padding: '14px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, boxShadow: disabled ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' })
+const ghostBtn: React.CSSProperties = { padding: '12px 18px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
+const field: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
 
 function SettingsFields({ value, onChange, props }: { value: Settings; onChange: (patch: Partial<Settings>) => void; props: Pick<Props, 'captionPresets' | 'fontOptions' | 'userPlan'> }) {
   return (
@@ -112,7 +113,7 @@ function SettingsFields({ value, onChange, props }: { value: Settings; onChange:
           <div style={{ marginTop: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
               {props.captionPresets.map((p) => (
-                <button key={p.id} type="button" onClick={() => onChange({ preset: p.id })} style={{ textAlign: 'left', padding: '9px 11px', borderRadius: 4, border: value.preset === p.id ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: value.preset === p.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
+                <button key={p.id} type="button" onClick={() => onChange({ preset: p.id })} style={{ textAlign: 'left', padding: '9px 11px', borderRadius: 4, border: value.preset === p.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: value.preset === p.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
                   <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 2px', color: value.preset === p.id ? 'var(--coral)' : 'var(--ink)' }}>{p.label}</p>
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3, margin: 0 }}>{p.desc}</p>
                 </button>
@@ -135,14 +136,14 @@ function SettingsFields({ value, onChange, props }: { value: Settings; onChange:
         <p style={{ ...label11, marginBottom: 8 }}>Video quality</p>
         <div style={{ display: 'flex', gap: 6 }}>
           {([['high', '1080p', 'Great for everyday Reels.'], ['4k', '4K', 'Pro plan only, takes longer.']] as const).map(([val, name, desc]) => (
-            <button key={val} type="button" onClick={() => { if (val === '4k' && props.userPlan !== 'top') { window.location.href = '/plans'; return } onChange({ resolution: val }) }} style={{ flex: 1, padding: '9px 11px', borderRadius: 4, border: value.resolution === val ? '2px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', background: value.resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
-              <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 2px', color: value.resolution === val ? 'var(--coral)' : 'var(--ink)' }}>{name}{val === '4k' && props.userPlan !== 'top' ? <span style={{ fontSize: 10, marginLeft: 6, color: 'var(--coral)' }}>Pro</span> : null}</p>
+            <button key={val} type="button" onClick={() => { if (val === '4k' && props.userPlan !== 'top') { window.location.href = '/plans'; return } onChange({ resolution: val }) }} style={{ flex: 1, padding: '9px 11px', borderRadius: 4, border: value.resolution === val ? '2px solid var(--coral)' : '1px solid var(--line)', background: value.resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
+              <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 2px', color: value.resolution === val ? 'var(--coral)' : 'var(--ink)' }}>{name}{val === '4k' && props.userPlan !== 'top' ? <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--coral)' }}>Pro</span> : null}</p>
               <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>{desc}</p>
             </button>
           ))}
         </div>
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: value.cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: value.cutDeadSpace ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', borderRadius: 4, padding: '10px 14px' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: value.cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: value.cutDeadSpace ? '1px solid var(--coral)' : '1px solid var(--line)', borderRadius: 4, padding: '10px 14px' }}>
         <input type="checkbox" checked={value.cutDeadSpace} onChange={(e) => onChange({ cutDeadSpace: e.target.checked })} style={{ accentColor: '#FF6A4D' }} />
         <span>
           <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Smart Trim</span>
@@ -675,7 +676,7 @@ export default function MultiFilm(p: Props) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16 }}>
-          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Choose the videos to film today</h3>
+          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, margin: '0 0 4px' }}>Choose the videos to film today</h3>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>You film every video in one go, then set them up and render them together.</p>
           {ideas.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Generate filming instructions or a script for an idea first.</p>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -684,7 +685,7 @@ export default function MultiFilm(p: Props) {
               const disabled = count === 0
               const on = selected.includes(i.key)
               return (
-                <label key={i.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: on ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: on ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.2)', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1 }}>
+                <label key={i.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 4, background: on ? 'rgba(255,106,77,0.08)' : 'rgba(128,128,128,0.08)', border: on ? '1px solid var(--coral)' : '1px solid var(--line)', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1 }}>
                   <input type="checkbox" checked={on} disabled={disabled} onChange={() => toggle(i.key)} style={{ marginTop: 2, accentColor: '#FF6A4D', flexShrink: 0 }} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13, lineHeight: 1.4 }}>{i.title}</span>
@@ -699,7 +700,7 @@ export default function MultiFilm(p: Props) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {(['portrait', 'landscape'] as const).map((o) => (
-            <button key={o} type="button" onClick={() => setOrientation(o)} style={{ ...pill(orientation === o), flex: 1 }}>{o === 'portrait' ? '▯ Portrait' : '▭ Landscape'}</button>
+            <button key={o} type="button" onClick={() => setOrientation(o)} style={{ ...pill(orientation === o), flex: 1 }}>{o === 'portrait' ? 'Portrait' : 'Landscape'}</button>
           ))}
         </div>
         <button type="button" disabled={selectedIdeas.length === 0} onClick={startFilming} style={primaryBtn(selectedIdeas.length === 0)}>
@@ -720,12 +721,12 @@ export default function MultiFilm(p: Props) {
         {between ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div style={{ maxWidth: 380, width: '100%', textAlign: 'center', color: '#fff' }}>
-              <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(52,199,89,0.18)', color: '#34c759', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' }}>✓</div>
+              <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(52,199,89,0.18)', color: '#34c759', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' }}><Icon n="check" /></div>
               <p style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, margin: '0 0 6px' }}>Video {vi} of {videos.length} filmed</p>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '0 0 20px' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount} ${uploadingCount === 1 ? 'clip' : 'clips'} in the background.` : 'Everything so far is uploaded.'}</p>
               <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 4, padding: '14px 16px', textAlign: 'left', marginBottom: 20 }}>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px' }}>Up next</p>
-                <p style={{ fontSize: 15, fontWeight: 600, margin: 0, lineHeight: 1.35 }}>{nextIdea?.title}</p>
+                <p style={{ fontSize: 16, fontWeight: 600, margin: 0, lineHeight: 1.35 }}>{nextIdea?.title}</p>
                 <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', margin: '4px 0 0' }}>{clipTotal} {clipTotal === 1 ? 'clip' : 'clips'}</p>
               </div>
               <button type="button" onClick={() => setBetween(false)} style={{ ...primaryBtn(), width: '100%', marginBottom: 10 }}>Start next video</button>
@@ -736,7 +737,7 @@ export default function MultiFilm(p: Props) {
           <>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: portrait ? '9 / 16' : '16 / 9', width: frameW }}>
-                <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}>✕</button>
+                <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                 {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                 <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                 <CameraControls
@@ -765,7 +766,7 @@ export default function MultiFilm(p: Props) {
                         <p ref={teleRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{line}</p>
                       </div>
                     ) : (
-                      <p style={{ color: '#fff', fontSize: 17, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{line}</p>
+                      <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{line}</p>
                     )}
                     {idea.lines[ci + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{idea.lines[ci + 1]}</p>}
                   </div>
@@ -804,9 +805,9 @@ export default function MultiFilm(p: Props) {
                 <>
                   <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>Video {vi + 1} · Clip {ci + 1} of {clipTotal}</p>
                   <SaveToLibraryButton dark key={pending.url} userId={userId} plan={isFreeTier ? 'free' : p.userPlan} getFile={() => new File([pending.blob], `film-clip.${pending.ext}`, { type: pending.type })} />
-                  <button type="button" onClick={discardPending} style={{ padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>↺ Redo</button>
+                  <button type="button" onClick={discardPending} style={{ padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Redo</button>
                   <button type="button" onClick={saveClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>
-                    {ci + 1 < clipTotal ? '✓ Save & next' : refilming || vi + 1 >= videos.length ? '✓ Finish' : '✓ Finish video'}
+                    {ci + 1 < clipTotal ? 'Save & next' : refilming || vi + 1 >= videos.length ? 'Finish' : 'Finish video'}
                   </button>
                 </>
               ) : (
@@ -815,7 +816,7 @@ export default function MultiFilm(p: Props) {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed {scrollSpeed}x</span>
-                    <span style={{ fontSize: 11, color: uploadingCount > 0 ? '#ffd166' : 'rgba(255,255,255,0.45)' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount}…` : videos.some((v) => v.clips.length > 0) ? 'Saved ✓' : ''}</span>
+                    <span style={{ fontSize: 11, color: uploadingCount > 0 ? '#ffd166' : 'rgba(255,255,255,0.45)' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount}…` : videos.some((v) => v.clips.length > 0) ? 'Saved' : ''}</span>
                   </div>
                   <input type="range" min={1} max={10} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
                 </div>
@@ -839,7 +840,7 @@ export default function MultiFilm(p: Props) {
         {confirmLeave && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div style={{ background: '#1c1a24', borderRadius: 4, padding: 22, maxWidth: 340, width: '100%', color: '#fff' }}>
-              <p style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>Leave filming?</p>
+              <p style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>Leave filming?</p>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5, margin: '0 0 18px' }}>Videos you have fully filmed are kept. The video you are in the middle of will be removed.</p>
               <button type="button" onClick={() => setConfirmLeave(false)} style={{ ...primaryBtn(), width: '100%', marginBottom: 8 }}>Keep filming</button>
               <button type="button" onClick={leaveFilming} style={{ ...ghostBtn, width: '100%', background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}>Leave</button>
@@ -858,7 +859,7 @@ export default function MultiFilm(p: Props) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 17, fontWeight: 700, margin: 0 }}>Set up your {videos.length === 1 ? 'video' : `${videos.length} videos`}</h3>
+          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Set up your {videos.length === 1 ? 'video' : `${videos.length} videos`}</h3>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Everything is filmed. Choose the settings for all videos, change any single video if you need to, then render.</p>
         </div>
 
@@ -877,24 +878,24 @@ export default function MultiFilm(p: Props) {
             const up = v.clips.filter((c) => c.status === 'uploading').length
             const bad = v.clips.filter((c) => c.status === 'error').length
             return (
-              <div key={key} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: 12, border: custom ? '1px solid var(--coral)' : '1px solid rgba(128,128,128,0.15)' }}>
+              <div key={key} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: 12, border: custom ? '1px solid var(--coral)' : '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ width: 78, aspectRatio: orientation === 'portrait' ? '9 / 16' : '16 / 9', flexShrink: 0, borderRadius: 4, overflow: 'hidden', background: '#0b0a10', position: 'relative' }}>
                     {v.clips[pi] && <video key={v.clips[pi].url} src={v.clips[pi].url} controls playsInline preload="metadata" controlsList="nodownload noremoteplayback" onEnded={() => { if (pi + 1 < v.clips.length) setPlayIdx((m) => ({ ...m, [key]: pi + 1 })) }} onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0, lineHeight: 1.35 }}>{v.idea.title}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{v.clips.length} {v.clips.length === 1 ? 'clip' : 'clips'} · {bad > 0 ? <span style={{ color: 'var(--coral)' }}>{bad} failed to upload</span> : up > 0 ? `Uploading ${up}…` : 'Uploaded ✓'}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{v.clips.length} {v.clips.length === 1 ? 'clip' : 'clips'} · {bad > 0 ? <span style={{ color: 'var(--coral)' }}>{bad} failed to upload</span> : up > 0 ? `Uploading ${up}…` : 'Uploaded'}</p>
                     <p style={{ fontSize: 11, color: custom ? 'var(--coral)' : 'var(--text-muted)', margin: '3px 0 0' }}>{custom ? 'Custom: ' : ''}{summary(s)}</p>
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       <button type="button" onClick={() => setOpenCustom(open ? null : key)} style={{ ...pill(open), padding: '6px 12px', fontSize: 12 }}>{open ? 'Done' : 'Customise'}</button>
-                      <button type="button" onClick={() => refilm(index)} style={{ ...pill(false), padding: '6px 12px', fontSize: 12 }}>↺ Re-film</button>
+                      <button type="button" onClick={() => refilm(index)} style={{ ...pill(false), padding: '6px 12px', fontSize: 12 }}>Re-film</button>
                       {videos.length > 1 && <button type="button" onClick={() => removeVideo(index)} style={{ ...pill(false), padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)' }}>Remove</button>}
                     </div>
                   </div>
                 </div>
                 {open && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(128,128,128,0.2)' }}>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                     <SettingsFields value={s} onChange={(patch) => setOverride(key, patch)} props={settingsProps} />
                     {custom && <button type="button" onClick={() => setOverrides((o) => ({ ...o, [key]: {} }))} style={{ marginTop: 12, background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--coral)', fontWeight: 600, cursor: 'pointer' }}>Use the settings for every video</button>}
                   </div>
@@ -931,7 +932,7 @@ export default function MultiFilm(p: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 20, textAlign: 'center' }}>
-        <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(52,199,89,0.15)', color: '#34c759', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, margin: '0 auto 12px' }}>✓</div>
+        <div aria-hidden="true" style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(52,199,89,0.15)', color: '#34c759', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, margin: '0 auto 12px' }}><Icon n="check" /></div>
         <p style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>{doneCount === videos.length ? 'All your videos are ready' : 'Your videos are rendering'}</p>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
           {doneCount === videos.length ? 'They are waiting on the Publish page.' : 'You can close the app or lock your phone. Rendering carries on without you, and we will email you as each video finishes.'}

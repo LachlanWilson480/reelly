@@ -8,7 +8,7 @@ export default function NotFound() {
       </div>
       <div style={{ textAlign: 'center', padding: '40px 24px' }}>
         <p style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 96, fontWeight: 700, color: 'var(--coral)', lineHeight: 1, margin: '0 0 8px' }}>404</p>
-        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 12 }}>Page not found</h1>
+        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 12 }}>Page not found</h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, maxWidth: 320, margin: '0 auto 32px' }}>
           The page you're looking for doesn't exist or has been moved.
         </p>

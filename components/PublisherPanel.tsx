@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import CollapsibleBox from '@/components/CollapsibleBox'
+import { inputCompact } from '@/lib/ui'
 import { PLATFORMS, cleanProfile, connectedPlatforms, type PlatformId, type SocialProfiles } from '@/lib/socialProfiles'
 
-const input = { width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: '#fff', fontSize: 14, fontFamily: 'inherit', color: 'var(--ink)', boxSizing: 'border-box' as const }
+const input = inputCompact
 const chip = (on: boolean) => ({ padding: '8px 14px', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: on ? '2px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', color: on ? 'var(--coral)' : 'var(--ink)' })
 
 export type ScheduledPost = {
   id: string; title: string; caption: string | null; video_url: string | null; scheduled_for: string
   platforms: string[]; status: string; error_text: string | null
+  results?: Record<string, { status: string; id?: string; url?: string; error?: string }>
 }
 
 // Loads and saves the person's social pages

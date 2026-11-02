@@ -51,7 +51,7 @@ function PaymentForm({ onSuccess, onClose }: { onSuccess: () => void; onClose: (
         <button
           type="button"
           onClick={onClose}
-          style={{ flex: 1, padding: '12px', borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)', background: 'none', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          style={{ flex: 1, padding: '12px', borderRadius: 4, border: '1px solid var(--line)', background: 'none', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
         >
           Cancel
         </button>
@@ -142,7 +142,7 @@ export default function CheckoutModal({ plan, planLabel, currency = 'AUD', billi
                 href="/login"
                 style={{ display: 'inline-block', fontSize: 13, color: '#fff', background: 'var(--coral)', padding: '10px 18px', borderRadius: 4, fontWeight: 600, textDecoration: 'none' }}
               >
-                Go to login →
+                Go to login
               </a>
             )}
           </>

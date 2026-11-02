@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '48px 40px', maxWidth: 400, width: '100%', boxShadow: 'none' }}>
         <Link href="/" style={{ display: 'inline-block', marginBottom: 24 }}><ReelezyLogo size={44} /></Link>
-        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 26, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>
           Set a new password
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28 }}>
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              style={{ width: '100%', padding: '13px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
               {loading ? 'Updating...' : 'Update password'}
             </button>

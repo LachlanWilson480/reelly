@@ -20,10 +20,10 @@ type Props = {
 }
 
 const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.65))'
-const iconBtn: CSSProperties = { width: 44, height: 44, border: 'none', background: 'transparent', color: '#fff', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', filter: shadow, fontSize: 17, fontWeight: 800 }
+const iconBtn: CSSProperties = { width: 44, height: 44, border: 'none', background: 'transparent', color: '#fff', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', filter: shadow, fontSize: 18, fontWeight: 800 }
 const panelBox: CSSProperties = { position: 'absolute', zIndex: 6, background: 'rgba(8,6,24,0.88)', borderRadius: 4, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200 }
 const panelLabel: CSSProperties = { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600, margin: 0 }
-const panelNote: CSSProperties = { color: 'rgba(255,255,255,0.55)', fontSize: 10, lineHeight: 1.35, margin: 0 }
+const panelNote: CSSProperties = { color: 'rgba(255,255,255,0.55)', fontSize: 11, lineHeight: 1.35, margin: 0 }
 const chip = (on: boolean): CSSProperties => ({ flex: 1, padding: '7px 0', borderRadius: 4, border: 'none', background: on ? 'var(--coral)' : 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
 function Svg({ children }: { children: ReactNode }) {
@@ -142,7 +142,7 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
             <button type="button" className="film-flip" aria-label="Flip camera" disabled={isRecording} onClick={onFlip} style={{ ...iconBtn, opacity: isRecording ? 0.4 : 1 }}>
               <Svg><path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5" /></Svg>
             </button>
-            <button type="button" aria-label="Video quality" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 15 }}>
+            <button type="button" aria-label="Video quality" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 16 }}>
               <span>{qualityTop}</span>
               <span>{cam.fps}</span>
             </button>
