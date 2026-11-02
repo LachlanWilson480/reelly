@@ -7,6 +7,8 @@ import { type ScheduledPost } from '@/components/PublisherPanel'
 import { PLATFORMS, type PlatformId } from '@/lib/socialProfiles'
 import { buttonPrimary, buttonSecondary, inputCompact } from '@/lib/ui'
 import Icon from '@/components/Icon'
+import Dropdown from '@/components/Dropdown'
+import DatePicker from '@/components/DatePicker'
 
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
@@ -32,6 +34,10 @@ const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.get
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
 const pad = (n: number) => String(n).padStart(2, '0')
 const dayValue = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, i) => {
+  const h = Math.floor(i / 4), m = (i % 4) * 15
+  return { value: `${pad(h)}:${pad(m)}`, label: `${h % 12 || 12}:${pad(m)} ${h < 12 ? 'am' : 'pm'}` }
+})
 const small = { fontSize: 12, color: 'var(--text-muted)', margin: 0 } as const
 const heading = { fontSize: 18, fontWeight: 600, margin: 0 } as const
 const chip = (on: boolean) => ({ padding: '8px 14px', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.08)' : '#fff', color: on ? 'var(--coral)' : 'var(--ink)' })
@@ -82,9 +88,13 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     await authFetch('/api/social/disconnect', { method: 'POST', body: JSON.stringify({ platform }) })
     reloadConns()
   }
-  const cancelPost = async (id: string) => {
-    const res = await authFetch('/api/update-scheduled-post', { method: 'POST', body: JSON.stringify({ postId: id, updates: { status: 'cancelled' } }) })
-    if (res.ok) setQueue((q) => q.map((p) => (p.id === id ? { ...p, status: 'cancelled' } : p)))
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const deletePost = async (id: string) => {
+    setDeleteError('')
+    const res = await authFetch('/api/delete-scheduled-post', { method: 'POST', body: JSON.stringify({ postId: id }) })
+    if (res.ok) { setQueue((q) => q.filter((p) => p.id !== id)); setConfirmDelete(null) }
+    else { const e = await res.json().catch(() => ({})); setDeleteError(e.error || 'Could not delete the post. Please try again.'); setConfirmDelete(null) }
   }
   const download = async (url: string) => {
     const blob = await (await fetch(url)).blob()
@@ -203,6 +213,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       {/* Queue */}
       <section aria-labelledby="pub-queue" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h3 id="pub-queue" style={heading}>Scheduled and posted</h3>
+        {deleteError && <p role="alert" style={{ fontSize: 13, color: '#D92D20', margin: 0 }}>{deleteError}</p>}
         {live.length === 0 ? <p style={{ ...small, fontSize: 13 }}>Nothing scheduled yet. Pick a day in the calendar or press Schedule on a video.</p> : [...live].sort((a, b) => +new Date(b.scheduled_for) - +new Date(a.scheduled_for)).map((p) => (
           <div key={p.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '12px 14px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -221,7 +232,15 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
               })}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {p.status === 'scheduled' && <button type="button" onClick={() => cancelPost(p.id)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12 }}>Cancel post</button>}
+              {p.status !== 'posting' && (confirmDelete === p.id ? (
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{p.status === 'posted' || p.status === 'partial' ? 'Remove from this list? It stays on the platform.' : 'Delete this scheduled post?'}</span>
+                  <button type="button" onClick={() => deletePost(p.id)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12, color: '#D92D20', fontWeight: 700 }}>Delete</button>
+                  <button type="button" onClick={() => setConfirmDelete(null)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12 }}>Keep</button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(p.id)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12, color: '#D92D20' }}>Delete</button>
+              ))}
               {p.video_url && bad(p.status) && <button type="button" onClick={() => download(p.video_url!)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12 }}>Download video</button>}
             </div>
           </div>
@@ -306,11 +325,9 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { day:
     <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <div><label htmlFor="pp-video" style={lab}>Video</label>
-          <select id="pp-video" value={renderId} onChange={(e) => pickRender(e.target.value)} style={inputCompact}>
-            {renders.map((r) => <option key={r.id} value={r.id}>{r.title || 'Untitled video'}</option>)}
-          </select></div>
-        <div><label htmlFor="pp-day" style={lab}>Day</label><input id="pp-day" type="date" value={day} onChange={(e) => setDay(e.target.value)} style={inputCompact} /></div>
-        <div><label htmlFor="pp-time" style={lab}>Time</label><input id="pp-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} style={inputCompact} /></div>
+          <Dropdown ariaLabel="Video" value={renderId} onChange={pickRender} options={renders.map((r) => ({ value: r.id, label: r.title || 'Untitled video' }))} /></div>
+        <div><label htmlFor="pp-day" style={lab}>Day</label><DatePicker id="pp-day" label="Day" value={day} onChange={setDay} /></div>
+        <div><label htmlFor="pp-time" style={lab}>Time</label><Dropdown ariaLabel="Time" value={time} onChange={setTime} options={TIME_OPTIONS} /></div>
       </div>
       <div>
         <span style={lab}>Post to</span>
