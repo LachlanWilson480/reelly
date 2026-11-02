@@ -5,15 +5,16 @@ import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { type ScheduledPost } from '@/components/PublisherPanel'
 import { PLATFORMS, type PlatformId } from '@/lib/socialProfiles'
+import { cleanString } from '@/lib/cleanText'
 import { buttonPrimary, buttonSecondary, inputCompact } from '@/lib/ui'
 import Icon from '@/components/Icon'
+import CollapsibleBox from '@/components/CollapsibleBox'
 import Dropdown from '@/components/Dropdown'
 import DatePicker from '@/components/DatePicker'
 
-type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null }
+type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
 type Conn = { platform: PlatformId; account_name: string | null; status: string }
-type Analytics = { totals: { views: number; likes: number; comments: number; shares: number }; top: { title: string; views: number; likes: number; platforms: string[] }[]; tracked: number }
 
 const label = (id: string) => PLATFORMS.find((p) => p.id === id)?.label || id
 const STATUS: Record<string, string> = { scheduled: 'Scheduled', posting: 'Posting now', posted: 'Posted', partial: 'Partly posted', failed: 'Failed', cancelled: 'Cancelled', needs_connection: 'Not posted' }
@@ -24,9 +25,6 @@ async function fetchQueue(): Promise<ScheduledPost[]> {
 }
 async function fetchConnections(): Promise<{ connections: Conn[]; available: PlatformId[] }> {
   try { const r = await authFetch('/api/social/connections'); return r.ok ? await r.json() : { connections: [], available: [] } } catch { return { connections: [], available: [] } }
-}
-async function fetchAnalytics(): Promise<Analytics | null> {
-  try { const r = await authFetch('/api/analytics'); return r.ok ? await r.json() : null } catch { return null }
 }
 
 const startOfWeek = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
@@ -48,9 +46,12 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
   const [queue, setQueue] = useState<ScheduledPost[]>([])
   const [conns, setConns] = useState<Conn[]>([])
   const [available, setAvailable] = useState<PlatformId[]>([])
-  const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [week, setWeek] = useState(() => startOfWeek(new Date()))
-  const [plan, setPlan] = useState<{ day: string; renderId: string } | null>(null)
+  // Where the scheduling form is open: under a video, or under the calendar for a chosen day
+  const [plan, setPlan] = useState<{ from: 'video' | 'calendar'; renderId: string; day: string } | null>(null)
+  const [openPost, setOpenPost] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState('')
   const [notice, setNotice] = useState(() => {
     if (typeof window === 'undefined') return ''
     const q = new URLSearchParams(window.location.search)
@@ -68,9 +69,11 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     if (!userId) return
     fetchQueue().then(setQueue)
     fetchConnections().then((r) => { setConns(r.connections); setAvailable(r.available) })
-    fetchAnalytics().then(setAnalytics)
-    supabase.from('renders').select('id, output_url, created_at, title, caption, tags').eq('user_id', userId).eq('status', 'done').order('created_at', { ascending: false }).then(({ data }) => {
-      setRenders(((data as unknown as Render[]) || []).filter((r) => r.output_url))
+    const q = (cols: string) => supabase.from('renders').select(cols).eq('user_id', userId).eq('status', 'done').order('created_at', { ascending: false })
+    q('id, output_url, created_at, title, caption, tags, idea_id, source').then(async (res) => {
+      // Older databases have no `source` column yet, so fall back to the original columns
+      const out = res.error ? await q('id, output_url, created_at, title, caption, tags, idea_id') : res
+      setRenders(((out.data as unknown as Render[]) || []).filter((r) => r.output_url))
       setLoading(false)
     })
   }, [userId])
@@ -88,12 +91,10 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     await authFetch('/api/social/disconnect', { method: 'POST', body: JSON.stringify({ platform }) })
     reloadConns()
   }
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState('')
   const deletePost = async (id: string) => {
     setDeleteError('')
     const res = await authFetch('/api/delete-scheduled-post', { method: 'POST', body: JSON.stringify({ postId: id }) })
-    if (res.ok) { setQueue((q) => q.filter((p) => p.id !== id)); setConfirmDelete(null) }
+    if (res.ok) { setQueue((q) => q.filter((p) => p.id !== id)); setConfirmDelete(null); setOpenPost((o) => (o === id ? null : o)) }
     else { const e = await res.json().catch(() => ({})); setDeleteError(e.error || 'Could not delete the post. Please try again.'); setConfirmDelete(null) }
   }
   const download = async (url: string) => {
@@ -102,20 +103,44 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     document.body.appendChild(a); a.click(); document.body.removeChild(a)
   }
   const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 2000) }
+  // After scheduling: refresh, jump the calendar to that week and open the new post
+  const scheduled = (msg: string, post?: { id: string; scheduledFor: string }) => {
+    setPlan(null); setNotice(msg)
+    fetchQueue().then((q) => {
+      setQueue(q)
+      if (post) { setWeek(startOfWeek(new Date(post.scheduledFor))); setConfirmDelete(null); setOpenPost(post.id); setTimeout(() => document.getElementById('pub-week')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }
+    })
+  }
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(week, i)), [week])
   const live = queue.filter((p) => p.status !== 'cancelled')
   const postsOn = (d: Date) => live.filter((p) => new Date(p.scheduled_for).toDateString() === d.toDateString())
   const todayStr = new Date().toDateString()
   const weekLabel = `${days[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} to ${days[6].toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`
+  const stuck = live.filter((p) => bad(p.status))
+
+  const kindOf = (r: Render): 'script' | 'idea' | 'other' => {
+    if (r.source === 'script' || r.idea_id?.startsWith('script-')) return 'script'
+    if (r.source === 'idea') return 'idea'
+    if (r.source === 'upload') return 'other'
+    return r.title ? 'idea' : 'other'
+  }
+  const groups = [
+    { key: 'idea', title: 'Generated idea videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'idea') },
+    { key: 'script', title: 'Script generated videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'script') },
+    { key: 'reels', title: 'Image reels', noun: 'reel', items: [] as Render[] },
+    { key: 'other', title: 'Other videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'other') },
+  ].map((g) => ({ ...g, count: g.key === 'reels' ? carousels.length : g.items.length })).filter((g) => g.count > 0)
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
+
+  const openDetail = (id: string) => { setPlan(null); setConfirmDelete(null); setOpenPost(id); setTimeout(() => document.getElementById('post-detail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60) }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       <div>
         <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>Publish</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Connect your accounts, plan your week, and Reelezy posts your finished videos for you.</p>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Connect your accounts, then schedule your videos. Reelezy posts them for you.</p>
       </div>
 
       {notice && <p role="status" style={{ fontSize: 13, background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', margin: 0 }}>{notice}</p>}
@@ -149,11 +174,17 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       {/* Calendar */}
       <section aria-labelledby="pub-week" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <h3 id="pub-week" style={{ ...heading, flex: 1 }}>Plan your week</h3>
+          <h3 id="pub-week" style={{ ...heading, flex: 1 }}>Your calendar</h3>
           <button type="button" aria-label="Previous week" onClick={() => setWeek((w) => addDays(w, -7))} style={{ ...buttonSecondary, padding: '8px 10px' }}><Icon n="back" /></button>
           <span style={{ fontSize: 13, fontWeight: 600, minWidth: 130, textAlign: 'center' }}>{weekLabel}</span>
           <button type="button" aria-label="Next week" onClick={() => setWeek((w) => addDays(w, 7))} style={{ ...buttonSecondary, padding: '8px 10px' }}><Icon n="forward" /></button>
         </div>
+        {stuck.length > 0 && (
+          <p style={{ fontSize: 13, margin: 0, color: '#D92D20' }}>
+            {stuck.length === 1 ? '1 post needs attention.' : `${stuck.length} posts need attention.`}{' '}
+            <button type="button" onClick={() => { setWeek(startOfWeek(new Date(stuck[0].scheduled_for))); openDetail(stuck[0].id) }} style={{ background: 'none', border: 'none', color: '#D92D20', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>See details</button>
+          </p>
+        )}
         <div className="pub-week">
           {days.map((d) => {
             const here = postsOn(d)
@@ -163,187 +194,204 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                 <div className="pub-day-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: d.toDateString() === todayStr ? 'var(--coral)' : 'var(--text-secondary)' }}>{d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric' })}</span>
                   {!past && !isFree && renders.length > 0 && (
-                    <button type="button" aria-label={`Schedule a video on ${d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}`} onClick={() => setPlan({ day: dayValue(d), renderId: renders[0].id })} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: 1, color: 'var(--text-secondary)' }}>+</button>
+                    <button type="button" aria-label={`Schedule a video on ${d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}`} onClick={() => { setOpenPost(null); setPlan({ from: 'calendar', renderId: renders[0].id, day: dayValue(d) }) }} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: 1, color: 'var(--text-secondary)' }}>+</button>
                   )}
                 </div>
                 {here.map((p) => (
-                  <div key={p.id} title={p.title} style={{ fontSize: 11, lineHeight: 1.3, fontWeight: 600, borderRadius: 2, padding: '6px 7px', background: p.status === 'posted' ? 'var(--ink)' : bad(p.status) ? '#fff' : 'var(--coral)', color: p.status === 'posted' ? '#fff' : bad(p.status) ? '#D92D20' : '#fff', border: bad(p.status) ? '1px solid #D92D20' : '1px solid transparent', minWidth: 0 }}>
+                  <button key={p.id} type="button" onClick={() => openDetail(p.id)} title={p.title} aria-label={`${p.title}, ${fmtTime(p.scheduled_for)}. Open details`} style={{ font: 'inherit', textAlign: 'left', cursor: 'pointer', fontSize: 11, lineHeight: 1.3, fontWeight: 600, borderRadius: 2, padding: '6px 7px', background: p.status === 'posted' ? 'var(--ink)' : bad(p.status) ? '#fff' : 'var(--coral)', color: p.status === 'posted' ? '#fff' : bad(p.status) ? '#D92D20' : '#fff', border: bad(p.status) ? '1px solid #D92D20' : '1px solid transparent', outline: openPost === p.id ? '2px solid var(--ink)' : 'none', outlineOffset: 1, minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
                     <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                     <span style={{ fontWeight: 500, opacity: 0.9 }}>{fmtTime(p.scheduled_for)}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )
           })}
         </div>
-        <p style={small}>Orange is scheduled, black is posted, red outline needs attention.</p>
+        <p style={small}>Orange is scheduled, black is posted, red outline needs attention. Click a post to see it.</p>
 
-        {plan && (
-          <PlanPanel
-            key={plan.day + plan.renderId}
-            plan={plan} renders={renders} connected={connected}
-            onClose={() => setPlan(null)}
-            onDone={() => { setPlan(null); reloadQueue() }}
-          />
-        )}
-      </section>
-
-      {/* Ready to post */}
-      <section aria-labelledby="pub-ready" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h3 id="pub-ready" style={heading}>Ready to post</h3>
-        {renders.length === 0 ? (
-          <p style={{ ...small, fontSize: 13 }}>Finished videos from the editors show up here. Head to Content Ideas or an AI Editor to make one.</p>
-        ) : renders.map((r) => (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '84px 1fr', gap: 14, border: '1px solid var(--line)', borderRadius: 4, padding: 12, background: '#fff' }}>
-            <video src={r.output_url!} muted playsInline preload="metadata" style={{ width: 84, height: 120, objectFit: 'cover', background: '#000', borderRadius: 2 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{r.title || 'Untitled video'}</p>
-              <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {isFree ? <a href="/plans" style={{ ...buttonPrimary, textDecoration: 'none', padding: '8px 14px', fontSize: 13 }}>Upgrade to schedule</a>
-                  : <button type="button" onClick={() => setPlan({ day: dayValue(addDays(new Date(), 1)), renderId: r.id })} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
-                {!isFree && <button type="button" onClick={() => download(r.output_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download</button>}
-                {(r.caption || r.tags) && <button type="button" onClick={() => copy([r.caption, r.tags].filter(Boolean).join('\n'), r.id)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>{copied === r.id ? 'Copied' : 'Copy caption'}</button>}
+        {deleteError && <p role="alert" style={{ fontSize: 13, color: '#D92D20', margin: 0 }}>{deleteError}</p>}
+        {(() => {
+          const p = live.find((x) => x.id === openPost)
+          if (!p) return null
+          return (
+            <div id="post-detail" role="region" aria-label="Post details" style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{p.title}</p>
+                  <p style={{ ...small, marginTop: 4 }}>{new Date(p.scheduled_for).toLocaleString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })} · <strong style={{ color: bad(p.status) ? '#D92D20' : 'var(--text-secondary)' }}>{STATUS[p.status] || p.status}</strong></p>
+                </div>
+                <button type="button" aria-label="Close details" onClick={() => { setOpenPost(null); setConfirmDelete(null) }} style={{ ...buttonSecondary, padding: '6px 9px' }}><Icon n="close" /></button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: p.video_url ? '84px 1fr' : '1fr', gap: 14 }}>
+                {p.video_url && <video src={p.video_url} muted playsInline preload="metadata" style={{ width: 84, height: 120, objectFit: 'cover', background: '#000', borderRadius: 2 }} />}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                  <div>
+                    {p.platforms.map((x) => {
+                      const r = p.results?.[x]
+                      return (
+                        <p key={x} style={{ fontSize: 12, margin: '0 0 2px', color: r?.status === 'failed' || r?.status === 'not_connected' ? '#D92D20' : 'var(--text-secondary)' }}>
+                          {label(x)}: {r ? (r.status === 'posted' ? (r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Posted, view it</a> : 'Posted') : r.status === 'not_connected' ? 'Account not connected' : r.error || 'Failed') : p.status === 'scheduled' ? 'Waiting to post' : '-'}
+                        </p>
+                      )
+                    })}
+                  </div>
+                  {p.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 96, overflowY: 'auto' }}>{cleanString(p.caption)}</p>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {p.video_url && <button type="button" onClick={() => download(p.video_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download video</button>}
+                {p.status !== 'posting' && (confirmDelete === p.id ? (
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{p.status === 'posted' || p.status === 'partial' ? 'Remove from this list? It stays on the platform.' : 'Delete this scheduled post?'}</span>
+                    <button type="button" onClick={() => deletePost(p.id)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13, color: '#D92D20', fontWeight: 700 }}>Delete</button>
+                    <button type="button" onClick={() => setConfirmDelete(null)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Keep</button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setConfirmDelete(p.id)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13, color: '#D92D20' }}>Delete</button>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
-      </section>
+          )
+        })()}
 
-      {/* Queue */}
-      <section aria-labelledby="pub-queue" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h3 id="pub-queue" style={heading}>Scheduled and posted</h3>
-        {deleteError && <p role="alert" style={{ fontSize: 13, color: '#D92D20', margin: 0 }}>{deleteError}</p>}
-        {live.length === 0 ? <p style={{ ...small, fontSize: 13 }}>Nothing scheduled yet. Pick a day in the calendar or press Schedule on a video.</p> : [...live].sort((a, b) => +new Date(b.scheduled_for) - +new Date(a.scheduled_for)).map((p) => (
-          <div key={p.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '12px 14px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
-              <p style={{ fontSize: 14, fontWeight: 600, margin: 0, flex: 1, minWidth: 0 }}>{p.title}</p>
-              <span style={{ fontSize: 12, fontWeight: 700, color: bad(p.status) ? '#D92D20' : 'var(--text-secondary)' }}>{STATUS[p.status] || p.status}</span>
-            </div>
-            <p style={small}>{new Date(p.scheduled_for).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {p.platforms.map((x) => {
-                const r = p.results?.[x]
-                return (
-                  <p key={x} style={{ fontSize: 12, margin: 0, color: r?.status === 'failed' || r?.status === 'not_connected' ? '#D92D20' : 'var(--text-secondary)' }}>
-                    {label(x)}: {r ? (r.status === 'posted' ? (r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Posted, view it</a> : 'Posted') : r.status === 'not_connected' ? 'Account not connected' : r.error || 'Failed') : p.status === 'scheduled' ? 'Waiting' : '-'}
-                  </p>
-                )
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {p.status !== 'posting' && (confirmDelete === p.id ? (
-                <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{p.status === 'posted' || p.status === 'partial' ? 'Remove from this list? It stays on the platform.' : 'Delete this scheduled post?'}</span>
-                  <button type="button" onClick={() => deletePost(p.id)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12, color: '#D92D20', fontWeight: 700 }}>Delete</button>
-                  <button type="button" onClick={() => setConfirmDelete(null)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12 }}>Keep</button>
-                </span>
-              ) : (
-                <button type="button" onClick={() => setConfirmDelete(p.id)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12, color: '#D92D20' }}>Delete</button>
-              ))}
-              {p.video_url && bad(p.status) && <button type="button" onClick={() => download(p.video_url!)} style={{ ...buttonSecondary, padding: '7px 12px', fontSize: 12 }}>Download video</button>}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Performance */}
-      <section aria-labelledby="pub-perf" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h3 id="pub-perf" style={heading}>How your posts are doing</h3>
-        {!analytics || analytics.tracked === 0 ? (
-          <p style={{ ...small, fontSize: 13 }}>Once your posts are live, views and likes appear here. Reelezy then uses your best posts to suggest similar ideas.</p>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
-              {([['Views', analytics.totals.views], ['Likes', analytics.totals.likes], ['Comments', analytics.totals.comments], ['Shares', analytics.totals.shares]] as const).map(([k, v]) => (
-                <div key={k} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 12, background: '#fff' }}>
-                  <p style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>{v.toLocaleString('en-AU')}</p>
-                  <p style={small}>{k}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: '#fff' }}>
-              {analytics.top.map((t, i) => (
-                <div key={t.title + i} style={{ display: 'flex', gap: 12, padding: '10px 14px', borderTop: i ? '1px solid var(--line)' : 'none', fontSize: 13 }}>
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{t.views.toLocaleString('en-AU')} views</span>
-                </div>
-              ))}
-            </div>
-          </>
+        {plan?.from === 'calendar' && (
+          <PlanPanel key={`c-${plan.day}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} />
         )}
       </section>
 
-      {carousels.length > 0 && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <h3 style={heading}>Image reels</h3>
-          <p style={small}>Image reels can not be posted automatically yet. Copy the caption and post them from your phone.</p>
-          {carousels.filter((c) => c.caption).map((c) => (
-            <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', background: '#fff', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ flex: 1, fontSize: 13, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.caption}</span>
-              <button type="button" onClick={() => copy(c.caption!, c.id)} style={{ ...buttonSecondary, padding: '6px 12px', fontSize: 12 }}>{copied === c.id ? 'Copied' : 'Copy'}</button>
-            </div>
-          ))}
-        </section>
-      )}
+      {/* Videos */}
+      <section aria-labelledby="pub-ready" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <h3 id="pub-ready" style={heading}>Your videos</h3>
+        {groups.length === 0 && <p style={{ ...small, fontSize: 13 }}>Finished videos show up here. Make one from Content Ideas or an AI Editor.</p>}
+        {groups.map((g, gi) => (
+          <CollapsibleBox key={g.key} title={g.title} summary={`${g.count} ${g.noun}${g.count === 1 ? '' : 's'}`} defaultOpen={gi === 0}>
+            {g.key === 'reels' ? (
+              <>
+                <p style={small}>Image reels can not be posted automatically yet. Copy the caption and post them from your phone.</p>
+                {carousels.map((c) => (
+                  <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', background: '#fff', display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ flex: 1, fontSize: 13, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.caption ? cleanString(c.caption) : `${c.image_paths.length} image carousel, ${new Date(c.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`}</span>
+                    {c.caption && <button type="button" onClick={() => copy(cleanString(c.caption!), c.id)} style={{ ...buttonSecondary, padding: '6px 12px', fontSize: 12 }}>{copied === c.id ? 'Copied' : 'Copy'}</button>}
+                  </div>
+                ))}
+              </>
+            ) : g.items.map((r) => (
+              <div key={r.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 12, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14 }}>
+                  <video src={r.output_url!} muted playsInline preload="metadata" style={{ width: 72, height: 104, objectFit: 'cover', background: '#000', borderRadius: 2 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.title ? cleanString(r.title) : 'Untitled video'}</p>
+                    <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {isFree ? <a href="/plans" style={{ ...buttonPrimary, textDecoration: 'none', padding: '8px 14px', fontSize: 13 }}>Upgrade to schedule</a>
+                        : <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+                      {!isFree && <button type="button" onClick={() => download(r.output_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download</button>}
+                    </div>
+                  </div>
+                </div>
+                {plan?.from === 'video' && plan.renderId === r.id && (
+                  <PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} />
+                )}
+              </div>
+            ))}
+          </CollapsibleBox>
+        ))}
+      </section>
     </div>
   )
 }
 
-// The form under the calendar: which video, which day and time, where it goes
-function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { day: string; renderId: string }; renders: Render[]; connected: PlatformId[]; onClose: () => void; onDone: () => void }) {
+// Scheduling form. From a video it is one button (we pick a good time); the person can choose a date and time instead.
+function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from: 'video' | 'calendar'; renderId: string; day: string }; renders: Render[]; connected: PlatformId[]; onClose: () => void; onDone: (msg: string, post?: { id: string; scheduledFor: string }) => void }) {
+  const fromCalendar = plan.from === 'calendar'
   const [renderId, setRenderId] = useState(plan.renderId)
+  const [custom, setCustom] = useState(fromCalendar)
   const [day, setDay] = useState(plan.day)
-  const [time, setTime] = useState('12:00')
+  const [time, setTime] = useState('18:30')
   const [picked, setPicked] = useState<PlatformId[]>(connected)
   const render = renders.find((r) => r.id === renderId)
-  const [text, setText] = useState([render?.caption, render?.tags].filter(Boolean).join('\n'))
+  const [text, setText] = useState(() => cleanString([render?.caption, render?.tags].filter(Boolean).join('\n')))
+  const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
   const pickRender = (id: string) => {
     setRenderId(id)
     const r = renders.find((x) => x.id === id)
-    setText([r?.caption, r?.tags].filter(Boolean).join('\n'))
+    setText(cleanString([r?.caption, r?.tags].filter(Boolean).join('\n')))
   }
   const submit = async () => {
     setMsg('')
     if (!render) { setMsg('Choose a video.'); return }
     if (picked.length === 0) { setMsg('Choose at least one account to post to.'); return }
-    const when = new Date(`${day}T${time}`)
-    if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() + 60_000) { setMsg('Pick a time in the future.'); return }
     setBusy(true)
     try {
-      const res = await authFetch('/api/schedule-post', { method: 'POST', body: JSON.stringify({ ideaId: render.id, title: render.title || 'Untitled video', caption: text, tags: null, videoUrl: render.output_url, scheduledFor: when.toISOString(), platforms: picked }) })
-      if (!res.ok) { const e = await res.json().catch(() => ({})); setMsg(e.error || 'Could not schedule. Please try again.'); setBusy(false); return }
-      onDone()
+      let res: Response
+      if (custom) {
+        const when = new Date(`${day}T${time}`)
+        if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() + 60_000) { setMsg('Pick a time in the future.'); setBusy(false); return }
+        res = await authFetch('/api/schedule-post', { method: 'POST', body: JSON.stringify({ ideaId: render.id, title: cleanString(render.title || 'Untitled video'), caption: text, tags: null, videoUrl: render.output_url, scheduledFor: when.toISOString(), platforms: picked }) })
+      } else {
+        res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: render.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, caption: text, platforms: picked, force: true }) })
+      }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); setMsg(e.error === 'no_accounts' ? 'Connect an account first.' : e.error || 'Could not schedule. Please try again.'); setBusy(false); return }
+      const j = await res.json().catch(() => ({}))
+      const post = j.post ? { id: j.post.id, scheduledFor: j.post.scheduled_for } : j.id ? { id: j.id, scheduledFor: j.scheduledFor } : undefined
+      onDone('Scheduled. It is on your calendar below.', post)
     } catch { setMsg('Could not schedule. Please try again.'); setBusy(false) }
   }
   const lab = { fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 } as const
+  const link = { background: 'none', border: 'none', color: 'var(--coral)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: 0 } as const
+
+  if (connected.length === 0) {
+    return (
+      <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <p style={{ fontSize: 13, margin: 0, flex: 1, minWidth: 200 }}>Connect an account at the top of this page, then you can schedule.</p>
+        <button type="button" onClick={onClose} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Close</button>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-        <div><label htmlFor="pp-video" style={lab}>Video</label>
-          <Dropdown ariaLabel="Video" value={renderId} onChange={pickRender} options={renders.map((r) => ({ value: r.id, label: r.title || 'Untitled video' }))} /></div>
-        <div><label htmlFor="pp-day" style={lab}>Day</label><DatePicker id="pp-day" label="Day" value={day} onChange={setDay} /></div>
-        <div><label htmlFor="pp-time" style={lab}>Time</label><Dropdown ariaLabel="Time" value={time} onChange={setTime} options={TIME_OPTIONS} /></div>
-      </div>
-      <div>
-        <span style={lab}>Post to</span>
-        {connected.length === 0 ? <p style={{ ...small, fontSize: 13 }}>Connect an account above first.</p> : (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {PLATFORMS.filter((p) => connected.includes(p.id)).map((p) => (
-              <button key={p.id} type="button" aria-pressed={picked.includes(p.id)} onClick={() => setPicked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} style={chip(picked.includes(p.id))}>{p.label}</button>
-            ))}
+    <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {fromCalendar && (
+        <>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Schedule for {new Date(`${plan.day}T12:00`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div><span style={lab}>Video</span><Dropdown ariaLabel="Video" value={renderId} onChange={pickRender} options={renders.map((r) => ({ value: r.id, label: cleanString(r.title || 'Untitled video') }))} /></div>
+            <div><span style={lab}>Time</span><Dropdown ariaLabel="Time" value={time} onChange={setTime} options={TIME_OPTIONS} /></div>
           </div>
-        )}
-      </div>
-      <div><label htmlFor="pp-cap" style={lab}>Caption</label><textarea id="pp-cap" value={text} onChange={(e) => setText(e.target.value)} rows={4} style={{ ...inputCompact, resize: 'vertical' }} /></div>
+        </>
+      )}
+      {!fromCalendar && custom && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <div><span style={lab}>Day</span><DatePicker id="pp-day" label="Day" value={day} onChange={setDay} /></div>
+          <div><span style={lab}>Time</span><Dropdown ariaLabel="Time" value={time} onChange={setTime} options={TIME_OPTIONS} /></div>
+        </div>
+      )}
+      {connected.length > 1 ? (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Post to</span>
+          {PLATFORMS.filter((p) => connected.includes(p.id)).map((p) => (
+            <button key={p.id} type="button" aria-pressed={picked.includes(p.id)} onClick={() => setPicked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} style={chip(picked.includes(p.id))}>{p.label}</button>
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Posting to {label(connected[0])}</p>
+      )}
+      {editing ? (
+        <div><label htmlFor="pp-cap" style={lab}>Caption</label><textarea id="pp-cap" value={text} onChange={(e) => setText(e.target.value)} rows={4} style={{ ...inputCompact, resize: 'vertical' }} /></div>
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+          {text ? <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text.split('\n')[0]}</span> : 'No caption yet.'}
+          <button type="button" onClick={() => setEditing(true)} style={link}>{text ? 'Edit caption' : 'Add a caption'}</button>
+        </p>
+      )}
       {msg && <p role="alert" style={{ fontSize: 13, color: '#D92D20', margin: 0 }}>{msg}</p>}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={submit} disabled={busy || connected.length === 0} style={{ ...buttonPrimary, opacity: busy || connected.length === 0 ? 0.5 : 1 }}>{busy ? 'Scheduling...' : 'Schedule post'}</button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button type="button" onClick={submit} disabled={busy} style={{ ...buttonPrimary, opacity: busy ? 0.6 : 1 }}>{busy ? 'Scheduling...' : custom ? 'Schedule' : 'Schedule it for me'}</button>
         <button type="button" onClick={onClose} style={buttonSecondary}>Cancel</button>
+        {!fromCalendar && <button type="button" onClick={() => setCustom((c) => !c)} style={{ ...link, marginLeft: 'auto' }}>{custom ? 'Pick the time for me' : 'Choose a date and time'}</button>}
       </div>
     </div>
   )

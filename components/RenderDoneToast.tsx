@@ -13,6 +13,17 @@ export default function RenderDoneToast() {
   const [items, setItems] = useState<TrackedRender[]>([])
   const [progress, setProgress] = useState<Record<string, number>>({})
   const busyRef = useRef(false)
+  const [shown, setShown] = useState(false)
+  const [phase, setPhase] = useState<'ask' | 'busy' | 'done' | 'noacct' | 'error'>('ask')
+
+  // Wait until the page has finished loading before showing anything
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined
+    const go = () => { t = setTimeout(() => setShown(true), 1800) }
+    if (document.readyState === 'complete') go()
+    else window.addEventListener('load', go, { once: true })
+    return () => { clearTimeout(t); window.removeEventListener('load', go) }
+  }, [])
 
   useEffect(() => {
     const sync = () => setItems(readTracked())
@@ -80,9 +91,21 @@ export default function RenderDoneToast() {
   const pending = items.filter((r) => r.state === 'pending')
   const ready = items.filter((r) => r.state === 'done')
   const failed = items.filter((r) => r.state === 'failed')
-  if (pending.length === 0 && ready.length === 0 && failed.length === 0) return null
+  if (!shown || (pending.length === 0 && ready.length === 0 && failed.length === 0)) return null
 
-  const dismiss = () => writeTracked(readTracked().filter((r) => r.state === 'pending'))
+  const dismiss = () => { writeTracked(readTracked().filter((r) => r.state === 'pending')); setPhase('ask') }
+  const autoSchedule = async () => {
+    setPhase('busy')
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    let next: 'done' | 'noacct' | 'error' = 'done'
+    for (const r of ready) {
+      try {
+        const res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: r.id, timezone }) })
+        if (!res.ok) { const e = await res.json().catch(() => ({})); next = e.error === 'no_accounts' ? 'noacct' : 'error'; break }
+      } catch { next = 'error'; break }
+    }
+    setPhase(next)
+  }
   const openPublish = () => { dismiss(); router.push('/dashboard/scheduler') }
 
   const total = items.length
@@ -95,7 +118,7 @@ export default function RenderDoneToast() {
       <style>{`
         @keyframes rdtIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes rdtSpin { to { transform: rotate(360deg); } }
-        .rdt { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 340px; z-index: 9999; animation: rdtIn 280ms ease-out; }
+        .rdt { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom)); width: 380px; z-index: 9999; animation: rdtIn 280ms ease-out; }
         @media (max-width: 640px) { .rdt { left: 12px; right: 12px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom)); } }
         @media (prefers-reduced-motion: reduce) { .rdt { animation: none; } .rdt-spin { animation: none !important; } }
       `}</style>
@@ -110,16 +133,21 @@ export default function RenderDoneToast() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
-                {ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
+                {phase === 'done' ? 'Scheduled' : phase === 'noacct' ? 'Connect an account first' : ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
               </p>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {ready.length === 1 && ready[0].title ? ready[0].title : 'Schedule it to post, or download it from Publish.'}
+              <p style={{ fontSize: 12, color: phase === 'error' ? '#D92D20' : 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4 }}>
+                {phase === 'done' ? 'You can see it in your Publish calendar.' : phase === 'noacct' ? 'Connect YouTube, Instagram or another account in Publish so we can post for you.' : phase === 'error' ? 'Could not schedule it. Try again, or open Publish.' : ready.length === 1 ? 'Want us to schedule it for you?' : 'Want us to schedule them for you?'}
               </p>
-              {pending.length > 0 && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{pending.length} still rendering</p>}
-              {failed.length > 0 && <p style={{ fontSize: 11, color: '#D92D20', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Open Publish</button>
-                <button onClick={dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
+              {pending.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{pending.length} still rendering</p>}
+              {failed.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: '#D92D20', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {(phase === 'ask' || phase === 'error' || phase === 'busy') && (
+                  <button onClick={autoSchedule} disabled={phase === 'busy'} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: phase === 'busy' ? 'default' : 'pointer', opacity: phase === 'busy' ? 0.6 : 1, fontFamily: 'inherit' }}>{phase === 'busy' ? 'Scheduling...' : 'Yes, schedule it'}</button>
+                )}
+                {(phase === 'noacct' || phase === 'done') && (
+                  <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'done' ? 'View calendar' : 'Open Publish'}</button>
+                )}
+                {phase !== 'busy' && <button onClick={phase === 'ask' || phase === 'error' ? openPublish : dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'ask' || phase === 'error' ? "No, I'll choose" : 'Close'}</button>}
               </div>
             </div>
           </div>
