@@ -161,13 +161,13 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                 <p style={{ ...small, minHeight: 32 }}>
                   {isOn ? `Connected${c?.account_name ? ` as ${c.account_name}` : ''}` : c?.status === 'expired' ? 'Connection expired. Reconnect to keep posting.' : can ? 'Not connected' : 'Coming soon'}
                 </p>
-                {p.id === 'instagram' && !isOn && (
-                  <p style={{ ...small, fontSize: 12, lineHeight: 1.45 }}>Instagram only lets apps post to Business or Creator accounts, not personal ones. It&apos;s free to switch: Instagram Settings, then Account type and tools.</p>
-                )}
                 {isOn ? (
                   <button type="button" onClick={() => disconnect(p.id)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Disconnect</button>
                 ) : (
                   <button type="button" disabled={!can || isFree} onClick={() => connect(p.id)} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13, opacity: can && !isFree ? 1 : 0.45, cursor: can && !isFree ? 'pointer' : 'not-allowed' }}>{c?.status === 'expired' ? 'Reconnect' : 'Connect'}</button>
+                )}
+                {p.id === 'instagram' && !isOn && (
+                  <p style={{ ...small, fontSize: 12, lineHeight: 1.45 }}>Instagram only lets apps post to Business or Creator accounts, not personal ones. It&apos;s free to switch: Instagram Settings, then Account type and tools.</p>
                 )}
               </div>
             )
