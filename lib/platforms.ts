@@ -8,6 +8,7 @@ import { type TikTokOptions, type TikTokCreator } from '@/lib/tiktok'
 export const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
+const IG = 'https://graph.instagram.com/v21.0' // Instagram Login: the person signs in with Instagram, no Facebook Page needed
 const LI_VERSION = '202410'
 
 type Cfg = { idEnv: string; secretEnv: string; authUrl: string; tokenUrl: string; scope: string; idParam?: string }
@@ -15,7 +16,7 @@ const CFG: Record<PlatformId, Cfg> = {
   youtube: { idEnv: 'YOUTUBE_CLIENT_ID', secretEnv: 'YOUTUBE_CLIENT_SECRET', authUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', scope: 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly' },
   linkedin: { idEnv: 'LINKEDIN_CLIENT_ID', secretEnv: 'LINKEDIN_CLIENT_SECRET', authUrl: 'https://www.linkedin.com/oauth/v2/authorization', tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken', scope: 'openid profile w_member_social' },
   facebook: { idEnv: 'META_APP_ID', secretEnv: 'META_APP_SECRET', authUrl: 'https://www.facebook.com/v21.0/dialog/oauth', tokenUrl: `${GRAPH}/oauth/access_token`, scope: 'pages_show_list,pages_manage_posts,pages_read_engagement' },
-  instagram: { idEnv: 'META_APP_ID', secretEnv: 'META_APP_SECRET', authUrl: 'https://www.facebook.com/v21.0/dialog/oauth', tokenUrl: `${GRAPH}/oauth/access_token`, scope: 'pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_insights' },
+  instagram: { idEnv: 'INSTAGRAM_APP_ID', secretEnv: 'INSTAGRAM_APP_SECRET', authUrl: 'https://www.instagram.com/oauth/authorize', tokenUrl: 'https://api.instagram.com/oauth/access_token', scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights' },
   tiktok: { idEnv: 'TIKTOK_CLIENT_KEY', secretEnv: 'TIKTOK_CLIENT_SECRET', authUrl: 'https://www.tiktok.com/v2/auth/authorize/', tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/', scope: 'user.info.basic,video.publish,video.upload', idParam: 'client_key' },
 }
 
@@ -68,12 +69,19 @@ export async function exchangeCode(platform: PlatformId, code: string): Promise<
   const body: Record<string, string> = { code, redirect_uri: redirectUri(platform), grant_type: 'authorization_code' }
   if (platform === 'tiktok') { body.client_key = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
   else { body.client_id = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
-  const j = await form(c.tokenUrl, body)
+  const raw = await form(c.tokenUrl, body)
+  // Instagram sometimes wraps the answer in a data list
+  const j = (platform === 'instagram' && Array.isArray(raw.data) ? raw.data[0] : raw) as Record<string, unknown>
   return { access: String(j.access_token), refresh: j.refresh_token ? String(j.refresh_token) : undefined, expiresAt: inSeconds(Number(j.expires_in) || undefined) }
 }
 
 async function refreshTokens(platform: PlatformId, refresh: string): Promise<Tokens> {
   const c = CFG[platform]
+  if (platform === 'instagram') {
+    // Instagram long lived tokens last 60 days and are renewed with themselves
+    const r = await getJson(`${IG}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(refresh)}`)
+    return { access: String(r.access_token), refresh: String(r.access_token), expiresAt: inSeconds(Number(r.expires_in) || undefined) }
+  }
   const body: Record<string, string> = { refresh_token: refresh, grant_type: 'refresh_token' }
   if (platform === 'tiktok') { body.client_key = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
   else { body.client_id = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
@@ -103,22 +111,24 @@ export async function completeConnection(platform: PlatformId, userId: string, c
   } else if (platform === 'tiktok') {
     const j = await getJson('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name', { Authorization: `Bearer ${t.access}` })
     accountId = j.data?.user?.open_id || ''; accountName = j.data?.user?.display_name || ''
+  } else if (platform === 'instagram') {
+    const c = CFG.instagram
+    const long = await getJson(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(process.env[c.secretEnv]!)}&access_token=${encodeURIComponent(t.access)}`)
+    t = { access: String(long.access_token), refresh: String(long.access_token), expiresAt: inSeconds(Number(long.expires_in) || undefined) }
+    const me = await getJson(`${IG}/me?fields=user_id,username,account_type&access_token=${encodeURIComponent(t.access)}`)
+    if (me.account_type && me.account_type !== 'BUSINESS' && me.account_type !== 'MEDIA_CREATOR') throw new Error('Instagram needs a Business or Creator account. Switch yours in Instagram settings, then connect again')
+    accountId = String(me.user_id || me.id || ''); accountName = me.username ? `@${me.username}` : ''
+    if (!accountId) throw new Error('Could not read your Instagram account')
   } else {
-    // Facebook and Instagram: swap for a long lived token, then use the page token
+    // Facebook: swap for a long lived token, then use the page token
     const c = CFG[platform]
     const long = await form(c.tokenUrl, { grant_type: 'fb_exchange_token', client_id: process.env[c.idEnv]!, client_secret: process.env[c.secretEnv]!, fb_exchange_token: t.access }).catch(() => null)
     const user = long ? String(long.access_token) : t.access
-    const pages = await getJson(`${GRAPH}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${encodeURIComponent(user)}`)
+    const pages = await getJson(`${GRAPH}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(user)}`)
     const list: any[] = pages.data || [] // eslint-disable-line @typescript-eslint/no-explicit-any
-    if (platform === 'facebook') {
-      const pg = list[0]
-      if (!pg) throw new Error('No Facebook Page found. Posting needs a Facebook Page you manage')
-      accountId = pg.id; accountName = pg.name; t = { access: pg.access_token }
-    } else {
-      const pg = list.find((x) => x.instagram_business_account)
-      if (!pg) throw new Error('No Instagram business account is linked to a Facebook Page you manage')
-      accountId = pg.instagram_business_account.id; accountName = pg.instagram_business_account.username || pg.name; t = { access: pg.access_token }
-    }
+    const pg = list[0]
+    if (!pg) throw new Error('No Facebook Page found. Posting needs a Facebook Page you manage')
+    accountId = pg.id; accountName = pg.name; t = { access: pg.access_token }
   }
   const { error } = await supabaseAdmin.from('social_connections').upsert({
     user_id: userId, platform, account_id: accountId, account_name: accountName,
@@ -223,17 +233,17 @@ export async function postVideo(conn: Conn, post: PostInput): Promise<PostOutcom
       return { id: String(j.id), url: `https://www.facebook.com/${j.id}` }
     }
     case 'instagram': {
-      const mk = await fetch(`${GRAPH}/${conn.account_id}/media`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ media_type: 'REELS', video_url: post.videoUrl, caption: text.slice(0, 2200), access_token: token }) })
+      const mk = await fetch(`${IG}/${conn.account_id}/media`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ media_type: 'REELS', video_url: post.videoUrl, caption: text.slice(0, 2200), access_token: token }) })
       await ok(mk, 'Instagram upload start')
       const { id: container } = await mk.json()
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 4000))
-        const s = await getJson(`${GRAPH}/${container}?fields=status_code&access_token=${encodeURIComponent(token)}`)
+        const s = await getJson(`${IG}/${container}?fields=status_code&access_token=${encodeURIComponent(token)}`)
         if (s.status_code === 'FINISHED') break
         if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error('Instagram could not process the video')
         if (i === 19) throw new Error('Instagram took too long to process the video')
       }
-      const pub = await fetch(`${GRAPH}/${conn.account_id}/media_publish`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ creation_id: container, access_token: token }) })
+      const pub = await fetch(`${IG}/${conn.account_id}/media_publish`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ creation_id: container, access_token: token }) })
       await ok(pub, 'Instagram publish')
       const j = await pub.json()
       return { id: String(j.id) }
@@ -280,7 +290,7 @@ export async function fetchMetrics(conn: Conn, externalId: string): Promise<Metr
     return { views: +j.views || 0, likes: j.likes?.summary?.total_count || 0, comments: j.comments?.summary?.total_count || 0, shares: 0 }
   }
   if (conn.platform === 'instagram') {
-    const j = await getJson(`${GRAPH}/${externalId}/insights?metric=views,likes,comments,shares&access_token=${encodeURIComponent(token)}`)
+    const j = await getJson(`${IG}/${externalId}/insights?metric=views,likes,comments,shares&access_token=${encodeURIComponent(token)}`)
     const m: Record<string, number> = {}
     for (const row of j.data || []) m[row.name] = row.values?.[0]?.value ?? row.total_value?.value ?? 0
     return { views: m.views || 0, likes: m.likes || 0, comments: m.comments || 0, shares: m.shares || 0 }
