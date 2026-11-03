@@ -8,7 +8,6 @@ import { type TikTokOptions, type TikTokCreator } from '@/lib/tiktok'
 export const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
-const IG = 'https://graph.instagram.com/v21.0' // Instagram Login: the person signs in with Instagram, no Facebook Page needed
 const LI_VERSION = '202410'
 
 type Cfg = { idEnv: string; secretEnv: string; authUrl: string; tokenUrl: string; scope: string; idParam?: string }
@@ -16,12 +15,12 @@ const CFG: Record<PlatformId, Cfg> = {
   youtube: { idEnv: 'YOUTUBE_CLIENT_ID', secretEnv: 'YOUTUBE_CLIENT_SECRET', authUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', scope: 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly' },
   linkedin: { idEnv: 'LINKEDIN_CLIENT_ID', secretEnv: 'LINKEDIN_CLIENT_SECRET', authUrl: 'https://www.linkedin.com/oauth/v2/authorization', tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken', scope: 'openid profile w_member_social' },
   facebook: { idEnv: 'META_APP_ID', secretEnv: 'META_APP_SECRET', authUrl: 'https://www.facebook.com/v21.0/dialog/oauth', tokenUrl: `${GRAPH}/oauth/access_token`, scope: 'pages_show_list,pages_manage_posts,pages_read_engagement' },
-  instagram: { idEnv: 'INSTAGRAM_APP_ID', secretEnv: 'INSTAGRAM_APP_SECRET', authUrl: 'https://www.instagram.com/oauth/authorize', tokenUrl: 'https://api.instagram.com/oauth/access_token', scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights' },
+  instagram: { idEnv: 'META_APP_ID', secretEnv: 'META_APP_SECRET', authUrl: 'https://www.facebook.com/v21.0/dialog/oauth', tokenUrl: `${GRAPH}/oauth/access_token`, scope: '' }, // newer Meta apps log in through a saved configuration (META_INSTAGRAM_CONFIG_ID), so no scope list
   tiktok: { idEnv: 'TIKTOK_CLIENT_KEY', secretEnv: 'TIKTOK_CLIENT_SECRET', authUrl: 'https://www.tiktok.com/v2/auth/authorize/', tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/', scope: 'user.info.basic,video.publish,video.upload', idParam: 'client_key' },
 }
 
 export const isPlatform = (v: unknown): v is PlatformId => typeof v === 'string' && v in CFG
-export const isConfigured = (p: PlatformId) => !!process.env[CFG[p].idEnv] && !!process.env[CFG[p].secretEnv] && !!process.env.TOKEN_ENCRYPTION_KEY
+export const isConfigured = (p: PlatformId) => !!process.env[CFG[p].idEnv] && !!process.env[CFG[p].secretEnv] && !!process.env.TOKEN_ENCRYPTION_KEY && (p !== 'instagram' || !!process.env.META_INSTAGRAM_CONFIG_ID)
 export const siteOrigin = () => (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.reelezy.com').replace(/\/$/, '')
 export const redirectUri = (p: PlatformId) => `${siteOrigin()}/api/social/callback/${p}`
 
@@ -48,7 +47,7 @@ export function authorizeUrl(platform: PlatformId, state: string): string {
   u.searchParams.set(c.idParam || 'client_id', process.env[c.idEnv]!)
   u.searchParams.set('redirect_uri', redirectUri(platform))
   u.searchParams.set('response_type', 'code')
-  u.searchParams.set('scope', c.scope)
+  if (platform === 'instagram') { u.searchParams.set('config_id', process.env.META_INSTAGRAM_CONFIG_ID!); u.searchParams.set('override_default_response_type', 'true') } else u.searchParams.set('scope', c.scope)
   u.searchParams.set('state', state)
   if (platform === 'youtube') { u.searchParams.set('access_type', 'offline'); u.searchParams.set('prompt', 'consent') }
   return u.toString()
@@ -69,19 +68,12 @@ export async function exchangeCode(platform: PlatformId, code: string): Promise<
   const body: Record<string, string> = { code, redirect_uri: redirectUri(platform), grant_type: 'authorization_code' }
   if (platform === 'tiktok') { body.client_key = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
   else { body.client_id = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
-  const raw = await form(c.tokenUrl, body)
-  // Instagram sometimes wraps the answer in a data list
-  const j = (platform === 'instagram' && Array.isArray(raw.data) ? raw.data[0] : raw) as Record<string, unknown>
+  const j = await form(c.tokenUrl, body)
   return { access: String(j.access_token), refresh: j.refresh_token ? String(j.refresh_token) : undefined, expiresAt: inSeconds(Number(j.expires_in) || undefined) }
 }
 
 async function refreshTokens(platform: PlatformId, refresh: string): Promise<Tokens> {
   const c = CFG[platform]
-  if (platform === 'instagram') {
-    // Instagram long lived tokens last 60 days and are renewed with themselves
-    const r = await getJson(`${IG}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(refresh)}`)
-    return { access: String(r.access_token), refresh: String(r.access_token), expiresAt: inSeconds(Number(r.expires_in) || undefined) }
-  }
   const body: Record<string, string> = { refresh_token: refresh, grant_type: 'refresh_token' }
   if (platform === 'tiktok') { body.client_key = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
   else { body.client_id = process.env[c.idEnv]!; body.client_secret = process.env[c.secretEnv]! }
@@ -112,13 +104,15 @@ export async function completeConnection(platform: PlatformId, userId: string, c
     const j = await getJson('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name', { Authorization: `Bearer ${t.access}` })
     accountId = j.data?.user?.open_id || ''; accountName = j.data?.user?.display_name || ''
   } else if (platform === 'instagram') {
+    // The login screen lets the person pick their Instagram account (no Facebook Page needed). Ask Meta which one they shared.
     const c = CFG.instagram
-    const long = await getJson(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(process.env[c.secretEnv]!)}&access_token=${encodeURIComponent(t.access)}`)
-    t = { access: String(long.access_token), refresh: String(long.access_token), expiresAt: inSeconds(Number(long.expires_in) || undefined) }
-    const me = await getJson(`${IG}/me?fields=user_id,username,account_type&access_token=${encodeURIComponent(t.access)}`)
-    if (me.account_type && me.account_type !== 'BUSINESS' && me.account_type !== 'MEDIA_CREATOR') throw new Error('Instagram needs a Business or Creator account. Switch yours in Instagram settings, then connect again')
-    accountId = String(me.user_id || me.id || ''); accountName = me.username ? `@${me.username}` : ''
-    if (!accountId) throw new Error('Could not read your Instagram account')
+    const dbg = await getJson(`${GRAPH}/debug_token?input_token=${encodeURIComponent(t.access)}&access_token=${encodeURIComponent(`${process.env[c.idEnv]}|${process.env[c.secretEnv]}`)}`)
+    const shared: any[] = dbg.data?.granular_scopes || [] // eslint-disable-line @typescript-eslint/no-explicit-any
+    const ids: string[] = shared.filter((x) => String(x.scope).startsWith('instagram')).flatMap((x) => x.target_ids || [])
+    accountId = String(ids[0] || '')
+    if (!accountId) throw new Error('No Instagram account was shared. Connect again and choose your Instagram account when asked')
+    const me = await getJson(`${GRAPH}/${accountId}?fields=username&access_token=${encodeURIComponent(t.access)}`).catch(() => ({} as Record<string, string>))
+    accountName = me.username ? `@${me.username}` : 'Instagram'
   } else {
     // Facebook: swap for a long lived token, then use the page token
     const c = CFG[platform]
@@ -233,17 +227,17 @@ export async function postVideo(conn: Conn, post: PostInput): Promise<PostOutcom
       return { id: String(j.id), url: `https://www.facebook.com/${j.id}` }
     }
     case 'instagram': {
-      const mk = await fetch(`${IG}/${conn.account_id}/media`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ media_type: 'REELS', video_url: post.videoUrl, caption: text.slice(0, 2200), access_token: token }) })
+      const mk = await fetch(`${GRAPH}/${conn.account_id}/media`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ media_type: 'REELS', video_url: post.videoUrl, caption: text.slice(0, 2200), access_token: token }) })
       await ok(mk, 'Instagram upload start')
       const { id: container } = await mk.json()
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 4000))
-        const s = await getJson(`${IG}/${container}?fields=status_code&access_token=${encodeURIComponent(token)}`)
+        const s = await getJson(`${GRAPH}/${container}?fields=status_code&access_token=${encodeURIComponent(token)}`)
         if (s.status_code === 'FINISHED') break
         if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error('Instagram could not process the video')
         if (i === 19) throw new Error('Instagram took too long to process the video')
       }
-      const pub = await fetch(`${IG}/${conn.account_id}/media_publish`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ creation_id: container, access_token: token }) })
+      const pub = await fetch(`${GRAPH}/${conn.account_id}/media_publish`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ creation_id: container, access_token: token }) })
       await ok(pub, 'Instagram publish')
       const j = await pub.json()
       return { id: String(j.id) }
@@ -290,7 +284,7 @@ export async function fetchMetrics(conn: Conn, externalId: string): Promise<Metr
     return { views: +j.views || 0, likes: j.likes?.summary?.total_count || 0, comments: j.comments?.summary?.total_count || 0, shares: 0 }
   }
   if (conn.platform === 'instagram') {
-    const j = await getJson(`${IG}/${externalId}/insights?metric=views,likes,comments,shares&access_token=${encodeURIComponent(token)}`)
+    const j = await getJson(`${GRAPH}/${externalId}/insights?metric=views,likes,comments,shares&access_token=${encodeURIComponent(token)}`)
     const m: Record<string, number> = {}
     for (const row of j.data || []) m[row.name] = row.values?.[0]?.value ?? row.total_value?.value ?? 0
     return { views: m.views || 0, likes: m.likes || 0, comments: m.comments || 0, shares: m.shares || 0 }
