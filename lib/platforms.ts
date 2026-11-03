@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { encryptToken, decryptToken } from '@/lib/tokenEncryption'
 import type { PlatformId } from '@/lib/socialProfiles'
+import { type TikTokOptions, type TikTokCreator } from '@/lib/tiktok'
 
 export const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -146,7 +147,7 @@ async function freshToken(conn: Conn): Promise<string> {
   }
 }
 
-export type PostInput = { title: string; caption: string; videoUrl: string }
+export type PostInput = { title: string; caption: string; videoUrl: string; tiktok?: TikTokOptions | null }
 export type PostOutcome = { id: string; url?: string }
 
 async function ok(res: Response, what: string) {
@@ -158,6 +159,24 @@ const fetchVideo = async (url: string): Promise<Uint8Array> => {
   const res = await fetch(url)
   if (!res.ok) throw new Error('Could not read the rendered video')
   return new Uint8Array(await res.arrayBuffer())
+}
+
+// What TikTok says this account can do right now (name, picture, who can view, which settings are locked)
+export async function getTikTokCreator(conn: Conn): Promise<TikTokCreator> {
+  const token = await freshToken(conn)
+  const res = await fetch('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' } })
+  await ok(res, 'TikTok account check')
+  const j = await res.json()
+  if (j.error?.code && j.error.code !== 'ok') {
+    if (j.error.code === 'spam_risk_too_many_posts') throw new Error('TikTok says this account has reached its posting limit for today. Try again tomorrow')
+    throw new Error(`TikTok: ${j.error.message || j.error.code}`)
+  }
+  const d = j.data || {}
+  return {
+    nickname: String(d.creator_nickname || ''), username: String(d.creator_username || ''), avatar: String(d.creator_avatar_url || ''),
+    privacyOptions: Array.isArray(d.privacy_level_options) ? d.privacy_level_options.map(String) : [],
+    commentDisabled: !!d.comment_disabled, duetDisabled: !!d.duet_disabled, stitchDisabled: !!d.stitch_disabled,
+  }
 }
 
 export async function postVideo(conn: Conn, post: PostInput): Promise<PostOutcome> {
@@ -220,11 +239,22 @@ export async function postVideo(conn: Conn, post: PostInput): Promise<PostOutcom
       return { id: String(j.id) }
     }
     case 'tiktok': {
+      const o = post.tiktok
+      if (!o) throw new Error('TikTok settings were not chosen for this post. Delete it and schedule it again')
+      const creator = await getTikTokCreator(conn)
+      if (!creator.privacyOptions.includes(o.privacy)) throw new Error('The privacy choice is not available on this TikTok account right now. Delete the post and schedule it again')
       const bytes = await fetchVideo(post.videoUrl)
       if (bytes.length > 64 * 1024 * 1024) throw new Error('Video is too large for TikTok upload (64 MB)')
       const init = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
         method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
-        body: JSON.stringify({ post_info: { title: text.slice(0, 2000), privacy_level: process.env.TIKTOK_PRIVACY || 'SELF_ONLY' }, source_info: { source: 'FILE_UPLOAD', video_size: bytes.length, chunk_size: bytes.length, total_chunk_count: 1 } }),
+        body: JSON.stringify({
+          post_info: {
+            title: text.slice(0, 2200), privacy_level: o.privacy,
+            disable_comment: creator.commentDisabled || !o.allowComment, disable_duet: creator.duetDisabled || !o.allowDuet, disable_stitch: creator.stitchDisabled || !o.allowStitch,
+            brand_content_toggle: o.commercial && o.brandedContent, brand_organic_toggle: o.commercial && o.yourBrand,
+          },
+          source_info: { source: 'FILE_UPLOAD', video_size: bytes.length, chunk_size: bytes.length, total_chunk_count: 1 },
+        }),
       })
       await ok(init, 'TikTok upload start')
       const j = await init.json()

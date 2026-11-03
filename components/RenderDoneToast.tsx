@@ -14,7 +14,7 @@ export default function RenderDoneToast() {
   const [progress, setProgress] = useState<Record<string, number>>({})
   const busyRef = useRef(false)
   const [shown, setShown] = useState(false)
-  const [phase, setPhase] = useState<'ask' | 'busy' | 'done' | 'noacct' | 'error'>('ask')
+  const [phase, setPhase] = useState<'ask' | 'busy' | 'done' | 'noacct' | 'tiktok' | 'error'>('ask')
 
   // Wait until the page has finished loading before showing anything
   useEffect(() => {
@@ -97,11 +97,11 @@ export default function RenderDoneToast() {
   const autoSchedule = async () => {
     setPhase('busy')
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    let next: 'done' | 'noacct' | 'error' = 'done'
+    let next: 'done' | 'noacct' | 'tiktok' | 'error' = 'done'
     for (const r of ready) {
       try {
         const res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: r.id, timezone }) })
-        if (!res.ok) { const e = await res.json().catch(() => ({})); next = e.error === 'no_accounts' ? 'noacct' : 'error'; break }
+        if (!res.ok) { const e = await res.json().catch(() => ({})); next = e.error === 'no_accounts' ? 'noacct' : e.error === 'tiktok_needs_settings' ? 'tiktok' : 'error'; break }
       } catch { next = 'error'; break }
     }
     setPhase(next)
@@ -133,10 +133,10 @@ export default function RenderDoneToast() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
-                {phase === 'done' ? 'Scheduled' : phase === 'noacct' ? 'Connect an account first' : ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
+                {phase === 'done' ? 'Scheduled' : phase === 'noacct' ? 'Connect an account first' : phase === 'tiktok' ? 'Choose your TikTok settings' : ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
               </p>
               <p style={{ fontSize: 12, color: phase === 'error' ? '#D92D20' : 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4 }}>
-                {phase === 'done' ? 'You can see it in your Publish calendar.' : phase === 'noacct' ? 'Connect YouTube, Instagram or another account in Publish so we can post for you.' : phase === 'error' ? 'Could not schedule it. Try again, or open Publish.' : ready.length === 1 ? 'Want us to schedule it for you?' : 'Want us to schedule them for you?'}
+                {phase === 'done' ? 'You can see it in your Publish calendar.' : phase === 'noacct' ? 'Connect YouTube, Instagram or another account in Publish so we can post for you.' : phase === 'tiktok' ? 'TikTok asks you to choose who can view each video. Open Publish to set that and schedule it.' : phase === 'error' ? 'Could not schedule it. Try again, or open Publish.' : ready.length === 1 ? 'Want us to schedule it for you?' : 'Want us to schedule them for you?'}
               </p>
               {pending.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{pending.length} still rendering</p>}
               {failed.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: '#D92D20', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
@@ -144,7 +144,7 @@ export default function RenderDoneToast() {
                 {(phase === 'ask' || phase === 'error' || phase === 'busy') && (
                   <button onClick={autoSchedule} disabled={phase === 'busy'} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: phase === 'busy' ? 'default' : 'pointer', opacity: phase === 'busy' ? 0.6 : 1, fontFamily: 'inherit' }}>{phase === 'busy' ? 'Scheduling...' : 'Yes, schedule it'}</button>
                 )}
-                {(phase === 'noacct' || phase === 'done') && (
+                {(phase === 'noacct' || phase === 'tiktok' || phase === 'done') && (
                   <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'done' ? 'View calendar' : 'Open Publish'}</button>
                 )}
                 {phase !== 'busy' && <button onClick={phase === 'ask' || phase === 'error' ? openPublish : dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'ask' || phase === 'error' ? "No, I'll choose" : 'Close'}</button>}

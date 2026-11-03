@@ -11,6 +11,8 @@ import Icon from '@/components/Icon'
 import CollapsibleBox from '@/components/CollapsibleBox'
 import Dropdown from '@/components/Dropdown'
 import DatePicker from '@/components/DatePicker'
+import TikTokSettings from '@/components/TikTokSettings'
+import { emptyTikTok, tiktokProblem, type TikTokOptions } from '@/lib/tiktok'
 
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
@@ -309,6 +311,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
   const [day, setDay] = useState(plan.day)
   const [time, setTime] = useState('18:30')
   const [picked, setPicked] = useState<PlatformId[]>(connected)
+  const [tt, setTt] = useState<TikTokOptions>(emptyTikTok)
   const render = renders.find((r) => r.id === renderId)
   const [text, setText] = useState(() => cleanString([render?.caption, render?.tags].filter(Boolean).join('\n')))
   const [editing, setEditing] = useState(false)
@@ -324,15 +327,16 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
     setMsg('')
     if (!render) { setMsg('Choose a video.'); return }
     if (picked.length === 0) { setMsg('Choose at least one account to post to.'); return }
+    if (picked.includes('tiktok')) { const p = tiktokProblem(tt); if (p) { setMsg(p); return } }
     setBusy(true)
     try {
       let res: Response
       if (custom) {
         const when = new Date(`${day}T${time}`)
         if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() + 60_000) { setMsg('Pick a time in the future.'); setBusy(false); return }
-        res = await authFetch('/api/schedule-post', { method: 'POST', body: JSON.stringify({ ideaId: render.id, title: cleanString(render.title || 'Untitled video'), caption: text, tags: null, videoUrl: render.output_url, scheduledFor: when.toISOString(), platforms: picked }) })
+        res = await authFetch('/api/schedule-post', { method: 'POST', body: JSON.stringify({ ideaId: render.id, title: cleanString(render.title || 'Untitled video'), caption: text, tags: null, videoUrl: render.output_url, scheduledFor: when.toISOString(), platforms: picked, tiktok: picked.includes('tiktok') ? tt : undefined }) })
       } else {
-        res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: render.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, caption: text, platforms: picked, force: true }) })
+        res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: render.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, caption: text, platforms: picked, force: true, tiktok: picked.includes('tiktok') ? tt : undefined }) })
       }
       if (!res.ok) { const e = await res.json().catch(() => ({})); setMsg(e.error === 'no_accounts' ? 'Connect an account first.' : e.error || 'Could not schedule. Please try again.'); setBusy(false); return }
       const j = await res.json().catch(() => ({}))
@@ -379,6 +383,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
       ) : (
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Posting to {label(connected[0])}</p>
       )}
+      {picked.includes('tiktok') && <TikTokSettings videoUrl={render?.output_url || null} value={tt} onChange={setTt} />}
       {editing ? (
         <div><label htmlFor="pp-cap" style={lab}>Caption</label><textarea id="pp-cap" value={text} onChange={(e) => setText(e.target.value)} rows={4} style={{ ...inputCompact, resize: 'vertical' }} /></div>
       ) : (

@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         if (!conn || conn.status !== 'connected' || !isConfigured(platform)) { results[platform] = { status: 'not_connected', error: 'Account not connected' }; continue }
         if (!post.video_url) { results[platform] = { status: 'failed', error: 'No video attached' }; continue }
         try {
-          const out = await postVideo(conn, { title: post.title, caption: post.caption || '', videoUrl: post.video_url })
+          const out = await postVideo(conn, { title: post.title, caption: post.caption || '', videoUrl: post.video_url, tiktok: post.tiktok_options })
           results[platform] = { status: 'posted', id: out.id, url: out.url }
         } catch (e) {
           results[platform] = { status: 'failed', error: (e instanceof Error ? e.message : 'Unknown error').slice(0, 300) }

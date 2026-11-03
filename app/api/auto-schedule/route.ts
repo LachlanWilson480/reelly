@@ -3,6 +3,7 @@ import { getAuthedUser } from '@/lib/getAuthedUser'
 import { rateLimit } from '@/lib/rateLimit'
 import { supabaseAdmin } from '@/lib/platforms'
 import { cleanString } from '@/lib/cleanText'
+import { parseTikTokOptions } from '@/lib/tiktok'
 
 // Time zones for countries that have one. Others use the time zone of the person's own device.
 const COUNTRY_TZ: Record<string, string> = { NZ: 'Pacific/Auckland', UK: 'Europe/London', IE: 'Europe/Dublin', ZA: 'Africa/Johannesburg', SG: 'Asia/Singapore' }
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const rl = await rateLimit(`autosched:${authed.userId}`, 20, 60_000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-    const { renderId, timezone, caption: customCaption, platforms: wanted, force } = await req.json().catch(() => ({}))
+    const { renderId, timezone, caption: customCaption, platforms: wanted, force, tiktok } = await req.json().catch(() => ({}))
     if (typeof renderId !== 'string' || !renderId) return NextResponse.json({ error: 'Missing video' }, { status: 400 })
 
     const { data: render } = await supabaseAdmin.from('renders').select('id, title, caption, tags, output_url, status').eq('id', renderId).eq('user_id', authed.userId).maybeSingle()
@@ -54,8 +55,10 @@ export async function POST(req: NextRequest) {
 
     const { data: conns } = await supabaseAdmin.from('social_connections').select('platform').eq('user_id', authed.userId).eq('status', 'connected')
     const connectedNow = (conns || []).map((c) => c.platform as string)
-    const platforms = Array.isArray(wanted) ? connectedNow.filter((p) => wanted.includes(p)) : connectedNow
-    if (platforms.length === 0) return NextResponse.json({ error: 'no_accounts' }, { status: 409 })
+    // TikTok needs the person's own choices (who can view and so on), so it is only included when they were sent
+    const tiktokOptions = parseTikTokOptions(tiktok)
+    const platforms = (Array.isArray(wanted) ? connectedNow.filter((p) => wanted.includes(p)) : connectedNow).filter((p) => p !== 'tiktok' || tiktokOptions)
+    if (platforms.length === 0) return NextResponse.json({ error: connectedNow.length > 0 ? 'tiktok_needs_settings' : 'no_accounts' }, { status: 409 })
 
     const { data: profile } = await supabaseAdmin.from('business_profiles').select('country').eq('user_id', authed.userId).maybeSingle()
     const tz = COUNTRY_TZ[profile?.country as string] || (validTz(timezone) ? timezone : 'Australia/Sydney')
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
     const when = pickTime(tz, taken)
 
     const caption = (typeof customCaption === 'string' ? customCaption.slice(0, 4000) : [render.caption, render.tags].filter(Boolean).join('\n')) || null
-    const { data: created, error } = await supabaseAdmin.from('scheduled_posts').insert({ user_id: authed.userId, idea_id: render.id, title: cleanString(render.title || 'Untitled video'), caption, tags: null, video_url: render.output_url, scheduled_for: when.toISOString(), platforms, status: 'scheduled' }).select('id, scheduled_for').single()
+    const { data: created, error } = await supabaseAdmin.from('scheduled_posts').insert({ user_id: authed.userId, idea_id: render.id, title: cleanString(render.title || 'Untitled video'), caption, tags: null, video_url: render.output_url, scheduled_for: when.toISOString(), platforms, status: 'scheduled', tiktok_options: platforms.includes('tiktok') ? tiktokOptions : null }).select('id, scheduled_for').single()
     if (error) throw new Error(error.message)
     return NextResponse.json({ ok: true, id: created.id, scheduledFor: created.scheduled_for })
   } catch (e) {
