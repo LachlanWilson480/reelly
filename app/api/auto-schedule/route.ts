@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     // The finished-video popup asks only once per video. The Publish page can schedule the same video again.
     if (!force && (existing || []).some((p) => p.idea_id === renderId)) return NextResponse.json({ ok: true, already: true })
 
-    const { data: conns } = await supabaseAdmin.from('social_connections').select('platform').eq('user_id', authed.userId).eq('status', 'connected')
+    const { data: conns } = await supabaseAdmin.from('social_connections').select('platform').eq('user_id', authed.userId).eq('status', 'connected').neq('platform', 'google_business')
     const connectedNow = (conns || []).map((c) => c.platform as string)
     // TikTok needs the person's own choices (who can view and so on), so it is only included when they were sent
     const tiktokOptions = parseTikTokOptions(tiktok)

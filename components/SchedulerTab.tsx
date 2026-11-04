@@ -12,6 +12,7 @@ import CollapsibleBox from '@/components/CollapsibleBox'
 import Dropdown from '@/components/Dropdown'
 import DatePicker from '@/components/DatePicker'
 import TikTokSettings from '@/components/TikTokSettings'
+import GoogleBusinessPanel from '@/components/GoogleBusinessPanel'
 import { emptyTikTok, tiktokProblem, type TikTokOptions } from '@/lib/tiktok'
 
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
@@ -175,6 +176,8 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
         </div>
         {isFree && <p style={small}><a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>Upgrade</a> to connect accounts and schedule posts.</p>}
       </section>
+
+      <GoogleBusinessPanel isFree={isFree} />
 
       {/* Calendar */}
       <section aria-labelledby="pub-week" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
