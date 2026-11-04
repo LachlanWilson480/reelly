@@ -19,10 +19,10 @@ const DAILY_CALLS: Record<PlanKey, number> = { free: 30, basic: 120, mid: 120, t
 // US dollars per million tokens: [input, output]. Cached reads cost 10% of input and cache writes 125%.
 // Check these against Anthropic's pricing page when models change. Unknown models are charged at the highest rate here.
 const PRICE: Record<string, [number, number]> = {
-  'claude-haiku-5-5': [1, 5],
+  'claude-haiku-5-5': [0.1, 0.5],
   'claude-haiku-4-5': [1, 5],
   'claude-sonnet-4-5': [3, 15],
-  'claude-sonnet-5-5': [3, 15],
+  'claude-sonnet-5-5': [2, 10],
 }
 const priceOf = (model: string): [number, number] => PRICE[model] || [3, 15]
 
