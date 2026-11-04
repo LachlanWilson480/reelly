@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { MODEL_FREE, thinkingOff } from '@/lib/aiModel'
 import { fetchPublicHtml, normaliseUrl } from '@/lib/safeFetch'
 import { logUsage } from '@/lib/logUsage'
+import { recordAiSpend, bodyTooBig } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`scan:${authed.userId}`, 6, 60 * 60 * 1000)
     if (!rl.allowed) return NextResponse.json({ error: 'You have scanned a lot of sites. Please try again in an hour.' }, { status: 429 })
 
+    if (bodyTooBig(req)) return NextResponse.json({ error: 'That request is too large.' }, { status: 413 })
     const { website } = await req.json()
     const start = normaliseUrl(String(website || ''))
     if (!start) return NextResponse.json({ error: 'That does not look like a website address.' }, { status: 400 })
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: `Website text:\n"""\n${text}\n"""\n\nReturn JSON with these string keys: businessName, industry (short, e.g. "Hair salon"), suburb (suburb or town, no country), country (two-letter code: AU, NZ, UK, IE, US, CA, ZA, SG or OTHER), coreServices (comma separated, max 8), tone (one of: friendly, professional, funny, warm, bold, calm, or empty), customerDescription (who their customers are), keySellingPoint, signatureService, pricePositioning (budget, mid-range or premium, or empty), yearsInBusiness, teamSize, brandColors (colours named or hex codes seen), taglines, currentPromotions, overview (two plain sentences describing the business).` }],
     })
     logUsage('scan-website', MODEL_FREE, message)
+    await recordAiSpend(authed.userId, MODEL_FREE, message)
     const raw = message.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
     const json = raw.match(/\{[\s\S]*\}/)?.[0]
     if (!json) return NextResponse.json({ error: 'We could not read that website. Fill the form in by hand.' }, { status: 422 })

@@ -72,7 +72,7 @@ export default function PrivacyPage() {
           <p style={P}>If we make important changes, we will update the date at the top of this page and let you know in the app or by email.</p>
 
           <h2 style={H2}>Contact</h2>
-          <p style={{ marginBottom: 48 }}>Questions or requests about your information: lachlan@reelezy.com</p>
+          <p style={{ marginBottom: 48 }}>Questions or requests about your information: info@reelezy.com</p>
         </div>
       </div>
     </div>

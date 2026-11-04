@@ -8,6 +8,7 @@ import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
 import { comfortRule } from '@/lib/filmingComfort'
 import { logUsage } from '@/lib/logUsage'
+import { aiGate, recordAiSpend, clampInput, bodyTooBig, type PlanKey } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -34,9 +35,10 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = await rateLimit(`ai:${userId}`, 10, 60000)
+    const rl = await rateLimit(`ai:refine:${userId}`, 6, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    const { idea, instruction, profile } = await req.json()
+    if (bodyTooBig(req)) return NextResponse.json({ error: 'That request is too large.' }, { status: 413 })
+    const { idea, instruction, profile } = clampInput(await req.json())
 
     const plan = await getPlan(userId)
 
@@ -64,7 +66,9 @@ IMPORTANT JSON FORMATTING RULE: never use a double-quote character (") anywhere 
 Respond ONLY with valid JSON, no markdown, no code fences, in this exact structure:
 { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }`
 
-    const model = modelForPlan(plan)
+    const gate = await aiGate(userId, plan as PlanKey, modelForPlan(plan), 600)
+    if (!gate.ok) return NextResponse.json({ error: gate.message }, { status: gate.status })
+    const model = gate.model
 
     const message = await anthropic.messages.create({
       thinking: thinkingOff(model),
@@ -73,6 +77,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, in this exact structu
       messages: [{ role: 'user', content: prompt }],
     })
     logUsage('refine-idea', model, message)
+    await recordAiSpend(userId, model, message)
 
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '{}'

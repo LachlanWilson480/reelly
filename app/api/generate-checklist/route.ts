@@ -9,6 +9,7 @@ import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
 import { comfortRule, parseComfort } from '@/lib/filmingComfort'
 import { logUsage } from '@/lib/logUsage'
+import { aiGate, recordAiSpend, clampInput, bodyTooBig, type PlanKey } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -81,9 +82,10 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = await rateLimit(`ai:${userId}`, 20, 60000)
+    const rl = await rateLimit(`ai:checklist:${userId}`, 8, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    const { idea, profile, customization, styleOverride, peopleCountOverride, filmingMode, videoLength, sceneCount: rawSceneCount } = await req.json()
+    if (bodyTooBig(req)) return NextResponse.json({ error: 'That request is too large.' }, { status: 413 })
+    const { idea, profile, customization, styleOverride, peopleCountOverride, filmingMode, videoLength, sceneCount: rawSceneCount } = clampInput(await req.json())
     // Optional: how many scenes (filming steps) the person wants. Anything unusual is ignored.
     const sceneCount = Number.isInteger(rawSceneCount) && rawSceneCount >= 1 && rawSceneCount <= 15 ? (rawSceneCount as number) : null
 
@@ -257,12 +259,14 @@ Also provide:
 Respond ONLY with valid JSON, no markdown, no code fences:
 { "prep": ["..."], "checklist": ["..."], "caption": "...", "script": "...", "directions": ["..."] }`
 
-    const model = modelForPlan(plan)
+    const gate = await aiGate(userId, plan as PlanKey, modelForPlan(plan), 2400)
+    if (!gate.ok) return NextResponse.json({ error: gate.message }, { status: gate.status })
+    const model = gate.model
 
     let result: { prep?: string[]; checklist?: string[]; caption?: string; script?: string } | null = null
     let attempts = 0
 
-    while (attempts < 3 && !result) {
+    while (attempts < 2 && !result) {
       attempts++
       const message = await anthropic.messages.create({
         model,
@@ -271,6 +275,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
         messages: [{ role: 'user', content: prompt }],
       })
       logUsage('generate-checklist', model, message)
+      await recordAiSpend(userId, model, message)
 
       const textBlock = message.content.find((b) => b.type === 'text')
       const rawText = textBlock && 'text' in textBlock ? textBlock.text : '{}'
@@ -308,7 +313,7 @@ Respond ONLY with valid JSON, no markdown, no code fences:
       ...(result.caption ? [result.caption] : []),
       ...(result.script ? [result.script] : []),
     ]
-    const flaggedIndices = await moderateTexts(moderationTexts)
+    const flaggedIndices = await moderateTexts(moderationTexts, userId)
     if (flaggedIndices.size > 0) {
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }

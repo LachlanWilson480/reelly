@@ -16,13 +16,6 @@ const Points = ({ items }: { items: readonly string[] }) => (
   </ul>
 )
 
-// Step points shown as a horizontal row of bordered cards
-const Cards = ({ items }: { items: readonly string[] }) => (
-  <ul className="lp-cards">
-    {items.map((pt) => (<li key={pt}>{pt}</li>))}
-  </ul>
-)
-
 // The clapperboard mark (public/logo-mark.png) with the wordmark beside it
 const Logo = ({ size = 22 }: { size?: number }) => (
   <span className="lp-logo" style={{ fontSize: size }}>
@@ -208,7 +201,7 @@ export default function HomePage() {
                   <h3 className="lp-h3">{st.title}</h3>
                   <p className="lp-sub">{st.desc}</p>
                 </div>
-                <Cards items={st.points} />
+                <ul className="lp-list lp-step-list">{st.points.map((x) => <li key={x}>{x}</li>)}</ul>
               </div>
             ))}
           </div>
@@ -360,7 +353,7 @@ export default function HomePage() {
                 <h4>Company</h4>
                 <div className="lp-foot-col">
                   <Link href="/privacy">Privacy Policy</Link>
-                  <a href="mailto:hello@reelezy.com">Contact</a>
+                  <a href="mailto:info@reelezy.com">Contact</a>
                 </div>
               </div>
             </div>

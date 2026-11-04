@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from '@/lib/logUsage'
+import { recordAiSpend } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -9,7 +10,7 @@ const anthropic = new Anthropic({
 // sexual content, harassment, dangerous instructions, etc.) - not quality issues,
 // just a safety net before AI-generated text reaches the user or gets baked into
 // a rendered video. Returns the indices of any items that should be blocked.
-export async function moderateTexts(items: string[]): Promise<Set<number>> {
+export async function moderateTexts(items: string[], userId?: string): Promise<Set<number>> {
   if (items.length === 0) return new Set()
 
   try {
@@ -34,6 +35,7 @@ ${numbered}`,
       ],
     })
     logUsage('moderation', 'claude-haiku-4-5', message)
+    await recordAiSpend(userId, 'claude-haiku-4-5', message)
 
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'

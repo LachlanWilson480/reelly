@@ -116,6 +116,11 @@ export default function OnboardingPage() {
       setMessage('Please fill in your business name, industry, location and core services.')
       return
     }
+    if (!comfortLevel) {
+      setMessage('Choose how comfortable you are on camera before you continue.')
+      document.getElementById('comfort-picker')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     setMessage('')
     setLoading(true)
 
@@ -212,7 +217,7 @@ export default function OnboardingPage() {
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.5 }}>Paste your website and we will fill in your details and find your social pages. It takes about 20 seconds.</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={scanUrl} onChange={(e) => setScanUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScan() } }} placeholder="yourbusiness.com.au" aria-label="Your website" style={{ ...inputStyle, marginBottom: 0 }} />
-                <button type="button" onClick={handleScan} disabled={scanning || !scanUrl.trim()} style={{ flexShrink: 0, padding: '0 18px', borderRadius: 4, border: 'none', background: 'var(--ink)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: scanning || !scanUrl.trim() ? 'not-allowed' : 'pointer', opacity: scanning || !scanUrl.trim() ? 0.6 : 1 }}>{scanning ? 'Reading your site...' : scanned ? 'Scan again' : 'Fill it in for me'}</button>
+                <button type="button" onClick={handleScan} disabled={scanning || !scanUrl.trim()} style={{ flexShrink: 0, padding: '0 18px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: scanning || !scanUrl.trim() ? 'not-allowed' : 'pointer', opacity: scanning || !scanUrl.trim() ? 0.6 : 1 }}>{scanning ? 'Reading your site...' : scanned ? 'Scan again' : 'Fill it in for me'}</button>
               </div>
               {scanNote && <p role="status" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '10px 0 0', lineHeight: 1.5 }}>{scanNote}</p>}
             </div>
@@ -236,7 +241,7 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <ComfortPicker value={comfortLevel} onChange={setComfortLevel} />
+              <ComfortPicker value={comfortLevel} onChange={setComfortLevel} required />
             </div>
 
             {/* Optional section toggle */}
@@ -333,8 +338,8 @@ export default function OnboardingPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              style={{ width: '100%', padding: '15px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              disabled={loading || !comfortLevel}
+              style={{ width: '100%', padding: '15px', borderRadius: 4, border: 'none', backgroundColor: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", cursor: loading || !comfortLevel ? 'not-allowed' : 'pointer', opacity: loading || !comfortLevel ? 0.6 : 1 }}
             >
               {loading ? 'Setting up...' : 'Start generating ideas'}
             </button>

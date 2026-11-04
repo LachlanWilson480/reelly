@@ -3,14 +3,14 @@
 import { COMFORT_LEVELS, type ComfortLevel } from '@/lib/filmingComfort'
 
 // Three boxes for how much the owner is comfortable doing on camera. `onDark` is for the coloured onboarding card.
-export default function ComfortPicker({ value, onChange, onDark = false }: { value: ComfortLevel | null; onChange: (level: ComfortLevel) => void; onDark?: boolean }) {
+export default function ComfortPicker({ value, onChange, onDark = false, required = false }: { value: ComfortLevel | null; onChange: (level: ComfortLevel) => void; onDark?: boolean; required?: boolean }) {
   const text = onDark ? '#F1EFE8' : 'var(--ink)'
   const muted = onDark ? 'rgba(241,239,232,0.7)' : 'var(--text-muted)'
   return (
-    <div style={{ marginBottom: 20 }}>
-      <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block', color: text }}>How comfortable are you on camera?</label>
+    <div id="comfort-picker" style={{ marginBottom: 20 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block', color: text }}>How comfortable are you on camera?{required ? ' *' : ''}</label>
       <p style={{ fontSize: 12, color: muted, marginBottom: 10 }}>Your ideas, scripts and filming steps will only use what you are happy to do</p>
-      <div role="radiogroup" aria-label="Filming comfort level" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+      <div role="radiogroup" aria-label="Filming comfort level" aria-required={required} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
         {COMFORT_LEVELS.map((level) => {
           const selected = value === level.id
           return (

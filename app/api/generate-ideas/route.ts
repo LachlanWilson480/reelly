@@ -9,6 +9,7 @@ import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
 import { comfortRule } from '@/lib/filmingComfort'
 import { logUsage } from '@/lib/logUsage'
+import { aiGate, recordAiSpend, clampInput, bodyTooBig, type PlanKey } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -317,9 +318,10 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = await rateLimit(`ai:${userId}`, 20, 60000)
+    const rl = await rateLimit(`ai:ideas:${userId}`, 8, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    const { profile, customization, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = await req.json()
+    if (bodyTooBig(req)) return NextResponse.json({ error: 'That request is too large.' }, { status: 413 })
+    const { profile, customization, peopleCountOverride, weeklyObjectives, seasonalMode, toneOverride } = clampInput(await req.json())
 
     if (!profile || !profile.business_name?.trim() || !profile.industry?.trim()) {
       return NextResponse.json(
@@ -513,7 +515,9 @@ Output ONLY a valid JSON array, no markdown, no code fences:
   { "title": "...", "hook": "...", "description": "...", "tags": "#tag1 #tag2 #tag3" }
 ]`
 
-    const model = modelForPlan(plan)
+    const gate = await aiGate(userId, plan as PlanKey, modelForPlan(plan), maxTokens)
+    if (!gate.ok) return NextResponse.json({ error: gate.message }, { status: gate.status })
+    const model = gate.model
 
     const message = await anthropic.messages.create({
       model,
@@ -523,6 +527,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
       messages: [{ role: 'user', content: prompt }],
     })
     logUsage('generate-ideas', model, message)
+    await recordAiSpend(userId, model, message)
 
     const textBlock = message.content.find((b) => b.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'
@@ -538,7 +543,7 @@ Output ONLY a valid JSON array, no markdown, no code fences:
     const moderationTexts = ideas.map((idea: { title: string; hook: string; description: string }) =>
       `${idea.title}. ${idea.hook} ${idea.description}`
     )
-    const flaggedIndices = await moderateTexts(moderationTexts)
+    const flaggedIndices = await moderateTexts(moderationTexts, userId)
     const safeIdeas = ideas.filter((_: unknown, i: number) => !flaggedIndices.has(i))
 
     if (safeIdeas.length === 0 && ideas.length > 0) {

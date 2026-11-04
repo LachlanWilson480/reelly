@@ -8,6 +8,7 @@ import { moderateTexts } from '@/lib/moderateContent'
 import { cleanAiText } from '@/lib/cleanText'
 import { parseComfort, comfortRule } from '@/lib/filmingComfort'
 import { logUsage } from '@/lib/logUsage'
+import { aiGate, recordAiSpend, clampInput, bodyTooBig, type PlanKey } from '@/lib/aiBudget'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -46,9 +47,10 @@ export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const userId = authed.userId
-    const rl = await rateLimit(`ai:${userId}`, 10, 60000)
+    const rl = await rateLimit(`ai:script:${userId}`, 6, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    const { topic, length, style, profile } = await req.json()
+    if (bodyTooBig(req)) return NextResponse.json({ error: 'That request is too large.' }, { status: 413 })
+    const { topic, length, style, profile } = clampInput(await req.json())
 
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
       return NextResponse.json({ error: 'Please describe what the video is about.' }, { status: 400 })
@@ -107,7 +109,9 @@ export async function POST(req: NextRequest) {
         .eq('user_id', userId)
     }
 
-    const model = modelForPlan(plan)
+    const gate = await aiGate(userId, plan as PlanKey, modelForPlan(plan), 800)
+    if (!gate.ok) return NextResponse.json({ error: gate.message }, { status: gate.status })
+    const model = gate.model
 
     const lengthKey = typeof length === 'string' && LENGTH_GUIDANCE[length] ? length : 'medium'
     const lengthInstruction = LENGTH_GUIDANCE[lengthKey]
@@ -146,6 +150,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
       messages: [{ role: 'user', content: prompt }],
     })
     logUsage('generate-script', model, message)
+    await recordAiSpend(userId, model, message)
 
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '{}'
@@ -158,7 +163,7 @@ Respond ONLY with valid JSON, no markdown, no code fences, no other text before 
       return NextResponse.json({ error: 'The AI had trouble generating this script. Please try again.' }, { status: 500 })
     }
 
-    const flaggedIndices = await moderateTexts([script])
+    const flaggedIndices = await moderateTexts([script], userId)
     if (flaggedIndices.size > 0) {
       return NextResponse.json({ error: 'Generated content did not pass our safety check. Please try again.' }, { status: 422 })
     }

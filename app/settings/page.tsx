@@ -11,6 +11,9 @@ import { parseComfort, withComfort, type ComfortLevel } from '@/lib/filmingComfo
 
 const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 14, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)', marginBottom: 14 }
 const labelStyle = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
+const card = { background: '#fff', border: '1px solid var(--line)', borderRadius: 4, padding: '24px', marginBottom: 16 } as const
+const cardTitle = { fontSize: 16, fontWeight: 600, margin: '0 0 18px' } as const
+const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', columnGap: 16 } as const
 const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 14, fontWeight: 600, marginTop: 20, marginBottom: 10, opacity: 0.85 }
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
@@ -451,7 +454,9 @@ export default function SettingsPage() {
             onChange={(e) => { if ((e.target as HTMLInputElement).type !== 'file') setDirty(true) }}
             onClick={(e) => { if ((e.target as HTMLElement).closest('button[type="button"]')) setDirty(true) }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+            <div style={card}>
+            <p style={cardTitle}>Your business</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
               <div style={{ width: 64, height: 64, borderRadius: 4, background: 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                 {logoUrl ? (
                   <img src={logoUrl} alt="Business logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -471,9 +476,18 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <Field label="Business name" value={businessName} onChange={setBusinessName} />
-            <Field label="Industry" value={industry} onChange={setIndustry} />
-            <Field label="Suburb" value={suburb} onChange={setSuburb} />
+            <div style={grid2}>
+              <Field label="Business name" value={businessName} onChange={setBusinessName} />
+              <Field label="Industry" value={industry} onChange={setIndustry} />
+              <Field label="Suburb" value={suburb} onChange={setSuburb} />
+              <Field label="Website" value={website} onChange={setWebsite} placeholder="https://yourbusiness.com" />
+              <Field label="Instagram handle" value={instagramHandle} onChange={setInstagramHandle} placeholder="@yourbusiness" />
+              <Field label="TikTok handle" value={tiktokHandle} onChange={setTiktokHandle} placeholder="@yourbusiness" />
+            </div>
+            </div>
+
+            <div style={card}>
+            <p style={cardTitle}>Voice and customers</p>
             <Field label="Tone of voice" value={tone} onChange={setTone} />
             <Field label="Ideal customer" value={targetAudience} onChange={setTargetAudience} textarea />
             <Field label="Core services or products" value={coreServices} onChange={setCoreServices} textarea />
@@ -496,6 +510,10 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+            </div>
+
+            <div style={card}>
+            <p style={cardTitle}>Filming</p>
             <ComfortPicker value={comfortLevel} onChange={setComfortLevel} />
             <Field label="Filming notes and preferred styles" value={filmingComfort} onChange={setFilmingComfort} />
             <Field label="Who appears on camera?" value={onCameraPeople} onChange={setOnCameraPeople} />
@@ -515,6 +533,7 @@ export default function SettingsPage() {
                 How many people can appear in your videos. AI-generated ideas and filming instructions will use this as a guide.
               </p>
             </div>
+            </div>
 
             <button
               type="button"
@@ -527,9 +546,6 @@ export default function SettingsPage() {
             {showOptional && (
               <div>
                 <p style={sectionTitle}>Business basics</p>
-                <Field label="Website" value={website} onChange={setWebsite} />
-                <Field label="Instagram handle" value={instagramHandle} onChange={setInstagramHandle} />
-                <Field label="TikTok handle" value={tiktokHandle} onChange={setTiktokHandle} />
                 <Field label="Years in business" value={yearsInBusiness} onChange={setYearsInBusiness} />
                 <Field label="Team size" value={teamSize} onChange={setTeamSize} />
 
