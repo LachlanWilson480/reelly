@@ -108,9 +108,17 @@ export async function completeConnection(platform: PlatformId, userId: string, c
     const c = CFG.instagram
     const dbg = await getJson(`${GRAPH}/debug_token?input_token=${encodeURIComponent(t.access)}&access_token=${encodeURIComponent(`${process.env[c.idEnv]}|${process.env[c.secretEnv]}`)}`)
     const shared: any[] = dbg.data?.granular_scopes || [] // eslint-disable-line @typescript-eslint/no-explicit-any
-    const ids: string[] = shared.filter((x) => String(x.scope).startsWith('instagram')).flatMap((x) => x.target_ids || [])
+    let ids: string[] = shared.filter((x) => String(x.scope).startsWith('instagram')).flatMap((x) => x.target_ids || [])
+    if (ids.length === 0) {
+      // Fallback: an Instagram account linked to a Facebook Page the person shared
+      const pg: any = await getJson(`${GRAPH}/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(t.access)}`).catch(() => ({})) // eslint-disable-line @typescript-eslint/no-explicit-any
+      ids = ((pg.data || []) as any[]).map((x) => x.instagram_business_account?.id).filter(Boolean) // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
     accountId = String(ids[0] || '')
-    if (!accountId) throw new Error('No Instagram account was shared. Connect again and choose your Instagram account when asked')
+    if (!accountId) {
+      console.error('instagram connect: Meta shared', JSON.stringify(shared).slice(0, 800))
+      throw new Error(`No Instagram account was shared (Meta shared: ${shared.map((x) => String(x.scope)).join(', ') || 'nothing'}). Connect again and choose your Instagram account when asked`)
+    }
     const me = await getJson(`${GRAPH}/${accountId}?fields=username&access_token=${encodeURIComponent(t.access)}`).catch(() => ({} as Record<string, string>))
     accountName = me.username ? `@${me.username}` : 'Instagram'
   } else {
