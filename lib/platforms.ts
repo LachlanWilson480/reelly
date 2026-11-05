@@ -114,10 +114,15 @@ export async function completeConnection(platform: PlatformId, userId: string, c
       const pg: any = await getJson(`${GRAPH}/me/accounts?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(t.access)}`).catch(() => ({})) // eslint-disable-line @typescript-eslint/no-explicit-any
       ids = ((pg.data || []) as any[]).map((x) => x.instagram_business_account?.id).filter(Boolean) // eslint-disable-line @typescript-eslint/no-explicit-any
     }
+    if (ids.length === 0) {
+      // Fallback: an Instagram account added to the business portfolio the person shared
+      const biz: any = await getJson(`${GRAPH}/me/businesses?fields=owned_instagram_accounts{id,username},instagram_business_accounts{id,username}&access_token=${encodeURIComponent(t.access)}`).catch(() => ({})) // eslint-disable-line @typescript-eslint/no-explicit-any
+      ids = ((biz.data || []) as any[]).flatMap((b) => [...(b.owned_instagram_accounts?.data || []), ...(b.instagram_business_accounts?.data || [])]).map((x) => x.id).filter(Boolean) // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
     accountId = String(ids[0] || '')
     if (!accountId) {
       console.error('instagram connect: Meta shared', JSON.stringify(shared).slice(0, 800))
-      throw new Error(`No Instagram account was shared (Meta shared: ${shared.map((x) => String(x.scope)).join(', ') || 'nothing'}). Connect again and choose your Instagram account when asked`)
+      throw new Error(`No Instagram account was shared (Meta shared: ${shared.map((x) => `${String(x.scope)}=${(x.target_ids || []).length}`).join(', ') || 'nothing'}). Connect again and choose your Instagram account when asked`)
     }
     const me = await getJson(`${GRAPH}/${accountId}?fields=username&access_token=${encodeURIComponent(t.access)}`).catch(() => ({} as Record<string, string>))
     accountName = me.username ? `@${me.username}` : 'Instagram'

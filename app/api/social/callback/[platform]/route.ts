@@ -16,6 +16,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ platform: s
     return back(`connected=${platform}`)
   } catch (e) {
     console.error('social connect failed', platform, e instanceof Error ? e.message : 'unknown')
-    return back(`connect_error=${encodeURIComponent((e instanceof Error ? e.message : 'failed').slice(0, 120))}&platform=${platform}`)
+    return back(`connect_error=${encodeURIComponent((e instanceof Error ? e.message : 'failed').slice(0, 400))}&platform=${platform}`)
   }
 }
