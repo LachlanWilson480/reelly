@@ -48,6 +48,11 @@ export default function PrivacyPage() {
           </ul>
           <p style={P}>Some of these providers are based or store data outside Australia, including in the United States. We take reasonable steps to make sure they handle your information with care. We may also disclose information where the law requires it.</p>
 
+          <h2 style={H2}>Connected accounts and Google</h2>
+          <p style={P}>When you connect a social account such as YouTube, Instagram, Facebook or TikTok, we store the access token the platform gives us (encrypted), plus your account name, so we can post the videos you schedule and show how they performed. We only use that access to do what you ask, on your own account. We do not sell it, use it for advertising, or give it to anyone else.</p>
+          <p style={P}>Reelezy uses YouTube API Services. By connecting YouTube you also agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>. Our use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements. Google handles your information under the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.</p>
+          <p style={P}>You can disconnect any account from the Publish page at any time, which deletes the stored connection. You can also remove access for Reelezy to your Google account at <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener noreferrer">security.google.com/settings/security/permissions</a>. If you delete your Reelezy account, your connections are deleted with it.</p>
+
           <h2 style={H2}>Referrals</h2>
           <p style={P}>If you use a friend referral code, we tell that friend only that someone signed up and subscribed using their code so they can receive their reward. We do not share your name, email or other details with them.</p>
 
