@@ -353,6 +353,7 @@ export default function HomePage() {
                 <h4>Company</h4>
                 <div className="lp-foot-col">
                   <Link href="/privacy">Privacy Policy</Link>
+                  <Link href="/terms">Terms of Service</Link>
                   <a href="mailto:info@reelezy.com">Contact</a>
                 </div>
               </div>
