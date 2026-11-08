@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
       .lte('scheduled_for', now.toISOString()).gte('scheduled_for', weekAgo.toISOString())
       .order('scheduled_for', { ascending: true }).limit(10)
     if (error) throw error
-    if (!duePosts || duePosts.length === 0) return NextResponse.json({ processed: 0 })
+    if (!duePosts || duePosts.length === 0) {
+      // Extra detail so an empty result can be explained: how many scheduled posts this job can see at all
+      const { count, error: countError } = await supabaseAdmin.from('scheduled_posts').select('id', { count: 'exact', head: true }).eq('status', 'scheduled')
+      return NextResponse.json({ processed: 0, visibleRows: count, countError: countError?.message || null, checkedAt: now.toISOString() })
+    }
 
     let processed = 0
     for (const post of duePosts) {
