@@ -1,5 +1,6 @@
 'use client'
 
+import LegalLogo from '@/components/LegalLogo'
 import Sidebar from '@/components/Sidebar'
 
 const H2 = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
@@ -13,6 +14,7 @@ export default function PrivacyPage() {
       <Sidebar />
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
+          <div><LegalLogo /></div>
           <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Privacy Policy</h1>
           <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 26 October 2026</p>
 

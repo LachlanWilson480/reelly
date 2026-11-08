@@ -1,3 +1,4 @@
+import LegalLogo from '@/components/LegalLogo'
 export const metadata = { title: 'Terms of Service | Reelezy' }
 
 const H2 = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
@@ -9,7 +10,8 @@ export default function TermsPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
-        <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Terms of Service</h1>
+        <div><LegalLogo /></div>
+          <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Terms of Service</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: 48 }}>Last updated: 8 November 2026</p>
 
         <p style={P}>These terms apply when you use Reelezy (reelezy.com). By creating an account or using the service you agree to them. If you do not agree, please do not use Reelezy.</p>
