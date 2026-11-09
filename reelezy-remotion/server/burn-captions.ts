@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
+import { resolveFontFile, measureText, underlineBox } from './text-style';
 import { randomUUID } from 'node:crypto';
 
 const execFileAsync = promisify(execFile);
@@ -26,6 +27,9 @@ type CaptionStyle = {
   position?: 'top' | 'center' | 'bottom';
   borderColor?: string;
   backgroundColor?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
 };
 
 type PresetConfig = {
@@ -154,29 +158,13 @@ export async function burnCaptions(
     : positionOverride === 'bottom' ? 'h*0.78'
     : preset.yPosition;
 
-  // Map font family to system font file paths (Linux/Railway - fonts-liberation)
-  const fontMap: Record<string, string> = {
-    'Sans': '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-    'Sans Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-    'Serif': '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf',
-    'Serif Bold': '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
-    'Mono': '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf',
-    'Mono Bold': '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf',
-    'Narrow': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Regular.ttf',
-    'Narrow Bold': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
-    'Montserrat ExtraBold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-    'Impact': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
-    'Anton': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
-    'Bebas Neue': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf',
-    'Oswald': '/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Regular.ttf',
-    'Roboto Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-    'Open Sans Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-    'Lato Bold': '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-  };
-  const fontFilePath = captionStyle.fontFamily ? fontMap[captionStyle.fontFamily] : null;
-  const fontFilePart = fontFilePath && require('node:fs').existsSync(fontFilePath)
-    ? `:fontfile='${fontFilePath}'`
-    : '';
+  // Font file for the chosen font plus bold / italic (Linux/Railway - fonts-liberation)
+  const wantsFont = !!captionStyle.fontFamily || captionStyle.bold !== undefined || captionStyle.italic !== undefined;
+  const fontFilePath = wantsFont ? resolveFontFile(captionStyle.fontFamily || 'Sans Bold', { bold: captionStyle.bold, italic: captionStyle.italic }) : null;
+  const fontFilePart = fontFilePath ? `:fontfile='${fontFilePath}'` : '';
+  const underline = captionStyle.underline === true;
+  // 'h*0.78' style positions as a share of the height, for placing the underline
+  const shareOf = (expr: string): number | null => { const m = /^h\*([0-9.]+)$/.exec(expr); return m ? Number(m[1]) : null; };
 
   const layers = captionStyle.layers;
   const speechOn = layers?.speech?.enabled !== false;
@@ -201,9 +189,10 @@ export async function burnCaptions(
     return { outputPath, cleanup: () => { try { fs.unlinkSync(outputPath); } catch {} } };
   }
 
-  const drawtextFilters = groups.map((group, i) => {
+  const drawtextFilters = groups.flatMap((group, i) => {
     const nextGroup = groups[i + 1];
-    const text = (uppercase ? group.text.toUpperCase() : group.text)
+    const rawText = uppercase ? group.text.toUpperCase() : group.text;
+    const text = rawText
       .replace(/'/g, "\u2019")
       .replace(/:/g, "\\:")
       .replace(/\[/g, "\\[")
@@ -214,7 +203,21 @@ export async function burnCaptions(
     const adjEnd = nextGroup ? Math.min(group.end, nextGroup.start) : group.end;
 
     const speechY = num(layers?.speech?.y) === null ? yPosition : `max(12,min(h-text_h-12,${yCenter(layers?.speech, '0')}-text_h/2))`;
-    return `drawtext=text='${text}':enable='between(t,${adjStart},${adjEnd})':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(layers?.speech)}':y='${speechY}'${boxPart}${fontFilePart}:line_spacing=8`;
+    const enable = `between(t,${adjStart},${adjEnd})`;
+    const plain = `drawtext=text='${text}':enable='${enable}':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(layers?.speech)}':y='${speechY}'${boxPart}${fontFilePart}:line_spacing=8`;
+    const m = underline ? measureText(fontFilePath, rawText, fontSize) : null;
+    if (!m) return [plain];
+    // Underlined: place the text ourselves so the line under it sits in exactly the right spot
+    const sx = num(layers?.speech?.x);
+    const sy = num(layers?.speech?.y);
+    const share = shareOf(yPosition);
+    if (sy === null && share === null) return [plain];
+    const left = sx === null ? (outputWidth - m.width) / 2 : Math.min(Math.max(12, outputWidth * sx - m.width / 2), Math.max(12, outputWidth - m.width - 12));
+    const top = sy === null ? outputHeight * (share as number) : Math.min(Math.max(12, outputHeight * sy - m.inkHeight / 2), Math.max(12, outputHeight - m.inkHeight - 12));
+    return [
+      `drawtext=text='${text}':enable='${enable}':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x=${left.toFixed(1)}:y=${top.toFixed(1)}${boxPart}${fontFilePart}:line_spacing=8`,
+      underlineBox(m, fontSize, left, top, fontColor, enable),
+    ];
   });
 
   // Layer 1: on-screen text, shown as whole phrases above the speech captions
@@ -234,11 +237,25 @@ export async function burnCaptions(
   const baseCenterY = num(textPos?.y) === null ? `(${yPosition}-h*0.16)` : yCenter(textPos, '0');
   const textFilters = texts.flatMap((seg) => {
     const lines = wrap(uppercase ? seg.text.toUpperCase() : seg.text);
-    return lines.map((line, li) => {
+    return lines.flatMap((line, li) => {
       const safe = line.replace(/'/g, "\u2019").replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
       const offset = Math.round((li - (lines.length - 1) / 2) * lineH);
       const boxPart = customBox || (preset.box ? `:box=1:boxcolor=${preset.boxColor}:boxborderw=${Math.round(10 * sizeScale)}` : '');
-      return `drawtext=text='${safe}':enable='between(t,${seg.start.toFixed(3)},${seg.end.toFixed(3)})':fontsize=${textFont}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(textPos)}':y='max(12,min(h-text_h-12,${baseCenterY}+(${offset})-text_h/2))'${boxPart}${fontFilePart}`;
+      const enable = `between(t,${seg.start.toFixed(3)},${seg.end.toFixed(3)})`;
+      const plain = `drawtext=text='${safe}':enable='${enable}':fontsize=${textFont}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='${xExpr(textPos)}':y='max(12,min(h-text_h-12,${baseCenterY}+(${offset})-text_h/2))'${boxPart}${fontFilePart}`;
+      const m = underline ? measureText(fontFilePath, line, textFont) : null;
+      if (!m) return [plain];
+      const tx = num(textPos?.x);
+      const ty = num(textPos?.y);
+      const share = shareOf(yPosition);
+      if (ty === null && share === null) return [plain];
+      const centerY = ty === null ? outputHeight * ((share as number) - 0.16) : outputHeight * ty;
+      const left = tx === null ? (outputWidth - m.width) / 2 : Math.min(Math.max(12, outputWidth * tx - m.width / 2), Math.max(12, outputWidth - m.width - 12));
+      const top = Math.min(Math.max(12, centerY + offset - m.inkHeight / 2), Math.max(12, outputHeight - m.inkHeight - 12));
+      return [
+        `drawtext=text='${safe}':enable='${enable}':fontsize=${textFont}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x=${left.toFixed(1)}:y=${top.toFixed(1)}${boxPart}${fontFilePart}`,
+        underlineBox(m, textFont, left, top, fontColor, enable),
+      ];
     });
   });
   drawtextFilters.push(...textFilters);

@@ -98,7 +98,9 @@ const fmtTrimTime = (s: number) => {
 type VoiceoverSegment = { file: File; start: number; end: number | null; speed?: number; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
 // Optional per-caption text settings: anything left out uses the shared Caption look
-type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; font?: string; size?: number; color?: string; bg?: string | null }
+type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; w?: number; font?: string; size?: number; color?: string; bg?: string | null; bold?: boolean; italic?: boolean; underline?: boolean }
+// Is a font bold when nothing else is said? ("Sans Bold" is, "Sans" is not)
+const fontIsBold = (name?: string) => /bold|impact|anton|bebas/i.test(name || 'Sans Bold')
 const CAPTION_TEXT_FONTS: { name: string; css: string; weight: number }[] = [
   { name: 'Sans', css: 'Arial, Helvetica, sans-serif', weight: 400 },
   { name: 'Sans Bold', css: "Arial Black, Arial, sans-serif", weight: 900 },
@@ -128,7 +130,7 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
 type OverlayItem = { file: File; kind: 'image' | 'video'; url: string; x: number; y: number; size: number; start: number; end: number | null }
 
-type PreviewCaptionStyle = { color: string; border: string; background: string | null; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
+type PreviewCaptionStyle = { color: string; border: string; background: string | null; bold?: boolean; italic?: boolean; underline?: boolean; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
 const voiceoverExt = (b: Blob) => {
   const t = (b.type || '').toLowerCase()
@@ -761,6 +763,25 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   // Pinch to resize: two fingers on a caption (touch), or a trackpad pinch over it
   const ptrsRef = useRef(new Map<number, { x: number; y: number }>())
   const pinchRef = useRef<{ id: string; dist: number; size: number } | null>(null)
+  // Drag the side handles of a caption to change how wide it is, and the corner handles to make the text bigger or smaller
+  const resizeRef = useRef<{ id: string; mode: 'side' | 'corner'; size: number; dist: number; cx: number; cy: number } | null>(null)
+  const startResize = (e: React.PointerEvent, c: CustomCaption, mode: 'side' | 'corner') => {
+    const box = stageRef.current?.getBoundingClientRect()
+    if (!box || !captionStyle) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const cx = box.left + c.x * box.width
+    const cy = box.top + c.y * box.height
+    resizeRef.current = { id: c.id, mode, size: c.size ?? captionStyle.size, dist: Math.hypot(e.clientX - cx, e.clientY - cy) || 1, cx, cy }
+  }
+  const moveResize = (e: React.PointerEvent) => {
+    const r = resizeRef.current
+    const box = stageRef.current?.getBoundingClientRect()
+    if (!r || !box) return
+    if (r.mode === 'side') updateCap(r.id, { w: Math.min(0.96, Math.max(0.2, (Math.abs(e.clientX - r.cx) / box.width) * 2)) })
+    else updateCap(r.id, { size: Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist)))) })
+  }
+  const endResize = () => { resizeRef.current = null }
   const autoDragRef = useRef(false)
   const latestRef = useRef<{ caps: CustomCaption[]; size: number; update: (id: string, p: Partial<CustomCaption>) => void }>({ caps: [], size: 60, update: () => {} })
   useEffect(() => { latestRef.current = { caps, size: captionStyle?.size ?? 60, update: updateCap } })
@@ -886,6 +907,17 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const sel = selCap === c.id
           const cFont = CAPTION_TEXT_FONTS.find((f) => f.name === c.font)
           const cBg = c.bg !== undefined ? c.bg : captionStyle.background
+          const boldPick = c.bold ?? captionStyle.bold
+          const italic = c.italic ?? captionStyle.italic ?? false
+          const underline = c.underline ?? captionStyle.underline ?? false
+          const weight = boldPick === undefined ? (cFont ? cFont.weight : 900) : boldPick ? Math.max(700, cFont ? cFont.weight : 900) : 400
+          const family = cFont ? cFont.css : boldPick === false ? 'Arial, Helvetica, sans-serif' : "Arial Black, 'Poppins', sans-serif"
+          const boxW = Math.min(0.96, Math.max(0.2, c.w ?? 0.88))
+          const handle = (style: React.CSSProperties, mode: 'side' | 'corner', cursor: string, label: string) => (
+            <span role="slider" aria-label={label} aria-valuenow={Math.round(boxW * 100)}
+              onPointerDown={(e) => startResize(e, c, mode)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
+              style={{ position: 'absolute', background: '#fff', border: '1.5px solid #222', borderRadius: mode === 'side' ? 4 : 2, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
+          )
           return (
             <div key={c.id} aria-label={`Caption: ${c.text}`}
               data-capid={c.id}
@@ -916,8 +948,18 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               }}
               onPointerUp={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
-              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: '88%', textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: cFont ? cFont.css : "Arial Black, 'Poppins', sans-serif", fontWeight: cFont ? cFont.weight : 900, lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere', ...(cBg ? { background: cBg, padding: '0.25em 0.5em', borderRadius: 4, width: 'auto', maxWidth: '88%', boxDecorationBreak: 'clone' as const, WebkitBoxDecorationBreak: 'clone' as const } : {}) }}>
-              {c.text}
+              style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: `${boxW * 100}%`, textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: family, fontWeight: weight, fontStyle: italic ? 'italic' : 'normal', textDecoration: underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
+              {cBg ? <span style={{ background: cBg, padding: '0.25em 0.5em', borderRadius: 4, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>{c.text}</span> : c.text}
+              {sel && onCaptions && !recording && (
+                <>
+                  {handle({ left: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
+                  {handle({ right: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
+                  {handle({ left: -7, top: -7, width: 12, height: 12 }, 'corner', 'nwse-resize', 'Drag to make the caption text bigger or smaller')}
+                  {handle({ right: -7, top: -7, width: 12, height: 12 }, 'corner', 'nesw-resize', 'Drag to make the caption text bigger or smaller')}
+                  {handle({ left: -7, bottom: -7, width: 12, height: 12 }, 'corner', 'nesw-resize', 'Drag to make the caption text bigger or smaller')}
+                  {handle({ right: -7, bottom: -7, width: 12, height: 12 }, 'corner', 'nwse-resize', 'Drag to make the caption text bigger or smaller')}
+                </>
+              )}
             </div>
           )
         })}
@@ -1588,6 +1630,9 @@ export default function DashboardPage() {
   const [landscapeHandling, setLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [extractedMusicPath, setExtractedMusicPath] = useState<string | null>(null)
   const [captionColor, setCaptionColor] = useState('#FFFFFF')
+  const [captionBold, setCaptionBold] = useState<boolean | null>(null)
+  const [captionItalic, setCaptionItalic] = useState(false)
+  const [captionUnderline, setCaptionUnderline] = useState(false)
   // Optional coloured box behind the captions. null means transparent.
   const [captionBg, setCaptionBg] = useState<string | null>(null)
   const [captionPosition, setCaptionPosition] = useState<'bottom' | 'top' | 'center'>('center')
@@ -2648,13 +2693,16 @@ export default function DashboardPage() {
     color: captionColor,
     border: captionBorderColor,
     background: captionBg,
+    bold: captionBold ?? undefined,
+    italic: captionItalic || undefined,
+    underline: captionUnderline || undefined,
     size: Number(captionFontSize) || 60,
     onScreen: layerPoint(captionLayers, 'onScreen', captionPosition),
     speech: layerPoint(captionLayers, 'speech', captionPosition),
   }
 
   // Captions are sent as plain data: text, when it shows and where it sits
-  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor, backgroundColor: captionBg ?? undefined }
+  const customCaptionStyle = { fontFamily: captionFontFamily, size: Number(captionFontSize) || 60, color: captionColor, borderColor: captionBorderColor, backgroundColor: captionBg ?? undefined, bold: captionBold ?? undefined, italic: captionItalic || undefined, underline: captionUnderline || undefined }
   const captionTimingNote = cutDeadSpace ? 'Smart Trim is switched off for this video while it has captions, so they stay in time.' : undefined
 
   // Dragging the ends of a clip on the timeline sets its trim
@@ -2795,12 +2843,20 @@ export default function DashboardPage() {
   const renderCaptionStyle = () => (
     <div>
       <div style={{ background: '#111', borderRadius: 4, height: 84, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
-                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: 900, color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>Your caption</p>
+                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: (captionBold ?? fontIsBold(captionFontFamily)) ? 900 : 400, fontStyle: captionItalic ? 'italic' : 'normal', textDecoration: captionUnderline ? 'underline' : 'none', color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>Your caption</p>
                           </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><Dropdown ariaLabel="Caption font" value={captionFontFamily} onChange={setCaptionFontFamily} options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
                               <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><ColorSelect ariaLabel="Caption text colour" value={captionColor} onChange={(v) => setCaptionColor(v ?? '#FFFFFF')} /></div>
+                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Text</label>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  {([['B', 'Bold', captionBold ?? fontIsBold(captionFontFamily), () => setCaptionBold(!(captionBold ?? fontIsBold(captionFontFamily))), { fontWeight: 800 }],
+                                    ['I', 'Italic', captionItalic, () => setCaptionItalic(!captionItalic), { fontStyle: 'italic' }],
+                                    ['U', 'Underline', captionUnderline, () => setCaptionUnderline(!captionUnderline), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
+                                    <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
+                                  ))}
+                                </div></div>
                               <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
                                 <ColorSelect ariaLabel="Caption background colour" allowNone value={captionBg} onChange={setCaptionBg} /></div>
                             </div>
@@ -2812,7 +2868,7 @@ export default function DashboardPage() {
     const setCaps = m === 'upload' ? setUploadCaps : setAiCaps
     const canAdd = m === 'upload' ? uploadSlots.some((id) => !!uploadSlotFiles[id]) : Object.keys(stepUploads).length > 0
     // Captions are linked while they all share one look. Editing one caption's look unlinks just that caption.
-    const sig = (x: CustomCaption) => JSON.stringify([x.font ?? null, x.size ?? null, x.color ?? null, x.bg === undefined ? 'u' : x.bg])
+    const sig = (x: CustomCaption) => JSON.stringify([x.font ?? null, x.size ?? null, x.color ?? null, x.bg === undefined ? 'u' : x.bg, x.bold ?? null, x.italic ?? null, x.underline ?? null])
     const allLinked = caps.every((x) => sig(x) === sig(caps[0]))
     const add = () => {
       const { t, total } = playheadRef.current
@@ -2823,7 +2879,7 @@ export default function DashboardPage() {
       const stacked = caps.filter((c) => c.start < end && c.end > start).length
       const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
       // A new caption joins the linked look, so it matches the others straight away
-      const look = caps.length > 0 && allLinked ? { font: caps[0].font, size: caps[0].size, color: caps[0].color, bg: caps[0].bg } : {}
+      const look = caps.length > 0 && allLinked ? { font: caps[0].font, size: caps[0].size, color: caps[0].color, bg: caps[0].bg, bold: caps[0].bold, italic: caps[0].italic, underline: caps[0].underline } : {}
       setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12), ...look }])
       setSelCap(id)
       setCapDraft('')
@@ -2839,14 +2895,14 @@ export default function DashboardPage() {
           <button type="button" onClick={add} disabled={!canAdd || !capDraft.trim()} style={{ ...choiceBtn(false, !canAdd || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Shows for 3 seconds at the playhead. Drag it on the preview to place it, and pinch it to make it bigger or smaller.
+          Shows for 3 seconds at the playhead. Drag it on the preview to place it. Select it, then drag the side handles to change its width and the corner handles to change its text size.
         </p>
         {caps.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
             {caps.map((c) => {
               const patch = (p: Partial<CustomCaption>) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, ...p } : x)))
               const open = openCapStyle === c.id
-              const customised = c.font !== undefined || c.size !== undefined || c.color !== undefined || c.bg !== undefined
+              const customised = c.font !== undefined || c.size !== undefined || c.color !== undefined || c.bg !== undefined || c.bold !== undefined || c.italic !== undefined || c.underline !== undefined || c.w !== undefined
               const lab = { fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' } as const
               return (
               <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2867,7 +2923,7 @@ export default function DashboardPage() {
                       {CAPTION_LOOKS.map((lk) => {
                         const f = CAPTION_TEXT_FONTS.find((x) => x.name === lk.font)
                         return (
-                          <button key={lk.name} type="button" title={`${lk.name}: ${lk.font}, ${lk.bg ? 'on a coloured box' : 'no box'}`} onClick={() => patch({ font: lk.font, color: lk.color, bg: lk.bg })}
+                          <button key={lk.name} type="button" title={`${lk.name}: ${lk.font}, ${lk.bg ? 'on a coloured box' : 'no box'}`} onClick={() => patch({ font: lk.font, color: lk.color, bg: lk.bg, bold: undefined, italic: undefined, underline: undefined })}
                             style={{ minWidth: 78, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: '#2a2a2f', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                             <span style={{ fontFamily: f?.css, fontWeight: f?.weight, fontSize: 15, color: lk.color, background: lk.bg ?? 'transparent', padding: lk.bg ? '1px 6px' : 0, borderRadius: 2, textShadow: lk.bg ? 'none' : '0 0 2px #000, 0 0 2px #000' }}>Aa</span>
                             <span style={{ fontSize: 10, color: '#ddd' }}>{lk.name}</span>
@@ -2876,6 +2932,16 @@ export default function DashboardPage() {
                       })}
                     </div>
                   </div>
+                  <div><label style={lab}>Text</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {([['B', 'Bold', c.bold ?? captionBold ?? fontIsBold(c.font ?? captionFontFamily), () => patch({ bold: !(c.bold ?? captionBold ?? fontIsBold(c.font ?? captionFontFamily)) }), { fontWeight: 800 }],
+                        ['I', 'Italic', c.italic ?? captionItalic, () => patch({ italic: !(c.italic ?? captionItalic) }), { fontStyle: 'italic' }],
+                        ['U', 'Underline', c.underline ?? captionUnderline, () => patch({ underline: !(c.underline ?? captionUnderline) }), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
+                        <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
+                      ))}
+                    </div></div>
+                  <div><label style={lab}>Box width</label>
+                    <input type="range" min={20} max={96} value={Math.round((c.w ?? 0.88) * 100)} aria-label="Caption box width" onChange={(e) => patch({ w: Number(e.target.value) / 100 })} style={{ width: '100%', accentColor: 'var(--coral)', height: 40 }} /></div>
                   <div><label style={lab}>Font</label>
                     <Dropdown ariaLabel="Caption font" value={c.font && c.font !== 'Sans Bold' ? c.font : ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Sans Bold (default)' }, ...CAPTION_TEXT_FONTS.filter((f) => f.name !== 'Sans Bold').map((f) => ({ value: f.name, label: f.name }))]} /></div>
                   <div><label style={lab}>Size</label>
@@ -2888,7 +2954,7 @@ export default function DashboardPage() {
                     <button type="button" aria-pressed={allLinked} disabled={allLinked}
                       aria-label={allLinked ? 'All captions share one look' : 'Make every caption match this one'}
                       title={allLinked ? 'Linked: all your captions share this look.' : 'Press to make every caption match this one. Until you do, each caption keeps its own look.'}
-                      onClick={() => setCaps(caps.map((x) => ({ ...x, font: c.font, size: c.size, color: c.color, bg: c.bg })))}
+                      onClick={() => setCaps(caps.map((x) => ({ ...x, font: c.font, size: c.size, color: c.color, bg: c.bg, bold: c.bold, italic: c.italic, underline: c.underline })))}
                       style={{ ...choiceBtn(allLinked), width: '100%', height: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: allLinked ? 'default' : 'pointer', opacity: 1 }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" />{allLinked && <path d="M8 12h8" />}
@@ -2916,7 +2982,7 @@ export default function DashboardPage() {
         {renderAutoCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press the three dots on a caption to change its own font, size and colours.')}
+        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press the three dots on a caption to change its own font, bold, italic, underline, size and colours. Select a caption on the preview to drag its edges and corners and resize it.')}
         {renderOwnCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
@@ -3784,7 +3850,7 @@ export default function DashboardPage() {
         ? {
             preset: aiCaptionPreset,
             custom: {
-              font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
+              font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor, bold: captionBold ?? undefined, italic: captionItalic || undefined, underline: captionUnderline || undefined },
               position: captionPosition,
               borderColor: captionBorderColor,
               backgroundColor: captionBg ?? undefined,
@@ -3944,7 +4010,7 @@ export default function DashboardPage() {
         ? {
             preset: captionPreset,
             custom: {
-              font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor },
+              font: { family: captionFontFamily, size: Number(captionFontSize) || 36, color: captionColor, bold: captionBold ?? undefined, italic: captionItalic || undefined, underline: captionUnderline || undefined },
               position: captionPosition,
               borderColor: captionBorderColor,
               backgroundColor: captionBg ?? undefined,

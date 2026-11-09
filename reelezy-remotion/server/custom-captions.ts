@@ -3,24 +3,13 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { resolveFontFile, measureText, wrapText, underlineBox } from './text-style';
 
 const execFileAsync = promisify(execFile);
 const FFMPEG_PATH = process.env.FFMPEG_PATH || `${process.env.HOME}/bin/ffmpeg`;
 
-export type CustomCaption = { text: string; start: number; end: number; x: number; y: number; font?: string; size?: number; color?: string; bg?: string | null };
-export type CustomCaptionStyle = { fontFamily?: string; size?: number; color?: string; borderColor?: string; backgroundColor?: string };
-
-const FONT_DIR = '/usr/share/fonts/truetype/liberation';
-const FONTS: Record<string, string> = {
-  'Sans': 'LiberationSans-Regular.ttf',
-  'Sans Bold': 'LiberationSans-Bold.ttf',
-  'Serif': 'LiberationSerif-Regular.ttf',
-  'Serif Bold': 'LiberationSerif-Bold.ttf',
-  'Mono': 'LiberationMono-Regular.ttf',
-  'Mono Bold': 'LiberationMono-Bold.ttf',
-  'Narrow': 'LiberationSansNarrow-Regular.ttf',
-  'Narrow Bold': 'LiberationSansNarrow-Bold.ttf',
-};
+export type CustomCaption = { text: string; start: number; end: number; x: number; y: number; w?: number; font?: string; size?: number; color?: string; bg?: string | null; bold?: boolean; italic?: boolean; underline?: boolean };
+export type CustomCaptionStyle = { fontFamily?: string; size?: number; color?: string; borderColor?: string; backgroundColor?: string; bold?: boolean; italic?: boolean; underline?: boolean };
 
 // Draws the captions the user placed on the timeline. Each one shows between its start and end time,
 // centred on its x and y spot (a share of the frame), over everything else already in the video.
@@ -47,21 +36,13 @@ export async function burnCustomCaptions(
     const borderColor = isHex(style.borderColor) ? style.borderColor : '#000000';
     const bg = it.bg === null ? undefined : isHex(it.bg) ? it.bg : isHex(style.backgroundColor) ? style.backgroundColor : undefined;
     const boxPart = bg ? `:box=1:boxcolor=0x${bg.slice(1)}@0.85:boxborderw=${Math.round(baseSize * 0.22 * sizeScale)}` : '';
-    const fontFile = path.join(FONT_DIR, FONTS[it.font || ''] || FONTS[style.fontFamily || ''] || FONTS['Sans Bold']);
-    const fontPart = fs.existsSync(fontFile) ? `:fontfile='${fontFile}'` : '';
-    return { fontSize, borderW, fontColor, borderColor, boxPart, fontPart };
+    const flags = { bold: it.bold ?? style.bold, italic: it.italic ?? style.italic };
+    const fontFile = resolveFontFile(it.font || style.fontFamily || 'Sans Bold', flags);
+    const fontPart = fontFile ? `:fontfile='${fontFile}'` : '';
+    const underline = (it.underline ?? style.underline) === true;
+    return { fontSize, borderW, fontColor, borderColor, boxPart, fontPart, fontFile, underline };
   };
 
-  const wrap = (text: string, fontSize: number) => {
-    const maxChars = Math.max(8, Math.floor((outputWidth * 0.86) / (fontSize * 0.6)));
-    const lines: string[] = [];
-    let cur = '';
-    for (const w of text.split(/\s+/).filter(Boolean)) {
-      if (cur && (cur + ' ' + w).length > maxChars) { lines.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
-    }
-    if (cur) lines.push(cur);
-    return lines.slice(0, 6);
-  };
   const esc = (t: string) => t
     .replace(/\\/g, '')
     .replace(/'/g, '’')
@@ -71,15 +52,27 @@ export async function burnCustomCaptions(
   const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
   const filters = items.flatMap((c) => {
-    const { fontSize, borderW, fontColor, borderColor, boxPart, fontPart } = look(c);
+    const { fontSize, borderW, fontColor, borderColor, boxPart, fontPart, fontFile, underline } = look(c);
     const lineH = Math.round(fontSize * 1.2);
-    const lines = wrap(c.text, fontSize);
+    // The caption box is as wide as the person drew it (a share of the frame), and the words wrap inside it
+    const boxShare = Math.min(0.98, Math.max(0.2, typeof c.w === 'number' && Number.isFinite(c.w) ? c.w : 0.88));
+    const lines = wrapText(fontFile, c.text, fontSize, outputWidth * boxShare * 0.96, 6);
     const x = clamp01(c.x).toFixed(4);
     const y = clamp01(c.y).toFixed(4);
     const enable = `between(t,${Math.max(0, c.start).toFixed(3)},${Math.max(c.start, c.end).toFixed(3)})`;
-    return lines.map((line, li) => {
+    return lines.flatMap((line, li) => {
       const offset = Math.round((li - (lines.length - 1) / 2) * lineH);
-      return `drawtext=expansion=none:text='${esc(line)}':enable='${enable}':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='max(12,min(w-text_w-12,w*${x}-text_w/2))':y='max(12,min(h-text_h-12,h*${y}+(${offset})-text_h/2))'${boxPart}${fontPart}`;
+      const m = underline ? measureText(fontFile, line, fontSize) : null;
+      if (m) {
+        // Underlined: place the text ourselves so the line under it sits in exactly the right spot
+        const left = Math.min(Math.max(12, outputWidth * Number(x) - m.width / 2), Math.max(12, outputWidth - m.width - 12));
+        const top = Math.min(Math.max(12, outputHeight * Number(y) + offset - m.inkHeight / 2), Math.max(12, outputHeight - m.inkHeight - 12));
+        return [
+          `drawtext=expansion=none:text='${esc(line)}':enable='${enable}':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x=${left.toFixed(1)}:y=${top.toFixed(1)}${boxPart}${fontPart}`,
+          underlineBox(m, fontSize, left, top, fontColor, enable),
+        ];
+      }
+      return [`drawtext=expansion=none:text='${esc(line)}':enable='${enable}':fontsize=${fontSize}:fontcolor=${fontColor}:borderw=${borderW}:bordercolor=${borderColor}:x='max(12,min(w-text_w-12,w*${x}-text_w/2))':y='max(12,min(h-text_h-12,h*${y}+(${offset})-text_h/2))'${boxPart}${fontPart}`];
     });
   });
 
