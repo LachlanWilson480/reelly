@@ -36,6 +36,7 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState('')
   const [industry, setIndustry] = useState('')
   const [suburb, setSuburb] = useState('')
+  const [targetLocations, setTargetLocations] = useState('')
   const [country, setCountry] = useState('AU')
   const [coreServices, setCoreServices] = useState('')
 
@@ -136,6 +137,7 @@ export default function OnboardingPage() {
       business_name: businessName,
       industry,
       suburb,
+      target_locations: targetLocations.trim() || null,
       country,
       core_services: coreServices,
       tone,
@@ -236,8 +238,12 @@ export default function OnboardingPage() {
                   <Dropdown ariaLabel="Country" value={country} onChange={setCountry} options={[{ value: 'AU', label: 'Australia' }, { value: 'NZ', label: 'New Zealand' }, { value: 'UK', label: 'United Kingdom' }, { value: 'IE', label: 'Ireland' }, { value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }, { value: 'ZA', label: 'South Africa' }, { value: 'SG', label: 'Singapore' }, { value: 'OTHER', label: 'Other' }]} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Business location(s) *</label>
-                  <input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. London, Manchester" style={inputStyle} />
+                  <label style={labelStyle}>Business location *</label>
+                  <input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. Newtown, Sydney" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Target locations (optional)</label>
+                  <input value={targetLocations} onChange={(e) => setTargetLocations(e.target.value)} placeholder="Areas you want to reach, separated by commas" style={inputStyle} />
                 </div>
               </div>
 

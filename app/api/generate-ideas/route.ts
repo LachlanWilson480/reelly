@@ -204,7 +204,8 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
   const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
-    ['Suburb', profile.suburb],
+    ['Business location', profile.suburb],
+    ['Target locations', profile.target_locations],
     ['Tone', profile.tone],
     ['Audience', profile.target_audience],
     ['Services', profile.core_services],
@@ -301,7 +302,7 @@ const IDEAS_STATIC_RULES = `HOW TO USE THE BRIEF:
 - Signature, USP, Problem, Objections, Promos → lean into these as the content subject where the angle fits
 - BestContent/Formats → match what has worked; AvoidContent → don't repeat those angles
 - Gear/Comfort → never suggest anything beyond what they have or can do
-- Community, Suburb → add local flavour where natural, not forced
+- Community, Business location, Target locations → add local flavour (mention several target areas across ideas, not all in one) where natural, not forced
 - Website/Instagram/TikTok → ignore for idea generation (not relevant)
 
 STATIC HARD RULES:

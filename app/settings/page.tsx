@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('')
   const [industry, setIndustry] = useState('')
   const [suburb, setSuburb] = useState('')
+  const [targetLocations, setTargetLocations] = useState('')
   const [tone, setTone] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
   const [coreServices, setCoreServices] = useState('')
@@ -136,6 +137,7 @@ export default function SettingsPage() {
         setBusinessName(data.business_name || '')
         setIndustry(data.industry || '')
         setSuburb(data.suburb || '')
+        setTargetLocations(data.target_locations || '')
         setTone(data.tone || '')
         setTargetAudience(data.target_audience || '')
         setCoreServices(data.core_services || '')
@@ -287,6 +289,7 @@ export default function SettingsPage() {
         business_name: businessName,
         industry,
         suburb,
+        target_locations: targetLocations,
         tone,
         target_audience: targetAudience,
         core_services: coreServices,
@@ -479,7 +482,8 @@ export default function SettingsPage() {
             <div style={grid2}>
               <Field label="Business name" value={businessName} onChange={setBusinessName} />
               <Field label="Industry" value={industry} onChange={setIndustry} />
-              <Field label="Suburb" value={suburb} onChange={setSuburb} />
+              <Field label="Business location" value={suburb} onChange={setSuburb} placeholder="e.g. Newtown, Sydney" />
+              <Field label="Target locations" value={targetLocations} onChange={setTargetLocations} placeholder="Areas you want to reach, separated by commas" />
               <Field label="Website" value={website} onChange={setWebsite} placeholder="https://yourbusiness.com" />
               <Field label="Instagram handle" value={instagramHandle} onChange={setInstagramHandle} placeholder="@yourbusiness" />
               <Field label="TikTok handle" value={tiktokHandle} onChange={setTiktokHandle} placeholder="@yourbusiness" />

@@ -40,7 +40,8 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
   const core: Array<[string, string | null | undefined]> = [
     ['Biz', profile.business_name],
     ['Industry', profile.industry],
-    ['Suburb', profile.suburb],
+    ['Business location', profile.suburb],
+    ['Target locations', profile.target_locations],
     ['Tone', profile.tone],
   ]
   for (const [k, v] of core) {
