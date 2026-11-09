@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { CameraControlsApi, CamRes, CamFps } from '@/lib/useCameraControls'
 
@@ -18,6 +18,8 @@ type Props = {
   onRestart: () => void
   onLens: (id: string) => void
   onLibrary?: () => void
+  // Pick a photo from the device; the parent turns it into a short clip.
+  onPhoto?: (file: File) => void
   // Slow-mo (below 1) and timelapse (above 1). The clip is filmed normally and played at this speed in the video.
   speed?: number
   onSpeed?: (speed: number) => void
@@ -37,8 +39,9 @@ function Svg({ children }: { children: ReactNode }) {
 }
 
 // The camera controls drawn on top of the picture: left tools, lens picker, and the record row. Shared by both recorders.
-export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary, speed = 1, onSpeed }: Props) {
+export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary, onPhoto, speed = 1, onSpeed }: Props) {
   const lock = isRecording || counting
+  const photoRef = useRef<HTMLInputElement>(null)
   const [speedOpen, setSpeedOpen] = useState(false)
   const presets = cam.zoomCaps ? [0.5, 1, 2, 5].filter((z) => z >= cam.zoomCaps!.min - 0.01 && z <= cam.zoomCaps!.max + 0.01) : []
   const showArc = !hidden && (cam.lenses.length > 0 || presets.length > 1)
@@ -80,6 +83,18 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
                 <path d="m4 17.5 5-4.5 3.5 3 3-2.5 4.5 4" />
               </Svg>
             </button>
+          )}
+          {onPhoto && (
+            <>
+              <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = '' }} />
+              <button type="button" aria-label="Use a photo" title="Use a photo from your device as a clip" disabled={lock} onClick={() => photoRef.current?.click()} style={{ ...iconBtn, opacity: lock ? 0.4 : 0.9 }}>
+                <Svg>
+                  <rect x="3.5" y="6.5" width="17" height="13" rx="3" />
+                  <path d="M8 6.5 9.2 4.5h5.6L16 6.5" />
+                  <circle cx="12" cy="13" r="3" />
+                </Svg>
+              </button>
+            </>
           )}
           {cam.torchOk && (
             <button type="button" aria-label="Torch" title="Turn the torch on or off" aria-pressed={cam.torch} onClick={cam.toggleTorch} style={{ ...iconBtn, opacity: cam.torch ? 1 : 0.8 }}>

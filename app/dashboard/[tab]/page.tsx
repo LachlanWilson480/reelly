@@ -23,6 +23,7 @@ import CameraControls from '@/components/CameraControls'
 import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import OverlayPicker from '@/components/OverlayPicker'
 import { useCameraControls } from '@/lib/useCameraControls'
+import { photoToClip } from '@/lib/photoToClip'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
@@ -3330,6 +3331,19 @@ export default function DashboardPage() {
     setFilmUploading(false)
   }
 
+  // A photo from the device becomes a short clip and lands in the same "keep this clip" step as a filmed one.
+  const addFilmPhoto = async (file: File) => {
+    setFilmRecordError('')
+    try {
+      const clip = await photoToClip(file, filmOrientationRef.current === 'landscape')
+      const url = URL.createObjectURL(clip.blob)
+      filmClipSpeedsRef.current[url] = 1
+      setFilmPending({ blob: clip.blob, ext: clip.ext, type: clip.type, url })
+    } catch (err) {
+      setFilmRecordError(err instanceof Error ? err.message : 'That photo could not be used.')
+    }
+  }
+
   const saveFilmClip = () => {
     if (!filmPending) return
     const clip = { blob: filmPending.blob, ext: filmPending.ext, type: filmPending.type, url: filmPending.url }
@@ -5964,6 +5978,7 @@ export default function DashboardPage() {
                       onRestart={restartFilmCamera}
                       onLens={pickFilmLens}
                       onLibrary={() => setLibraryPicker('film')}
+                      onPhoto={(f) => { void addFilmPhoto(f) }}
                       speed={filmSpeed}
                       onSpeed={changeFilmClipSpeed}
                     />
