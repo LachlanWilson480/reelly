@@ -42,6 +42,7 @@ function compressProfileForChecklist(profile: Record<string, string | null | und
     ['Industry', profile.industry],
     ['Business location', profile.suburb],
     ['Target locations', profile.target_locations],
+    ['Website', profile.website],
     ['Tone', profile.tone],
   ]
   for (const [k, v] of core) {
@@ -213,6 +214,8 @@ STRICT RULES:
       : ''
 
     const comfortLine = comfortRule(profile.filming_comfort)
+    const siteRaw = typeof profile.website === 'string' ? profile.website.trim().slice(0, 120) : ''
+    const siteLine = siteRaw ? `- The business website is ${siteRaw}. When a step shows or says where to find the business online (on-screen text, call to action, link in bio), use this exact address. Never invent or change a web address\n` : '- The business has no website saved. Do not mention or invent a web address; point people to the link in bio instead\n'
     const silentRules = lowComfort ? `
 SILENT FILM (overrides every other rule about dialogue, words to say, voiceover or spoken lines):
 - Do NOT write 'say:' anywhere. Nobody speaks and there is no voiceover.
@@ -245,7 +248,7 @@ RULES:
 - Camera must move or change in most steps - not a static talking head throughout
 - Common-sense observations fine to state directly. Specific technical/regulatory facts - hand off to owner to say in their own words
 - Never use emojis or em dashes anywhere in the output
-${comfortLine ? `- ${comfortLine}\n` : ''}- Never use double quotes inside strings - use single quotes instead
+${comfortLine ? `- ${comfortLine}\n` : ''}${siteLine}- Never use double quotes inside strings - use single quotes instead
 ${existingScript ? `- Generate exactly one filming step per sentence of the pre-written script above - do not combine sentences into one step or skip any. Each step covers exactly one sentence.` : `- Use as few steps as needed (usually 3-6). Each step = one string: time range + camera position/movement + words to say`}
 - Use Tone and Brand personality to shape how dialogue sounds; use Avoid to never include those words; weave in Taglines or Promos naturally in the closing CTA if relevant
 
