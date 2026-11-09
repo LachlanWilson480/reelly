@@ -44,7 +44,7 @@ export const PLAN_COPY = {
   free: {
     name: 'Free',
     desc: 'Try Reelezy, no card needed',
-    features: ['24 ideas a week (3 per batch)', '7 filming instructions', '3 scripts', '1 minute of video in total, with a Reelezy watermark'],
+    features: ['24 ideas in total (3 per batch)', '7 filming instructions', '3 scripts', '1 minute of video in total, with a Reelezy watermark'],
   },
   basic: {
     name: 'Basic',

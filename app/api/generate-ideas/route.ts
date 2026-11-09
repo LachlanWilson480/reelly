@@ -285,7 +285,7 @@ function compressProfile(profile: Record<string, string | null | undefined>): st
 }
 
 const FREE_BATCH_SIZE = 3
-const FREE_WEEKLY_LIMIT = 24
+const FREE_WEEKLY_LIMIT = 24 // free plan: 24 ideas in total (lifetime), not per week
 const BASIC_BATCH_SIZE = 5
 const PREMIUM_BATCH_SIZE = 7
 
@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
     if (userId) {
       const { data: usageRow } = await supabaseAdmin
         .from('business_profiles')
-        .select('ideas_generated_this_week, usage_reset_at')
+        .select('ideas_generated_this_week, usage_reset_at, free_ideas_used')
         .eq('user_id', userId)
         .maybeSingle()
 
@@ -374,12 +374,13 @@ export async function POST(req: NextRequest) {
       const mostRecentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0)
       const resetAt = usageRow?.usage_reset_at ? new Date(usageRow.usage_reset_at) : null
       const needsReset = !resetAt || resetAt.getTime() < mostRecentMonday.getTime()
-      const currentCount = needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0)
+      const isFree = plan === 'free'
+      const currentCount = isFree ? ((usageRow as { free_ideas_used?: number | null } | null)?.free_ideas_used || 0) : (needsReset ? 0 : (usageRow?.ideas_generated_this_week || 0))
 
       if (currentCount + batchSize > weeklyLimit) {
         const planLabel = plan === 'free' ? 'Free' : plan === 'top' ? 'Pro' : 'Basic'
         return NextResponse.json(
-          { error: `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
+          { error: isFree ? `You've used all ${weeklyLimit} ideas included in the Free plan. Upgrade to keep generating ideas.` : `You've reached your limit of ${weeklyLimit} ideas generated this week on the ${planLabel} plan. Upgrade for a higher weekly limit.` },
           { status: 403 }
         )
       }
@@ -390,7 +391,7 @@ export async function POST(req: NextRequest) {
       commitUsage = async (n: number) => {
         await supabaseAdmin
           .from('business_profiles')
-          .update({
+          .update(isFree ? { free_ideas_used: currentCount + n } : {
             ideas_generated_this_week: currentCount + n,
             usage_reset_at: needsReset ? now.toISOString() : (usageRow?.usage_reset_at || now.toISOString()),
           })

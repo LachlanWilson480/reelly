@@ -52,9 +52,9 @@ export default function Sidebar() {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "⌂" },
-    { href: "/history", label: "History", icon: "◷" },
     { href: "/plans", label: "Plans", icon: "$" },
     { href: "/refer", label: "Refer a friend", icon: "⊕" },
+    { href: "/history", label: "History", icon: "◷" },
   ]
 
   const bottomNavItems = [
