@@ -122,6 +122,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
   const [view, setView] = useState<View>('all')
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(0)
+  const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -155,8 +156,13 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
     let countNow = clips.length
     const problems: string[] = []
     setBusy((n) => n + vids.length)
+    setProgress(0)
+    const totalBytes = vids.reduce((n, f) => n + f.size, 0) || 1
+    let doneBytes = 0
     for (const f of vids) {
-      const r = await saveToLibrary(userId, f, usedNow, limit, currentAlbum ? currentAlbum.id : null, countNow, maxClips)
+      const r = await saveToLibrary(userId, f, usedNow, limit, currentAlbum ? currentAlbum.id : null, countNow, maxClips, (frac) => setProgress(Math.round(((doneBytes + frac * f.size) / totalBytes) * 100)))
+      doneBytes += f.size
+      setProgress(Math.round((doneBytes / totalBytes) * 100))
       if (r.clip) { usedNow += r.clip.size_bytes; countNow++ }
       else if (r.error) problems.push(`${f.name}: ${r.error}`)
       setBusy((n) => n - 1)
@@ -259,11 +265,19 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
             )}
           </div>
           <button type="button" onClick={() => inputRef.current?.click()} disabled={busy > 0} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '11px 22px', fontSize: 13, fontWeight: 700, cursor: busy > 0 ? 'not-allowed' : 'pointer', opacity: busy > 0 ? 0.65 : 1, whiteSpace: 'nowrap' }}>
-            {busy > 0 ? `Uploading ${busy}…` : '+ Upload clips'}
+            {busy > 0 ? `Uploading ${busy}… ${progress}%` : '+ Upload clips'}
           </button>
         </div>
       </div>
 
+      {busy > 0 && (
+        <div role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ height: 10, borderRadius: 5, background: 'var(--line)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${progress}%`, background: 'var(--coral)', transition: 'width 0.2s' }} />
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>Uploading {busy} {busy === 1 ? 'clip' : 'clips'}: {progress}%. Keep this page open until it finishes.</p>
+        </div>
+      )}
       {message && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0, lineHeight: 1.5 }}>{message}</p>}
 
       <div className="lib-layout">

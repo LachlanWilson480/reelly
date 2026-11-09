@@ -64,16 +64,40 @@ const videoLength = (file: File): Promise<number | null> =>
     v.src = url
   })
 
+// Uploads a file and reports how far it has got (0 to 1). The Supabase library has no progress, so this sends the same request itself.
+async function uploadWithProgress(path: string, file: File, onProgress: (fraction: number) => void): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!session?.access_token || !base || !anon) return false
+  return new Promise<boolean>((resolve) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${base}/storage/v1/object/${BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`)
+    xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`)
+    xhr.setRequestHeader('apikey', anon)
+    xhr.setRequestHeader('x-upsert', 'false')
+    xhr.setRequestHeader('cache-control', 'max-age=3600')
+    if (file.type) xhr.setRequestHeader('Content-Type', file.type)
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total > 0) onProgress(Math.min(1, e.loaded / e.total)) }
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300)
+    xhr.onerror = () => resolve(false)
+    xhr.onabort = () => resolve(false)
+    xhr.send(file)
+  })
+}
+
 // Saves a file to the library. Returns the new clip, or a plain-English reason it could not be saved.
-export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null, usedCount = 0, maxCount = Infinity): Promise<{ clip?: LibraryClip; error?: string }> {
+export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null, usedCount = 0, maxCount = Infinity, onProgress?: (fraction: number) => void): Promise<{ clip?: LibraryClip; error?: string }> {
   if (!isVideoName(file)) return { error: 'Only video files can go in the library.' }
   if (file.size > MAX_LIBRARY_FILE_BYTES) return { error: 'That clip is over 500 MB, which is too big for the library.' }
   if (usedCount >= maxCount) return { error: `Your library is full (${maxCount} clips). Delete a clip or upgrade your plan to add more.` }
   if (usedBytes + file.size > limitBytes) return { error: `Not enough library space. You have ${formatBytes(Math.max(0, limitBytes - usedBytes))} left.` }
   const safe = file.name.replace(/[^\w.-]+/g, '_')
   const path = `${userId}/library/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${safe}`
-  const up = await supabase.storage.from(BUCKET).upload(path, file, file.type ? { contentType: file.type } : undefined)
-  if (up.error) return { error: 'The upload did not finish. Please try again.' }
+  const ok = onProgress
+    ? await uploadWithProgress(path, file, onProgress)
+    : !(await supabase.storage.from(BUCKET).upload(path, file, file.type ? { contentType: file.type } : undefined)).error
+  if (!ok) return { error: 'The upload did not finish. Please try again.' }
   const duration = await videoLength(file)
   const { data, error } = await supabase.from('clip_library').insert({ user_id: userId, name: file.name, path, size_bytes: file.size, mime: file.type || null, duration, ...(albumId ? { album_id: albumId } : {}) }).select('*').single()
   if (error || !data) {
