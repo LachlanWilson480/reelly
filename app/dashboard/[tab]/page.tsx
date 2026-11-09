@@ -394,7 +394,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -409,6 +409,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   autoCap?: { x: number; y: number } | null
   onAutoCapMove?: (x: number, y: number) => void
   onAutoCapRemove?: () => void
+  onAutoCapSize?: (size: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -809,6 +810,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   }
   const endResize = () => { resizeRef.current = null }
   const autoDragRef = useRef(false)
+  const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number } | null>(null)
+  const ovCropRef = useRef<{ id: string; edge: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; x: number; y: number; size: number; cl: number; cr: number; ct: number; cb: number; ar: number; w: number; h: number } | null>(null)
   const latestRef = useRef<{ caps: CustomCaption[]; size: number; update: (id: string, p: Partial<CustomCaption>) => void }>({ caps: [], size: 60, update: () => {} })
   useEffect(() => { latestRef.current = { caps, size: captionStyle?.size ?? 60, update: updateCap } })
   useEffect(() => {
@@ -940,10 +943,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const weight = boldPick === undefined ? (cFont ? cFont.weight : 900) : boldPick ? Math.max(700, cFont ? cFont.weight : 900) : 400
           const family = cFont ? cFont.css : boldPick === false ? 'Arial, Helvetica, sans-serif' : "Arial Black, 'Poppins', sans-serif"
           const boxW = Math.min(0.96, Math.max(0.2, c.w ?? 0.88))
-          const handle = (style: React.CSSProperties, mode: 'side' | 'corner', cursor: string, label: string) => (
+          const handle = (style: React.CSSProperties, mode: 'side' | 'corner', cursor: string, label: string, hidden = false) => (
             <span role="slider" aria-label={label} aria-valuenow={Math.round(boxW * 100)}
-              onPointerDown={(e) => startResize(e, c, mode)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
-              style={{ position: 'absolute', background: '#fff', border: '1.5px solid #222', borderRadius: mode === 'side' ? 4 : 2, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
+              onPointerDown={(e) => { setSelCap(c.id); startResize(e, c, mode) }} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
+              style={{ position: 'absolute', background: hidden ? 'transparent' : '#fff', border: hidden ? 'none' : '1.5px solid #222', borderRadius: mode === 'side' ? 4 : 2, cursor, touchAction: 'none', zIndex: hidden ? 3 : 4, boxSizing: 'border-box', ...style }} />
           )
           return (
             <div key={c.id} aria-label={`Caption: ${c.text}`}
@@ -977,6 +980,14 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: `${boxW * 100}%`, textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: family, fontWeight: weight, fontStyle: italic ? 'italic' : 'normal', textDecoration: underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
               {cBg ? <span style={{ background: cBg, padding: '0.25em 0.5em', borderRadius: 4, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>{c.text}</span> : c.text}
+              {onCaptions && !recording && (
+                <>
+                  {handle({ left: -6, top: 0, bottom: 0, width: 12 }, 'side', 'ew-resize', 'Drag the left edge to make the caption box narrower or wider', true)}
+                  {handle({ right: -6, top: 0, bottom: 0, width: 12 }, 'side', 'ew-resize', 'Drag the right edge to make the caption box narrower or wider', true)}
+                  {handle({ top: -6, left: 6, right: 6, height: 12 }, 'corner', 'ns-resize', 'Drag the top edge to make the caption text bigger or smaller', true)}
+                  {handle({ bottom: -6, left: 6, right: 6, height: 12 }, 'corner', 'ns-resize', 'Drag the bottom edge to make the caption text bigger or smaller', true)}
+                </>
+              )}
               {sel && onCaptions && !recording && (
                 <>
                   {handle({ left: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
@@ -990,8 +1001,29 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             </div>
           )
         })}
-        {autoCap && hasClips && !recording && (
-          <div aria-label="Auto captions position" title="Drag to move where your auto captions appear"
+        {autoCap && hasClips && !recording && (() => {
+          const sizeNow = captionStyle?.size ?? 60
+          const unit = (sizeNow / 1080) * 100
+          const startAutoSize = (e: React.PointerEvent) => {
+            const box = stageRef.current?.getBoundingClientRect()
+            if (!box || !onAutoCapSize) return
+            e.stopPropagation()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            const cx = box.left + autoCap.x * box.width, cy = box.top + autoCap.y * box.height
+            autoSizeRef.current = { size: sizeNow, dist: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy }
+          }
+          const moveAutoSize = (e: React.PointerEvent) => {
+            const r = autoSizeRef.current
+            if (!r || !onAutoCapSize) return
+            onAutoCapSize(Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist)))))
+          }
+          const endAutoSize = () => { autoSizeRef.current = null }
+          const edge = (style: React.CSSProperties, cursor: string, label: string, visible: boolean) => onAutoCapSize ? (
+            <span role="slider" aria-label={label} aria-valuenow={sizeNow} onPointerDown={startAutoSize} onPointerMove={moveAutoSize} onPointerUp={endAutoSize} onPointerCancel={endAutoSize}
+              style={{ position: 'absolute', background: visible ? '#fff' : 'transparent', border: visible ? '1.5px solid #222' : 'none', borderRadius: 3, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
+          ) : null
+          return (
+          <div aria-label="Auto captions position" title="Drag to move your auto captions. Drag an edge or corner to change their size."
             onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true; const pf = frac(e); grabRef.current = { dx: autoCap.x - pf.x, dy: autoCap.y - pf.y } }}
             onPointerMove={(e) => {
               if (!autoDragRef.current || !onAutoCapMove) return
@@ -1001,19 +1033,24 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             }}
             onPointerUp={() => { autoDragRef.current = false }}
             onPointerCancel={() => { autoDragRef.current = false }}
-            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '88%', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 4, border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, fontWeight: 700 }}>
-            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.3" /><circle cx="8" cy="2" r="1.3" /><circle cx="2" cy="7" r="1.3" /><circle cx="8" cy="7" r="1.3" /><circle cx="2" cy="12" r="1.3" /><circle cx="8" cy="12" r="1.3" /></svg>
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 1, lineHeight: 1.25 }}>
-              <span>Auto captions</span>
-              <span style={{ fontSize: 10, fontWeight: 500, opacity: 0.85 }}>The words you speak show here, a few at a time</span>
-            </span>
+            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '92%', textAlign: 'center', padding: '4px 10px', border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.25)' }}>
+            <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.8)', marginBottom: 2 }}>Auto captions: your words show here</span>
+            <span style={{ display: 'inline-block', fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: captionStyle?.bold === false ? 400 : 900, fontStyle: captionStyle?.italic ? 'italic' : 'normal', textDecoration: captionStyle?.underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle?.color ?? '#fff', WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle?.border ?? '#000'}`, paintOrder: 'stroke fill', background: captionStyle?.background ?? 'transparent', padding: captionStyle?.background ? '0.25em 0.5em' : 0, borderRadius: 4 }}>The words you speak</span>
             {onAutoCapRemove && (
               <button type="button" aria-label="Remove auto captions" title="Turn auto captions off"
                 onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAutoCapRemove() }}
-                style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
+                style={{ position: 'absolute', right: -10, top: -10, zIndex: 5, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
             )}
+            {edge({ left: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the left edge to change the auto caption size', false)}
+            {edge({ right: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the right edge to change the auto caption size', false)}
+            {edge({ top: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the top edge to change the auto caption size', false)}
+            {edge({ bottom: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the bottom edge to change the auto caption size', false)}
+            {edge({ left: -7, top: -7, width: 12, height: 12 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ left: -7, bottom: -7, width: 12, height: 12 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ right: -7, bottom: -7, width: 12, height: 12 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
           </div>
-        )}
+          )
+        })()}
         {(overlays || []).map((ov, oi) => {
           if (!(globalTime >= ov.start && (ov.end === null || globalTime < ov.end))) return null
           const selected = selOverlay === ov.id && !recording
@@ -1038,6 +1075,43 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               }}
               onPointerUp={() => { ovResizeRef.current = null }} onPointerCancel={() => { ovResizeRef.current = null }}
               style={{ position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: '#fff', border: '2px solid var(--coral)', boxSizing: 'border-box', cursor: 'nwse-resize', touchAction: 'none', zIndex: 3, ...pos }} />
+          )
+          // Edge handles trim the picture. The part that is left stays where it was, so the edge follows the mouse.
+          const cropEdge = (edge: 'l' | 'r' | 't' | 'b', pos: React.CSSProperties, cursor: string) => (
+            <span aria-label="Drag to crop this edge" role="slider" aria-valuenow={0}
+              onPointerDown={(e) => {
+                if (!onOverlayPatch) return
+                e.stopPropagation()
+                const box = stageRef.current?.getBoundingClientRect()
+                if (!box) return
+                e.currentTarget.setPointerCapture(e.pointerId)
+                ovCropRef.current = { id: ov.id, edge, sx: e.clientX, sy: e.clientY, x: ov.x, y: ov.y, size: ov.size, cl: ov.cl, cr: ov.cr, ct: ov.ct, cb: ov.cb, ar: ov.ar, w: box.width, h: box.height }
+              }}
+              onPointerMove={(e) => {
+                const r = ovCropRef.current
+                if (!r || r.id !== ov.id || !onOverlayPatch) return
+                const vw0 = Math.max(0.1, 1 - r.cl - r.cr), vh0 = Math.max(0.1, 1 - r.ct - r.cb)
+                const w0 = r.size * r.w
+                const h0 = (w0 * vh0 * r.ar) / vw0
+                const clamp = (v: number, other: number) => Math.min(Math.min(0.45, 0.9 - other), Math.max(0, v))
+                if (r.edge === 'l' || r.edge === 'r') {
+                  const delta = ((e.clientX - r.sx) / w0) * vw0
+                  const next = r.edge === 'l' ? clamp(r.cl + delta, r.cr) : clamp(r.cr - delta, r.cl)
+                  const changed = r.edge === 'l' ? next - r.cl : next - r.cr
+                  const w1 = (w0 * (vw0 - changed)) / vw0
+                  const shift = ((w0 - w1) / 2 / r.w) * (r.edge === 'l' ? 1 : -1)
+                  onOverlayPatch(ov.id, { [r.edge === 'l' ? 'cl' : 'cr']: next, size: Math.min(1, Math.max(0.05, w1 / r.w)), x: Math.min(0.95, Math.max(0.05, r.x + shift)) })
+                } else {
+                  const delta = ((e.clientY - r.sy) / h0) * vh0
+                  const next = r.edge === 't' ? clamp(r.ct + delta, r.cb) : clamp(r.cb - delta, r.ct)
+                  const changed = r.edge === 't' ? next - r.ct : next - r.cb
+                  const h1 = (h0 * (vh0 - changed)) / vh0
+                  const shift = ((h0 - h1) / 2 / r.h) * (r.edge === 't' ? 1 : -1)
+                  onOverlayPatch(ov.id, { [r.edge === 't' ? 'ct' : 'cb']: next, y: Math.min(0.95, Math.max(0.05, r.y + shift)) })
+                }
+              }}
+              onPointerUp={() => { ovCropRef.current = null }} onPointerCancel={() => { ovCropRef.current = null }}
+              style={{ position: 'absolute', background: '#fff', border: '2px solid var(--coral)', borderRadius: 4, boxSizing: 'border-box', cursor, touchAction: 'none', zIndex: 3, ...pos }} />
           )
           return (
             <div key={ov.id} aria-label="Overlay"
@@ -1067,6 +1141,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                   {corner('tr', { right: -7, top: -7 })}
                   {corner('bl', { left: -7, bottom: -7 })}
                   {corner('br', { right: -7, bottom: -7 })}
+                  {cropEdge('l', { left: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                  {cropEdge('r', { right: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                  {cropEdge('t', { top: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                  {cropEdge('b', { bottom: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
                 </>
               )}
             </div>
@@ -1316,7 +1394,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, below }: {
   below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
@@ -1332,6 +1410,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   autoCap?: { x: number; y: number } | null
   onAutoCapMove?: (x: number, y: number) => void
   onAutoCapRemove?: () => void
+  onAutoCapSize?: (size: number) => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -1364,7 +1443,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -3089,12 +3168,6 @@ export default function DashboardPage() {
   // Overlays: pictures or clips laid over the video, such as a logo, a sticker or b-roll
   const renderOverlayCard = () => {
     const sel = overlays.find((o) => o.id === selOverlay) || null
-    const cropRow = (label: string, key: 'cl' | 'cr' | 'ct' | 'cb') => (
-      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
-        {label}
-        <input type="range" min={0} max={45} step={1} value={Math.round((sel ? sel[key] : 0) * 100)} onChange={(e) => { if (sel) patchOverlay(sel.id, { [key]: Number(e.target.value) / 100 }) }} aria-label={`Crop ${label.toLowerCase()}`} style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
-      </label>
-    )
     return (
       <CollapsibleBox title="Overlay" summary={overlays.length === 0 ? 'None' : overlays.length === 1 ? (overlays[0].isLogo ? 'Logo' : overlays[0].file.name) : `${overlays.length} on the video`}>
         <div>
@@ -3129,22 +3202,10 @@ export default function DashboardPage() {
         )}
         {sel && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
-                Size
-                <input type="range" min={5} max={100} step={1} value={Math.round(sel.size * 100)} onChange={(e) => patchOverlay(sel.id, { size: Number(e.target.value) / 100 })} aria-label="Overlay size" style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
-              </label>
-            </div>
             <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 6px' }}>Crop (trim the edges)</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
-                {cropRow('Left', 'cl')}
-                {cropRow('Right', 'cr')}
-                {cropRow('Top', 'ct')}
-                {cropRow('Bottom', 'cb')}
-              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>On the preview: drag the overlay to move it, drag a corner to resize it, and drag the middle of an edge to crop it.</p>
               {(sel.cl > 0 || sel.cr > 0 || sel.ct > 0 || sel.cb > 0) && (
-                <button type="button" onClick={() => patchOverlay(sel.id, { cl: 0, cr: 0, ct: 0, cb: 0 })} style={{ background: 'none', border: 'none', padding: 0, marginTop: 8, fontSize: 12, color: 'var(--coral)', cursor: 'pointer' }}>Reset crop</button>
+                <button type="button" onClick={() => patchOverlay(sel.id, { cl: 0, cr: 0, ct: 0, cb: 0 })} style={{ background: 'none', border: 'none', padding: 0, marginTop: 8, fontSize: 12, color: 'var(--coral)', cursor: 'pointer', textDecoration: 'underline' }}>Reset crop</button>
               )}
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>Click an overlay on the preview or in the list to change it. Drag its bar on the preview timeline to choose when it shows, and drag the white ends to make it shorter or longer.</p>
@@ -5792,6 +5853,7 @@ export default function DashboardPage() {
                 autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                 onAutoCapMove={moveAutoCap}
                 onAutoCapRemove={() => setUploadAddCaptions(false)}
+                onAutoCapSize={(n) => setCaptionFontSize(n)}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -6119,6 +6181,7 @@ export default function DashboardPage() {
                         autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                         onAutoCapMove={moveAutoCap}
                         onAutoCapRemove={() => setUploadAddCaptions(false)}
+                onAutoCapSize={(n) => setCaptionFontSize(n)}
                         selCap={selCap}
                         onSelCap={setSelCap}
                         onPlayhead={handlePlayhead}
@@ -6357,6 +6420,7 @@ export default function DashboardPage() {
                 autoCap={aiAddCaptions && !aiCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                 onAutoCapMove={moveAutoCap}
                 onAutoCapRemove={() => setAiAddCaptions(false)}
+                onAutoCapSize={(n) => setCaptionFontSize(n)}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
