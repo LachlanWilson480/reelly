@@ -74,7 +74,10 @@ export async function POST(req: NextRequest) {
     }
     await supabaseAdmin.from('subscriptions').update(update).eq('user_id', authed.userId)
 
-    return NextResponse.json({ status: subscription.status, current_period_end: periodEndIso })
+    const cancelAt = (subscription as unknown as { cancel_at?: number | null }).cancel_at
+    const endsAtPeriodEnd = subscription.cancel_at_period_end === true || typeof cancelAt === 'number'
+    const endIso = typeof cancelAt === 'number' ? new Date(cancelAt * 1000).toISOString() : periodEndIso
+    return NextResponse.json({ status: subscription.status, current_period_end: endIso, cancel_at_period_end: endsAtPeriodEnd })
   } catch (error) {
     console.error('sync-subscription error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Could not check subscription' }, { status: 500 })

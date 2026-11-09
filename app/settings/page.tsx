@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [subStatus, setSubStatus] = useState<string | null>(null)
   const [subPeriodEnd, setSubPeriodEnd] = useState<string | null>(null)
   const [subCancelling, setSubCancelling] = useState(false)
+  const [subEnding, setSubEnding] = useState(false)
   const [subChanging, setSubChanging] = useState<string | null>(null)
   const [subMessage, setSubMessage] = useState('')
   const [email, setEmail] = useState('')
@@ -187,17 +188,16 @@ export default function SettingsPage() {
       if (subRow) {
         let status = subRow.status
         let periodEnd = subRow.current_period_end
-        // Stripe's payment confirmation can arrive a moment late, so ask Stripe directly while the plan still shows as incomplete
-        if (status === 'incomplete') {
-          try {
-            const res = await authFetch('/api/sync-subscription', { method: 'POST' })
-            if (res.ok) {
-              const synced = await res.json()
-              status = synced.status || status
-              periodEnd = synced.current_period_end || periodEnd
-            }
-          } catch {}
-        }
+        // Ask Stripe directly so the plan, cancellation and end date shown here are always the real ones
+        try {
+          const res = await authFetch('/api/sync-subscription', { method: 'POST' })
+          if (res.ok) {
+            const synced = await res.json()
+            status = synced.status || status
+            periodEnd = synced.current_period_end || periodEnd
+            setSubEnding(synced.cancel_at_period_end === true)
+          }
+        } catch {}
         setSubPlan(subRow.plan)
         setSubStatus(status)
         setSubPeriodEnd(periodEnd)
@@ -207,6 +207,8 @@ export default function SettingsPage() {
     }
     load()
   }, [router])
+
+  const subEnded = !!subPlan && !!subStatus && !['active', 'trialing', 'past_due', 'incomplete'].includes(subStatus)
 
   const handleChangePlan = async (newPlan: string) => {
     if (!userId) return
@@ -246,6 +248,7 @@ export default function SettingsPage() {
         setSubMessage(data.error || 'Failed to cancel subscription.')
       } else {
         setSubMessage('Your subscription will end at the close of your current billing period.')
+        setSubEnding(true)
       }
     } catch {
       setSubMessage('Failed to cancel subscription. Please try again.')
@@ -734,11 +737,16 @@ export default function SettingsPage() {
                     {subPlan === 'top' ? 'Pro' : subPlan === 'mid' ? 'Basic' : 'Basic'}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    Status: {subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
+                    Status: {subEnded ? 'Cancelled' : subEnding ? 'Cancelling' : subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
                   </p>
                   {subPeriodEnd && (
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                      Next billing date: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {subEnded ? 'Ended' : subEnding ? 'Your plan ends on' : 'Next billing date'}: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  )}
+                  {subEnded && (
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
+                      You&apos;re no longer subscribed. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View plans</a>
                     </p>
                   )}
                 </>
@@ -754,7 +762,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {subPlan && subStatus === 'active' && (
+            {subPlan && subStatus === 'active' && !subEnding && (
               <>
                 <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
