@@ -817,7 +817,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const endResize = () => { resizeRef.current = null }
   const autoDragRef = useRef(false)
   const [clipMenuOpen, setClipMenuOpen] = useState(false)
-  const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number } | null>(null)
+  const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number; axis: 'x' | 'y' | 'xy' } | null>(null)
   const ovCropRef = useRef<{ id: string; edge: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; x: number; y: number; size: number; cl: number; cr: number; ct: number; cb: number; ar: number; w: number; h: number } | null>(null)
   const latestRef = useRef<{ caps: CustomCaption[]; size: number; update: (id: string, p: Partial<CustomCaption>) => void }>({ caps: [], size: 60, update: () => {} })
   useEffect(() => { latestRef.current = { caps, size: captionStyle?.size ?? 60, update: updateCap } })
@@ -1011,26 +1011,27 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         {autoCap && hasClips && !recording && (() => {
           const sizeNow = captionStyle?.size ?? 60
           const unit = (sizeNow / 1080) * 100
-          const startAutoSize = (e: React.PointerEvent) => {
+          const startAutoSize = (e: React.PointerEvent, axis: 'x' | 'y' | 'xy') => {
             const box = stageRef.current?.getBoundingClientRect()
             if (!box || !onAutoCapSize) return
             e.stopPropagation()
             e.currentTarget.setPointerCapture(e.pointerId)
             const cx = box.left + autoCap.x * box.width, cy = box.top + autoCap.y * box.height
-            autoSizeRef.current = { size: sizeNow, dist: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy }
+            autoSizeRef.current = { size: sizeNow, dist: Math.max(8, axis === 'x' ? Math.abs(e.clientX - cx) : axis === 'y' ? Math.abs(e.clientY - cy) : Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy, axis }
           }
           const moveAutoSize = (e: React.PointerEvent) => {
             const r = autoSizeRef.current
             if (!r || !onAutoCapSize) return
-            onAutoCapSize(Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist)))))
+            const d = r.axis === 'x' ? Math.abs(e.clientX - r.cx) : r.axis === 'y' ? Math.abs(e.clientY - r.cy) : Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
+            onAutoCapSize(Math.min(200, Math.max(16, Math.round(r.size * (d / r.dist)))))
           }
           const endAutoSize = () => { autoSizeRef.current = null }
-          const edge = (style: React.CSSProperties, cursor: string, label: string, visible: boolean) => onAutoCapSize ? (
-            <span role="slider" aria-label={label} aria-valuenow={sizeNow} onPointerDown={startAutoSize} onPointerMove={moveAutoSize} onPointerUp={endAutoSize} onPointerCancel={endAutoSize}
+          const edge = (style: React.CSSProperties, cursor: string, label: string, visible: boolean, axis: 'x' | 'y' | 'xy' = 'xy') => onAutoCapSize ? (
+            <span role="slider" aria-label={label} aria-valuenow={sizeNow} onPointerDown={(e) => startAutoSize(e, axis)} onPointerMove={moveAutoSize} onPointerUp={endAutoSize} onPointerCancel={endAutoSize}
               style={{ position: 'absolute', background: visible ? '#fff' : 'transparent', border: visible ? '1.5px solid #222' : 'none', borderRadius: 3, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
           ) : null
           return (
-          <div aria-label="Auto captions position" title="Drag to move your auto captions. Drag an edge or corner to change their size."
+          <div aria-label="Auto captions position"
             onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true; const pf = frac(e); grabRef.current = { dx: autoCap.x - pf.x, dy: autoCap.y - pf.y } }}
             onPointerMove={(e) => {
               if (!autoDragRef.current || !onAutoCapMove) return
@@ -1040,21 +1041,25 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             }}
             onPointerUp={() => { autoDragRef.current = false }}
             onPointerCancel={() => { autoDragRef.current = false }}
-            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '92%', textAlign: 'center', padding: '4px 10px', border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.25)' }}>
-            <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.8)', marginBottom: 2 }}>Auto captions: your words show here</span>
+            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '92%', textAlign: 'center', padding: '4px 10px', outline: '1.5px solid rgba(255,255,255,0.95)', background: 'rgba(0,0,0,0.12)' }}>
             <span style={{ display: 'inline-block', fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: captionStyle?.bold === false ? 400 : 900, fontStyle: captionStyle?.italic ? 'italic' : 'normal', textDecoration: captionStyle?.underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle?.color ?? '#fff', WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle?.border ?? '#000'}`, paintOrder: 'stroke fill', background: captionStyle?.background ?? 'transparent', padding: captionStyle?.background ? '0.25em 0.5em' : 0, borderRadius: 4 }}>The words you speak</span>
             {onAutoCapRemove && (
               <button type="button" aria-label="Remove auto captions" title="Turn auto captions off"
                 onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAutoCapRemove() }}
-                style={{ position: 'absolute', right: -10, top: -10, zIndex: 5, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
+                style={{ position: 'absolute', right: -2, top: -30, zIndex: 5, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
             )}
-            {edge({ left: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the left edge to change the auto caption size', false)}
-            {edge({ right: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the right edge to change the auto caption size', false)}
-            {edge({ top: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the top edge to change the auto caption size', false)}
-            {edge({ bottom: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the bottom edge to change the auto caption size', false)}
-            {edge({ left: -7, top: -7, width: 12, height: 12 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
-            {edge({ left: -7, bottom: -7, width: 12, height: 12 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
-            {edge({ right: -7, bottom: -7, width: 12, height: 12 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ left: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the left edge to change the auto caption size', false, 'x')}
+            {edge({ right: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the right edge to change the auto caption size', false, 'x')}
+            {edge({ top: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the top edge to change the auto caption size', false, 'y')}
+            {edge({ bottom: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the bottom edge to change the auto caption size', false, 'y')}
+            {edge({ left: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the left handle to change the auto caption size', true, 'x')}
+            {edge({ right: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the right handle to change the auto caption size', true, 'x')}
+            {edge({ top: -6, left: '50%', width: 10, height: 10, marginLeft: -5 }, 'ns-resize', 'Drag the top handle to change the auto caption size', true, 'y')}
+            {edge({ bottom: -6, left: '50%', width: 10, height: 10, marginLeft: -5 }, 'ns-resize', 'Drag the bottom handle to change the auto caption size', true, 'y')}
+            {edge({ left: -6, top: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ right: -6, top: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ left: -6, bottom: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ right: -6, bottom: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
           </div>
           )
         })()}
