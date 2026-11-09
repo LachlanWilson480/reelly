@@ -1597,6 +1597,9 @@ export default function DashboardPage() {
   }, [])
   const [filmLineIdx, setFilmLineIdx] = useState(0)
   const [filmActionsText, setFilmActionsText] = useState('')
+  // Scenes the person asked for with the number box. Only the filming instructions are reshaped to it; the script is never touched.
+  const [filmSceneCount, setFilmSceneCount] = useState<number | null>(null)
+  const [filmSceneNote, setFilmSceneNote] = useState('')
   const [filmDurations, setFilmDurations] = useState<(number | null)[]>([])
   const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
   const filmSegFiles = useMemo(() => filmClips.map((c, i) => new File([c.blob], `film-${i}.${c.ext}`, { type: c.type })), [filmClips])
@@ -2471,7 +2474,7 @@ export default function DashboardPage() {
 
   const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
   const filmActions = splitScriptLines(filmActionsText)
-  const filmClipCount = Math.max(filmLines.length, filmActions.length)
+  const filmClipCount = Math.max(filmSceneCount ?? 0, filmLines.length, filmActions.length)
   const filmCurrentLine = filmLines[filmLineIdx] || ''
   const filmDraftKey = userId && filmSelectedId ? `reelezy-film-draft:${userId}:${filmSelectedId}` : null
   // Auto-saves edits to the script and actions, so they are still there next time this idea is picked
@@ -2488,9 +2491,13 @@ export default function DashboardPage() {
   const filmEdited = !!filmOriginal && (filmScript !== filmOriginal.script || filmActionsText !== filmOriginal.actions)
   const applyFilmClipCount = (raw: string) => {
     setFilmClipDraft(null)
-    const n = Math.round(Number(raw))
-    if (!Number.isFinite(n) || n < 1 || n > 15 || n === Math.max(filmLines.length, filmActions.length)) return
-    if (filmLines.length > 0) setFilmScript(reshapeLines(filmLines, n).join('\n'))
+    const asked = Math.round(Number(raw))
+    if (!Number.isFinite(asked) || asked < 1 || asked > 15 || asked === filmClipCount) return
+    // Every script line is its own scene, so the number cannot go below the script's lines
+    const n = Math.max(asked, filmLines.length)
+    setFilmSceneNote(n > asked ? `Your script has ${filmLines.length} lines, so that is the fewest scenes. Delete script lines to go lower.` : '')
+    setFilmSceneCount(n)
+    // Only the filming instructions change. The script stays exactly as typed, and extra scenes show "No script".
     if (filmActions.length > 0) setFilmActionsText(reshapeLines(filmActions, n).join('\n'))
     setFilmDurations([])
     setFilmLineIdx(0)
@@ -2502,6 +2509,8 @@ export default function DashboardPage() {
     if (!filmOriginal) return
     setFilmScript(filmOriginal.script)
     setFilmActionsText(filmOriginal.actions)
+    setFilmSceneCount(null)
+    setFilmSceneNote('')
     setFilmDurations([])
     setFilmLineIdx(0)
     setFilmClips([])
@@ -2634,6 +2643,8 @@ export default function DashboardPage() {
     setFilmOriginal(id ? { script: origScript, actions: origActions } : null)
     setFilmScript(nextScript)
     setFilmActionsText(nextActions)
+    setFilmSceneCount(null)
+    setFilmSceneNote('')
     setFilmDurations(nextDurations)
     setFilmLineIdx(0)
     filmClips.forEach((cl) => URL.revokeObjectURL(cl.url))
@@ -5877,11 +5888,11 @@ export default function DashboardPage() {
                     <div className="film-fields">
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                        <textarea value={filmScript} onChange={(e) => { setFilmScript(e.target.value); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
+                        <textarea value={filmScript} onChange={(e) => { const v = e.target.value; const nl = splitScriptLines(v); if (nl.length > filmClipCount) { if (filmActions.length > 0) setFilmActionsText(reshapeLines(filmActions, nl.length).join('\n')); setFilmDurations([]) } setFilmSceneNote(''); setFilmScript(v); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Actions</p>
-                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmDurations([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
+                        <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmSceneCount(null); setFilmDurations([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '8px 0 0' }}>
@@ -5900,7 +5911,7 @@ export default function DashboardPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') applyFilmClipCount((e.target as HTMLInputElement).value) }}
                         style={{ width: 64, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}
                       />
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One clip per line. Change the number and your script is joined up or split into that many clips (1 to 15).</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One scene per script line: press Enter in your script to add a scene. Changing the number only changes the filming instructions. Extra scenes show No script (1 to 15).</span>
                     </div>
                     {filmSelectedId && (
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
@@ -5908,6 +5919,7 @@ export default function DashboardPage() {
                         {filmEdited && <button type="button" onClick={resetFilmEdits} disabled={filmClips.length > 0 || !!filmPending} title="Go back to the original script and actions" style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--coral)', cursor: 'pointer', textDecoration: 'underline' }}>Reset to original</button>}
                       </p>
                     )}
+                    {filmSceneNote && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '6px 0 0' }}>{filmSceneNote}</p>}
                     {filmSelectedId && filmClipCount === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea has no script or actions yet. Generate its filming instructions, or type your own script or actions. You only need one of them.</p>
                     )}
