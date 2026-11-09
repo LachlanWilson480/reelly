@@ -213,9 +213,8 @@ export default function SettingsPage() {
     setSubChanging(newPlan)
     setSubMessage('')
     try {
-      const res = await fetch('/api/change-subscription', {
+      const res = await authFetch('/api/change-subscription', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, newPlan }),
       })
       const data = await res.json()
@@ -238,9 +237,8 @@ export default function SettingsPage() {
     setSubCancelling(true)
     setSubMessage('')
     try {
-      const res = await fetch('/api/cancel-subscription', {
+      const res = await authFetch('/api/cancel-subscription', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       })
       const data = await res.json()
@@ -375,9 +373,8 @@ export default function SettingsPage() {
     setDeleting(true)
     setDeleteMessage('')
 
-    const res = await fetch('/api/delete-account', {
+    const res = await authFetch('/api/delete-account', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     })
 

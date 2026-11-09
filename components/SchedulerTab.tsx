@@ -206,7 +206,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                   )}
                 </div>
                 {here.map((p) => (
-                  <button key={p.id} type="button" onClick={() => openDetail(p.id)} title={p.title} aria-label={`${p.title}, ${fmtTime(p.scheduled_for)}. Open details`} style={{ font: 'inherit', textAlign: 'left', cursor: 'pointer', fontSize: 11, lineHeight: 1.3, fontWeight: 600, borderRadius: 2, padding: '6px 7px', background: p.status === 'posted' ? 'var(--ink)' : bad(p.status) ? '#fff' : 'var(--coral)', color: p.status === 'posted' ? '#fff' : bad(p.status) ? '#D92D20' : '#fff', border: bad(p.status) ? '1px solid #D92D20' : '1px solid transparent', outline: openPost === p.id ? '2px solid var(--ink)' : 'none', outlineOffset: 1, minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
+                  <button key={p.id} type="button" onClick={() => openDetail(p.id)} title={p.title} aria-label={`${p.title}, ${fmtTime(p.scheduled_for)}. Open details`} style={{ font: 'inherit', textAlign: 'left', cursor: 'pointer', fontSize: 11, lineHeight: 1.3, fontWeight: 600, borderRadius: 2, padding: '6px 7px', background: p.status === 'posted' ? '#1E8E4E' : bad(p.status) ? '#fff' : 'var(--coral)', color: p.status === 'posted' ? '#fff' : bad(p.status) ? '#D92D20' : '#fff', border: bad(p.status) ? '1px solid #D92D20' : '1px solid transparent', outline: openPost === p.id ? '2px solid var(--ink)' : 'none', outlineOffset: 1, minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
                     <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                     <span style={{ fontWeight: 500, opacity: 0.9 }}>{fmtTime(p.scheduled_for)}</span>
                   </button>
@@ -215,7 +215,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
             )
           })}
         </div>
-        <p style={small}>Orange is scheduled, black is posted, red outline needs attention. Click a post to see it.</p>
+        <p style={small}>Orange is scheduled, green is posted, red outline needs attention. Click a post to see it.</p>
 
         {deleteError && <p role="alert" style={{ fontSize: 13, color: '#D92D20', margin: 0 }}>{deleteError}</p>}
         {(() => {
