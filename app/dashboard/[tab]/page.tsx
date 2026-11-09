@@ -21,6 +21,7 @@ import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 import CameraControls from '@/components/CameraControls'
 import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
+import OverlayPicker from '@/components/OverlayPicker'
 import { useCameraControls } from '@/lib/useCameraControls'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
@@ -128,7 +129,7 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 ]
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
-type OverlayItem = { file: File; kind: 'image' | 'video'; url: string; x: number; y: number; size: number; start: number; end: number | null }
+type OverlayItem = { file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null }
 
 type PreviewCaptionStyle = { color: string; border: string; background: string | null; bold?: boolean; italic?: boolean; underline?: boolean; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
@@ -1556,6 +1557,15 @@ export default function DashboardPage() {
   const [overlay, setOverlay] = useState<OverlayItem | null>(null)
   const [overlayError, setOverlayError] = useState('')
   const overlayUploadRef = useRef<{ file: File; path: string } | null>(null)
+  const [overlayPicker, setOverlayPicker] = useState(false)
+  // The logo saved in Settings (undefined while loading, null when there is none)
+  const [bizLogoUrl, setBizLogoUrl] = useState<string | null | undefined>(undefined)
+  useEffect(() => {
+    if (!userId) return
+    let off = false
+    supabase.from('business_profiles').select('logo_url').eq('user_id', userId).maybeSingle().then(({ data }) => { if (!off) setBizLogoUrl((data?.logo_url as string | null | undefined) || null) })
+    return () => { off = true }
+  }, [userId])
   // How many scenes the filming instructions should have. null means let the AI decide.
   const [sceneCount, setSceneCount] = useState<number | null>(null)
   const [aiSingleClipMode, setAiSingleClipMode] = useState(false)
@@ -2999,8 +3009,16 @@ export default function DashboardPage() {
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it, and set when it shows on the timeline.</p>
       </div>
       <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
+      <label title={bizLogoUrl ? 'Puts the logo from your Settings on the video. Drag it on the preview to move it.' : 'Upload your logo in Settings first'} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: bizLogoUrl ? 'var(--ink)' : 'var(--text-muted)', cursor: bizLogoUrl ? 'pointer' : 'not-allowed' }}>
+        <input type="checkbox" checked={!!overlay?.isLogo} disabled={!bizLogoUrl} onChange={(e) => { if (e.target.checked) void addLogoOverlay(); else if (overlay?.isLogo) clearOverlay() }} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+        Add my logo
+        {bizLogoUrl === null && <a href="/settings" style={{ fontSize: 12, color: 'var(--coral)' }}>Upload one in Settings</a>}
+      </label>
       {!overlay ? (
-        <div><button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Add an image or video</button></div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" style={choiceBtn()} onClick={() => setOverlayPicker(true)}>Open library</button>
+          <button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Upload from device</button>
+        </div>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 10 }}>
@@ -3011,7 +3029,7 @@ export default function DashboardPage() {
                 : <video src={overlay.url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
             </div>
             <p style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overlay.file.name}</p>
-            <button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Change</button>
+            <button type="button" style={choiceBtn()} onClick={() => setOverlayPicker(true)}>Change</button>
             <button type="button" style={choiceBtn()} onClick={clearOverlay}>Remove</button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
@@ -3601,7 +3619,7 @@ export default function DashboardPage() {
   }
 
   // Music and voiceover files upload in the background too ('m' = music file, 'v:<id>' = a voiceover part)
-  const pickOverlay = (file: File | null) => {
+  const pickOverlay = (file: File | null, opts?: { isLogo?: boolean }) => {
     if (!file) return
     const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null
     if (!kind) { setOverlayError('Choose an image or a video file.'); return }
@@ -3610,8 +3628,23 @@ export default function DashboardPage() {
     overlayUploadRef.current = null
     setOverlay((prev) => {
       if (prev) URL.revokeObjectURL(prev.url)
+      // A logo sits small in the top right for the whole video. Anything else lands near the top, from where the playhead is.
+      if (opts?.isLogo) return { file, kind, isLogo: true, url: URL.createObjectURL(file), x: 0.85, y: 0.1, size: 0.2, start: 0, end: null }
       return { file, kind, url: URL.createObjectURL(file), x: 0.5, y: 0.2, size: 0.35, start: playheadRef.current.total > 0 && playheadRef.current.t < playheadRef.current.total - 0.5 ? playheadRef.current.t : 0, end: null }
     })
+  }
+  // Puts the logo from Settings on the video
+  const addLogoOverlay = async () => {
+    if (!bizLogoUrl) return
+    try {
+      const res = await fetch(bizLogoUrl, { cache: 'no-store' })
+      if (!res.ok) throw new Error('bad status')
+      const blob = await res.blob()
+      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/\+.*$/, '')
+      pickOverlay(new File([blob], `logo.${ext}`, { type: blob.type || 'image/png' }), { isLogo: true })
+    } catch {
+      setOverlayError('Could not load your logo. Try again, or check it in Settings.')
+    }
   }
   const clearOverlay = () => {
     overlayUploadRef.current = null
@@ -5378,6 +5411,16 @@ export default function DashboardPage() {
                 } else if (libraryPicker === 'ai') addAiFiles(files)
                 else addUploadFiles(files)
               }}
+            />
+          )}
+
+          {overlayPicker && (
+            <OverlayPicker
+              userId={userId}
+              logoUrl={bizLogoUrl}
+              onClose={() => setOverlayPicker(false)}
+              onPick={(file) => pickOverlay(file)}
+              onLogo={() => { void addLogoOverlay() }}
             />
           )}
 
