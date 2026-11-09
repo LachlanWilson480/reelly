@@ -102,10 +102,27 @@ type CustomCaption = { id: string; text: string; start: number; end: number; x: 
 const CAPTION_TEXT_FONTS: { name: string; css: string; weight: number }[] = [
   { name: 'Sans', css: 'Arial, Helvetica, sans-serif', weight: 400 },
   { name: 'Sans Bold', css: "Arial Black, Arial, sans-serif", weight: 900 },
+  { name: 'Mono', css: "'Courier New', monospace", weight: 400 },
+  { name: 'Narrow', css: "'Arial Narrow', Arial, sans-serif", weight: 400 },
   { name: 'Serif', css: "Georgia, 'Times New Roman', serif", weight: 400 },
   { name: 'Serif Bold', css: "Georgia, 'Times New Roman', serif", weight: 800 },
   { name: 'Mono Bold', css: "'Courier New', monospace", weight: 800 },
   { name: 'Narrow Bold', css: "'Arial Narrow', Arial, sans-serif", weight: 800 },
+]
+// Ready-made looks for the captions the person types. Each one sets the font, text colour and background in one press.
+const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | null }[] = [
+  { name: 'Classic', font: 'Sans Bold', color: '#FFFFFF', bg: null },
+  { name: 'Highlight', font: 'Sans Bold', color: '#111111', bg: '#FFE14D' },
+  { name: 'Soft box', font: 'Sans', color: '#FFFFFF', bg: '#000000' },
+  { name: 'Sticker', font: 'Sans Bold', color: '#111111', bg: '#FFFFFF' },
+  { name: 'Pop', font: 'Sans Bold', color: '#FFE14D', bg: null },
+  { name: 'Neon', font: 'Sans Bold', color: '#38E8FF', bg: null },
+  { name: 'Hot', font: 'Narrow Bold', color: '#FF4D4D', bg: null },
+  { name: 'Elegant', font: 'Serif', color: '#FFFFFF', bg: null },
+  { name: 'Story', font: 'Serif Bold', color: '#FFF3D6', bg: '#2B2118' },
+  { name: 'Typewriter', font: 'Mono Bold', color: '#FFFFFF', bg: '#000000' },
+  { name: 'Slim', font: 'Narrow', color: '#FFFFFF', bg: null },
+  { name: 'Mint', font: 'Sans Bold', color: '#0B3D2E', bg: '#8CF2C4' },
 ]
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
@@ -354,7 +371,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onOverlayTime }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -368,6 +385,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onPlayhead?: (t: number, total: number) => void
   autoCap?: { x: number; y: number } | null
   onAutoCapMove?: (x: number, y: number) => void
+  onAutoCapRemove?: () => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -914,9 +932,17 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             }}
             onPointerUp={() => { autoDragRef.current = false }}
             onPointerCancel={() => { autoDragRef.current = false }}
-            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 4, border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, fontWeight: 700 }}>
+            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '88%', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 4, border: '1.5px dashed rgba(255,255,255,0.9)', background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, fontWeight: 700 }}>
             <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.3" /><circle cx="8" cy="2" r="1.3" /><circle cx="2" cy="7" r="1.3" /><circle cx="8" cy="7" r="1.3" /><circle cx="2" cy="12" r="1.3" /><circle cx="8" cy="12" r="1.3" /></svg>
-            Auto captions
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 1, lineHeight: 1.25 }}>
+              <span>Auto captions</span>
+              <span style={{ fontSize: 10, fontWeight: 500, opacity: 0.85 }}>The words you speak show here, a few at a time</span>
+            </span>
+            {onAutoCapRemove && (
+              <button type="button" aria-label="Remove auto captions" title="Turn auto captions off"
+                onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAutoCapRemove() }}
+                style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
+            )}
           </div>
         )}
         {overlay && globalTime >= overlay.start && (overlay.end === null || globalTime < overlay.end) && (
@@ -1181,7 +1207,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onOverlayTime, below }: {
   below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
@@ -1196,6 +1222,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onPlayhead?: (t: number, total: number) => void
   autoCap?: { x: number; y: number } | null
   onAutoCapMove?: (x: number, y: number) => void
+  onAutoCapRemove?: () => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -1226,7 +1253,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -2741,6 +2768,11 @@ export default function DashboardPage() {
           <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
           Add auto captions
         </label>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: on ? '0 0 12px' : '6px 0 0' }}>
+          {on
+            ? 'Listens to the voice in your clips and adds the words you say as captions, a few at a time. They are added when your video renders. The preview shows a marker instead: drag it to choose where the captions sit, or press the x on it to turn them off.'
+            : 'Off. Turn this on to add the words you speak as captions.'}
+        </p>
         {on && (
           <>
                           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>Choose how the words appear:</p>
@@ -2830,6 +2862,20 @@ export default function DashboardPage() {
               </div>
               {open && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
+                  <div style={{ gridColumn: '1 / -1' }}><label style={lab}>Style</label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {CAPTION_LOOKS.map((lk) => {
+                        const f = CAPTION_TEXT_FONTS.find((x) => x.name === lk.font)
+                        return (
+                          <button key={lk.name} type="button" title={`${lk.name}: ${lk.font}, ${lk.bg ? 'on a coloured box' : 'no box'}`} onClick={() => patch({ font: lk.font, color: lk.color, bg: lk.bg })}
+                            style={{ minWidth: 78, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: '#2a2a2f', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontFamily: f?.css, fontWeight: f?.weight, fontSize: 15, color: lk.color, background: lk.bg ?? 'transparent', padding: lk.bg ? '1px 6px' : 0, borderRadius: 2, textShadow: lk.bg ? 'none' : '0 0 2px #000, 0 0 2px #000' }}>Aa</span>
+                            <span style={{ fontSize: 10, color: '#ddd' }}>{lk.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                   <div><label style={lab}>Font</label>
                     <Dropdown ariaLabel="Caption font" value={c.font && c.font !== 'Sans Bold' ? c.font : ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Sans Bold (default)' }, ...CAPTION_TEXT_FONTS.filter((f) => f.name !== 'Sans Bold').map((f) => ({ value: f.name, label: f.name }))]} /></div>
                   <div><label style={lab}>Size</label>
@@ -5468,6 +5514,7 @@ export default function DashboardPage() {
                 scriptSpeed={scriptSpeed}
                 autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                 onAutoCapMove={moveAutoCap}
+                onAutoCapRemove={() => setUploadAddCaptions(false)}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -5787,6 +5834,7 @@ export default function DashboardPage() {
                         scriptSpeed={scriptSpeed}
                         autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                         onAutoCapMove={moveAutoCap}
+                        onAutoCapRemove={() => setUploadAddCaptions(false)}
                         selCap={selCap}
                         onSelCap={setSelCap}
                         onPlayhead={handlePlayhead}
@@ -6021,6 +6069,7 @@ export default function DashboardPage() {
                 scriptSpeed={scriptSpeed}
                 autoCap={aiAddCaptions && !aiCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
                 onAutoCapMove={moveAutoCap}
+                onAutoCapRemove={() => setAiAddCaptions(false)}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
