@@ -16,6 +16,7 @@ type IncomingClip = {
   speed?: number;
   fit?: string;
   filter?: string;
+  appearance?: { touchUp?: number; light?: number; look?: string };
   rotate?: number;
   flipH?: boolean;
   flipV?: boolean;
@@ -93,6 +94,13 @@ function setupApp() {
           speed: clipSpeed !== 1 ? clipSpeed : undefined,
           fit: clip.fit,
           filter: clip.filter,
+          appearance: clip.appearance && typeof clip.appearance === 'object'
+            ? {
+                touchUp: Math.min(100, Math.max(0, Number(clip.appearance.touchUp) || 0)),
+                light: Math.min(100, Math.max(0, Number(clip.appearance.light) || 0)),
+                look: ['warm', 'cool', 'vivid', 'soft', 'bw'].includes(String(clip.appearance.look)) ? String(clip.appearance.look) : undefined,
+              }
+            : undefined,
           rotate: clip.rotate,
           flipH: clip.flipH,
           flipV: clip.flipV,

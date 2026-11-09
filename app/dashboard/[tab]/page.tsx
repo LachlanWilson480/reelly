@@ -130,6 +130,25 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
 type OverlayItem = { id: string; file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null; ar: number; cl: number; cr: number; ct: number; cb: number }
+// The 'appearance' look: skin smoothing and low light lift (0 to 100 each) and a colour look. It is applied to every clip.
+type AppearanceSettings = { touchUp: number; light: number; look: 'none' | 'warm' | 'cool' | 'vivid' | 'soft' | 'bw' }
+const APPEARANCE_LOOKS: [AppearanceSettings['look'], string][] = [['none', 'None'], ['warm', 'Warm'], ['cool', 'Cool'], ['vivid', 'Vivid'], ['soft', 'Soft'], ['bw', 'Black and white']]
+// What the preview shows. The finished video uses ffmpeg versions of the same looks; the smoothing here is only an approximation.
+function appearanceCss(a?: AppearanceSettings): string | undefined {
+  if (!a) return undefined
+  const parts: string[] = []
+  const looks: Record<string, string> = {
+    warm: 'sepia(0.18) saturate(1.1) hue-rotate(-8deg)',
+    cool: 'hue-rotate(12deg) saturate(1.05)',
+    vivid: 'saturate(1.35) contrast(1.08)',
+    soft: 'contrast(0.92) saturate(0.92) brightness(1.02)',
+    bw: 'grayscale(1) contrast(1.1)',
+  }
+  if (a.look !== 'none' && looks[a.look]) parts.push(looks[a.look])
+  if (a.light > 0) parts.push(`brightness(${(1 + 0.18 * (a.light / 100)).toFixed(3)}) contrast(${(1 + 0.06 * (a.light / 100)).toFixed(3)})`)
+  if (a.touchUp > 0) parts.push(`blur(${(0.9 * (a.touchUp / 100)).toFixed(2)}px)`)
+  return parts.length ? parts.join(' ') : undefined
+}
 
 type PreviewCaptionStyle = { color: string; border: string; background: string | null; bold?: boolean; italic?: boolean; underline?: boolean; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
@@ -374,7 +393,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -403,6 +422,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   selOverlay?: string | null
   onSelOverlay?: (id: string | null) => void
   onOverlayPatch?: (id: string, patch: Partial<OverlayItem>) => void
+  appearance?: AppearanceSettings
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -907,7 +927,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   return (
     <div>
       <div ref={stageRef} style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 4, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
-        <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+        <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: appearanceCss(appearance) }} />
         {captionStyle && caps.filter((c) => globalTime >= c.start && globalTime < c.end).map((c) => {
           const unit = ((c.size ?? captionStyle.size) / 1080) * 100
           const sel = selCap === c.id
@@ -1295,7 +1315,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, below }: {
   below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
@@ -1325,6 +1345,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   selOverlay?: string | null
   onSelOverlay?: (id: string | null) => void
   onOverlayPatch?: (id: string, patch: Partial<OverlayItem>) => void
+  appearance?: AppearanceSettings
 }) {
   const [fileOver, setFileOver] = useState(false)
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
@@ -1342,7 +1363,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -1503,6 +1524,9 @@ export default function DashboardPage() {
   const [aiLandscapeHandling, setAiLandscapeHandling] = useState<'crop' | 'blur' | 'landscape'>('blur')
   const [aiResolution, setAiResolution] = useState<'high' | 'low' | '4k'>('high')
   const [uploadResolution, setUploadResolution] = useState<'high' | 'low' | '4k'>('high')
+  const [appearance, setAppearance] = useState<AppearanceSettings>({ touchUp: 0, light: 0, look: 'none' })
+  // What is sent to the render, or nothing when every setting is off
+  const appearancePayload = appearance.touchUp > 0 || appearance.light > 0 || appearance.look !== 'none' ? appearance : null
   const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
   const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
   const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
@@ -3141,6 +3165,40 @@ export default function DashboardPage() {
       </div>
     )
   }
+  // Appearance: smoothing, low light lift and a colour look, like the touch up options in Zoom
+  const renderAppearanceCard = () => {
+    const slider = (label: string, key: 'touchUp' | 'light', on0: number, tip: string) => {
+      const on = appearance[key] > 0
+      return (
+        <div>
+          <label title={tip} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            <input type="checkbox" checked={on} onChange={(e) => setAppearance((a) => ({ ...a, [key]: e.target.checked ? on0 : 0 }))} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+            {label}
+            {on && <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{appearance[key]}%</span>}
+          </label>
+          {on && <input type="range" min={1} max={100} step={1} value={appearance[key]} onChange={(e) => setAppearance((a) => ({ ...a, [key]: Number(e.target.value) }))} aria-label={label} style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />}
+        </div>
+      )
+    }
+    const summary = [appearance.touchUp > 0 ? `Touch up ${appearance.touchUp}%` : '', appearance.light > 0 ? `Low light ${appearance.light}%` : '', appearance.look !== 'none' ? (APPEARANCE_LOOKS.find(([v]) => v === appearance.look)?.[1] || '') : ''].filter(Boolean).join(' · ') || 'Off'
+    return (
+      <CollapsibleBox title="Appearance" summary={summary}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>Make everyone in the video look their best. It applies to every clip, and the preview shows the colours and brightness as you change them.</p>
+        {slider('Touch up my appearance', 'touchUp', 50, 'Softens skin while keeping eyes, hair and edges sharp')}
+        {slider('Adjust for low light', 'light', 40, 'Brightens dark footage')}
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 8px' }}>Look</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {APPEARANCE_LOOKS.map(([val, label]) => (
+              <button key={val} type="button" onClick={() => setAppearance((a) => ({ ...a, look: val }))} style={choiceBtn(appearance.look === val)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        {appearance.touchUp > 0 && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>The preview softens the whole picture a little. In the finished video only flat areas like skin are smoothed, so eyes and hair stay sharp.</p>}
+      </CollapsibleBox>
+    )
+  }
+
   const renderVideoSettings = (m: 'upload' | 'ai') => (
     <CollapsibleBox title="Video settings" summary={[(m === 'ai' ? aiResolution : uploadResolution) === '4k' ? '4K' : '1080p', cutDeadSpace ? 'Cuts silences' : ''].filter(Boolean).join(' · ')}>
       {renderVideoSettingsBody(m)}
@@ -3996,6 +4054,7 @@ export default function DashboardPage() {
           customCaptions: aiCaps,
           customCaptionStyle,
           overlays: overlayPayload,
+          appearance: appearancePayload,
           
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
@@ -4137,7 +4196,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload }),
       })
 
       const data = await res.json()
@@ -5635,6 +5694,7 @@ export default function DashboardPage() {
 
               {/* ── VIDEO SETTINGS ── */}
               {renderVideoSettings('upload')}
+              {renderAppearanceCard()}
 
               {/* ── Render ── */}
               {uploading && (
@@ -5712,6 +5772,7 @@ export default function DashboardPage() {
                 selOverlay={selOverlay}
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
+                appearance={appearance}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -6009,6 +6070,7 @@ export default function DashboardPage() {
                       {renderCaptionsCard('upload')}
                       {renderOverlayCard()}
                       {renderVideoSettings('upload')}
+              {renderAppearanceCard()}
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } gateRenderAction(() => { finishFilm(filmClips, true) }) }} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmUploading ? 'Saving…' : freeQuotaExceeded ? 'Upgrade to render' : 'Render video'}</button>
@@ -6033,6 +6095,7 @@ export default function DashboardPage() {
                         selOverlay={selOverlay}
                         onSelOverlay={setSelOverlay}
                         onOverlayPatch={patchOverlay}
+                appearance={appearance}
                         segments={filmSegFiles.map((f) => ({ file: f, start: 0.3, end: null }))}
                         takes={voiceTakes}
                         originalVol={originalVol}
@@ -6199,6 +6262,7 @@ export default function DashboardPage() {
 
                     {/* ── VIDEO SETTINGS ── */}
                     {renderVideoSettings('ai')}
+                    {renderAppearanceCard()}
 
                     {/* ── Render ── */}
                     {aiUploading && (
@@ -6269,6 +6333,7 @@ export default function DashboardPage() {
                 selOverlay={selOverlay}
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
+                appearance={appearance}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}

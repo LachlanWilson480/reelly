@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -161,6 +161,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // The 'appearance' look (skin smoothing, low light lift and a colour look) applies to every clip
+    const apNum = (v: unknown) => (Number.isFinite(Number(v)) ? Math.min(100, Math.max(0, Math.round(Number(v)))) : 0)
+    const apRaw = rawAppearance && typeof rawAppearance === 'object' ? (rawAppearance as { touchUp?: unknown; light?: unknown; look?: unknown }) : null
+    const apLook = apRaw && ['warm', 'cool', 'vivid', 'soft', 'bw'].includes(String(apRaw.look)) ? String(apRaw.look) : undefined
+    const appearanceInfo = apRaw && (apNum(apRaw.touchUp) > 0 || apNum(apRaw.light) > 0 || apLook)
+      ? { touchUp: apNum(apRaw.touchUp), light: apNum(apRaw.light), look: apLook }
+      : undefined
+
     const trims: ClipTrim[] = Array.isArray(clipTrims) ? clipTrims : []
     const settings: ClipSetting[] = Array.isArray(clipSettings) ? clipSettings : []
 
@@ -185,6 +193,7 @@ export async function POST(req: NextRequest) {
         speed: typeof setting.speed === 'number' && setting.speed >= 0.25 && setting.speed <= 8 ? setting.speed : undefined,
         fit: setting.fit,
         filter: setting.filter !== 'none' ? setting.filter : undefined,
+        appearance: appearanceInfo,
         rotate: setting.rotate,
         flipH: setting.flipH,
         flipV: setting.flipV,

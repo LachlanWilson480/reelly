@@ -24,6 +24,8 @@ type ClipInput = {
   flipH?: boolean;
   flipV?: boolean;
   filter?: string;
+  // The 'appearance' look: skin smoothing and low light lift (0 to 100 each) and a colour look
+  appearance?: { touchUp?: number; light?: number; look?: string };
   transition?: string; // transition INTO this clip from previous
 };
 
@@ -50,6 +52,27 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     filters.push(`scale=${outputWidth}:-2`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   }
+
+  // Appearance: look first, then the low light lift, then the smoothing last so it works on the finished colours.
+  // These run after the clip is scaled to the output size, so a 4K source does not make them slow.
+  const apFilters: string[] = [];
+  const ap = clip.appearance;
+  if (ap) {
+    const looks: Record<string, string> = {
+      warm: 'colorchannelmixer=rr=1.07:gg=1.01:bb=0.92,eq=saturation=1.08',
+      cool: 'colorchannelmixer=rr=0.93:gg=1.0:bb=1.08,eq=saturation=1.04',
+      vivid: 'eq=saturation=1.35:contrast=1.08',
+      soft: 'eq=contrast=0.92:saturation=0.92:brightness=0.02',
+      bw: 'hue=s=0,eq=contrast=1.1',
+    };
+    if (ap.look && looks[ap.look]) apFilters.push(looks[ap.look]);
+    const light = Math.min(100, Math.max(0, Number(ap.light) || 0)) / 100;
+    if (light > 0) apFilters.push(`eq=brightness=${(0.1 * light).toFixed(3)}:gamma=${(1 + 0.35 * light).toFixed(3)}:contrast=${(1 + 0.06 * light).toFixed(3)}`);
+    const touch = Math.min(100, Math.max(0, Number(ap.touchUp) || 0)) / 100;
+    // smartblur only softens flat areas like skin and leaves edges (eyes, hair, lips) sharp
+    if (touch > 0) apFilters.push(`smartblur=lr=${(1 + 2.5 * touch).toFixed(2)}:ls=${(0.3 + 0.7 * touch).toFixed(2)}:lt=${Math.round(8 + 22 * touch)}`);
+  }
+  filters.push(...apFilters);
 
   filters.push('setpts=PTS-STARTPTS');
 
