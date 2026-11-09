@@ -129,20 +129,26 @@ export async function stitchClips(
 
     const vf = buildVideoFilter(clip, outputWidth, outputHeight);
     const trimStart = clip.trimStart ?? 0;
-    const speed = clip.speed ?? 1;
+    const speed = Math.min(8, Math.max(0.25, clip.speed ?? 1));
     const volume = clip.volume ?? 1;
 
     const args: string[] = ['-y'];
     if (trimStart > 0) args.push('-ss', String(trimStart));
     if (clip.trimLength) args.push('-t', String(clip.trimLength));
     args.push('-i', clip.localPath);
-    args.push('-vf', vf);
+    args.push('-vf', speed !== 1 ? `${vf},setpts=PTS/${speed}` : vf);
 
     const audioFilters: string[] = [];
-    if (speed !== 1) audioFilters.push(`atempo=${Math.min(Math.max(speed, 0.5), 2.0)}`);
+    if (speed !== 1) {
+      // atempo only accepts 0.5 to 2, so chain it. Sound at extreme speeds is silent, as it would only be noise.
+      let rest = speed;
+      while (rest > 2) { audioFilters.push('atempo=2'); rest /= 2; }
+      while (rest < 0.5) { audioFilters.push('atempo=0.5'); rest *= 2; }
+      audioFilters.push(`atempo=${rest.toFixed(4)}`);
+      if (speed > 2 || speed < 0.5) audioFilters.push('volume=0');
+    }
     if (volume !== 1) audioFilters.push(`volume=${volume}`);
     if (audioFilters.length > 0) args.push('-af', audioFilters.join(','));
-    if (speed !== 1) args.push('-filter:v', `setpts=${1/speed}*PTS`);
 
     // 4K is much heavier: encode a little faster and cap the bitrate so the file stays a size we can upload
     const is4K = Math.max(outputWidth, outputHeight) >= 3840;

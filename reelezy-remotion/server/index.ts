@@ -75,12 +75,14 @@ function setupApp() {
 
       const mappedClips = (clips as IncomingClip[]).map((clip) => {
         const trimStart = clip.trimStart ?? 0;
+        const clipSpeed = typeof clip.speed === "number" && clip.speed > 0 ? Math.min(8, Math.max(0.25, clip.speed)) : 1;
+        // The clip lasts its trimmed length divided by its speed (slow-mo is longer, timelapse is shorter)
         const durationInSeconds =
-          typeof clip.trimLength === "number" && clip.trimLength > 0
+          (typeof clip.trimLength === "number" && clip.trimLength > 0
             ? clip.trimLength
             : typeof clip.duration === "number" && clip.duration > 0
             ? Math.max(0.1, clip.duration - trimStart)
-            : 5;
+            : 5) / clipSpeed;
 
         return {
           src: clip.src,
@@ -88,7 +90,7 @@ function setupApp() {
           trimLength: clip.trimLength,
           durationInSeconds,
           volume: clip.volume,
-          speed: clip.speed,
+          speed: clipSpeed !== 1 ? clipSpeed : undefined,
           fit: clip.fit,
           filter: clip.filter,
           rotate: clip.rotate,

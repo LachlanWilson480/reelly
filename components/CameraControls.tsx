@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { CameraControlsApi, CamRes, CamFps } from '@/lib/useCameraControls'
 
@@ -17,7 +18,12 @@ type Props = {
   onRestart: () => void
   onLens: (id: string) => void
   onLibrary?: () => void
+  // Slow-mo (below 1) and timelapse (above 1). The clip is filmed normally and played at this speed in the video.
+  speed?: number
+  onSpeed?: (speed: number) => void
 }
+
+const SPEEDS: [number, string][] = [[0.25, '0.25x'], [0.5, '0.5x'], [1, 'Normal'], [2, '2x'], [4, '4x'], [8, '8x']]
 
 const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.65))'
 const iconBtn: CSSProperties = { width: 44, height: 44, border: 'none', background: 'transparent', color: '#fff', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', filter: shadow, fontSize: 18, fontWeight: 800 }
@@ -31,8 +37,9 @@ function Svg({ children }: { children: ReactNode }) {
 }
 
 // The camera controls drawn on top of the picture: left tools, lens picker, and the record row. Shared by both recorders.
-export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary }: Props) {
+export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary, speed = 1, onSpeed }: Props) {
   const lock = isRecording || counting
+  const [speedOpen, setSpeedOpen] = useState(false)
   const presets = cam.zoomCaps ? [0.5, 1, 2, 5].filter((z) => z >= cam.zoomCaps!.min - 0.01 && z <= cam.zoomCaps!.max + 0.01) : []
   const showArc = !hidden && (cam.lenses.length > 0 || presets.length > 1)
   const qualityTop = cam.res === '4k' ? '4K' : cam.res === '720' ? 'HD' : 'FHD'
@@ -59,6 +66,12 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
               {cam.timer ? <text x="12" y="16.8" textAnchor="middle" fontSize={cam.timer === 10 ? 8.5 : 10} fontWeight="800" fill="#fff" stroke="none">{cam.timer}</text> : <path d="M4.5 21 20 6" />}
             </svg>
           </button>
+          {onSpeed && (
+            <button type="button" aria-label="Slow-mo and timelapse" title="Slow-mo and timelapse: change how fast this clip plays" aria-expanded={speedOpen} disabled={lock} onClick={() => { cam.setPanel(null); setSpeedOpen(!speedOpen) }} style={{ ...iconBtn, opacity: lock ? 0.4 : speed !== 1 ? 1 : 0.85, flexDirection: 'column', fontSize: 11, fontWeight: 800, color: speed !== 1 ? '#ffd166' : '#fff' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={speed !== 1 ? '#ffd166' : '#fff'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 13 16 9M9.5 3h5" /></svg>
+              {speed !== 1 && <span style={{ marginTop: -2 }}>{speed}x</span>}
+            </button>
+          )}
           {onLibrary && (
             <button type="button" aria-label="Use a saved clip" title="Use a clip from your library instead of filming" disabled={lock} onClick={onLibrary} style={{ ...iconBtn, opacity: lock ? 0.4 : 0.9 }}>
               <Svg>
@@ -74,6 +87,21 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
             </button>
           )}
         </div>
+      )}
+
+      {speedOpen && onSpeed && !hidden && (
+        <>
+          <div aria-hidden="true" onClick={() => setSpeedOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 5 }} />
+          <div role="group" aria-label="Slow-mo and timelapse" style={{ ...panelBox, left: 58, top: 'calc(34% + 50px)' }}>
+            <p style={panelLabel}>Speed of this clip</p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {SPEEDS.map(([v, name]) => (
+                <button key={v} type="button" onClick={() => { onSpeed(v); setSpeedOpen(false) }} style={{ ...chip(speed === v), flex: '1 1 30%' }}>{name}</button>
+              ))}
+            </div>
+            <p style={panelNote}>Below Normal is slow-mo, above is timelapse. You film at normal speed and the video plays it at the speed you pick. You can change it later in the Edit tab.</p>
+          </div>
+        </>
       )}
 
       {cam.panel && !hidden && (

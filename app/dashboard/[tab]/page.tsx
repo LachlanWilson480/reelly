@@ -95,7 +95,7 @@ const fmtTrimTime = (s: number) => {
 }
 
 
-type VoiceoverSegment = { file: File; start: number; end: number | null; caption?: string; captionLayer?: 'onScreen' | 'speech' }
+type VoiceoverSegment = { file: File; start: number; end: number | null; speed?: number; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
 // Optional per-caption text settings: anything left out uses the shared Caption look
 type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; font?: string; size?: number; color?: string; bg?: string | null }
@@ -128,6 +128,8 @@ type VoiceTake = { id: string; blob: Blob; url: string; start: number; duration:
 // Every voiceover part gets its own colour so it is easy to tell them apart on the timeline and in the list
 const TAKE_COLORS = ['#FF6A4D', '#2E86AB', '#7B5EA7', '#3A9D6E', '#C99A1B', '#C2456F']
 const takeColor = (i: number) => TAKE_COLORS[i % TAKE_COLORS.length]
+// Clip speeds: slow-mo below 1x, timelapse above it
+const CLIP_SPEEDS: [number, string, string][] = [[0.25, '0.25x', 'Slow-mo: four times slower'], [0.5, '0.5x', 'Slow-mo: half speed'], [1, 'Normal', 'Normal speed'], [2, '2x', 'Twice as fast'], [4, '4x', 'Timelapse: four times faster'], [8, '8x', 'Fast timelapse: eight times faster']]
 const CLIP_SHADES = ['rgba(70,110,160,0.6)', 'rgba(70,140,140,0.6)', 'rgba(110,100,170,0.6)', 'rgba(150,120,80,0.6)']
 const clipShade = (i: number) => CLIP_SHADES[i % CLIP_SHADES.length]
 
@@ -347,7 +349,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -370,6 +372,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   captions?: CustomCaption[]
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
+  onSpeedClip?: (index: number, speed: number) => void
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
   onOverlayTime?: (start: number, end: number | null) => void
@@ -456,7 +459,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const lengths = segments.map((s) => {
     const d = durations[previewFileKey(s.file)] || 0
     const end = s.end != null ? Math.min(s.end, d || s.end) : d
-    return Math.max(0, end - s.start)
+    return Math.max(0, end - s.start) / (s.speed && s.speed > 0 ? s.speed : 1)
   })
   const total = lengths.reduce((a, b) => a + b, 0)
   const before = lengths.slice(0, index).reduce((a, b) => a + b, 0)
@@ -470,7 +473,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     setIndex(i)
     const src = previewUrlFor(seg.file)
     const go = () => {
-      v.currentTime = seg.start + offset
+      v.playbackRate = seg.speed || 1
+      v.currentTime = seg.start + offset * (seg.speed || 1)
       setLocalTime(offset)
       switchingRef.current = false
       advancingRef.current = false
@@ -545,13 +549,15 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       const idx = indexRef.current
       const seg = L.segments[idx]
       if (v && seg && !switchingRef.current) {
-        setLocalTime(Math.max(0, v.currentTime - seg.start))
+        const sp = seg.speed || 1
+        if (v.playbackRate !== sp) v.playbackRate = sp
+        setLocalTime(Math.max(0, v.currentTime - seg.start) / sp)
         if (seg.end != null && v.currentTime >= seg.end - 0.03) {
           L.advance()
           raf = requestAnimationFrame(tick)
           return
         }
-        const g = L.lengths.slice(0, idx).reduce((a, b) => a + b, 0) + Math.max(0, v.currentTime - seg.start)
+        const g = L.lengths.slice(0, idx).reduce((a, b) => a + b, 0) + Math.max(0, v.currentTime - seg.start) / sp
         const now = performance.now()
         const last = lastSyncRef.current
         // Start a sound where it belongs, then only correct it when it has really drifted. Jumping an
@@ -784,7 +790,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     setPlaying(false)
     const w = trackRef.current?.getBoundingClientRect().width || 1
     const end0 = seg.end != null ? Math.min(seg.end, dur) : dur
-    trimDragRef.current = { i, side, startX: e.clientX, scale: total / w, start: seg.start, end: end0, dur }
+    trimDragRef.current = { i, side, startX: e.clientX, scale: (total / w) * (seg.speed || 1), start: seg.start, end: end0, dur }
     // Show the clip being trimmed in the preview right away
     load(i, 0, false)
     setTrimView({ i, side, shift: 0, total, start: seg.start, end: end0 })
@@ -1130,6 +1136,16 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           {overlay && <span>Overlay</span>}
           {caps.length > 0 && <span>Your captions</span>}
         </div>
+        {onSpeedClip && hasClips && !recording && segments[index] && (
+          <div role="group" aria-label={`Speed of clip ${index + 1}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginRight: 4 }}>Clip {index + 1} speed</span>
+            {CLIP_SPEEDS.map(([v, name, tip]) => {
+              const on = (segments[index].speed || 1) === v
+              return <button key={v} type="button" aria-pressed={on} title={tip} onClick={() => onSpeedClip(index, v)} style={{ padding: '5px 10px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
+            })}
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Slower than 0.5x or faster than 2x plays without sound. Click a clip on the timeline to pick it.</span>
+          </div>
+        )}
       {takeDrag && (
         <div ref={binRef} aria-label="Bin: drop a voiceover here to delete it"
           style={{ position: 'fixed', left: '50%', bottom: 24, transform: `translateX(-50%) scale(${takeDrag.over ? 1.08 : 1})`, zIndex: 1000, display: 'flex', alignItems: 'center', gap: 10, padding: '14px 26px', borderRadius: 4, background: takeDrag.over ? '#d92d20' : 'rgba(30,30,34,0.92)', border: `1.5px dashed ${takeDrag.over ? '#fff' : 'rgba(255,255,255,0.5)'}`, color: '#fff', fontSize: 14, fontWeight: 600, boxShadow: 'none', transition: 'background 0.12s, transform 0.12s', pointerEvents: 'none' }}>
@@ -1144,7 +1160,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1167,6 +1183,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   captions?: CustomCaption[]
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
+  onSpeedClip?: (index: number, speed: number) => void
   overlay?: OverlayItem | null
   onOverlayMove?: (x: number, y: number) => void
   onOverlayTime?: (start: number, end: number | null) => void
@@ -1187,7 +1204,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
     </div>
   )
 }
@@ -1425,6 +1442,11 @@ export default function DashboardPage() {
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadTrims, setUploadTrims] = useState<Record<number, ClipTrimRange>>({})
   const [aiTrims, setAiTrims] = useState<Record<number, ClipTrimRange>>({})
+  const [uploadSpeeds, setUploadSpeeds] = useState<Record<number, number>>({})
+  const [aiSpeeds, setAiSpeeds] = useState<Record<number, number>>({})
+  const filmSpeedRef = useRef(1)
+  const filmClipSpeedsRef = useRef<Record<string, number>>({})
+  const [filmSpeed, setFilmSpeed] = useState(1)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [uploadSlotTexts, setUploadSlotTexts] = useState<Record<number, string[]>>({})
   const [uploadCaptionOwn, setUploadCaptionOwn] = useState(false)
@@ -2512,7 +2534,9 @@ export default function DashboardPage() {
           return
         }
         setFilmRecordError('')
-        setFilmPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
+        const pendingUrl = URL.createObjectURL(blob)
+        filmClipSpeedsRef.current[pendingUrl] = filmSpeedRef.current
+        setFilmPending({ blob, ext, type: baseType, url: pendingUrl })
       }
       recorder.onerror = () => { setFilmRecordError('Recording stopped unexpectedly. Please try again.'); setFilmIsRecording(false) }
       beginRecorder(recorder, mimeType)
@@ -2600,6 +2624,14 @@ export default function DashboardPage() {
     const step = Object.keys(stepUploads).map(Number).sort((a, b) => a - b)[i]
     if (step !== undefined && stepUploads[step]) applyTrim(setAiTrims, step, stepUploads[step], start, end, total)
   }
+
+  const setSpeedFor = (setter: React.Dispatch<React.SetStateAction<Record<number, number>>>, key: number | undefined, speed: number) => {
+    if (key === undefined) return
+    setter((prev) => { const n = { ...prev }; if (speed === 1) delete n[key]; else n[key] = speed; return n })
+  }
+  const speedUploadClip = (i: number, speed: number) => setSpeedFor(setUploadSpeeds, uploadSlots.filter((slot) => uploadSlotFiles[slot])[i], speed)
+  const speedAiClip = (i: number, speed: number) => setSpeedFor(setAiSpeeds, Object.keys(stepUploads).map(Number).sort((a, b) => a - b)[i], speed)
+  const changeFilmClipSpeed = (speed: number) => { filmSpeedRef.current = speed; setFilmSpeed(speed) }
 
   // The Audio section: original sound, voiceover and music in their own card
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
@@ -2944,6 +2976,10 @@ export default function DashboardPage() {
       const filesMap: Record<number, File> = {}
       const pathsMap: Record<number, string> = {}
       results.forEach((r, i) => { filesMap[i] = r.file; pathsMap[i] = r.path })
+      const filmSpeeds: Record<number, number> = {}
+      clips.forEach((cl, i) => { const sp = filmClipSpeedsRef.current[cl.url]; if (sp && sp !== 1) filmSpeeds[i] = sp })
+      filmClipSpeedsRef.current = {}
+      setUploadSpeeds(filmSpeeds)
       setUploadSlots(slots)
       setUploadSlotFiles(filesMap)
       setUploadSlotPaths(pathsMap)
@@ -3563,7 +3599,7 @@ export default function DashboardPage() {
       const clipPaths: string[] = []
       const speechIndices: number[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number }[] = []
       const clipTexts: string[][] = []
       let anyLandscape = false
 
@@ -3609,9 +3645,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true })
+          clipSettings.push({ letterbox: true, speed: aiSpeeds[result.stepIndex] })
         } else {
-          clipSettings.push({})
+          clipSettings.push({ speed: aiSpeeds[result.stepIndex] })
         }
       }
 
@@ -3721,7 +3757,7 @@ export default function DashboardPage() {
     try {
       const clipPaths: string[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number }[] = []
       const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
@@ -3769,9 +3805,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true })
+          clipSettings.push({ letterbox: true, speed: uploadSpeeds[result.slotId] })
         } else {
-          clipSettings.push({})
+          clipSettings.push({ speed: uploadSpeeds[result.slotId] })
         }
       }
 
@@ -5376,6 +5412,7 @@ export default function DashboardPage() {
                 captions={uploadCaps}
                 onCaptions={setUploadCaps}
                 onTrimClip={trimUploadClip}
+                onSpeedClip={speedUploadClip}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
                 autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
@@ -5386,7 +5423,7 @@ export default function DashboardPage() {
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
                 onOverlayTime={(start, end) => patchOverlay({ start, end })}
-                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -5576,6 +5613,8 @@ export default function DashboardPage() {
                       onRestart={restartFilmCamera}
                       onLens={pickFilmLens}
                       onLibrary={() => setLibraryPicker('film')}
+                      speed={filmSpeed}
+                      onSpeed={changeFilmClipSpeed}
                     />
                     {filmClipCount > 0 && (
                       <div style={{ position: 'absolute', bottom: 108, right: 14, zIndex: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
@@ -5924,6 +5963,7 @@ export default function DashboardPage() {
                 captions={aiCaps}
                 onCaptions={setAiCaps}
                 onTrimClip={trimAiClip}
+                onSpeedClip={speedAiClip}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
                 autoCap={aiAddCaptions && !aiCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
@@ -5934,7 +5974,7 @@ export default function DashboardPage() {
                 overlay={overlay}
                 onOverlayMove={moveOverlay}
                 onOverlayTime={(start, end) => patchOverlay({ start, end })}
-                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null } })}
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
