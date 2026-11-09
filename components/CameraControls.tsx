@@ -46,13 +46,13 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
 
       {!hidden && (
         <div style={{ position: 'absolute', left: 8, top: '34%', zIndex: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button type="button" aria-label="Grid lines" aria-pressed={cam.grid} onClick={() => cam.setGrid(!cam.grid)} style={{ ...iconBtn, opacity: cam.grid ? 1 : 0.8 }}>
+          <button type="button" aria-label="Grid lines" title="Show or hide grid lines" aria-pressed={cam.grid} onClick={() => cam.setGrid(!cam.grid)} style={{ ...iconBtn, opacity: cam.grid ? 1 : 0.8 }}>
             <Svg>
               <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
               <path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17" strokeWidth={cam.grid ? 1.9 : 1.2} />
             </Svg>
           </button>
-          <button type="button" aria-label="Countdown timer" aria-expanded={cam.panel === 'timer'} disabled={lock} onClick={() => cam.setPanel(cam.panel === 'timer' ? null : 'timer')} style={{ ...iconBtn, opacity: lock ? 0.4 : 1 }}>
+          <button type="button" aria-label="Countdown timer" title="Countdown before recording starts" aria-expanded={cam.panel === 'timer'} disabled={lock} onClick={() => cam.setPanel(cam.panel === 'timer' ? null : 'timer')} style={{ ...iconBtn, opacity: lock ? 0.4 : 1 }}>
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
               <circle cx="12" cy="13.5" r="7.5" />
               <path d="M9.5 3h5M12 3v3M18.2 6.8l1.2-1.2" />
@@ -60,7 +60,7 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
             </svg>
           </button>
           {onLibrary && (
-            <button type="button" aria-label="Use a saved clip" disabled={lock} onClick={onLibrary} style={{ ...iconBtn, opacity: lock ? 0.4 : 0.9 }}>
+            <button type="button" aria-label="Use a saved clip" title="Use a clip from your library instead of filming" disabled={lock} onClick={onLibrary} style={{ ...iconBtn, opacity: lock ? 0.4 : 0.9 }}>
               <Svg>
                 <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
                 <circle cx="9" cy="10" r="1.6" />
@@ -69,7 +69,7 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
             </button>
           )}
           {cam.torchOk && (
-            <button type="button" aria-label="Torch" aria-pressed={cam.torch} onClick={cam.toggleTorch} style={{ ...iconBtn, opacity: cam.torch ? 1 : 0.8 }}>
+            <button type="button" aria-label="Torch" title="Turn the torch on or off" aria-pressed={cam.torch} onClick={cam.toggleTorch} style={{ ...iconBtn, opacity: cam.torch ? 1 : 0.8 }}>
               <Svg><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" fill={cam.torch ? '#ffd166' : 'none'} stroke={cam.torch ? '#ffd166' : '#fff'} /></Svg>
             </button>
           )}
@@ -139,10 +139,10 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
             <span style={{ width: isRecording ? 28 : 56, height: isRecording ? 28 : 56, borderRadius: isRecording ? 8 : '50%', background: '#ff2d55', transition: 'all 0.15s ease' }} />
           </button>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
-            <button type="button" className="film-flip" aria-label="Flip camera" disabled={isRecording} onClick={onFlip} style={{ ...iconBtn, opacity: isRecording ? 0.4 : 1 }}>
+            <button type="button" className="film-flip" aria-label="Flip camera" title="Switch between front and back camera" disabled={isRecording} onClick={onFlip} style={{ ...iconBtn, opacity: isRecording ? 0.4 : 1 }}>
               <Svg><path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5" /></Svg>
             </button>
-            <button type="button" aria-label="Video quality" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 16 }}>
+            <button type="button" aria-label="Video quality" title="Change video quality and frame rate" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 16 }}>
               <span>{qualityTop}</span>
               <span>{cam.fps}</span>
             </button>

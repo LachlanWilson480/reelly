@@ -149,6 +149,47 @@ const swapItems = <T,>(list: T[], i: number, j: number): T[] => {
   return n
 }
 const splitScriptLines = (s: string) => s.split(/\n+/).map((x) => x.trim()).filter(Boolean)
+// Splits one line in two near its middle, preferring the end of a sentence, then a comma, then any space
+const splitLineInHalf = (t: string): [string, string] | null => {
+  const mid = t.length / 2
+  const nearest = (re: RegExp) => {
+    let best = -1
+    let m: RegExpExecArray | null
+    const r = new RegExp(re.source, 'g')
+    while ((m = r.exec(t)) !== null) {
+      const at = m.index + m[0].length
+      if (at > 0 && at < t.length && (best < 0 || Math.abs(at - mid) < Math.abs(best - mid))) best = at
+    }
+    return best
+  }
+  const at = [/[.!?]\s+/, /[,;:]\s+/, /\s+/].map(nearest).find((i) => i > 0) ?? -1
+  if (at <= 0) return null
+  const a = t.slice(0, at).trim()
+  const b = t.slice(at).trim()
+  return a && b ? [a, b] : null
+}
+// Reshapes a list of lines to exactly n lines: joins the two shortest neighbours, or splits the longest line
+const reshapeLines = (input: string[], n: number): string[] => {
+  const out = input.map((x) => x.trim()).filter(Boolean)
+  if (out.length === 0 || n < 1) return out
+  while (out.length > n) {
+    let at = 0
+    let size = Infinity
+    for (let i = 0; i < out.length - 1; i++) {
+      const l = out[i].length + out[i + 1].length
+      if (l < size) { size = l; at = i }
+    }
+    out.splice(at, 2, `${out[at]} ${out[at + 1]}`)
+  }
+  while (out.length < n) {
+    let at = 0
+    for (let i = 1; i < out.length; i++) if (out[i].length > out[at].length) at = i
+    const parts = splitLineInHalf(out[at])
+    if (!parts) break
+    out.splice(at, 1, parts[0], parts[1])
+  }
+  return out
+}
 // Pulls the quoted on-screen text out of a filming step, e.g. "On-screen text: 'Bring your colour samples'" gives ["Bring your colour samples"]
 const extractOnScreenText = (step: string): string[] => {
   const found: string[] = []
@@ -1323,6 +1364,8 @@ export default function DashboardPage() {
   const [carouselError, setCarouselError] = useState('')
   const [savedCarousels, setSavedCarousels] = useState<{ id: string; image_paths: string[]; caption: string | null; created_at: string }[]>([])
   const [filmScript, setFilmScript] = useState('')
+  const [filmClipDraft, setFilmClipDraft] = useState<string | null>(null)
+  const [filmOriginal, setFilmOriginal] = useState<{ script: string; actions: string } | null>(null)
   const [filmScrollSpeed, setFilmScrollSpeed] = useState(3)
   const filmScrollSpeedRef = useRef(3)
   const changeFilmSpeed = (v: number) => { filmScrollSpeedRef.current = v; setFilmScrollSpeed(v) }
@@ -2229,6 +2272,42 @@ export default function DashboardPage() {
   const filmActions = splitScriptLines(filmActionsText)
   const filmClipCount = Math.max(filmLines.length, filmActions.length)
   const filmCurrentLine = filmLines[filmLineIdx] || ''
+  const filmDraftKey = userId && filmSelectedId ? `reelezy-film-draft:${userId}:${filmSelectedId}` : null
+  // Auto-saves edits to the script and actions, so they are still there next time this idea is picked
+  useEffect(() => {
+    if (!filmDraftKey || !filmOriginal) return
+    const t = setTimeout(() => {
+      try {
+        if (filmScript !== filmOriginal.script || filmActionsText !== filmOriginal.actions) localStorage.setItem(filmDraftKey, JSON.stringify({ script: filmScript, actions: filmActionsText }))
+        else localStorage.removeItem(filmDraftKey)
+      } catch { /* storage unavailable */ }
+    }, 700)
+    return () => clearTimeout(t)
+  }, [filmDraftKey, filmOriginal, filmScript, filmActionsText])
+  const filmEdited = !!filmOriginal && (filmScript !== filmOriginal.script || filmActionsText !== filmOriginal.actions)
+  const applyFilmClipCount = (raw: string) => {
+    setFilmClipDraft(null)
+    const n = Math.round(Number(raw))
+    if (!Number.isFinite(n) || n < 1 || n > 15 || n === Math.max(filmLines.length, filmActions.length)) return
+    if (filmLines.length > 0) setFilmScript(reshapeLines(filmLines, n).join('\n'))
+    if (filmActions.length > 0) setFilmActionsText(reshapeLines(filmActions, n).join('\n'))
+    setFilmDurations([])
+    setFilmLineIdx(0)
+    setFilmClips([])
+    setFilmReview(false)
+    setFilmRedoIdx(null)
+  }
+  const resetFilmEdits = () => {
+    if (!filmOriginal) return
+    setFilmScript(filmOriginal.script)
+    setFilmActionsText(filmOriginal.actions)
+    setFilmDurations([])
+    setFilmLineIdx(0)
+    setFilmClips([])
+    setFilmReview(false)
+    setFilmRedoIdx(null)
+    try { if (filmDraftKey) localStorage.removeItem(filmDraftKey) } catch { /* storage unavailable */ }
+  }
   const filmCurrentAction = filmActions[filmLineIdx] || ''
 
   useEffect(() => {
@@ -2339,9 +2418,22 @@ export default function DashboardPage() {
   const selectFilmSource = (id: string | null, lines: string[], actions: string[] = [], durations: (number | null)[] = []) => {
     setFilmRecorderOpen(false)
     setFilmSelectedId(id)
-    setFilmScript(lines.join('\n'))
-    setFilmActionsText(actions.join('\n'))
-    setFilmDurations(durations)
+    const origScript = lines.join('\n')
+    const origActions = actions.join('\n')
+    let nextScript = origScript
+    let nextActions = origActions
+    let nextDurations = durations
+    if (id && userId) {
+      try {
+        const raw = localStorage.getItem(`reelezy-film-draft:${userId}:${id}`)
+        const d = raw ? JSON.parse(raw) : null
+        if (d && typeof d.script === 'string' && typeof d.actions === 'string') { nextScript = d.script; nextActions = d.actions; nextDurations = [] }
+      } catch { /* ignore a bad draft */ }
+    }
+    setFilmOriginal(id ? { script: origScript, actions: origActions } : null)
+    setFilmScript(nextScript)
+    setFilmActionsText(nextActions)
+    setFilmDurations(nextDurations)
     setFilmLineIdx(0)
     filmClips.forEach((cl) => URL.revokeObjectURL(cl.url))
     setFilmClips([])
@@ -5318,7 +5410,7 @@ export default function DashboardPage() {
                       const locked = filmMultiBusy || filmIsRecording || filmRecorderOpen || filmClips.length > 0 || !!filmPending
                       const active = filmMulti === multi
                       return (
-                        <button key={name} type="button" aria-pressed={active} disabled={locked && !active} onClick={() => setFilmMulti(multi)} title={locked && !active ? 'Finish or clear your clips to switch' : undefined} style={{ flex: 1, padding: '9px 12px', borderRadius: 4, border: 'none', background: active ? 'var(--coral)' : 'transparent', color: active ? '#fff' : 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked && !active ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{name}</button>
+                        <button key={name} type="button" aria-pressed={active} disabled={locked && !active} onClick={() => setFilmMulti(multi)} title={locked && !active ? 'Finish or clear your clips to switch' : multi ? 'Film several videos back to back and render them together' : 'Film one video from an idea or your own script'} style={{ flex: 1, padding: '9px 12px', borderRadius: 4, border: 'none', background: active ? 'var(--coral)' : 'transparent', color: active ? '#fff' : 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked && !active ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{name}</button>
                       )
                     })}
                   </div>
@@ -5387,7 +5479,30 @@ export default function DashboardPage() {
                         <textarea value={filmActionsText} onChange={(e) => { setFilmActionsText(e.target.value); setFilmDurations([]); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="What to do in each clip. One line per clip. You only need a script or actions, not both." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                     </div>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>{filmClipCount} {filmClipCount === 1 ? 'clip' : 'clips'}, one per line</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '8px 0 0' }}>
+                      <label htmlFor="film-clip-count" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Number of clips</label>
+                      <input
+                        id="film-clip-count"
+                        type="number"
+                        min={1}
+                        max={15}
+                        inputMode="numeric"
+                        title="Type how many clips you want to film. Your script is joined up or split into that many clips."
+                        disabled={filmClips.length > 0 || !!filmPending || filmClipCount === 0}
+                        value={filmClipDraft ?? String(filmClipCount)}
+                        onChange={(e) => setFilmClipDraft(e.target.value)}
+                        onBlur={(e) => applyFilmClipCount(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') applyFilmClipCount((e.target as HTMLInputElement).value) }}
+                        style={{ width: 64, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One clip per line. Change the number and your script is joined up or split into that many clips (1 to 15).</span>
+                    </div>
+                    {filmSelectedId && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+                        {filmEdited ? 'Your edits are saved automatically. ' : 'Any edits you make are saved automatically. '}
+                        {filmEdited && <button type="button" onClick={resetFilmEdits} disabled={filmClips.length > 0 || !!filmPending} title="Go back to the original script and actions" style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--coral)', cursor: 'pointer', textDecoration: 'underline' }}>Reset to original</button>}
+                      </p>
+                    )}
                     {filmSelectedId && filmClipCount === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea has no script or actions yet. Generate its filming instructions, or type your own script or actions. You only need one of them.</p>
                     )}
@@ -5415,7 +5530,7 @@ export default function DashboardPage() {
                           type="button"
                           onClick={() => changeFilmOrientation(o)}
                           disabled={locked}
-                          title={locked && !active ? 'Finish or clear your clips to change orientation' : undefined}
+                          title={locked && !active ? 'Finish or clear your clips to change orientation' : o === 'portrait' ? 'Tall video for TikTok, Reels and Shorts' : 'Wide video for YouTube and your website'}
                           style={{ flex: 1, padding: '9px 12px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid var(--line)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: locked ? 'not-allowed' : 'pointer', opacity: locked && !active ? 0.5 : 1 }}
                         >
                           {o === 'portrait' ? 'Portrait' : 'Landscape'}
@@ -5427,6 +5542,7 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => setFilmRecorderOpen(true)}
                     disabled={filmClipCount === 0}
+                    title={filmClipCount === 0 ? 'Choose an idea or add a script first' : 'Open the camera with your script on the teleprompter'}
                     style={{ padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: filmClipCount === 0 ? 'not-allowed' : 'pointer', opacity: filmClipCount === 0 ? 0.5 : 1, boxShadow: filmClipCount === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}
                   >
                     {filmClips.length > 0 ? `Continue filming (clip ${Math.min(filmLineIdx + 1, filmClipCount)} of ${filmClipCount})` : 'Start filming'}
