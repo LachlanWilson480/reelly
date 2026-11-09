@@ -57,6 +57,7 @@ type JobData = {
   captionTextOnly?: boolean;
   customCaptions?: { items: CustomCaption[]; style: CustomCaptionStyle };
   overlay?: OverlayInput;
+  overlays?: OverlayInput[];
   watermark?: boolean;
   userId?: string;
   renderId?: string;
@@ -114,7 +115,7 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, watermark, crf, userId, renderId } = job.data;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -225,19 +226,24 @@ export const makeRenderQueue = ({
 
 
       // Step 5c: an image or video the person laid over the finished video
-      if (overlay) {
+      const overlayList: OverlayInput[] = overlays && overlays.length > 0 ? overlays : overlay ? [overlay] : [];
+      if (overlayList.length > 0) {
         setProgress(jobId, 84, job.data, cancel);
-        console.info(`[${jobId}] Step 5c: adding ${overlay.kind} overlay`);
-        try {
-          const overlaid = await applyOverlay(finalPath, overlay, outputWidth, outputHeight);
-          if (captionCleanup) captionCleanup();
-          captionCleanup = overlaid.cleanup;
-          finalPath = overlaid.outputPath;
-        } catch (err) {
-          // A broken overlay should not lose the whole video, so carry on without it
-          console.error(`[${jobId}] Overlay failed, continuing without it:`, err);
+        // One pass per overlay, in order, so a later overlay sits on top of an earlier one
+        for (let n = 0; n < overlayList.length; n++) {
+          const ov = overlayList[n];
+          console.info(`[${jobId}] Step 5c: adding ${ov.kind} overlay ${n + 1} of ${overlayList.length}`);
+          try {
+            const overlaid = await applyOverlay(finalPath, ov, outputWidth, outputHeight);
+            if (captionCleanup) captionCleanup();
+            captionCleanup = overlaid.cleanup;
+            finalPath = overlaid.outputPath;
+          } catch (err) {
+            // A broken overlay should not lose the whole video, so carry on without it
+            console.error(`[${jobId}] Overlay ${n + 1} failed, continuing without it:`, err);
+          }
+          if (cancelled) throw new Error('Cancelled');
         }
-        if (cancelled) throw new Error('Cancelled');
       }
 
       // Watermark step (free plan)

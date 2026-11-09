@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -133,23 +133,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Optional image or video laid over the finished video. Only files in this person's own folder are allowed.
-    let overlayInfo: { url: string; kind: 'image' | 'video'; x: number; y: number; size: number; start: number; end: number | null } | undefined
-    if (rawOverlay && typeof rawOverlay === 'object' && typeof rawOverlay.path === 'string') {
-      if (!rawOverlay.path.startsWith(`${userId}/`) || rawOverlay.path.includes('..')) {
+    // Up to six of them, drawn in order so the last one sits on top.
+    type OverlayInfo = { url: string; kind: 'image' | 'video'; x: number; y: number; size: number; start: number; end: number | null; cl: number; cr: number; ct: number; cb: number }
+    const overlayInfos: OverlayInfo[] = []
+    const rawList: unknown[] = Array.isArray(rawOverlays) ? rawOverlays.slice(0, 6) : rawOverlay ? [rawOverlay] : []
+    for (const item of rawList) {
+      const ov = item as { path?: unknown; kind?: unknown; x?: unknown; y?: unknown; size?: unknown; start?: unknown; end?: unknown; cl?: unknown; cr?: unknown; ct?: unknown; cb?: unknown } | null
+      if (!ov || typeof ov !== 'object' || typeof ov.path !== 'string') continue
+      if (!ov.path.startsWith(`${userId}/`) || ov.path.includes('..')) {
         return NextResponse.json({ error: 'Invalid overlay path' }, { status: 403 })
       }
-      const { data: ovData, error: ovError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(rawOverlay.path, 21600)
-      if (ovError || !ovData) return NextResponse.json({ error: 'Could not read the overlay file. Please add it again.' }, { status: 400 })
+      const { data: ovData, error: ovError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(ov.path, 21600)
+      if (ovError || !ovData) return NextResponse.json({ error: 'Could not read an overlay file. Please add it again.' }, { status: 400 })
       const num = (v: unknown, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : d)
-      overlayInfo = {
+      overlayInfos.push({
         url: ovData.signedUrl,
-        kind: rawOverlay.kind === 'video' ? 'video' : 'image',
-        x: num(rawOverlay.x, 0, 1, 0.5),
-        y: num(rawOverlay.y, 0, 1, 0.2),
-        size: num(rawOverlay.size, 0.05, 1, 0.35),
-        start: num(rawOverlay.start, 0, 36000, 0),
-        end: rawOverlay.end === null || rawOverlay.end === undefined ? null : num(rawOverlay.end, 0, 36000, 36000),
-      }
+        kind: ov.kind === 'video' ? 'video' : 'image',
+        x: num(ov.x, 0, 1, 0.5),
+        y: num(ov.y, 0, 1, 0.2),
+        size: num(ov.size, 0.05, 1, 0.35),
+        start: num(ov.start, 0, 36000, 0),
+        end: ov.end === null || ov.end === undefined ? null : num(ov.end, 0, 36000, 36000),
+        cl: num(ov.cl, 0, 0.45, 0),
+        cr: num(ov.cr, 0, 0.45, 0),
+        ct: num(ov.ct, 0, 0.45, 0),
+        cb: num(ov.cb, 0, 0.45, 0),
+      })
     }
 
     const trims: ClipTrim[] = Array.isArray(clipTrims) ? clipTrims : []
@@ -268,7 +277,9 @@ export async function POST(req: NextRequest) {
         cutDeadSpace: cutDeadSpace === true,
         captionStyle: captionStyle || null,
         captionTextOnly: captionTextOnly === true,
-        overlay: overlayInfo,
+        // The first is also sent on its own so a server that has not updated yet still shows it
+        overlay: overlayInfos[0],
+        overlays: overlayInfos.length > 0 ? overlayInfos : undefined,
         customCaptions: cleanCaptions.length > 0 ? {
           items: cleanCaptions,
           style: {

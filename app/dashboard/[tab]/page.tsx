@@ -129,7 +129,7 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 ]
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
-type OverlayItem = { file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null }
+type OverlayItem = { id: string; file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null; ar: number; cl: number; cr: number; ct: number; cb: number }
 
 type PreviewCaptionStyle = { color: string; border: string; background: string | null; bold?: boolean; italic?: boolean; underline?: boolean; size: number; onScreen: { x: number; y: number }; speech: { x: number; y: number } }
 
@@ -374,7 +374,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onOverlayTime }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -399,9 +399,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   onSpeedClip?: (index: number, speed: number) => void
-  overlay?: OverlayItem | null
-  onOverlayMove?: (x: number, y: number) => void
-  onOverlayTime?: (start: number, end: number | null) => void
+  overlays?: OverlayItem[]
+  selOverlay?: string | null
+  onSelOverlay?: (id: string | null) => void
+  onOverlayPatch?: (id: string, patch: Partial<OverlayItem>) => void
 }) {
   const [durations, setDurations] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {}
@@ -415,8 +416,9 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
   // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
-  const ovDragRef = useRef(false)
-  const ovVideoRef = useRef<HTMLVideoElement | null>(null)
+  const ovDragRef = useRef<string | null>(null)
+  const ovVideosRef = useRef<Record<string, HTMLVideoElement | null>>({})
+  const ovResizeRef = useRef<{ id: string; size: number; dist: number; cx: number; cy: number } | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -739,26 +741,28 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     capRows[c.id] = r
   })
   const ovTop = musicUrl ? 94 : 64
-  const capTop = ovTop + (overlay ? 28 : 0)
-  const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62) + (overlay ? 28 : 0)
-  // Overlay bar: drag to move, drag the white ends to change when it starts and stops
-  const ovDragTimeRef = useRef<{ mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
+  const ovCount = overlays?.length ?? 0
+  const capTop = ovTop + ovCount * 28
+  const trackHeight = caps.length > 0 ? capTop + rowEnds.length * 26 : (musicUrl ? 92 : 62) + ovCount * 28
+  // Overlay bars: drag to move, drag the white ends to change when each one starts and stops
+  const ovDragTimeRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
   const moveOvTime = (e: React.PointerEvent) => {
     const d = ovDragTimeRef.current
-    if (!d || total <= 0 || !onOverlayTime) return
+    if (!d || total <= 0 || !onOverlayPatch) return
     const w = trackRef.current?.getBoundingClientRect().width || 1
     const delta = (e.clientX - d.startX) * (total / w)
     let st = d.start, en = d.end
     if (d.mode === 'move') { const len = d.end - d.start; st = Math.min(Math.max(0, total - len), Math.max(0, d.start + delta)); en = st + len }
     else if (d.mode === 'l') st = Math.min(d.end - 0.3, Math.max(0, d.start + delta))
     else en = Math.max(d.start + 0.3, Math.min(total, d.end + delta))
-    onOverlayTime(st, en >= total - 0.05 ? null : en)
+    onOverlayPatch(d.id, { start: st, end: en >= total - 0.05 ? null : en })
   }
-  const startOvTime = (e: React.PointerEvent, mode: 'move' | 'l' | 'r') => {
-    if (recording || !overlay || !onOverlayTime) return
+  const startOvTime = (e: React.PointerEvent, mode: 'move' | 'l' | 'r', ov: OverlayItem) => {
+    if (recording || !onOverlayPatch) return
     e.stopPropagation()
+    onSelOverlay?.(ov.id)
     e.currentTarget.setPointerCapture(e.pointerId)
-    ovDragTimeRef.current = { mode, startX: e.clientX, start: overlay.start, end: overlay.end ?? total }
+    ovDragTimeRef.current = { id: ov.id, mode, startX: e.clientX, start: ov.start, end: ov.end ?? total }
   }
   const updateCap = (id: string, patch: Partial<CustomCaption>) => onCaptions?.(caps.map((c) => (c.id === id ? { ...c, ...patch } : c)))
   // Pinch to resize: two fingers on a caption (touch), or a trackpad pinch over it
@@ -864,12 +868,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     if (d) load(d.i, 0, false)
   }
 
-  // A video overlay plays while the preview plays
+  // Video overlays play while the preview plays
   useEffect(() => {
-    const v = ovVideoRef.current
-    if (!v) return
-    if (playing || recording) { v.play().catch(() => {}) } else { v.pause() }
-  }, [playing, recording, overlay])
+    Object.values(ovVideosRef.current).forEach((v) => {
+      if (!v) return
+      if (playing || recording) { v.play().catch(() => {}) } else { v.pause() }
+    })
+  }, [playing, recording, overlays])
 
   // While a voiceover is being recorded the script shows one line at a time, with the next line smaller and faded.
   // 1x moves at a normal talking pace (about 2.3 words a second).
@@ -988,24 +993,64 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             )}
           </div>
         )}
-        {overlay && globalTime >= overlay.start && (overlay.end === null || globalTime < overlay.end) && (
-          <div aria-label="Overlay"
-            onPointerDown={(e) => { if (recording || !onOverlayMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = true; const pf = frac(e); grabRef.current = { dx: overlay.x - pf.x, dy: overlay.y - pf.y } }}
-            onPointerMove={(e) => {
-              if (!ovDragRef.current || !onOverlayMove) return
-              const box = stageRef.current?.getBoundingClientRect()
-              if (!box) return
-              onOverlayMove(Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + grabRef.current.dx)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)))
-            }}
-            onPointerUp={() => { ovDragRef.current = false }}
-            onPointerCancel={() => { ovDragRef.current = false }}
-            style={{ position: 'absolute', left: `${overlay.x * 100}%`, top: `${overlay.y * 100}%`, width: `${overlay.size * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 2, cursor: onOverlayMove ? 'grab' : 'default', touchAction: 'none' }}>
-            {overlay.kind === 'image'
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={overlay.url} alt="" draggable={false} style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />
-              : <video ref={ovVideoRef} src={overlay.url} muted loop playsInline style={{ width: '100%', display: 'block', pointerEvents: 'none' }} />}
-          </div>
-        )}
+        {(overlays || []).map((ov, oi) => {
+          if (!(globalTime >= ov.start && (ov.end === null || globalTime < ov.end))) return null
+          const selected = selOverlay === ov.id && !recording
+          const vw = Math.max(0.1, 1 - ov.cl - ov.cr)
+          const vh = Math.max(0.1, 1 - ov.ct - ov.cb)
+          const corner = (key: string, pos: React.CSSProperties) => (
+            <span key={key} aria-label="Drag to resize"
+              onPointerDown={(e) => {
+                if (!onOverlayPatch) return
+                e.stopPropagation()
+                const box = stageRef.current?.getBoundingClientRect()
+                if (!box) return
+                e.currentTarget.setPointerCapture(e.pointerId)
+                const cx = box.left + ov.x * box.width, cy = box.top + ov.y * box.height
+                ovResizeRef.current = { id: ov.id, size: ov.size, dist: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy }
+              }}
+              onPointerMove={(e) => {
+                const r = ovResizeRef.current
+                if (!r || r.id !== ov.id || !onOverlayPatch) return
+                const d = Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
+                onOverlayPatch(ov.id, { size: Math.min(1, Math.max(0.05, r.size * (d / r.dist))) })
+              }}
+              onPointerUp={() => { ovResizeRef.current = null }} onPointerCancel={() => { ovResizeRef.current = null }}
+              style={{ position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: '#fff', border: '2px solid var(--coral)', boxSizing: 'border-box', cursor: 'nwse-resize', touchAction: 'none', zIndex: 3, ...pos }} />
+          )
+          return (
+            <div key={ov.id} aria-label="Overlay"
+              onPointerDown={(e) => { if (recording || !onOverlayPatch) return; e.stopPropagation(); onSelOverlay?.(ov.id); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = ov.id; const pf = frac(e); grabRef.current = { dx: ov.x - pf.x, dy: ov.y - pf.y } }}
+              onPointerMove={(e) => {
+                if (ovDragRef.current !== ov.id || !onOverlayPatch) return
+                const box = stageRef.current?.getBoundingClientRect()
+                if (!box) return
+                onOverlayPatch(ov.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + grabRef.current.dx)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)) })
+              }}
+              onPointerUp={() => { ovDragRef.current = null }}
+              onPointerCancel={() => { ovDragRef.current = null }}
+              style={{ position: 'absolute', left: `${ov.x * 100}%`, top: `${ov.y * 100}%`, width: `${ov.size * 100}%`, aspectRatio: `${vw} / ${vh * ov.ar}`, transform: 'translate(-50%, -50%)', zIndex: 2 + oi, cursor: onOverlayPatch ? 'grab' : 'default', touchAction: 'none', outline: selected ? '1.5px solid var(--coral)' : 'none' }}>
+              <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                {ov.kind === 'image'
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={ov.url} alt="" draggable={false}
+                      onLoad={(e) => { const n = e.currentTarget; if (n.naturalWidth && onOverlayPatch) { const a = n.naturalHeight / n.naturalWidth; if (Math.abs(a - ov.ar) > 0.001) onOverlayPatch(ov.id, { ar: a }) } }}
+                      style={{ position: 'absolute', width: `${100 / vw}%`, left: `${-(ov.cl / vw) * 100}%`, top: `${-(ov.ct / vh) * 100}%`, display: 'block' }} />
+                  : <video ref={(el) => { ovVideosRef.current[ov.id] = el }} src={ov.url} muted loop playsInline
+                      onLoadedMetadata={(e) => { const n = e.currentTarget; if (n.videoWidth && onOverlayPatch) { const a = n.videoHeight / n.videoWidth; if (Math.abs(a - ov.ar) > 0.001) onOverlayPatch(ov.id, { ar: a }) } }}
+                      style={{ position: 'absolute', width: `${100 / vw}%`, left: `${-(ov.cl / vw) * 100}%`, top: `${-(ov.ct / vh) * 100}%`, display: 'block' }} />}
+              </div>
+              {selected && onOverlayPatch && (
+                <>
+                  {corner('tl', { left: -7, top: -7 })}
+                  {corner('tr', { right: -7, top: -7 })}
+                  {corner('bl', { left: -7, bottom: -7 })}
+                  {corner('br', { right: -7, bottom: -7 })}
+                </>
+              )}
+            </div>
+          )
+        })}
         {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
           // A teleprompter: every line shows in full, the text glides up at reading pace and the line being read sits on a fixed reading line.
           // When you are not recording you can scroll the script yourself.
@@ -1186,19 +1231,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           {musicUrl && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
           )}
-          {overlay && total > 0 && (
-            <div title="Overlay. Drag to move it, drag the white ends to change when it shows."
-              onPointerDown={(e) => startOvTime(e, 'move')} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
-              style={{ position: 'absolute', top: ovTop, height: 22, left: pct(Math.min(overlay.start, total)), width: pct(Math.max(0, Math.min(total, overlay.end ?? total) - Math.min(overlay.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: 'rgba(74,111,165,0.6)', border: '1.5px solid #4a6fa5', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
-              <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>Overlay</span>
+          {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
+          {total > 0 && (overlays || []).map((ov, oi) => (
+            <div key={ov.id} title="Overlay. Drag to move it, drag the white ends to change when it shows."
+              onPointerDown={(e) => startOvTime(e, 'move', ov)} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
+              style={{ position: 'absolute', top: ovTop + oi * 28, height: 22, left: pct(Math.min(ov.start, total)), width: pct(Math.max(0, Math.min(total, ov.end ?? total) - Math.min(ov.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: selOverlay === ov.id ? 'rgba(74,111,165,0.9)' : 'rgba(74,111,165,0.55)', border: `1.5px solid ${selOverlay === ov.id ? '#fff' : '#4a6fa5'}`, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+              <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ov.isLogo ? 'Logo' : ov.file.name}</span>
               {!recording && (['l', 'r'] as const).map((side) => (
                 <span key={side} aria-label={side === 'l' ? 'Change when the overlay starts' : 'Change when the overlay ends'}
-                  /* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */
-                  onPointerDown={(e) => startOvTime(e, side)} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
+                  onPointerDown={(e) => startOvTime(e, side, ov)} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
                   style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 8, background: '#fff', cursor: 'ew-resize', touchAction: 'none', borderRadius: side === 'l' ? '4px 0 0 4px' : '0 4px 4px 0' }} />
               ))}
             </div>
-          )}
+          ))}
           {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
           {caps.map((c) => {
             const sel = selCap === c.id
@@ -1223,7 +1268,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <span>Clips{onTrimClip ? ' (drag the white ends to trim)' : ''}</span>
           <span>Voiceover</span>
           {musicUrl && <span>Music</span>}
-          {overlay && <span>Overlay</span>}
+          {ovCount > 0 && <span>{ovCount === 1 ? 'Overlay' : 'Overlays'}</span>}
           {caps.length > 0 && <span>Your captions</span>}
         </div>
         {onSpeedClip && hasClips && !recording && segments[index] && (
@@ -1250,7 +1295,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onOverlayTime, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, below }: {
   below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
@@ -1276,9 +1321,10 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onCaptions?: (c: CustomCaption[]) => void
   onTrimClip?: (index: number, start: number, end: number, total: number) => void
   onSpeedClip?: (index: number, speed: number) => void
-  overlay?: OverlayItem | null
-  onOverlayMove?: (x: number, y: number) => void
-  onOverlayTime?: (start: number, end: number | null) => void
+  overlays?: OverlayItem[]
+  selOverlay?: string | null
+  onSelOverlay?: (id: string | null) => void
+  onOverlayPatch?: (id: string, patch: Partial<OverlayItem>) => void
 }) {
   const [fileOver, setFileOver] = useState(false)
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files')
@@ -1296,7 +1342,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -1554,9 +1600,11 @@ export default function DashboardPage() {
   const [videoLength, setVideoLength] = useState<number>(30)
   // An image or video laid over the finished video
   const overlayInputRef = useRef<HTMLInputElement | null>(null)
-  const [overlay, setOverlay] = useState<OverlayItem | null>(null)
+  const [overlays, setOverlays] = useState<OverlayItem[]>([])
+  const [selOverlay, setSelOverlay] = useState<string | null>(null)
   const [overlayError, setOverlayError] = useState('')
-  const overlayUploadRef = useRef<{ file: File; path: string } | null>(null)
+  const overlayUploadRef = useRef(new Map<File, string>())
+  const overlaySeq = useRef(0)
   const [overlayPicker, setOverlayPicker] = useState(false)
   // The logo saved in Settings (undefined while loading, null when there is none)
   const [bizLogoUrl, setBizLogoUrl] = useState<string | null | undefined>(undefined)
@@ -3002,48 +3050,74 @@ export default function DashboardPage() {
     </CollapsibleBox>
   )
 
-  // Overlay: an image or video laid over the video, such as a logo or a b-roll clip
-  const renderOverlayCard = () => (
-    <CollapsibleBox title="Overlay" summary={overlay ? overlay.file.name : 'None'}>
-      <div>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay an image or video over your video, like a logo or a product shot. Drag it on the preview to place it, and set when it shows on the timeline.</p>
-      </div>
-      <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
-      <label title={bizLogoUrl ? 'Puts the logo from your Settings on the video. Drag it on the preview to move it.' : 'Upload your logo in Settings first'} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: bizLogoUrl ? 'var(--ink)' : 'var(--text-muted)', cursor: bizLogoUrl ? 'pointer' : 'not-allowed' }}>
-        <input type="checkbox" checked={!!overlay?.isLogo} disabled={!bizLogoUrl} onChange={(e) => { if (e.target.checked) void addLogoOverlay(); else if (overlay?.isLogo) clearOverlay() }} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
-        Add my logo
-        {bizLogoUrl === null && <a href="/settings" style={{ fontSize: 12, color: 'var(--coral)' }}>Upload one in Settings</a>}
+  // Overlays: pictures or clips laid over the video, such as a logo, a sticker or b-roll
+  const renderOverlayCard = () => {
+    const sel = overlays.find((o) => o.id === selOverlay) || null
+    const cropRow = (label: string, key: 'cl' | 'cr' | 'ct' | 'cb') => (
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
+        {label}
+        <input type="range" min={0} max={45} step={1} value={Math.round((sel ? sel[key] : 0) * 100)} onChange={(e) => { if (sel) patchOverlay(sel.id, { [key]: Number(e.target.value) / 100 }) }} aria-label={`Crop ${label.toLowerCase()}`} style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
       </label>
-      {!overlay ? (
+    )
+    return (
+      <CollapsibleBox title="Overlay" summary={overlays.length === 0 ? 'None' : overlays.length === 1 ? (overlays[0].isLogo ? 'Logo' : overlays[0].file.name) : `${overlays.length} on the video`}>
+        <div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay pictures or clips over your video, like a logo or a product shot. Add as many as you like (up to {MAX_OVERLAYS}). Drag one on the preview to place it, drag its corners to resize it, and set when it shows on the timeline.</p>
+        </div>
+        <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
+        <label title={bizLogoUrl ? 'Puts the logo from your Settings on the video. Drag it on the preview to move it.' : 'Upload your logo in Settings first'} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: bizLogoUrl ? 'var(--ink)' : 'var(--text-muted)', cursor: bizLogoUrl ? 'pointer' : 'not-allowed' }}>
+          <input type="checkbox" checked={overlays.some((o) => o.isLogo)} disabled={!bizLogoUrl} onChange={(e) => { if (e.target.checked) void addLogoOverlay(); else overlays.filter((o) => o.isLogo).forEach((o) => clearOverlay(o.id)) }} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+          Add my logo
+          {bizLogoUrl === null && <a href="/settings" style={{ fontSize: 12, color: 'var(--coral)' }}>Upload one in Settings</a>}
+        </label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" style={choiceBtn()} onClick={() => setOverlayPicker(true)}>Open library</button>
+          <button type="button" style={choiceBtn()} onClick={() => setOverlayPicker(true)}>{overlays.length === 0 ? 'Open library' : 'Add another from library'}</button>
           <button type="button" style={choiceBtn()} onClick={() => overlayInputRef.current?.click()}>Upload from device</button>
         </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 10 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 4, overflow: 'hidden', background: '#111', flexShrink: 0 }}>
-              {overlay.kind === 'image'
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={overlay.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <video src={overlay.url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {overlays.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {overlays.map((o) => (
+              <div key={o.id} role="button" tabIndex={0} onClick={() => setSelOverlay(o.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelOverlay(o.id) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card-bg)', border: o.id === selOverlay ? '1.5px solid var(--coral)' : '1px solid var(--line)', borderRadius: 4, padding: 8, cursor: 'pointer' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 4, overflow: 'hidden', background: '#111', flexShrink: 0 }}>
+                  {o.kind === 'image'
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={o.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <video src={o.url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+                <p style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.isLogo ? 'My logo' : o.file.name}</p>
+                <button type="button" style={choiceBtn()} onClick={(e) => { e.stopPropagation(); clearOverlay(o.id) }}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {sel && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
+                Size
+                <input type="range" min={5} max={100} step={1} value={Math.round(sel.size * 100)} onChange={(e) => patchOverlay(sel.id, { size: Number(e.target.value) / 100 })} aria-label="Overlay size" style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
+              </label>
             </div>
-            <p style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overlay.file.name}</p>
-            <button type="button" style={choiceBtn()} onClick={() => setOverlayPicker(true)}>Change</button>
-            <button type="button" style={choiceBtn()} onClick={clearOverlay}>Remove</button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block' }}>
-              Size
-              <input type="range" min={10} max={100} step={5} value={Math.round(overlay.size * 100)} onChange={(e) => patchOverlay({ size: Number(e.target.value) / 100 })} aria-label="Overlay size" style={{ width: '100%', accentColor: 'var(--coral)', display: 'block', marginTop: 8 }} />
-            </label>
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>Drag its bar on the preview timeline to choose when it shows, and drag the white ends to make it shorter or longer.</p>
-        </>
-      )}
-      {overlayError && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0 }}>{overlayError}</p>}
-    </CollapsibleBox>
-  )
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 6px' }}>Crop (trim the edges)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
+                {cropRow('Left', 'cl')}
+                {cropRow('Right', 'cr')}
+                {cropRow('Top', 'ct')}
+                {cropRow('Bottom', 'cb')}
+              </div>
+              {(sel.cl > 0 || sel.cr > 0 || sel.ct > 0 || sel.cb > 0) && (
+                <button type="button" onClick={() => patchOverlay(sel.id, { cl: 0, cr: 0, ct: 0, cb: 0 })} style={{ background: 'none', border: 'none', padding: 0, marginTop: 8, fontSize: 12, color: 'var(--coral)', cursor: 'pointer' }}>Reset crop</button>
+              )}
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>Click an overlay on the preview or in the list to change it. Drag its bar on the preview timeline to choose when it shows, and drag the white ends to make it shorter or longer.</p>
+          </>
+        )}
+        {overlayError && <p role="alert" style={{ fontSize: 12, color: '#d92d20', margin: 0 }}>{overlayError}</p>}
+      </CollapsibleBox>
+    )
+  }
 
   // Video quality and Smart Trim
   const renderVideoSettingsBody = (m: 'upload' | 'ai') => {
@@ -3619,23 +3693,25 @@ export default function DashboardPage() {
   }
 
   // Music and voiceover files upload in the background too ('m' = music file, 'v:<id>' = a voiceover part)
+  const MAX_OVERLAYS = 6
   const pickOverlay = (file: File | null, opts?: { isLogo?: boolean }) => {
     if (!file) return
     const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null
     if (!kind) { setOverlayError('Choose an image or a video file.'); return }
     if (file.size > 50 * 1024 * 1024) { setOverlayError('That file is over 50 MB. Try a smaller one.'); return }
+    if (overlays.length >= MAX_OVERLAYS) { setOverlayError(`You can have up to ${MAX_OVERLAYS} overlays on a video. Remove one first.`); return }
     setOverlayError('')
-    overlayUploadRef.current = null
-    setOverlay((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url)
-      // A logo sits small in the top right for the whole video. Anything else lands near the top, from where the playhead is.
-      if (opts?.isLogo) return { file, kind, isLogo: true, url: URL.createObjectURL(file), x: 0.85, y: 0.1, size: 0.2, start: 0, end: null }
-      return { file, kind, url: URL.createObjectURL(file), x: 0.5, y: 0.2, size: 0.35, start: playheadRef.current.total > 0 && playheadRef.current.t < playheadRef.current.total - 0.5 ? playheadRef.current.t : 0, end: null }
-    })
+    const base = { id: `ov-${(overlaySeq.current += 1)}`, file, kind, url: URL.createObjectURL(file), ar: 1, cl: 0, cr: 0, ct: 0, cb: 0, end: null } as const
+    // A logo sits small in the top right for the whole video. Anything else lands near the top, from where the playhead is, and each new one steps down a little so they do not hide each other.
+    const item: OverlayItem = opts?.isLogo
+      ? { ...base, isLogo: true, x: 0.85, y: 0.1, size: 0.2, start: 0 }
+      : { ...base, x: 0.5, y: Math.min(0.8, 0.2 + overlays.filter((o) => !o.isLogo).length * 0.12), size: 0.35, start: playheadRef.current.total > 0 && playheadRef.current.t < playheadRef.current.total - 0.5 ? playheadRef.current.t : 0 }
+    setOverlays((prev) => [...prev, item])
+    setSelOverlay(item.id)
   }
   // Puts the logo from Settings on the video
   const addLogoOverlay = async () => {
-    if (!bizLogoUrl) return
+    if (!bizLogoUrl || overlays.some((o) => o.isLogo)) return
     try {
       const res = await fetch(bizLogoUrl, { cache: 'no-store' })
       if (!res.ok) throw new Error('bad status')
@@ -3646,24 +3722,29 @@ export default function DashboardPage() {
       setOverlayError('Could not load your logo. Try again, or check it in Settings.')
     }
   }
-  const clearOverlay = () => {
-    overlayUploadRef.current = null
+  const clearOverlay = (id: string) => {
     setOverlayError('')
-    setOverlay((prev) => { if (prev) URL.revokeObjectURL(prev.url); return null })
+    const gone = overlays.find((o) => o.id === id)
+    if (gone) URL.revokeObjectURL(gone.url)
+    setOverlays((prev) => prev.filter((o) => o.id !== id))
+    setSelOverlay((cur) => (cur === id ? null : cur))
   }
-  const moveOverlay = (x: number, y: number) => setOverlay((prev) => (prev ? { ...prev, x, y } : prev))
-  const patchOverlay = (patch: Partial<OverlayItem>) => setOverlay((prev) => (prev ? { ...prev, ...patch } : prev))
-  // Uploads the overlay file when the video is made, and returns what the server needs
+  const patchOverlay = (id: string, patch: Partial<OverlayItem>) => setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+  // Uploads the overlay files when the video is made, and returns what the server needs
   const uploadOverlay = async () => {
-    if (!overlay || !userId) return null
-    let path = overlayUploadRef.current?.file === overlay.file ? overlayUploadRef.current.path : null
-    if (!path) {
-      path = `${userId}/overlay-${Date.now()}-${overlay.file.name.replace(/[^\w.-]+/g, '_')}`
-      const { error } = await supabase.storage.from('video-uploads').upload(path, overlay.file, overlay.file.type ? { contentType: overlay.file.type } : undefined)
-      if (error) throw new Error(`Overlay upload failed: ${error.message}`)
-      overlayUploadRef.current = { file: overlay.file, path }
+    if (overlays.length === 0 || !userId) return []
+    const out: { path: string; kind: 'image' | 'video'; x: number; y: number; size: number; start: number; end: number | null; cl: number; cr: number; ct: number; cb: number }[] = []
+    for (const ov of overlays) {
+      let path = overlayUploadRef.current.get(ov.file) ?? null
+      if (!path) {
+        path = `${userId}/overlay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${ov.file.name.replace(/[^\w.-]+/g, '_')}`
+        const { error } = await supabase.storage.from('video-uploads').upload(path, ov.file, ov.file.type ? { contentType: ov.file.type } : undefined)
+        if (error) throw new Error(`Overlay upload failed: ${error.message}`)
+        overlayUploadRef.current.set(ov.file, path)
+      }
+      out.push({ path, kind: ov.kind, x: ov.x, y: ov.y, size: ov.size, start: ov.start, end: ov.end, cl: ov.cl, cr: ov.cr, ct: ov.ct, cb: ov.cb })
     }
-    return { path, kind: overlay.kind, x: overlay.x, y: overlay.y, size: overlay.size, start: overlay.start, end: overlay.end }
+    return out
   }
 
   const startAssetUpload = (key: string, blob: Blob, fileName: string) => {
@@ -3914,7 +3995,7 @@ export default function DashboardPage() {
           cutDeadSpace: cutDeadSpace && aiCaps.length === 0,
           customCaptions: aiCaps,
           customCaptionStyle,
-          overlay: overlayPayload,
+          overlays: overlayPayload,
           
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
@@ -4056,7 +4137,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlay: overlayPayload }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload }),
       })
 
       const data = await res.json()
@@ -5627,9 +5708,10 @@ export default function DashboardPage() {
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
-                overlay={overlay}
-                onOverlayMove={moveOverlay}
-                onOverlayTime={(start, end) => patchOverlay({ start, end })}
+                overlays={overlays}
+                selOverlay={selOverlay}
+                onSelOverlay={setSelOverlay}
+                onOverlayPatch={patchOverlay}
                 segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
@@ -5947,9 +6029,10 @@ export default function DashboardPage() {
                         selCap={selCap}
                         onSelCap={setSelCap}
                         onPlayhead={handlePlayhead}
-                        overlay={overlay}
-                        onOverlayMove={moveOverlay}
-                        onOverlayTime={(start, end) => patchOverlay({ start, end })}
+                        overlays={overlays}
+                        selOverlay={selOverlay}
+                        onSelOverlay={setSelOverlay}
+                        onOverlayPatch={patchOverlay}
                         segments={filmSegFiles.map((f) => ({ file: f, start: 0.3, end: null }))}
                         takes={voiceTakes}
                         originalVol={originalVol}
@@ -6182,9 +6265,10 @@ export default function DashboardPage() {
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
-                overlay={overlay}
-                onOverlayMove={moveOverlay}
-                onOverlayTime={(start, end) => patchOverlay({ start, end })}
+                overlays={overlays}
+                selOverlay={selOverlay}
+                onSelOverlay={setSelOverlay}
+                onOverlayPatch={patchOverlay}
                 segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}

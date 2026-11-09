@@ -59,7 +59,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, userId, renderId, watermark, callbackUrl } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -149,17 +149,22 @@ function setupApp() {
               style: customCaptions.style && typeof customCaptions.style === 'object' ? customCaptions.style : {},
             }
           : undefined,
-        overlay: overlay && typeof overlay.url === 'string' && overlay.url.startsWith('https://') && (overlay.kind === 'image' || overlay.kind === 'video')
-          ? {
-              url: overlay.url,
-              kind: overlay.kind,
-              x: Math.min(1, Math.max(0, Number(overlay.x) || 0.5)),
-              y: Math.min(1, Math.max(0, Number(overlay.y) || 0.2)),
-              size: Math.min(1, Math.max(0.05, Number(overlay.size) || 0.35)),
-              start: Math.max(0, Number(overlay.start) || 0),
-              end: overlay.end === null || overlay.end === undefined ? null : Math.max(0, Number(overlay.end) || 0),
-            }
-          : undefined,
+        overlays: (Array.isArray(overlays) ? overlays : overlay ? [overlay] : [])
+          .slice(0, 6)
+          .filter((o: { url?: unknown; kind?: unknown }) => o && typeof o.url === 'string' && o.url.startsWith('https://') && (o.kind === 'image' || o.kind === 'video'))
+          .map((o: { url: string; kind: 'image' | 'video'; x?: unknown; y?: unknown; size?: unknown; start?: unknown; end?: unknown; cl?: unknown; cr?: unknown; ct?: unknown; cb?: unknown }) => ({
+            url: o.url,
+            kind: o.kind,
+            x: Math.min(1, Math.max(0, Number.isFinite(Number(o.x)) ? Number(o.x) : 0.5)),
+            y: Math.min(1, Math.max(0, Number.isFinite(Number(o.y)) ? Number(o.y) : 0.2)),
+            size: Math.min(1, Math.max(0.05, Number(o.size) || 0.35)),
+            start: Math.max(0, Number(o.start) || 0),
+            end: o.end === null || o.end === undefined ? null : Math.max(0, Number(o.end) || 0),
+            cl: Math.min(0.45, Math.max(0, Number(o.cl) || 0)),
+            cr: Math.min(0.45, Math.max(0, Number(o.cr) || 0)),
+            ct: Math.min(0.45, Math.max(0, Number(o.ct) || 0)),
+            cb: Math.min(0.45, Math.max(0, Number(o.cb) || 0)),
+          })),
         watermark: watermark === true,
         userId,
         renderId,

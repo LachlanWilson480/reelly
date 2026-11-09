@@ -17,6 +17,11 @@ export type OverlayInput = {
   size: number; // width as a share of the frame, 0.05 to 1
   start: number; // seconds
   end: number | null; // seconds, null = to the end
+  // How much to trim off each side before it is placed, as a share of the picture (0 to 0.45). Size and position then describe what is left.
+  cl?: number;
+  cr?: number;
+  ct?: number;
+  cb?: number;
 };
 
 function download(url: string, dest: string, hops = 0): Promise<void> {
@@ -59,8 +64,13 @@ export async function applyOverlay(
     const end = overlay.end === null ? duration + 1 : Math.max(start, overlay.end);
     const is4K = Math.max(outputWidth, outputHeight) >= 3840;
     const source = overlay.kind === 'video' ? ['-stream_loop', '-1', '-i', assetPath] : ['-loop', '1', '-i', assetPath];
+    const side = (v: number | undefined) => Math.min(0.45, Math.max(0, Number(v) || 0));
+    const cl = side(overlay.cl), cr = side(overlay.cr), ct = side(overlay.ct), cb = side(overlay.cb);
+    const crop = cl + cr + ct + cb > 0
+      ? `crop=trunc(iw*${(1 - cl - cr).toFixed(4)}/2)*2:trunc(ih*${(1 - ct - cb).toFixed(4)}/2)*2:iw*${cl.toFixed(4)}:ih*${ct.toFixed(4)},`
+      : '';
     const filter =
-      `[1:v]format=rgba,scale=${width}:-2,setpts=PTS-STARTPTS+${start.toFixed(3)}/TB[ov];` +
+      `[1:v]format=rgba,${crop}scale=${width}:-2,setpts=PTS-STARTPTS+${start.toFixed(3)}/TB[ov];` +
       `[0:v][ov]overlay=x='${outputWidth}*${overlay.x.toFixed(4)}-w/2':y='${outputHeight}*${overlay.y.toFixed(4)}-h/2':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})':eof_action=pass:format=auto[v]`;
     await execFileAsync(FFMPEG_PATH, [
       '-y', '-i', inputPath, ...source,
