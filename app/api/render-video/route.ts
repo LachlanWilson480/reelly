@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 )
 
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
-type ClipSetting = { muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
+type ClipSetting = { appearance?: { touchUp?: unknown; light?: unknown; look?: unknown }; muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
 const BASIC_CAP_MIN = 25
 const PRO_CAP_MIN = 25
@@ -165,6 +165,11 @@ export async function POST(req: NextRequest) {
     const apNum = (v: unknown) => (Number.isFinite(Number(v)) ? Math.min(100, Math.max(0, Math.round(Number(v)))) : 0)
     const apRaw = rawAppearance && typeof rawAppearance === 'object' ? (rawAppearance as { touchUp?: unknown; light?: unknown; look?: unknown }) : null
     const apLook = apRaw && ['warm', 'cool', 'vivid', 'soft', 'bw'].includes(String(apRaw.look)) ? String(apRaw.look) : undefined
+    const cleanAppearance = (raw: unknown) => {
+      const a = raw && typeof raw === 'object' ? (raw as { touchUp?: unknown; light?: unknown; look?: unknown }) : null
+      const look = a && ['warm', 'cool', 'vivid', 'soft', 'bw'].includes(String(a.look)) ? String(a.look) : undefined
+      return a && (apNum(a.touchUp) > 0 || apNum(a.light) > 0 || look) ? { touchUp: apNum(a.touchUp), light: apNum(a.light), look } : undefined
+    }
     const appearanceInfo = apRaw && (apNum(apRaw.touchUp) > 0 || apNum(apRaw.light) > 0 || apLook)
       ? { touchUp: apNum(apRaw.touchUp), light: apNum(apRaw.light), look: apLook }
       : undefined
@@ -193,7 +198,8 @@ export async function POST(req: NextRequest) {
         speed: typeof setting.speed === 'number' && setting.speed >= 0.25 && setting.speed <= 8 ? setting.speed : undefined,
         fit: setting.fit,
         filter: setting.filter !== 'none' ? setting.filter : undefined,
-        appearance: appearanceInfo,
+        // A look chosen for this clip wins over the one for every clip
+        appearance: setting.appearance && typeof setting.appearance === 'object' ? cleanAppearance(setting.appearance) : appearanceInfo,
         rotate: setting.rotate,
         flipH: setting.flipH,
         flipV: setting.flipV,

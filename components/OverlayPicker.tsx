@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Icon from '@/components/Icon'
 import { supabase } from '@/lib/supabase'
+import { ELEMENTS_CHANGED } from '@/components/OverlayElements'
 
 // Pictures and clips the person keeps to lay over their videos: logos, stickers, product shots, b-roll.
 // They live in their own folder of the video storage, so no database change is needed.
@@ -95,6 +96,7 @@ export default function OverlayPicker({ userId, logoUrl, onClose, onPick, onLogo
     }
     if (problems.length > 0) setMessage(problems.join(' '))
     await refresh()
+    window.dispatchEvent(new Event(ELEMENTS_CHANGED))
   }
 
   const use = async (e: Element) => {
@@ -119,6 +121,7 @@ export default function OverlayPicker({ userId, logoUrl, onClose, onPick, onLogo
     const { error } = await supabase.storage.from(BUCKET).remove([e.path])
     if (error) setMessage('Could not delete that one. Please try again.')
     await refresh()
+    window.dispatchEvent(new Event(ELEMENTS_CHANGED))
   }
 
   const q = search.trim().toLowerCase()
