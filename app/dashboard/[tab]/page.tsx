@@ -239,7 +239,7 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
 
 // Audio section: the original sound of the clips, then voiceover, then music, each with its own
 // volume. Recording itself happens under the preview so it can start wherever the preview was paused.
-function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, scriptSpeed, onScriptSpeed, onOpenRecord, musicPicker }: {
+function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, scriptSpeed, onScriptSpeed, onOpenRecord, musicPicker, section }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -255,11 +255,16 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   scriptSpeed: number
   onScriptSpeed: (v: number) => void
   onOpenRecord: () => void
+  section?: 'voiceover' | 'rest'
   musicPicker: React.ReactNode
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   // Moves smoothly while dragging; the page only updates when you let go
   const [speedDraft, setSpeedDraft] = useState(scriptSpeed)
+  const speedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The script speed is applied a moment after the slider stops, and also when the finger or mouse lets go (touch screens can cancel the release)
+  const commitSpeed = (v: number) => { if (speedTimer.current) clearTimeout(speedTimer.current); speedTimer.current = null; onScriptSpeed(v) }
+  const slideSpeed = (v: number) => { setSpeedDraft(v); if (speedTimer.current) clearTimeout(speedTimer.current); speedTimer.current = setTimeout(() => commitSpeed(v), 250) }
   const card = { border: '1px solid var(--line)', borderRadius: 4, padding: 14, background: 'rgba(128,128,128,0.06)' } as const
   const heading = (title: string, hint: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -271,16 +276,16 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* 1. Original audio */}
-      <div>
+      {section !== 'voiceover' && <div>
         {heading('Original audio', 'The sound recorded in your clips.')}
         <VolumeRow label="Volume" value={originalVol} onChange={onOriginalVol} color="var(--coral)" />
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
           {takes.length > 0 ? 'Turned down under your voiceover.' : 'Drag to Off to mute your clips.'}
         </p>
-      </div>
+      </div>}
 
       {/* 2. Voiceover */}
-      <div style={divider}>
+      {section !== 'rest' && <div style={section === 'voiceover' ? undefined : divider}>
         {heading('Voiceover', 'Talk over your clips.')}
         <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
@@ -301,8 +306,8 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
           <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) 44px', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
             <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is talking pace)</span></span>
             <input type="range" min={0.5} max={5} step={0.25} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
-              onChange={(e) => setSpeedDraft(Number(e.target.value))}
-              onPointerUp={() => onScriptSpeed(speedDraft)} onKeyUp={() => onScriptSpeed(speedDraft)} onBlur={() => onScriptSpeed(speedDraft)} />
+              onChange={(e) => slideSpeed(Number(e.target.value))}
+              onPointerUp={() => commitSpeed(speedDraft)} onPointerCancel={() => commitSpeed(speedDraft)} onTouchEnd={() => commitSpeed(speedDraft)} onKeyUp={() => commitSpeed(speedDraft)} onBlur={() => commitSpeed(speedDraft)} />
             <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)', textAlign: 'right' }}>{speedDraft}x</span>
           </label>
         )}
@@ -332,17 +337,17 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* 3. Music */}
-      <div style={divider}>
+      {section !== 'voiceover' && <div style={divider}>
         {musicPicker}
         {hasMusic && (
           <div style={{ marginTop: 12 }}>
             <VolumeRow label="Music volume" value={musicVol} onChange={onMusicVol} color="#3A9D6E" />
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }
@@ -840,6 +845,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const liveF = scriptLines.length === 0 ? 0 : Math.min(scriptLines.length - 1, scriptIdx + Math.min(1, Math.max(0, (spokenSecs - scriptStarts[scriptIdx]) / scriptDur(scriptIdx))))
   const scriptF = recording ? liveF : countdown !== null ? 0 : (holdF ?? 0)
   useEffect(() => { scriptFRef.current = scriptF })
+  const prompterRef = useRef<HTMLDivElement | null>(null)
+  const lineEls = useRef<(HTMLParagraphElement | null)[]>([])
+  // While recording, scroll the script so the line being read sits on the reading line
+  useEffect(() => {
+    const box = prompterRef.current
+    if (!box || !(recording || countdown !== null)) return
+    const i = Math.max(0, Math.min(lineEls.current.length - 1, Math.floor(scriptF)))
+    const a = lineEls.current[i]
+    if (!a) return
+    const b = lineEls.current[i + 1]
+    const span = b ? b.offsetTop - a.offsetTop : a.offsetHeight
+    box.scrollTop = a.offsetTop - 44 + (scriptF - i) * span
+  })
 
   return (
     <div>
@@ -920,20 +938,23 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           </div>
         )}
         {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
-          // A real teleprompter: the text glides up at reading pace and the line being read sits on a fixed reading line.
-          const SLOT = 84
+          // A teleprompter: every line shows in full, the text glides up at reading pace and the line being read sits on a fixed reading line.
+          // When you are not recording you can scroll the script yourself.
           const f = scriptF
+          const live = recording || countdown !== null
           return (
-            <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '46%', zIndex: 2, pointerEvents: 'none', overflow: 'hidden', background: 'linear-gradient(rgba(8,6,24,0.86) 62%, rgba(8,6,24,0))', WebkitMaskImage: 'linear-gradient(#000 78%, transparent)', maskImage: 'linear-gradient(#000 78%, transparent)' }}>
-              <span aria-hidden style={{ position: 'absolute', left: 8, top: 44 + 14, width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '9px solid var(--coral)' }} />
-              <div style={{ position: 'absolute', left: 26, right: 16, top: 44, transform: `translateY(${-f * SLOT}px)`, transition: recording ? 'transform 0.4s linear' : 'transform 0.3s ease' }}>
-                {scriptLines.map((l, i) => {
-                  const d = Math.abs(i - f)
-                  const near = Math.max(0, 1 - d)
-                  return (
-                    <p key={i} style={{ height: SLOT, margin: 0, overflow: 'hidden', fontSize: 20, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.3, color: '#fff', opacity: Math.max(0.12, 1 - d * 0.55), transform: `scale(${1 + 0.12 * near})`, transformOrigin: 'left top', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
-                  )
-                })}
+            <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '58%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.88) 70%, rgba(8,6,24,0))', WebkitMaskImage: 'linear-gradient(#000 80%, transparent)', maskImage: 'linear-gradient(#000 80%, transparent)' }}>
+              <span aria-hidden style={{ position: 'absolute', left: 8, top: 44 + 8, width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '9px solid var(--coral)' }} />
+              <div ref={prompterRef} style={{ position: 'absolute', inset: 0, overflowY: 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none', pointerEvents: live ? 'none' : 'auto', touchAction: 'pan-y' }}>
+                <div style={{ position: 'relative', padding: '44px 16px 400px 26px' }}>
+                  {scriptLines.map((l, i) => {
+                    const d = Math.abs(i - f)
+                    const near = Math.max(0, 1 - d)
+                    return (
+                      <p key={i} ref={(el) => { lineEls.current[i] = el }} style={{ margin: '0 0 18px', fontSize: 22, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.35, color: '#fff', opacity: live ? Math.max(0.2, 1 - d * 0.5) : 1, overflowWrap: 'anywhere', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )
@@ -1160,7 +1181,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlay, onOverlayMove, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onOverlayTime, below }: {
+  below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1205,6 +1227,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
       <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onOverlayTime={onOverlayTime} overlay={overlay} onOverlayMove={onOverlayMove} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      {below}
     </div>
   )
 }
@@ -2637,6 +2660,7 @@ export default function DashboardPage() {
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string) => (
     <CollapsibleBox title="Audio" summary={[`Clip sound ${originalVol === 0 ? 'off' : `${originalVol}%`}`, voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : '', extractedMusicPath ? 'Sound from a video' : (libraryMusicName || musicFile?.name) ? 'Music added' : 'No music'].filter(Boolean).join(' · ')}>
       <AudioPanel
+        section="rest"
         takes={voiceTakes}
         originalVol={originalVol}
         onOriginalVol={setOriginalVolPick}
@@ -2667,6 +2691,33 @@ export default function DashboardPage() {
       />
       <ExtractAudioCard extracting={extractingAudio} extractedPath={extractedMusicPath} error={extractAudioError} onExtract={handleExtractAudio} onClear={clearMusic} />
     </CollapsibleBox>
+  )
+
+  // The voiceover settings sit under the preview and its timeline
+  const renderVoiceoverSection = (scriptLabel?: string) => (
+    <div style={{ marginTop: 16 }}>
+      <CollapsibleBox title="Voiceover" defaultOpen summary={voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : 'Record or upload a voiceover'}>
+        <AudioPanel
+        section="voiceover"
+        takes={voiceTakes}
+        originalVol={originalVol}
+        onOriginalVol={setOriginalVolPick}
+        hasMusic={!!(musicFile || libraryMusicUrl || extractedMusicPath)}
+        musicVol={musicVol}
+        onMusicVol={setMusicVol}
+        onTakeVolume={setTakeVolume}
+        scriptLabel={scriptLabel}
+        scriptSpeed={scriptSpeed}
+        onScriptSpeed={setScriptSpeed}
+        onOpenRecord={() => { setScriptOpen(true); document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        onAddFile={addVoiceFile}
+        onRemoveTake={removeVoiceTake}
+        statuses={clipUploadStatus}
+        onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
+        musicPicker={null}
+      />
+      </CollapsibleBox>
+    </div>
   )
 
   // Simple blocks shared by both editors. m says which editor's settings to use.
@@ -5432,6 +5483,7 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
+                below={renderVoiceoverSection(voiceScript?.label)}
               />}
             </div>
           )}
@@ -5750,6 +5802,7 @@ export default function DashboardPage() {
                         onAddTake={addVoiceTake}
                         onRemoveTake={removeVoiceTake}
                         onMoveTake={moveVoiceTake}
+                        below={renderVoiceoverSection(voiceScript?.label)}
                       />
                     </div>
                   )}
@@ -5983,6 +6036,7 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
+                below={renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined))}
               />}
             </div>
           )}
