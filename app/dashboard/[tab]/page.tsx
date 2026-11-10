@@ -4536,10 +4536,15 @@ export default function DashboardPage() {
           border-color: rgba(255,106,77,0.3);
           border-top-color: var(--coral);
         }
+        .ed-preview { max-width: 100%; box-sizing: border-box; }
+        .ed-preview button { max-width: 100%; }
+        @media (max-width: 600px) {
+          .ed-preview { padding: 14px !important; }
+        }
         @media (min-width: 1024px) {
           .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
           .ed-split > .ed-main { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; }
-          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; position: sticky !important; top: 16px; align-self: start; margin: 0; max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: thin; }
+          .ed-split > .ed-preview { grid-column: 1; grid-row: 1; align-self: start; margin: 0; }
         }
       `}</style>
       {showOverageModal && (
@@ -5811,7 +5816,7 @@ export default function DashboardPage() {
                         <button type="button" aria-label="Move clip down" disabled={slotIndex === uploadSlots.length - 1} onClick={() => setUploadSlots((prev) => swapItems(prev, prev.indexOf(slotId), prev.indexOf(slotId) + 1))} style={{ background: 'none', border: 'none', padding: '0 4px', fontSize: 11, lineHeight: 1.2, cursor: slotIndex === uploadSlots.length - 1 ? 'default' : 'pointer', opacity: slotIndex === uploadSlots.length - 1 ? 0.25 : 0.8, color: 'var(--ink)' }}><Icon n="down" /></button>
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{slotIndex + 1}</span>
-                      <div style={{ flex: '0 1 auto', minWidth: 0 }}>
+                      <div style={{ flex: '1 1 0', minWidth: 0 }}>
                         <input
                           ref={(el) => { if (el) el.dataset.slotid = String(slotId) }}
                           className={`upload-slot-input-${slotId}`}
@@ -5827,7 +5832,7 @@ export default function DashboardPage() {
                         />
                         {uploadSlotFiles[slotId] ? (
                           <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
                             <ClipUploadBadge status={clipUploadStatus[`u${slotId}`]} onRetry={() => startClipUpload('u', slotId, uploadSlotFiles[slotId])} />
                             <SaveToLibraryButton key={`${slotId}-${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}`} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => uploadSlotFiles[slotId] || null} />
@@ -6389,7 +6394,7 @@ export default function DashboardPage() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {stepUploads[0] ? (
                                 <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                   <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
                                   <ClipUploadBadge status={clipUploadStatus['a0']} onRetry={() => startClipUpload('a', 0, stepUploads[0])} />
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
@@ -6432,7 +6437,7 @@ export default function DashboardPage() {
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
                                   <>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <ClipUploadBadge status={clipUploadStatus[`a${i}`]} onRetry={() => { const f = stepUploads[i]; if (f) startClipUpload('a', i, f) }} />
                                     <button type="button" onClick={() => document.getElementById(`ai-step-${i}`)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
