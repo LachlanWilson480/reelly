@@ -4561,8 +4561,8 @@ export default function DashboardPage() {
         </div>
       )}
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px' }}>
-          <ReelezyLogo size={44} />
+        <nav className="dashboard-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 48px' }}>
+          <ReelezyLogo size={32} />
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <a href="/settings?section=billing" className="plan-badge" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--sand)", border: "1px solid var(--line)", borderRadius: 4, padding: "6px 14px", textDecoration: "none", color: "var(--ink)", fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)" }} />
@@ -4593,15 +4593,17 @@ export default function DashboardPage() {
               </a>
             </div>
           )}
-          <div className="dash-hero" style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '40px 36px', marginBottom: 28 }}>
-            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+          <div className="dash-hero" style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 18px', marginBottom: 14, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 24px' }}>
+            <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
               Welcome back, {profile?.business_name}
             </h1>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
               {profile?.industry} · {profile?.suburb}
             </p>
-            <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '7px 14px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginBottom: 20 }}>Take the tour</button>
-            <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
+            <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginTop: 8 }}>Take the tour</button>
+            </div>
+            <div className="dash-stats" style={{ flex: '3 1 460px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 8 }}>
               {stats.map((s) => (
                 s.tab ? (
                   <button
@@ -4609,22 +4611,22 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => { setTab(s.tab); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                     aria-label={`${s.label}: ${s.value}. Open the ${s.tab} tab`}
-                    style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '14px 16px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+                    style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
                   >
-                    <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', margin: 0 }}>{s.value}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
+                    <p style={{ fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', margin: 0 }}>{s.value}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
                   </button>
                 ) : (
-                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '14px 16px' }}>
-                  <p style={{ fontSize: 20, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>{s.value}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{s.label}</p>
+                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px' }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>{s.value}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
                 </div>
                 )
               ))}
             </div>
           </div>
 
-          <div style={{ position: 'relative', marginBottom: 28 }}>
+          <div style={{ position: 'relative', marginBottom: 16 }}>
             <div ref={(el) => { navScrollRef.current = el; if (el) setTimeout(checkNavEnd, 0) }} onScroll={checkNavEnd} className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--line)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
 
             {/* Overview */}
