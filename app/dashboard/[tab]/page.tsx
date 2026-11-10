@@ -21,6 +21,8 @@ import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 import CameraControls from '@/components/CameraControls'
 import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
+import { AudioLibrary, AudioPicker, announceAudioLibraryChanged } from '@/components/AudioLibrary'
+import { saveAudioToLibrary } from '@/lib/clipLibrary'
 import OverlayPicker from '@/components/OverlayPicker'
 import OverlayElements from '@/components/OverlayElements'
 import { useCameraControls } from '@/lib/useCameraControls'
@@ -98,7 +100,7 @@ const fmtTrimTime = (s: number) => {
 }
 
 
-type VoiceoverSegment = { file: File; start: number; end: number | null; speed?: number; appearance?: AppearanceSettings; caption?: string; captionLayer?: 'onScreen' | 'speech' }
+type VoiceoverSegment = { file: File; start: number; end: number | null; speed?: number; volume?: number; appearance?: AppearanceSettings; caption?: string; captionLayer?: 'onScreen' | 'speech' }
 // How the preview draws the user's own captions (same colours and places as the final video)
 // Optional per-caption text settings: anything left out uses the shared Caption look
 type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; w?: number; font?: string; size?: number; color?: string; bg?: string | null; bold?: boolean; italic?: boolean; underline?: boolean }
@@ -280,7 +282,7 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
 
 // Audio section: the original sound of the clips, then voiceover, then music, each with its own
 // volume. Recording itself happens under the preview so it can start wherever the preview was paused.
-function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, noScriptFor, scriptSpeed, onScriptSpeed, onOpenRecord, musicPicker, section }: {
+function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, onRetry, originalVol, onOriginalVol, hasMusic, musicVol, onMusicVol, scriptLabel, noScriptFor, scriptSpeed, onScriptSpeed, scriptOpen, onToggleScript, onPickLibraryAudio, musicPicker, section }: {
   takes: VoiceTake[]
   onAddFile: (file: File) => void
   onRemoveTake: (id: string) => void
@@ -296,7 +298,9 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
   noScriptFor?: string
   scriptSpeed: number
   onScriptSpeed: (v: number) => void
-  onOpenRecord: () => void
+  scriptOpen: boolean
+  onToggleScript: () => void
+  onPickLibraryAudio: () => void
   section?: 'voiceover' | 'rest'
   musicPicker: React.ReactNode
 }) {
@@ -319,10 +323,10 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* 1. Original audio */}
       {section !== 'voiceover' && <div>
-        {heading('Original audio', 'The sound recorded in your clips.')}
-        <VolumeRow label="Volume" value={originalVol} onChange={onOriginalVol} color="var(--coral)" />
+        {heading('Master audio', 'The sound recorded in your clips.')}
+        <VolumeRow label="Master volume" value={originalVol} onChange={onOriginalVol} color="var(--coral)" />
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          {takes.length > 0 ? 'Turned down under your voiceover.' : 'Drag to Off to mute your clips.'}
+          {takes.length > 0 ? 'Turned down under your voiceover. ' : 'Drag to Off to mute all your clips. '}Each clip also has its own volume, under it in your clips list.
         </p>
       </div>}
 
@@ -332,18 +336,20 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
         <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" style={{ ...choiceBtn(), display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={onOpenRecord}>
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
-            Record voiceover
-          </button>
-          <button type="button" style={choiceBtn()} onClick={() => fileRef.current?.click()}>Upload a recording</button>
+          {scriptLabel && (
+            <button type="button" aria-pressed={scriptOpen} style={{ ...choiceBtn(scriptOpen), whiteSpace: 'nowrap' }} onClick={onToggleScript}>
+              {scriptOpen ? 'Hide script' : 'Show script'}
+            </button>
+          )}
+          <button type="button" style={{ ...choiceBtn(), whiteSpace: 'nowrap' }} onClick={() => fileRef.current?.click()}>Upload a recording</button>
+          <button type="button" style={{ ...choiceBtn(), whiteSpace: 'nowrap' }} onClick={onPickLibraryAudio}>Pick audio from library</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
           {scriptLabel
-            ? <>Opens your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview. Pause where you want to start, then press Record voiceover there. You get a 2 second countdown.</>
+            ? <>Show script puts your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview to read from. Hide it to see the whole video. To record, pause where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.</>
             : noScriptFor
-              ? <>There is no script for <strong style={{ color: 'var(--ink)' }}>{noScriptFor}</strong>. Add one in the Film tab or the script writer to read it on the preview. Or pause where you want to start, then press Record voiceover there. You get a 2 second countdown.</>
-              : 'Opens the preview. Pause where you want to start, then press Record voiceover there. You get a 2 second countdown.'}
+              ? <>There is no script for <strong style={{ color: 'var(--ink)' }}>{noScriptFor}</strong>. Add one in the Film tab or the script writer to read it on the preview. To record, pause where you want to start, then press Record voiceover under the preview. Recordings you upload are saved to your library.</>
+              : 'To record, pause where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.'}
         </p>
 
         {scriptLabel && (
@@ -398,7 +404,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu, onPickLibrary }: {
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -416,6 +422,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   onAutoCapSize?: (size: number) => void
   // The extra settings for the clip being looked at, shown under the three dots next to its speed
   clipMenu?: (index: number) => React.ReactNode
+  onPickLibrary?: () => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -655,7 +662,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     return () => cancelAnimationFrame(raf)
   }, [playing])
 
-  const vol = recording ? 0 : originalVol / 100
+  const vol = recording ? 0 : (originalVol / 100) * ((segments[index]?.volume ?? 100) / 100)
   useEffect(() => { if (videoRef.current) videoRef.current.volume = vol }, [vol, index])
 
   // Stop the microphone if the preview goes away mid recording
@@ -1203,6 +1210,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                   onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) onDropFiles(files); e.target.value = '' }} />
                 <button type="button" onClick={() => pickRef.current?.click()}
                   style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
+                {onPickLibrary && (
+                  <button type="button" onClick={onPickLibrary}
+                    style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.45)', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
+                )}
                 <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>or drag and drop a video onto this phone</p>
               </>
             )}
@@ -1221,15 +1232,15 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
-        {!recording ? (showScript || countdown !== null ? (
+        {!recording ? (
           <button type="button" onClick={startRecording} disabled={!hasClips || countdown !== null}
-            style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 20px', margin: 2 }}>
             <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d92d20', display: 'inline-block' }} />
             {countdown !== null ? 'Get ready' : 'Record voiceover'}
           </button>
-        ) : null) : (
+        ) : (
           <button type="button" onClick={stopRecording}
-            style={{ ...choiceBtn(), background: '#d92d20', border: '1px solid #d92d20', color: '#fff' }}>Stop recording</button>
+            style={{ ...choiceBtn(), background: '#d92d20', border: '1px solid #d92d20', color: '#fff', flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 20px', margin: 2 }}>Stop recording</button>
         )}
       </div>
 
@@ -1413,7 +1424,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu, onPickLibrary, below }: {
   below?: React.ReactNode
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
@@ -1432,6 +1443,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   onAutoCapSize?: (size: number) => void
   // The extra settings for the clip being looked at, shown under the three dots next to its speed
   clipMenu?: (index: number) => React.ReactNode
+  onPickLibrary?: () => void
   onAddTake: (blob: Blob, start: number, duration: number) => void
   onRemoveTake: (id: string) => void
   onMoveTake: (id: string, start: number) => void
@@ -1464,7 +1476,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} clipMenu={clipMenu} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -1714,6 +1726,9 @@ export default function DashboardPage() {
   const [uploadLooks, setUploadLooks] = useState<Record<number, AppearanceSettings>>({})
   const [aiLooks, setAiLooks] = useState<Record<number, AppearanceSettings>>({})
   const [aiSpeeds, setAiSpeeds] = useState<Record<number, number>>({})
+  // Each clip's own volume (0 to 100). A clip with none here plays at full volume, then the master volume applies on top.
+  const [uploadVols, setUploadVols] = useState<Record<number, number>>({})
+  const [aiVols, setAiVols] = useState<Record<number, number>>({})
   const filmSpeedRef = useRef(1)
   const filmClipSpeedsRef = useRef<Record<string, number>>({})
   const [filmSpeed, setFilmSpeed] = useState(1)
@@ -1807,6 +1822,7 @@ export default function DashboardPage() {
   const [voiceScript, setVoiceScript] = useState<{ id: string; label: string; lines: string[] } | null>(null)
   // Opened from Audio > Record voiceover: shows the script on the preview before recording starts
   const [scriptOpen, setScriptOpen] = useState(false)
+  const [audioPicker, setAudioPicker] = useState(false)
   const [scriptSpeed, setScriptSpeed] = useState(1)
   const [selCap, setSelCap] = useState<string | null>(null)
   const [capDraft, setCapDraft] = useState('')
@@ -2930,7 +2946,7 @@ export default function DashboardPage() {
 
   // The Audio section: original sound, voiceover and music in their own card
   const renderAudioSection = (musicTarget: 'upload' | 'ai', scriptLabel?: string, noScriptFor?: string) => (
-    <CollapsibleBox title="Audio" summary={[`Clip sound ${originalVol === 0 ? 'off' : `${originalVol}%`}`, voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : '', extractedMusicPath ? 'Sound from a video' : (libraryMusicName || musicFile?.name) ? 'Music added' : 'No music'].filter(Boolean).join(' · ')}>
+    <CollapsibleBox title="Audio" summary={[`Master volume ${originalVol === 0 ? 'off' : `${originalVol}%`}`, voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : '', extractedMusicPath ? 'Sound from a video' : (libraryMusicName || musicFile?.name) ? 'Music added' : 'No music'].filter(Boolean).join(' · ')}>
       <AudioPanel
         section="rest"
         takes={voiceTakes}
@@ -2944,7 +2960,9 @@ export default function DashboardPage() {
         noScriptFor={noScriptFor}
         scriptSpeed={scriptSpeed}
         onScriptSpeed={setScriptSpeed}
-        onOpenRecord={() => { setScriptOpen(true); document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        scriptOpen={scriptOpen}
+        onToggleScript={() => { if (!scriptOpen) document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setScriptOpen(!scriptOpen) }}
+        onPickLibraryAudio={() => setAudioPicker(true)}
         onAddFile={addVoiceFile}
         onRemoveTake={removeVoiceTake}
         statuses={clipUploadStatus}
@@ -2983,8 +3001,10 @@ export default function DashboardPage() {
         noScriptFor={noScriptFor}
         scriptSpeed={scriptSpeed}
         onScriptSpeed={setScriptSpeed}
-        onOpenRecord={() => { setScriptOpen(true); document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
-        onAddFile={addVoiceFile}
+        scriptOpen={scriptOpen}
+        onToggleScript={() => { if (!scriptOpen) document.querySelector('.ed-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setScriptOpen(!scriptOpen) }}
+        onPickLibraryAudio={() => setAudioPicker(true)}
+        onAddFile={uploadVoiceFile}
         onRemoveTake={removeVoiceTake}
         statuses={clipUploadStatus}
         onRetry={(id) => { const t = voiceTakes.find((x) => x.id === id); if (t) startAssetUpload(`v:${id}`, t.blob, 'voiceover') }}
@@ -3745,7 +3765,7 @@ export default function DashboardPage() {
   }
 
   // Any-video editor: videos dropped on the preview fill empty clip slots first, then add new ones
-  const addUploadFiles = (files: File[]) => {
+  const addUploadFiles = (files: File[], libPaths?: Map<File, string>) => {
     if (!userId) return
     const vids = files.filter(isVideoFile)
     if (vids.length === 0) return
@@ -3761,11 +3781,11 @@ export default function DashboardPage() {
     })
     if (added.length > 0) setUploadSlots((prev) => [...prev, ...added])
     setUploadSlotFiles((prev) => ({ ...prev, ...assign }))
-    Object.entries(assign).forEach(([id, f]) => startClipUpload('u', Number(id), f))
+    Object.entries(assign).forEach(([id, f]) => { const lp = libPaths?.get(f); if (lp) adoptClipPath('u', Number(id), lp); else startClipUpload('u', Number(id), f) })
   }
 
   // AI editor: the steps are fixed, so dropped videos fill the next empty steps in order
-  const addAiFiles = (files: File[]) => {
+  const addAiFiles = (files: File[], libPaths?: Map<File, string>) => {
     if (!userId) return
     const vids = files.filter(isVideoFile)
     if (vids.length === 0) return
@@ -3777,7 +3797,8 @@ export default function DashboardPage() {
     used.forEach((f, n) => {
       const idx = empty[n]
       setStepUploads((prev) => ({ ...prev, [idx]: f }))
-      startClipUpload('a', idx, f)
+      const lp = libPaths?.get(f)
+      if (lp) adoptClipPath('a', idx, lp); else startClipUpload('a', idx, f)
     })
     if (used.length < vids.length) {
       setAiEditorError(used.length === 0 ? 'Choose an idea first, or every step already has a clip.' : `Only ${used.length} ${used.length === 1 ? 'step was' : 'steps were'} empty, so the other ${vids.length - used.length} ${vids.length - used.length === 1 ? 'video was' : 'videos were'} not added.`)
@@ -3891,6 +3912,14 @@ export default function DashboardPage() {
         return null
       })
     clipUploadPromises.set(key, p)
+  }
+
+  // A clip that is already in the library is already in storage, so use it where it is instead of uploading it again
+  const adoptClipPath = (kind: 'u' | 'a', idx: number, path: string) => {
+    const key = `${kind}${idx}`
+    clipUploadPromises.set(key, Promise.resolve(path))
+    ;(kind === 'u' ? setUploadSlotPaths : setStepUploadPaths)((prev) => ({ ...prev, [idx]: path }))
+    setClipUploadStatus((prev) => ({ ...prev, [key]: 'done' }))
   }
 
   const forgetClipUpload = (kind: 'u' | 'a', idx: number) => {
@@ -4014,18 +4043,32 @@ export default function DashboardPage() {
   }
 
   // Each recording is a "take" placed on the video timeline at the moment it was started
-  const addVoiceTake = (blob: Blob, start: number, duration: number) => {
+  const addVoiceTake = (blob: Blob, start: number, duration: number, libPath?: string) => {
     const id = newTakeId()
     setVoiceTakes((prev) => [...prev, { id, blob, url: URL.createObjectURL(blob), start, duration, volume: 100 }])
-    startAssetUpload(`v:${id}`, blob, 'voiceover')
+    if (libPath) {
+      // Already in storage (picked from the library), so there is nothing to upload
+      clipUploadPromises.set(`v:${id}`, Promise.resolve(libPath))
+      setAssetPaths((prev) => ({ ...prev, [`v:${id}`]: libPath }))
+      setClipUploadStatus((prev) => ({ ...prev, [`v:${id}`]: 'done' }))
+    } else startAssetUpload(`v:${id}`, blob, 'voiceover')
   }
 
-  const addVoiceFile = (file: File) => {
+  const addVoiceFile = (file: File, libPath?: string) => {
     const probe = new Audio()
     probe.preload = 'metadata'
-    probe.onloadedmetadata = () => addVoiceTake(file, 0, Number.isFinite(probe.duration) ? probe.duration : 0)
-    probe.onerror = () => addVoiceTake(file, 0, 0)
+    probe.onloadedmetadata = () => addVoiceTake(file, 0, Number.isFinite(probe.duration) ? probe.duration : 0, libPath)
+    probe.onerror = () => addVoiceTake(file, 0, 0, libPath)
     probe.src = URL.createObjectURL(file)
+  }
+
+  // A recording the person uploads is also kept in their library for next time
+  const uploadVoiceFile = (file: File) => {
+    addVoiceFile(file)
+    if (!userId) return
+    const paid = realSubStatus === 'active' || realSubStatus === 'trialing'
+    const plan = realSubPlan && paid ? userPlan : 'free'
+    void saveAudioToLibrary(userId, file, plan).then((r) => { if (r.clip && !r.existed) announceAudioLibraryChanged() })
   }
 
   const removeVoiceTake = (id: string) => {
@@ -4090,7 +4133,7 @@ export default function DashboardPage() {
       const clipPaths: string[] = []
       const speechIndices: number[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean; speed?: number; appearance?: AppearanceSettings }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; appearance?: AppearanceSettings }[] = []
       const clipTexts: string[][] = []
       let anyLandscape = false
 
@@ -4136,9 +4179,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true, speed: aiSpeeds[result.stepIndex], appearance: aiLooks[result.stepIndex] })
+          clipSettings.push({ letterbox: true, speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, appearance: aiLooks[result.stepIndex] })
         } else {
-          clipSettings.push({ speed: aiSpeeds[result.stepIndex], appearance: aiLooks[result.stepIndex] })
+          clipSettings.push({ speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, appearance: aiLooks[result.stepIndex] })
         }
       }
 
@@ -4249,7 +4292,7 @@ export default function DashboardPage() {
     try {
       const clipPaths: string[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean; speed?: number; appearance?: AppearanceSettings }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; appearance?: AppearanceSettings }[] = []
       const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
@@ -4297,9 +4340,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true, speed: uploadSpeeds[result.slotId], appearance: uploadLooks[result.slotId] })
+          clipSettings.push({ letterbox: true, speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, appearance: uploadLooks[result.slotId] })
         } else {
-          clipSettings.push({ speed: uploadSpeeds[result.slotId], appearance: uploadLooks[result.slotId] })
+          clipSettings.push({ speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, appearance: uploadLooks[result.slotId] })
         }
       }
 
@@ -5690,8 +5733,12 @@ export default function DashboardPage() {
           {tab === 'library' && (
             <>
               <ClipLibrary userId={userId} plan={isFreeTier ? 'free' : userPlan} onPlans={() => { window.location.href = '/plans' }} />
+              <AudioLibrary userId={userId} plan={isFreeTier ? 'free' : userPlan} />
               <OverlayElements userId={userId} />
             </>
+          )}
+          {audioPicker && (
+            <AudioPicker userId={userId} onClose={() => setAudioPicker(false)} onPick={(file, clip) => addVoiceFile(file, clip.path)} />
           )}
           {libraryPicker && (
             <LibraryPicker
@@ -5699,18 +5746,20 @@ export default function DashboardPage() {
               single={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step'}
               title={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step' ? 'Use a saved clip' : undefined}
               onClose={() => setLibraryPicker(null)}
-              onAdd={(files) => {
+              onAdd={(files, picked) => {
+                const libPaths = new Map<File, string>()
+                files.forEach((f, i) => { if (picked[i]) libPaths.set(f, picked[i].path) })
                 if (libraryPicker === 'film') {
                   const f = files[0]
                   if (f) { setFilmRecordError(''); setFilmPending({ blob: f, ext: (f.name.split('.').pop() || 'mp4').toLowerCase(), type: f.type || 'video/mp4', url: URL.createObjectURL(f) }) }
                 } else if (libraryPicker === 'slot') {
                   const f = files[0]
-                  if (f && userId) { setUploadSlotFiles((prev) => ({ ...prev, [libraryTarget]: f })); startClipUpload('u', libraryTarget, f) }
+                  if (f && userId) { setUploadSlotFiles((prev) => ({ ...prev, [libraryTarget]: f })); const lp = libPaths.get(f); if (lp) adoptClipPath('u', libraryTarget, lp); else startClipUpload('u', libraryTarget, f) }
                 } else if (libraryPicker === 'step') {
                   const f = files[0]
-                  if (f) { setStepUploads((prev) => ({ ...prev, [libraryTarget]: f })); startClipUpload('a', libraryTarget, f) }
-                } else if (libraryPicker === 'ai') addAiFiles(files)
-                else addUploadFiles(files)
+                  if (f) { setStepUploads((prev) => ({ ...prev, [libraryTarget]: f })); const lp = libPaths.get(f); if (lp) adoptClipPath('a', libraryTarget, lp); else startClipUpload('a', libraryTarget, f) }
+                } else if (libraryPicker === 'ai') addAiFiles(files, libPaths)
+                else addUploadFiles(files, libPaths)
               }}
             />
           )}
@@ -5777,12 +5826,17 @@ export default function DashboardPage() {
                           style={{ display: 'none' }}
                         />
                         {uploadSlotFiles[slotId] ? (
+                          <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploadSlotFiles[slotId].name}</p>
                             <ClipUploadBadge status={clipUploadStatus[`u${slotId}`]} onRetry={() => startClipUpload('u', slotId, uploadSlotFiles[slotId])} />
                             <SaveToLibraryButton key={`${slotId}-${uploadSlotFiles[slotId].name}-${uploadSlotFiles[slotId].size}`} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => uploadSlotFiles[slotId] || null} />
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
+                          <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
+                            <VolumeRow label="Clip volume" value={uploadVols[slotId] ?? 100} onChange={(v) => setUploadVols((prev) => ({ ...prev, [slotId]: v }))} color="var(--coral)" />
+                          </div>
+                          </>
                         ) : (
                           <div
                             draggable={false}
@@ -5921,6 +5975,7 @@ export default function DashboardPage() {
                 onTrimClip={trimUploadClip}
                 onSpeedClip={speedUploadClip}
                 clipMenu={(i) => renderClipAppearance('upload', i)}
+                onPickLibrary={() => setLibraryPicker('any')}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
                 autoCap={uploadAddCaptions && !uploadCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
@@ -5935,7 +5990,7 @@ export default function DashboardPage() {
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
                 appearance={appearance}
-                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id], appearance: uploadLooks[id] } })}
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id], volume: uploadVols[id], appearance: uploadLooks[id] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -6333,12 +6388,17 @@ export default function DashboardPage() {
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {stepUploads[0] ? (
+                                <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[0].name}</p>
                                   <ClipUploadBadge status={clipUploadStatus['a0']} onRetry={() => startClipUpload('a', 0, stepUploads[0])} />
                                   <button type="button" onClick={() => document.getElementById('ai-single-clip')?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                                   <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                 </div>
+                                <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
+                                  <VolumeRow label="Clip volume" value={aiVols[0] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, 0: v }))} color="var(--coral)" />
+                                </div>
+                                </>
                               ) : (
                                 <div
                                   draggable={false}
@@ -6371,6 +6431,7 @@ export default function DashboardPage() {
                                 <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, marginBottom: 8 }}>{instruction}</p>
                                 <input id={`ai-step-${i}`} type="file" accept="video/*" onChange={async (e) => { const file = e.target.files?.[0]; if (file) { setStepUploads((prev) => ({ ...prev, [i]: file })); startClipUpload('a', i, file) } }} style={{ display: 'none' }} />
                                 {(stepUploads[i] || stepUploadNames[i]) ? (
+                                  <>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <p style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepUploads[i]?.name || stepUploadNames[i]}</p>
                                     <ClipUploadBadge status={clipUploadStatus[`a${i}`]} onRetry={() => { const f = stepUploads[i]; if (f) startClipUpload('a', i, f) }} />
@@ -6383,6 +6444,10 @@ export default function DashboardPage() {
                                     void authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'ai', slotIndex: i }) })
                                   }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                   </div>
+                                  <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
+                                    <VolumeRow label="Clip volume" value={aiVols[i] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, [i]: v }))} color="var(--coral)" />
+                                  </div>
+                                  </>
                                 ) : (
                                   <div
                                     draggable={false}
@@ -6488,6 +6553,7 @@ export default function DashboardPage() {
                 onTrimClip={trimAiClip}
                 onSpeedClip={speedAiClip}
                 clipMenu={(i) => renderClipAppearance('ai', i)}
+                onPickLibrary={() => setLibraryPicker('ai')}
                 showScript={scriptOpen}
                 scriptSpeed={scriptSpeed}
                 autoCap={aiAddCaptions && !aiCaptionOwn && captionLayers.speech.on ? layerPoint(captionLayers, 'speech', captionPosition) : null}
@@ -6502,7 +6568,7 @@ export default function DashboardPage() {
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
                 appearance={appearance}
-                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i], appearance: aiLooks[i] } })}
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i], volume: aiVols[i], appearance: aiLooks[i] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}

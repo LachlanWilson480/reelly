@@ -409,7 +409,7 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 }
 
 // The picker opened from the editors: choose clips from the library to add to the video
-export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userId: string | null; onClose: () => void; onAdd: (files: File[]) => void; single?: boolean; title?: string }) {
+export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userId: string | null; onClose: () => void; onAdd: (files: File[], clips: LibraryClip[]) => void; single?: boolean; title?: string }) {
   const { clips, albums, urls, loading } = useLibrary(userId)
   const [view, setView] = useState<View>('all')
   const [picked, setPicked] = useState<string[]>([])
@@ -422,16 +422,20 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
     setWorking(true)
     setError('')
     const files: File[] = []
+    const used: LibraryClip[] = []
     let why = ''
-    for (const id of picked) {
+    // Several clips load at the same time instead of one after another
+    const loaded = await Promise.all(picked.map(async (id) => {
       const clip = clips.find((c) => c.id === id)
-      const r = clip ? await libraryClipToFileDetailed(clip) : { error: 'clip missing' }
-      if (r.file) files.push(r.file)
+      return { clip, r: clip ? await libraryClipToFileDetailed(clip) : { error: 'clip missing' } as { file?: File; error?: string } }
+    }))
+    for (const { clip, r } of loaded) {
+      if (r.file && clip) { files.push(r.file); used.push(clip) }
       else if (r.error) why = r.error
     }
     setWorking(false)
     if (files.length === 0) { setError(`Could not load those clips. Please try again.${why ? ` (${why})` : ''}`); return }
-    onAdd(files)
+    onAdd(files, used)
     onClose()
   }
 

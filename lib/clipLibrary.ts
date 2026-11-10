@@ -38,10 +38,24 @@ export function formatBytes(n: number): string {
 
 export const isVideoName = (f: File) => f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(f.name)
 
-export async function listLibrary(): Promise<LibraryClip[]> {
+// Sound files share the library with clips, but live in their own list
+const AUDIO_EXT = /\.(mp3|m4a|wav|aac|ogg|oga|flac|opus|weba)$/i
+export const isAudioFile = (f: { type?: string; name: string }) => (f.type || '').startsWith('audio/') || AUDIO_EXT.test(f.name)
+export const isAudioClip = (c: LibraryClip) => (c.mime || '').startsWith('audio/') || AUDIO_EXT.test(c.name)
+
+export async function listLibraryAll(): Promise<LibraryClip[]> {
   const { data, error } = await supabase.from('clip_library').select('*').order('created_at', { ascending: false })
   if (error || !data) return []
   return data as LibraryClip[]
+}
+
+// The video clips only
+export async function listLibrary(): Promise<LibraryClip[]> {
+  return (await listLibraryAll()).filter((c) => !isAudioClip(c))
+}
+
+export async function listAudioLibrary(): Promise<LibraryClip[]> {
+  return (await listLibraryAll()).filter(isAudioClip)
 }
 
 export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
@@ -88,8 +102,8 @@ async function uploadWithProgress(path: string, file: File, onProgress: (fractio
 
 // Saves a file to the library. Returns the new clip, or a plain-English reason it could not be saved.
 export async function saveToLibrary(userId: string, file: File, usedBytes: number, limitBytes: number, albumId: string | null = null, usedCount = 0, maxCount = Infinity, onProgress?: (fraction: number) => void): Promise<{ clip?: LibraryClip; error?: string }> {
-  if (!isVideoName(file)) return { error: 'Only video files can go in the library.' }
-  if (file.size > MAX_LIBRARY_FILE_BYTES) return { error: 'That clip is over 500 MB, which is too big for the library.' }
+  if (!isVideoName(file) && !isAudioFile(file)) return { error: 'Only video or audio files can go in the library.' }
+  if (file.size > MAX_LIBRARY_FILE_BYTES) return { error: 'That file is over 500 MB, which is too big for the library.' }
   if (usedCount >= maxCount) return { error: `Your library is full (${maxCount} clips). Delete a clip or upgrade your plan to add more.` }
   if (usedBytes + file.size > limitBytes) return { error: `Not enough library space. You have ${formatBytes(Math.max(0, limitBytes - usedBytes))} left.` }
   const safe = file.name.replace(/[^\w.-]+/g, '_')
@@ -105,6 +119,15 @@ export async function saveToLibrary(userId: string, file: File, usedBytes: numbe
     return { error: error?.message && /library/i.test(error.message) ? error.message : 'Could not save the clip to your library. Please try again.' }
   }
   return { clip: data as LibraryClip }
+}
+
+// Saves a sound file to the library, unless the same file is already there
+export async function saveAudioToLibrary(userId: string, file: File, plan: LibraryPlan): Promise<{ clip?: LibraryClip; error?: string; existed?: boolean }> {
+  const all = await listLibraryAll()
+  const dupe = all.find((c) => isAudioClip(c) && c.name === file.name && c.size_bytes === file.size)
+  if (dupe) return { clip: dupe, existed: true }
+  const used = all.reduce((n, c) => n + (c.size_bytes || 0), 0)
+  return saveToLibrary(userId, file, used, libraryLimitBytes(plan), null, all.length, libraryMaxClips(plan))
 }
 
 export async function deleteFromLibrary(clip: LibraryClip): Promise<boolean> {
@@ -126,31 +149,43 @@ export async function libraryClipToFile(clip: LibraryClip): Promise<File | null>
 
 // Reads a file in small pieces, the same way a video player does. Some connections drop a single big download but handle pieces fine.
 async function fetchInPieces(url: string, total: number): Promise<Blob> {
-  const PIECE = 4 * 1024 * 1024
+  const PIECE = 6 * 1024 * 1024
+  const AT_ONCE = 6
   if (!total || total <= PIECE) {
     const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) throw new Error(`status ${res.status}`)
     return await res.blob()
   }
-  const parts: Blob[] = []
-  let pos = 0
-  while (pos < total) {
-    const end = Math.min(pos + PIECE, total) - 1
-    let done = false
-    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+  const count = Math.ceil(total / PIECE)
+  const parts: Blob[] = new Array(count)
+  const getPiece = async (i: number): Promise<Blob | 'stored'> => {
+    const start = i * PIECE
+    const end = Math.min(start + PIECE, total) - 1
+    for (let attempt = 0; ; attempt++) {
       try {
-        const res = await fetch(url, { cache: 'no-store', headers: { Range: `bytes=${pos}-${end}` } })
+        const res = await fetch(url, { cache: 'no-store', headers: { Range: `bytes=${start}-${end}` } })
         if (res.status === 200) return await res.blob() // the server sent the whole file at once
         if (res.status !== 206) throw new Error(`status ${res.status}`)
-        parts.push(await res.blob())
-        pos = end + 1
-        done = true
+        parts[i] = await res.blob()
+        return 'stored' as const
       } catch (e) {
         if (attempt === 2) throw e
       }
     }
   }
-  return new Blob(parts)
+  // The first piece goes alone, to learn whether the server hands out pieces at all
+  const first = await getPiece(0)
+  if (first !== 'stored') return first
+  let next = 1
+  let whole: Blob | null = null
+  const worker = async () => {
+    while (next < count && !whole) {
+      const r = await getPiece(next++)
+      if (r !== 'stored') whole = r
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(AT_ONCE, count - 1) }, worker))
+  return whole ?? new Blob(parts)
 }
 
 // Same, but says why it failed so the screen can show something useful

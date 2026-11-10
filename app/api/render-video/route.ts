@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
         trimStart: trimStart > 0 ? trimStart : undefined,
         trimLength: trim.trimLength,
         duration: trim.duration,
-        volume: setting.muted ? 0 : typeof setting.volume === 'number' ? setting.volume : 1,
+        volume: setting.muted ? 0 : typeof setting.volume === 'number' && Number.isFinite(setting.volume) ? Math.min(1, Math.max(0, setting.volume)) : 1,
         speed: typeof setting.speed === 'number' && setting.speed >= 0.25 && setting.speed <= 8 ? setting.speed : undefined,
         fit: setting.fit,
         filter: setting.filter !== 'none' ? setting.filter : undefined,
