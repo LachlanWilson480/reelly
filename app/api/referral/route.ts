@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     const { data: mine } = await admin.from('referrals').select('status, reward_type').eq('referrer_id', authed.userId)
     const list = mine || []
-    const monthsEarned = list.filter((r) => r.status === 'rewarded' && (r.reward_type === 'credit' || r.reward_type === 'free_month')).length
+    const monthsEarned = list.filter((r) => r.status === 'rewarded' && (r.reward_type === 'credit' || r.reward_type === 'free_month' || r.reward_type === 'discount_pending')).length
 
     return NextResponse.json({
       code: row.code,

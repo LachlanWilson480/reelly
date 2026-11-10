@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
           .update({ status: 'active', deletion_scheduled_at: null, deletion_warning_sent: false })
           .eq('stripe_subscription_id', subscriptionId)
       }
-      // A friend's first real payment earns their referrer a free month
+      // A friend's first real payment earns their referrer 30% off their next month
       await rewardReferrerForInvoice(stripe, invoice)
     }
     return NextResponse.json({ received: true })

@@ -249,7 +249,7 @@ export default function CheckoutClient() {
         {email && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 22px' }}>Your receipt will go to {email}</p>}
         {referred && (
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
-            A friend referred you. You get 30% off your first payment, and they get a month free when you subscribe.
+            A friend referred you. You get 30% off your first month, and they get 30% off their next month when you subscribe.
           </p>
         )}
         {!referred && (

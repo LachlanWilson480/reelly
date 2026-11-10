@@ -25,7 +25,7 @@ export default function ReferralCard() {
     try { await navigator.clipboard.writeText(info?.code || ''); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
   }
   // What a friend receives: the offer, the code and the sign up link
-  const shareText = `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first payment.`
+  const shareText = `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first month.`
   const share = async () => {
     try {
       if (navigator.share) await navigator.share({ title: 'Reelezy', text: shareText, url: link })
@@ -46,9 +46,9 @@ export default function ReferralCard() {
 
   return (
     <div id="refer" style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '28px 28px 24px', color: 'var(--ink)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 6px' }}>Refer a friend, get a month free</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 6px' }}>Refer a friend, you both get 30% off</h2>
       <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.5 }}>
-        Your friend gets 30% off their first payment when they join with your code, and you get 1 month free of the plan they buy. If you already pay, it comes off your next bill. If you are on the Free plan, you get that plan free for a month.
+        Your friend gets 30% off their first month when they join with your code, and you get 30% off your next month once they subscribe. If you already pay, it comes off your next bill. If you are on the Free plan, it is saved and comes off your first month when you subscribe.
       </p>
       {failed ? (
         <p style={{ fontSize: 13, color: '#d92d20', margin: 0 }}>Your referral link could not load. Refresh the page to try again.</p>
@@ -68,10 +68,10 @@ export default function ReferralCard() {
           <div style={{ display: 'flex', gap: 8, marginTop: 20, padding: '14px 8px', borderRadius: 4, background: 'var(--sand)' }}>
             {stat(info.joined, 'Friends joined')}
             {stat(info.subscribed, 'Subscribed')}
-            {stat(info.monthsEarned, 'Months earned')}
+            {stat(info.monthsEarned, '30% off months')}
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '14px 0 0', lineHeight: 1.5 }}>
-            Your friend needs to be on the Free plan and make their first paid payment. Up to {info.limit} free months per person.
+            Your friend needs to be on the Free plan and make their first paid payment. You can earn up to {info.limit} months of 30% off.
           </p>
         </>
       )}

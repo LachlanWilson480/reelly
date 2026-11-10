@@ -418,7 +418,7 @@ export default function PlansPage() {
           {userEmail && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
               {referralPercent > 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textAlign: 'center', margin: 0 }}>Friend&apos;s referral applied: {referralPercent}% off your first payment.</p>
+                <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textAlign: 'center', margin: 0 }}>Friend&apos;s referral applied: {referralPercent}% off your first month.</p>
               ) : (
                 <>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -439,7 +439,7 @@ export default function PlansPage() {
                       {refBusy ? 'Checking...' : 'Apply'}
                     </button>
                   </div>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>New here? A friend&apos;s code takes {REFERRAL_PERCENT_OFF}% off your first payment, and gives them a free month.</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>New here? A friend&apos;s code takes {REFERRAL_PERCENT_OFF}% off your first month, and gives them {REFERRAL_PERCENT_OFF}% off their next month.</p>
                   {refMsg && <p style={{ fontSize: 12, color: 'var(--coral)', margin: 0 }}>{refMsg}</p>}
                 </>
               )}
