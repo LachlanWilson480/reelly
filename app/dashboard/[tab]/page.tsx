@@ -196,47 +196,8 @@ const swapItems = <T,>(list: T[], i: number, j: number): T[] => {
   return n
 }
 const splitScriptLines = (s: string) => s.split(/\n+/).map((x) => x.trim()).filter(Boolean)
-// Splits one line in two near its middle, preferring the end of a sentence, then a comma, then any space
-const splitLineInHalf = (t: string): [string, string] | null => {
-  const mid = t.length / 2
-  const nearest = (re: RegExp) => {
-    let best = -1
-    let m: RegExpExecArray | null
-    const r = new RegExp(re.source, 'g')
-    while ((m = r.exec(t)) !== null) {
-      const at = m.index + m[0].length
-      if (at > 0 && at < t.length && (best < 0 || Math.abs(at - mid) < Math.abs(best - mid))) best = at
-    }
-    return best
-  }
-  const at = [/[.!?]\s+/, /[,;:]\s+/, /\s+/].map(nearest).find((i) => i > 0) ?? -1
-  if (at <= 0) return null
-  const a = t.slice(0, at).trim()
-  const b = t.slice(at).trim()
-  return a && b ? [a, b] : null
-}
-// Reshapes a list of lines to exactly n lines: joins the two shortest neighbours, or splits the longest line
-const reshapeLines = (input: string[], n: number): string[] => {
-  const out = input.map((x) => x.trim()).filter(Boolean)
-  if (out.length === 0 || n < 1) return out
-  while (out.length > n) {
-    let at = 0
-    let size = Infinity
-    for (let i = 0; i < out.length - 1; i++) {
-      const l = out[i].length + out[i + 1].length
-      if (l < size) { size = l; at = i }
-    }
-    out.splice(at, 2, `${out[at]} ${out[at + 1]}`)
-  }
-  while (out.length < n) {
-    let at = 0
-    for (let i = 1; i < out.length; i++) if (out[i].length > out[at].length) at = i
-    const parts = splitLineInHalf(out[at])
-    if (!parts) break
-    out.splice(at, 1, parts[0], parts[1])
-  }
-  return out
-}
+// Actions: every full stop ends a scene, so two sentences on one line are two scenes
+const splitActionLines = (s: string) => splitScriptLines(s).flatMap((l) => l.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map((x) => x.trim()).filter(Boolean))
 // Pulls the quoted on-screen text out of a filming step, e.g. "On-screen text: 'Bring your colour samples'" gives ["Bring your colour samples"]
 const extractOnScreenText = (step: string): string[] => {
   const found: string[] = []
@@ -2594,7 +2555,7 @@ export default function DashboardPage() {
   }, [tab])
 
   const filmLines = filmScript.split(/\n+/).map((s) => s.trim()).filter(Boolean)
-  const filmActions = splitScriptLines(filmActionsText)
+  const filmActions = splitActionLines(filmActionsText)
   const filmClipCount = Math.max(filmSceneCount ?? 0, filmLines.length, filmActions.length)
   const filmCurrentLine = filmLines[filmLineIdx] || ''
   const filmDraftKey = userId && filmSelectedId ? `reelezy-film-draft:${userId}:${filmSelectedId}` : null
@@ -2618,8 +2579,7 @@ export default function DashboardPage() {
     const n = Math.max(asked, filmLines.length)
     setFilmSceneNote(n > asked ? `Your script has ${filmLines.length} lines, so that is the fewest scenes. Delete script lines to go lower.` : '')
     setFilmSceneCount(n)
-    // Only the filming instructions change. The script stays exactly as typed, and extra scenes show "No script".
-    if (filmActions.length > 0) setFilmActionsText(reshapeLines(filmActions, n).join('\n'))
+    // The script and actions stay exactly as typed. Scenes past the end of either one show "No script" or "No action".
     setFilmDurations([])
     setFilmLineIdx(0)
     setFilmClips([])
@@ -2710,8 +2670,10 @@ export default function DashboardPage() {
       .replace(/\s+/g, ' ')
       .replace(/[,;.]?\s*(?:and\s+)?(?:show\s+)?on-?screen text\s*:?.*$/i, '')
       .trim()
-    const first = (t.match(/^[^.!?]+[.!?]?/)?.[0] || t).trim().replace(/[.]$/, '')
-    return first.split(/,\s+(?:then|and then|while|as|so)\s+/i)[0]
+    const first = (t.match(/^[^.!?]+[.!?]?/)?.[0] || t).trim().replace(/[.!?]+$/, '')
+    const one = first.split(/,\s+(?:then|and then|while|as|so)\s+/i)[0].trim()
+    // Every action ends with a full stop, so the Film tab knows where one scene ends and the next begins
+    return one ? `${one}.` : one
   }
 
   // Joins a list down to n entries by merging neighbours, so nothing is repeated or dropped
@@ -2736,7 +2698,7 @@ export default function DashboardPage() {
       const part = durations.slice(Math.floor((i * durations.length) / n), Math.floor(((i + 1) * durations.length) / n))
       return part.every((d) => d !== null) ? part.reduce((t: number, d) => t + (d as number), 0) : null
     }
-    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, '. Then '), durations: Array.from({ length: n }, (_, i) => actions.length === n ? (durations[i] ?? null) : sumGroup(i)) }
+    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, ' '), durations: Array.from({ length: n }, (_, i) => actions.length === n ? (durations[i] ?? null) : sumGroup(i)) }
   }
 
   // The on-screen text of each filming step, lined up with n clips
@@ -3461,7 +3423,7 @@ export default function DashboardPage() {
       setUploadSlots(slots)
       setUploadSlotFiles(filesMap)
       setUploadSlotPaths(pathsMap)
-      const filmActionLines = splitScriptLines(filmActionsText)
+      const filmActionLines = splitActionLines(filmActionsText)
       const filmScriptLines = splitScriptLines(filmScript)
       const lowComfort = parseComfort(profile?.filming_comfort).level === 'low'
       const slotTexts: Record<number, string[]> = {}
@@ -4088,7 +4050,7 @@ export default function DashboardPage() {
     setFilmClips(mv(filmClips))
     const ls = splitScriptLines(filmScript)
     if (from < ls.length && to < ls.length) setFilmScript(mv(ls).join('\n'))
-    setFilmActionsText((prev) => { const l = splitScriptLines(prev); return from < l.length && to < l.length ? mv(l).join('\n') : prev })
+    setFilmActionsText((prev) => { const l = splitActionLines(prev); return from < l.length && to < l.length ? mv(l).join('\n') : prev })
     setFilmPlayIdx(to)
   }
 
@@ -4101,7 +4063,7 @@ export default function DashboardPage() {
     setFilmClips(next)
     const ls = splitScriptLines(filmScript)
     if (i < ls.length && j < ls.length) setFilmScript(swapItems(ls, i, j).join('\n'))
-    setFilmActionsText((prev) => swapItems(splitScriptLines(prev), i, j).join('\n'))
+    setFilmActionsText((prev) => swapItems(splitActionLines(prev), i, j).join('\n'))
     setFilmPlayIdx(j)
   }
 
@@ -6100,7 +6062,7 @@ export default function DashboardPage() {
                     <div className="film-fields">
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Your script</p>
-                        <textarea value={filmScript} onChange={(e) => { const v = e.target.value; const nl = splitScriptLines(v); if (nl.length > filmClipCount) { if (filmActions.length > 0) setFilmActionsText(reshapeLines(filmActions, nl.length).join('\n')); setFilmDurations([]) } setFilmSceneNote(''); setFilmScript(v); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
+                        <textarea value={filmScript} onChange={(e) => { const v = e.target.value; const nl = splitScriptLines(v); if (nl.length > filmClipCount) setFilmDurations([]); setFilmSceneNote(''); setFilmScript(v); setFilmLineIdx(0); setFilmClips([]); setFilmReview(false); setFilmRedoIdx(null) }} placeholder="Words to say or show. One line per clip." rows={12} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, lineHeight: 1.5, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }} />
                       </div>
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '16px 0 0' }}>Actions</p>
@@ -6123,7 +6085,7 @@ export default function DashboardPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') applyFilmClipCount((e.target as HTMLInputElement).value) }}
                         style={{ width: 64, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}
                       />
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One scene per script line: press Enter in your script to add a scene. Changing the number only changes the filming instructions. Extra scenes show No script (1 to 15).</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One scene per script line: press Enter in your script to add a scene. Changing the number never rewrites your script or actions. Extra scenes show No script or No action (1 to 15).</span>
                     </div>
                     {filmSelectedId && (
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
