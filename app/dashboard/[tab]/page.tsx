@@ -4513,7 +4513,7 @@ export default function DashboardPage() {
     { id: 'edit', target: 'tab-edit', title: 'Choose how to edit', body: 'AI Editor For Generated Idea follows the shot list you made. For Any Video lets you edit clips you already have.', enter: () => { setOpenDropdown('edit') } },
     { id: 'clips', target: 'choose-clip', title: 'Add your clips', body: 'Pick clips from your device or from your library. Add as many as you need.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
     { id: 'create-video', target: 'create-video', title: 'Make the video', body: 'When your clips are in, press Create video. We add captions and music and send you the finished video.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
-    { id: 'publish', target: 'tab-publish', title: 'Publish it', body: 'Publish lets you schedule your finished video to your social accounts.', enter: () => { setOpenDropdown(null); setTab('scheduler') } },
+    { id: 'publish', target: 'tab-publish', title: 'Publish it', body: 'Publish keeps your finished videos in one place so you can download them and post.', enter: () => { setOpenDropdown(null); setTab('scheduler') } },
   ]
 
   return (
@@ -4781,7 +4781,7 @@ export default function DashboardPage() {
                   Publish
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Connect your accounts and schedule your videos to YouTube, TikTok, Instagram, LinkedIn and Facebook.
+                  See your finished videos and download them, ready to post.
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Publish</p>
               </button>

@@ -15,6 +15,9 @@ import TikTokSettings from '@/components/TikTokSettings'
 import GoogleBusinessPanel from '@/components/GoogleBusinessPanel'
 import { emptyTikTok, tiktokProblem, type TikTokOptions } from '@/lib/tiktok'
 
+// Switched off for launch while the platforms approve our apps. Set to true to bring them back.
+const SHOW_ACCOUNTS = false
+
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
 type Conn = { platform: PlatformId; account_name: string | null; status: string }
@@ -143,13 +146,13 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       <div>
         <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>Publish</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Connect your accounts, then schedule your videos. Reelezy posts them for you.</p>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Your finished videos, ready to download and post.</p>
       </div>
 
       {notice && <p role="status" style={{ fontSize: 13, background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', margin: 0 }}>{notice}</p>}
 
       {/* Accounts */}
-      <section aria-labelledby="pub-accounts" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {SHOW_ACCOUNTS && <section aria-labelledby="pub-accounts" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h3 id="pub-accounts" style={heading}>Your accounts</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
           {PLATFORMS.map((p) => {
@@ -175,9 +178,9 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
           })}
         </div>
         {isFree && <p style={small}><a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>Upgrade</a> to connect accounts and schedule posts.</p>}
-      </section>
+      </section>}
 
-      <GoogleBusinessPanel isFree={isFree} />
+      {SHOW_ACCOUNTS && <GoogleBusinessPanel isFree={isFree} />}
 
       {/* Calendar */}
       <section aria-labelledby="pub-week" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
