@@ -51,15 +51,16 @@ export default function Sidebar() {
   if (!isLoggedIn) return null
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: "⌂" },
-    { href: "/plans", label: "Plans", icon: "$" },
-    { href: "/refer", label: "Refer a friend", icon: "⊕" },
-    { href: "/history", label: "History", icon: "◷" },
+    { href: "/dashboard", label: "Dashboard", icon: <Icon n="home" /> },
+    { href: "/plans", label: "Plans", icon: <Icon n="dollar" /> },
+    { href: "/refer", label: "Refer a friend", icon: <Icon n="megaphone" /> },
+    { href: "/history", label: "History", icon: <Icon n="clock" /> },
   ]
 
   const bottomNavItems = [
-    { href: "/privacy", label: "Privacy Policy", icon: "§" },
-    { href: "/settings", label: "Settings", icon: "◎" },
+    { href: "/privacy", label: "Privacy Policy", icon: <Icon n="privacy" /> },
+    { href: "/terms", label: "Terms of Service", icon: <Icon n="terms" /> },
+    { href: "/settings", label: "Settings", icon: <Icon n="cog" /> },
   ]
   const isOnDashboard = pathname === '/dashboard'
   const currentTab = searchParams.get('tab') || 'overview'
@@ -108,7 +109,7 @@ export default function Sidebar() {
               marginBottom: 8,
             }}
           >
-            <span style={{ width: 20, textAlign: 'center', fontSize: 16, flexShrink: 0 }}>⌂</span>
+            <span style={{ width: 20, textAlign: 'center', fontSize: 16, flexShrink: 0 }}><Icon n="home" /></span>
             <span>Full menu</span>
           </button>
         )}
