@@ -68,6 +68,9 @@ type Profile = {
   customer_source: string | null
   filming_comfort: string | null}
 
+// Notifications and post stats are hidden for launch until posting accounts are approved. Set to true to bring them back.
+const SHOW_OVERVIEW_PANELS = false
+
 type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler' | 'library' | 'library'
 
 type Idea = {
@@ -4702,7 +4705,7 @@ export default function DashboardPage() {
 
 
 
-          {tab === 'overview' && (
+          {SHOW_OVERVIEW_PANELS && tab === 'overview' && (
             <OverviewPanel isFree={isFreeTier} ideasReady={ideas.length} onGo={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
           )}
           {tab === 'overview' && (
