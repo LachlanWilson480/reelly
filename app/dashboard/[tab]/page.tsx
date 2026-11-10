@@ -811,10 +811,14 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     const r = resizeRef.current
     const box = stageRef.current?.getBoundingClientRect()
     if (!r || !box) return
+    if (mouseUp(e)) { dropAll(); return }
     if (r.mode === 'side') updateCap(r.id, { w: Math.min(0.96, Math.max(0.2, (Math.abs(e.clientX - r.cx) / box.width) * 2)) })
     else updateCap(r.id, { size: Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist)))) })
   }
   const endResize = () => { resizeRef.current = null }
+  // A mouse that is not being pressed must never drag or resize anything
+  const mouseUp = (e: React.PointerEvent) => e.pointerType === 'mouse' && e.buttons === 0
+  const dropAll = () => { capPosRef.current = null; resizeRef.current = null; ovDragRef.current = null; ovResizeRef.current = null; ovCropRef.current = null; pinchRef.current = null; ptrsRef.current.clear() }
   const autoDragRef = useRef(false)
   const [clipMenuOpen, setClipMenuOpen] = useState(false)
   const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number; axis: 'x' | 'y' | 'xy' } | null>(null)
@@ -970,6 +974,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 }
               }}
               onPointerMove={(e) => {
+                if (mouseUp(e)) { dropAll(); return }
                 if (ptrsRef.current.has(e.pointerId)) ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
                 const pin = pinchRef.current
                 if (pin && ptrsRef.current.size >= 2) {
@@ -987,14 +992,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               style={{ position: 'absolute', left: `${c.x * 100}%`, top: `${c.y * 100}%`, transform: 'translate(-50%, -50%)', width: `${boxW * 100}%`, textAlign: 'center', zIndex: 3, cursor: onCaptions ? 'grab' : 'default', touchAction: 'none', outline: sel ? '1.5px dashed rgba(255,255,255,0.85)' : 'none', outlineOffset: 4, fontFamily: family, fontWeight: weight, fontStyle: italic ? 'italic' : 'normal', textDecoration: underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: c.color ?? captionStyle.color, WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle.border}`, paintOrder: 'stroke fill', textShadow: '0 2px 8px rgba(0,0,0,0.35)', overflowWrap: 'anywhere' }}>
               {cBg ? <span style={{ background: cBg, padding: '0.25em 0.5em', borderRadius: 4, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>{c.text}</span> : c.text}
-              {onCaptions && !recording && (
-                <>
-                  {handle({ left: -6, top: 0, bottom: 0, width: 12 }, 'side', 'ew-resize', 'Drag the left edge to make the caption box narrower or wider', true)}
-                  {handle({ right: -6, top: 0, bottom: 0, width: 12 }, 'side', 'ew-resize', 'Drag the right edge to make the caption box narrower or wider', true)}
-                  {handle({ top: -6, left: 6, right: 6, height: 12 }, 'corner', 'ns-resize', 'Drag the top edge to make the caption text bigger or smaller', true)}
-                  {handle({ bottom: -6, left: 6, right: 6, height: 12 }, 'corner', 'ns-resize', 'Drag the bottom edge to make the caption text bigger or smaller', true)}
-                </>
-              )}
               {sel && onCaptions && !recording && (
                 <>
                   {handle({ left: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
@@ -1022,6 +1019,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const moveAutoSize = (e: React.PointerEvent) => {
             const r = autoSizeRef.current
             if (!r || !onAutoCapSize) return
+            if (e.pointerType === 'mouse' && e.buttons === 0) { autoSizeRef.current = null; return }
             const d = r.axis === 'x' ? Math.abs(e.clientX - r.cx) : r.axis === 'y' ? Math.abs(e.clientY - r.cy) : Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
             onAutoCapSize(Math.min(200, Math.max(16, Math.round(r.size * (d / r.dist)))))
           }
@@ -1035,6 +1033,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true; const pf = frac(e); grabRef.current = { dx: autoCap.x - pf.x, dy: autoCap.y - pf.y } }}
             onPointerMove={(e) => {
               if (!autoDragRef.current || !onAutoCapMove) return
+              if (e.pointerType === 'mouse' && e.buttons === 0) { autoDragRef.current = false; return }
               const box = stageRef.current?.getBoundingClientRect()
               if (!box) return
               onAutoCapMove(Math.min(0.9, Math.max(0.1, (e.clientX - box.left) / box.width + grabRef.current.dx)), Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)))
@@ -1048,10 +1047,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAutoCapRemove() }}
                 style={{ position: 'absolute', right: -2, top: -30, zIndex: 5, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
             )}
-            {edge({ left: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the left edge to change the auto caption size', false, 'x')}
-            {edge({ right: -6, top: 6, bottom: 6, width: 12 }, 'ew-resize', 'Drag the right edge to change the auto caption size', false, 'x')}
-            {edge({ top: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the top edge to change the auto caption size', false, 'y')}
-            {edge({ bottom: -6, left: 6, right: 6, height: 12 }, 'ns-resize', 'Drag the bottom edge to change the auto caption size', false, 'y')}
             {edge({ left: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the left handle to change the auto caption size', true, 'x')}
             {edge({ right: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the right handle to change the auto caption size', true, 'x')}
             {edge({ top: -6, left: '50%', width: 10, height: 10, marginLeft: -5 }, 'ns-resize', 'Drag the top handle to change the auto caption size', true, 'y')}
@@ -1082,6 +1077,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerMove={(e) => {
                 const r = ovResizeRef.current
                 if (!r || r.id !== ov.id || !onOverlayPatch) return
+                if (mouseUp(e)) { dropAll(); return }
                 const d = Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
                 onOverlayPatch(ov.id, { size: Math.min(1, Math.max(0.05, r.size * (d / r.dist))) })
               }}
@@ -1102,6 +1098,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerMove={(e) => {
                 const r = ovCropRef.current
                 if (!r || r.id !== ov.id || !onOverlayPatch) return
+                if (mouseUp(e)) { dropAll(); return }
                 const vw0 = Math.max(0.1, 1 - r.cl - r.cr), vh0 = Math.max(0.1, 1 - r.ct - r.cb)
                 const w0 = r.size * r.w
                 const h0 = (w0 * vh0 * r.ar) / vw0
@@ -1130,6 +1127,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerDown={(e) => { if (recording || !onOverlayPatch) return; e.stopPropagation(); onSelOverlay?.(ov.id); e.currentTarget.setPointerCapture(e.pointerId); ovDragRef.current = ov.id; const pf = frac(e); grabRef.current = { dx: ov.x - pf.x, dy: ov.y - pf.y } }}
               onPointerMove={(e) => {
                 if (ovDragRef.current !== ov.id || !onOverlayPatch) return
+                if (mouseUp(e)) { dropAll(); return }
                 const box = stageRef.current?.getBoundingClientRect()
                 if (!box) return
                 onOverlayPatch(ov.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + grabRef.current.dx)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)) })
