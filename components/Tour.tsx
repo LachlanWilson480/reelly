@@ -29,7 +29,7 @@ const link = { background: 'none', border: 'none', color: 'var(--text-muted)', f
 
 // A short walk through everything needed to get a first video going. Cards open beside the
 // button to press. The person can skip it at the start, or at any step, and it is remembered.
-export default function Tour({ userId, steps, runKey }: { userId: string | null; steps: TourStep[]; runKey: number }) {
+export default function Tour({ userId, steps, runKey, onStatus }: { userId: string | null; steps: TourStep[]; runKey: number; onStatus?: (how: 'done' | 'skipped') => void }) {
   const [phase, setPhase] = useState<Phase>('off')
   const [index, setIndex] = useState(0)
   const [box, setBox] = useState<Box | null>(null)
@@ -56,8 +56,9 @@ export default function Tour({ userId, steps, runKey }: { userId: string | null;
 
   const finish = useCallback((how: 'done' | 'skipped') => {
     if (userId) remember(userId, how)
+    onStatus?.(how)
     setPhase(how === 'done' ? 'done' : 'off')
-  }, [userId])
+  }, [userId, onStatus])
 
   const goTo = useCallback((i: number) => {
     const list = stepsRef.current

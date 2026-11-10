@@ -1575,6 +1575,13 @@ export default function DashboardPage() {
   const editBtnRef = useRef<HTMLDivElement>(null)
   const createBtnRef = useRef<HTMLDivElement>(null)
   const [tourRun, setTourRun] = useState(0)
+  // The Take the tour button is only shown to people who have not finished the tour
+  const [tourDone, setTourDone] = useState(false)
+  useEffect(() => {
+    if (!userId) return
+    const t = setTimeout(() => { try { setTourDone(localStorage.getItem(`reelly-tour-v1:${userId}`) === 'done') } catch { /* no storage: keep the button */ } }, 0)
+    return () => clearTimeout(t)
+  }, [userId])
   const params = useParams()
   const setTab = (t: Tab) => {
     setTabState(t)
@@ -4483,7 +4490,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
-      <Tour userId={userId} runKey={tourRun} steps={tourSteps} />
+      <Tour userId={userId} runKey={tourRun} steps={tourSteps} onStatus={(how) => setTourDone(how === 'done')} />
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .vs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
@@ -4604,7 +4611,7 @@ export default function DashboardPage() {
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
               {profile?.industry} · {profile?.suburb}
             </p>
-            <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginTop: 12 }}>Take the tour</button>
+            {!tourDone && <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginTop: 12 }}>Take the tour</button>}
             </div>
             <div className="dash-stats" style={{ flex: '3 1 460px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 14 }}>
               {stats.map((s) => (
