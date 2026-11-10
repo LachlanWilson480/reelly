@@ -23,6 +23,7 @@ import CameraControls from '@/components/CameraControls'
 import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { AudioLibrary, AudioPicker, announceAudioLibraryChanged } from '@/components/AudioLibrary'
 import { saveAudioToLibrary } from '@/lib/clipLibrary'
+import Tour, { type TourStep } from '@/components/Tour'
 import OverlayPicker from '@/components/OverlayPicker'
 import OverlayElements from '@/components/OverlayElements'
 import { useCameraControls } from '@/lib/useCameraControls'
@@ -1208,7 +1209,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               <>
                 <input ref={pickRef} type="file" accept="video/*" multiple style={{ display: 'none' }}
                   onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) onDropFiles(files); e.target.value = '' }} />
-                <button type="button" onClick={() => pickRef.current?.click()}
+                <button type="button" onClick={() => pickRef.current?.click()} data-tour="choose-clip"
                   style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Choose clip</button>
                 {onPickLibrary && (
                   <button type="button" onClick={onPickLibrary}
@@ -1609,6 +1610,7 @@ export default function DashboardPage() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const editBtnRef = useRef<HTMLDivElement>(null)
   const createBtnRef = useRef<HTMLDivElement>(null)
+  const [tourRun, setTourRun] = useState(0)
   const params = useParams()
   const setTab = (t: Tab) => {
     setTabState(t)
@@ -4503,8 +4505,20 @@ export default function DashboardPage() {
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
   const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 5, display: 'block' as const }
 
+  const tourSteps: TourStep[] = [
+    { id: 'create', target: 'menu-item-ideas', title: 'Start with an idea', body: 'Open the Create menu and press Content Ideas. This is where every video begins.', enter: () => { setTab('overview'); setOpenDropdown('create') }, advanceOnClick: true },
+    { id: 'generate', target: 'ideas-generate', title: 'Get video ideas', body: 'Press Generate and we write ideas that fit your business. Save the ones you like.', enter: () => { setOpenDropdown(null); setTab('ideas') }, advanceOnClick: true },
+    { id: 'instructions', target: 'tab-filming', title: 'Your shot list', body: 'Instructions turns a saved idea into a script and a list of shots, so you know exactly what to film.', enter: () => { setOpenDropdown(null) } },
+    { id: 'film', target: 'tab-film', title: 'Film it', body: 'Film opens your camera with the script scrolling on screen. Or film on your phone as normal and upload it in the next step.', enter: () => { setOpenDropdown(null) } },
+    { id: 'edit', target: 'tab-edit', title: 'Choose how to edit', body: 'AI Editor For Generated Idea follows the shot list you made. For Any Video lets you edit clips you already have.', enter: () => { setOpenDropdown('edit') } },
+    { id: 'clips', target: 'choose-clip', title: 'Add your clips', body: 'Pick clips from your device or from your library. Add as many as you need.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
+    { id: 'create-video', target: 'create-video', title: 'Make the video', body: 'When your clips are in, press Create video. We add captions and music and send you the finished video.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
+    { id: 'publish', target: 'tab-publish', title: 'Publish it', body: 'Publish lets you schedule your finished video to your social accounts.', enter: () => { setOpenDropdown(null); setTab('scheduler') } },
+  ]
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
+      <Tour userId={userId} runKey={tourRun} steps={tourSteps} />
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .vs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
@@ -4624,6 +4638,7 @@ export default function DashboardPage() {
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>
               {profile?.industry} · {profile?.suburb}
             </p>
+            <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '7px 14px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginBottom: 20 }}>Take the tour</button>
             <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
               {stats.map((s) => (
                 s.tab ? (
@@ -4657,13 +4672,13 @@ export default function DashboardPage() {
 
             {/* Create dropdown */}
             <div ref={createBtnRef} style={{ position: 'relative' }}>
-              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'create' ? null : 'create') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['ideas','script'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['ideas','script'].includes(tab) ? 600 : 500, color: ['ideas','script'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'create' ? null : 'create') }} data-tour="tab-create" data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['ideas','script'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['ideas','script'].includes(tab) ? 600 : 500, color: ['ideas','script'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                 Create <span style={{ fontSize: 11, opacity: 0.6 }}><Icon n="down" /></span>
               </button>
               {openDropdown === 'create' && typeof document !== 'undefined' && createPortal(
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(createBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 1000, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
+                <div data-dropdown data-tour="create-menu" onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (createBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(createBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 1000, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
                   {[{ id: 'ideas', label: 'Content Ideas' }, { id: 'script', label: 'Script Generator' }, { id: 'carousel', label: 'Carousel Reels', pro: true }].map((item) => (
-                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+                    <button key={item.id} data-tour={`menu-item-${item.id}`} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
                       {item.label}{(item as {pro?: boolean}).pro && !isProPlan ? <span style={{ fontSize: 11, color: 'var(--coral)' }}>Pro</span> : ''}
                     </button>
                   ))}
@@ -4678,24 +4693,24 @@ export default function DashboardPage() {
             </button>
 
             {/* Instructions tab */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('filming') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'filming' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'filming' ? 600 : 500, color: tab === 'filming' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('filming') }} data-tour="tab-filming" style={{ background: 'none', border: 'none', borderBottom: tab === 'filming' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'filming' ? 600 : 500, color: tab === 'filming' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Instructions
             </button>
 
             {/* Film tab */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('film') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'film' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'film' ? 600 : 500, color: tab === 'film' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('film') }} data-tour="tab-film" style={{ background: 'none', border: 'none', borderBottom: tab === 'film' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'film' ? 600 : 500, color: tab === 'film' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Film
             </button>
 
             {/* Edit dropdown */}
             <div ref={editBtnRef} style={{ position: 'relative' }}>
-              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'edit' ? null : 'edit') }} data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'edit' ? null : 'edit') }} data-tour="tab-edit" data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
                 Edit <span style={{ fontSize: 11, opacity: 0.6 }}><Icon n="down" /></span>
               </button>
               {openDropdown === 'edit' && typeof document !== 'undefined' && createPortal(
-                <div data-dropdown onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 1000, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
+                <div data-dropdown data-tour="edit-menu" onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 1000, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
                   {[{ id: 'aiuploads', label: 'AI Editor For Generated Idea' }, { id: 'uploads', label: 'AI Editor For Any Video' }].map((item) => (
-                    <button key={item.id} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+                    <button key={item.id} data-tour={`menu-item-${item.id}`} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
                       {item.label}
                     </button>
                   ))}
@@ -4705,7 +4720,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Publish button */}
-            <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+            <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} data-tour="tab-publish" style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
               Publish
             </button>
 
@@ -4798,6 +4813,7 @@ export default function DashboardPage() {
                   <div className="ideas-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 22, flexShrink: 0 }}>
                     <button
                       onClick={generateIdeas}
+                      data-tour="ideas-generate"
                       disabled={generatingIdeas}
                       style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: generatingIdeas ? 'not-allowed' : 'pointer', opacity: generatingIdeas ? 0.7 : 1, whiteSpace: 'nowrap' }}
                     >
@@ -5931,6 +5947,7 @@ export default function DashboardPage() {
                   if (uploading || extractingAudio || !hasAnyFile) return
                   startUploadAndRender()
                 }}
+                data-tour="create-video"
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
                 style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
@@ -6229,7 +6246,7 @@ export default function DashboardPage() {
                     )}
                     {!filmCameraActive && !filmIsRecording && filmCountdown === null && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(0,0,0,0.5)' }}>
-                        <button onClick={startFilmCamera} style={{ padding: '12px 28px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Enable Camera</button>
+                        <button onClick={startFilmCamera} data-tour="film-start" style={{ padding: '12px 28px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Enable Camera</button>
                         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: 0, padding: '0 24px', textAlign: 'center', lineHeight: 1.5 }}>{filmCameraError || 'Click to start your camera'}</p>
                       </div>
                     )}
@@ -6513,6 +6530,7 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
+                      data-tour="create-video"
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
                       style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
