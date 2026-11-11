@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This discount code has reached its limit' }, { status: 400 })
     }
 
-    return NextResponse.json({ valid: true, percentOff: data.percent_off, code: data.code })
+    return NextResponse.json({ valid: true, percentOff: Number(data.percent_off), code: data.code })
   } catch (error) {
     console.error('validate-discount error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to validate code' }, { status: 500 })

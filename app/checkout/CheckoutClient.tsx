@@ -154,7 +154,7 @@ export default function CheckoutClient() {
         try {
           const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
           const d = await r.json()
-          if (r.ok && typeof d.percentOff === 'number') { setPercentOff(d.percentOff); setCode(startCode); goodCode = startCode }
+          if (r.ok && Number.isFinite(Number(d.percentOff)) && Number(d.percentOff) > 0) { setPercentOff(Number(d.percentOff)); setCode(startCode); goodCode = startCode }
           else setRefMsg(d?.error ? `Code ${startCode}: ${d.error}.` : 'That discount code could not be applied.')
         } catch { setRefMsg('That discount code could not be checked. Enter it again below.') }
       }
@@ -174,9 +174,9 @@ export default function CheckoutClient() {
       // A discount code first. If it is not one of those, try it as a friend's referral code.
       const dr = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) })
       const dd = await dr.json().catch(() => ({}))
-      if (dr.ok && typeof dd.percentOff === 'number') {
+      if (dr.ok && Number.isFinite(Number(dd.percentOff)) && Number(dd.percentOff) > 0) {
         try { sessionStorage.setItem('reelezy-discount-code', c) } catch {}
-        setPercentOff(dd.percentOff)
+        setPercentOff(Number(dd.percentOff))
         setCode(c)
         setRefInput('')
         setClientSecret('')

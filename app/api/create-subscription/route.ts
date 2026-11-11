@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         .eq('active', true)
         .maybeSingle()
       if (discountRow && (discountRow.max_uses === null || discountRow.uses < discountRow.max_uses) && (!discountRow.expires_at || new Date(discountRow.expires_at) > new Date())) {
-        codePercent = discountRow.percent_off
+        codePercent = Number(discountRow.percent_off)
         codeRow = discountRow
       }
     }
