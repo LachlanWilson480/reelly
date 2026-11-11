@@ -1579,7 +1579,12 @@ export default function DashboardPage() {
   const [tourDone, setTourDone] = useState(false)
   useEffect(() => {
     if (!userId) return
-    const t = setTimeout(() => { try { setTourDone(localStorage.getItem(`reelly-tour-v1:${userId}`) === 'done') } catch { /* no storage: keep the button */ } }, 0)
+    const t = setTimeout(() => {
+      let local = false
+      try { local = localStorage.getItem(`reelly-tour-v1:${userId}`) === 'done' } catch { /* no storage: ask the account instead */ }
+      if (local) { setTourDone(true); return }
+      supabase.auth.getUser().then(({ data }) => { if (data.user?.user_metadata?.reelezy_tour === 'done') setTourDone(true) }).catch(() => {})
+    }, 0)
     return () => clearTimeout(t)
   }, [userId])
   const params = useParams()

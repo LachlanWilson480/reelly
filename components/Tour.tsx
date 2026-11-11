@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { supabase } from '@/lib/supabase'
 
 // One step of the guided tour. `target` is the data-tour name of the button the card sits beside.
 export type TourStep = {
@@ -20,7 +21,18 @@ type Box = { top: number; left: number; width: number; height: number }
 type Place = { top: number; left: number; width: number }
 
 const storeKey = (userId: string) => `reelly-tour-v1:${userId}`
-const remember = (userId: string, value: 'done' | 'skipped') => { try { localStorage.setItem(storeKey(userId), value) } catch { /* private window: the tour just shows again next time */ } }
+// The answer is kept on the account as well as in this browser, so the tour does not come back on another device or on another Reelezy domain
+const remember = (userId: string, value: 'done' | 'skipped' | 'seen') => {
+  try { localStorage.setItem(storeKey(userId), value) } catch { /* private window: the account copy below still works */ }
+  supabase.auth.updateUser({ data: { reelezy_tour: value } }).catch(() => {})
+}
+const readAccountAnswer = async (): Promise<'done' | 'skipped' | 'seen' | null> => {
+  try {
+    const { data } = await supabase.auth.getUser()
+    const v = data.user?.user_metadata?.reelezy_tour
+    return v === 'done' || v === 'skipped' || v === 'seen' ? v : null
+  } catch { return null }
+}
 
 const ring = 'var(--coral)'
 const primary = { background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' } as const
@@ -40,11 +52,22 @@ export default function Tour({ userId, steps, runKey, onStatus }: { userId: stri
   const scrolled = useRef(false)
   useEffect(() => { stepsRef.current = steps })
 
-  // Shows the welcome card once for anyone who has not answered yet
+  // Shows the welcome card once, ever, for anyone who has not seen it yet. It is marked as seen as soon as it appears.
   useEffect(() => {
     if (!userId) return
-    const t = setTimeout(() => { try { if (!localStorage.getItem(storeKey(userId))) setPhase('welcome') } catch { /* no storage: skip the automatic start */ } }, 900)
-    return () => clearTimeout(t)
+    let cancelled = false
+    const t = setTimeout(async () => {
+      let answered = false
+      try { answered = !!localStorage.getItem(storeKey(userId)) } catch { /* no storage: the account copy decides */ }
+      if (!answered) {
+        const account = await readAccountAnswer()
+        if (account) { answered = true; try { localStorage.setItem(storeKey(userId), account) } catch { /* ignore */ } }
+      }
+      if (cancelled || answered) return
+      remember(userId, 'seen')
+      setPhase('welcome')
+    }, 900)
+    return () => { cancelled = true; clearTimeout(t) }
   }, [userId])
 
   // "Take the tour" buttons raise runKey to start it again
