@@ -40,3 +40,7 @@ export async function openCameraStream(cam: MediaTrackConstraints, landscape: bo
   // Nothing gave the right shape, so ask the original way once more and use whatever comes back
   return navigator.mediaDevices.getUserMedia({ video: { ...cam, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: fps } }, audio: true })
 }
+
+// True on phones and tablets. There the camera's own full picture is shown and recorded as it comes, with no cropping.
+export const isTouchDevice = () =>
+  typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches

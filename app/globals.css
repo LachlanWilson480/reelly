@@ -408,3 +408,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .pub-day:first-child { border-top: none; }
   .pub-day > .pub-day-head { flex: 0 0 100%; }
 }
+
+/* ── Phone layout tidy-up (phones only, desktop is untouched) ── */
+@media (max-width: 640px) {
+  /* Cards and panels use big desktop padding; on a phone that wastes a third of the width */
+  [style*="padding: 48px"] { padding: 20px 16px !important; }
+  [style*="padding: 40px"] { padding: 20px 16px !important; }
+  [style*="padding: 32px"] { padding: 18px 16px !important; }
+  [style*="padding: 28px"] { padding: 16px !important; }
+  [style*="padding: 24px"] { padding: 16px !important; }
+  /* Settings and Customise: leave room for the menu button at the top */
+  [style*="padding: 48px"][style*="max-width: 700px"] { padding: 72px 16px 32px !important; }
+  /* Pages with their own top bar (History, Refer): leave room for the menu button */
+  .dashboard-content [style*="padding: 0px 24px"]:not([style*="24px 24px"]) { padding-left: 0 !important; padding-right: 0 !important; margin-top: 16px !important; }
+  nav[style*="padding: 24px 48px"], nav[style*="padding: 20px 48px"], nav[style*="padding: 16px 48px"] { padding: 14px 16px 14px 64px !important; min-height: 64px; box-sizing: border-box; }
+}

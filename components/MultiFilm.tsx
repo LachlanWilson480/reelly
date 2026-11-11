@@ -12,7 +12,7 @@ import { trackRenders } from '@/lib/renderTracker'
 import CameraControls from '@/components/CameraControls'
 import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
-import { openCameraStream } from "@/lib/openCamera"
+import { openCameraStream, isTouchDevice } from "@/lib/openCamera"
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 
@@ -381,7 +381,7 @@ export default function MultiFilm(p: Props) {
       let stopCanvas: (() => void) | null = null
       const vid = videoElRef.current
       const target = orientationRef.current === 'landscape' ? 16 / 9 : 9 / 16
-      if (vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
+      if (!isTouchDevice() && vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
         const vw = vid.videoWidth
         const vh = vid.videoHeight
         let sw = vw
@@ -744,7 +744,7 @@ export default function MultiFilm(p: Props) {
               <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: portrait ? '9 / 16' : '16 / 9', width: frameW }}>
                 <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                 {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: isTouchDevice() ? 'contain' : 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                 <CameraControls
                   cam={camx}
                   cameraActive={cameraActive}
