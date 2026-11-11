@@ -389,7 +389,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 @media (max-width: 640px) {
   .dash-hero { padding: 0 0 4px !important; margin-bottom: 8px !important; background: none !important; border: none !important; }
-  .dashboard-nav { padding-top: 8px !important; padding-bottom: 8px !important; }
+  .dashboard-nav { min-height: 64px; }
   .dash-hero h1 { font-size: 17px !important; line-height: 1.25 !important; }
   .dash-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   .dash-stats > * { padding: 6px 10px !important; }

@@ -1658,6 +1658,7 @@ export default function DashboardPage() {
   const filmFacingRef = useRef<'user' | 'environment'>('environment')
   const filmDeviceIdRef = useRef<string | null>(null)
   const [filmMirrored, setFilmMirrored] = useState(false)
+  const [filmCamInfo, setFilmCamInfo] = useState('')
   // Camera controls shared with the several videos recorder: grid, timer, quality, torch, zoom and lenses
   const cam = useCameraControls(() => filmStreamRef.current)
   const [filmDeviceLandscape, setFilmDeviceLandscape] = useState(false)
@@ -2440,6 +2441,7 @@ export default function DashboardPage() {
         }
         if (filmVideoRef.current && filmVideoRef.current.srcObject !== stream) filmVideoRef.current.srcObject = stream
         setFilmCameraActive(true)
+        if (typeof location !== 'undefined' && location.search.includes('camdebug')) { const st = (vt?.getSettings?.() || {}) as MediaTrackSettings & { zoom?: number }; setFilmCamInfo(`${st.width}x${st.height} ${st.frameRate ? Math.round(st.frameRate) : '?'}fps zoom ${st.zoom ?? 'n/a'} ${st.facingMode || ''}`) }
         cam.onStream(stream)
       })
       .catch(err => {
@@ -6172,6 +6174,7 @@ export default function DashboardPage() {
                       <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
+                    {filmCamInfo && <div style={{ position: 'absolute', left: 8, bottom: 8, zIndex: 9, background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, padding: '3px 6px', borderRadius: 3 }}>{filmCamInfo}</div>}
                     <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                     <CameraControls
                       cam={cam}
