@@ -22,6 +22,10 @@ export async function openCameraStream(cam: MediaTrackConstraints, landscape: bo
     { ...cam, width: { exact: w }, height: { exact: h } },
     // Sizes given the other way round, which some phones read as the camera's own sideways shape
     { ...cam, width: { ideal: h }, height: { ideal: w }, frameRate: { ideal: fps } },
+    // The camera's own 4:3 shape, which many phones only offer in this form (and which shows the most of the scene)
+    { ...cam, width: { ideal: landscape ? 1440 : 1080 }, height: { ideal: landscape ? 1080 : 1440 }, frameRate: { ideal: fps } },
+    { ...cam, width: { ideal: landscape ? 960 : 720 }, height: { ideal: landscape ? 720 : 960 } },
+    { ...cam, width: { ideal: landscape ? 1280 : 720 }, height: { ideal: landscape ? 720 : 1280 } },
     // Ask for the shape only
     { ...cam, aspectRatio: { ideal: landscape ? longSide / shortSide : shortSide / longSide } },
   ]
