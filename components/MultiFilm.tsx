@@ -219,7 +219,9 @@ export default function MultiFilm(p: Props) {
 
   const effective = (key: string): Settings => ({ ...globalSettings, ...(overrides[key] || {}) })
 
+  const startSeqRef = useRef(0)
   const startCamera = () => {
+    const startId = ++startSeqRef.current
     setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('This browser does not support camera access. Try Chrome or Safari.')
@@ -230,7 +232,7 @@ export default function MultiFilm(p: Props) {
     const cam = deviceIdRef.current ? { deviceId: { exact: deviceIdRef.current } } : { facingMode: facingRef.current }
     openCameraStream(cam, land, size)
       .then((stream) => {
-        if (!wantedRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
+        if (!wantedRef.current || startId !== startSeqRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current?.getTracks().forEach((t) => t.stop())
         streamRef.current = stream
         const vt = stream.getVideoTracks()[0]

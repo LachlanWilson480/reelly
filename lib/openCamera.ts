@@ -25,23 +25,18 @@ export async function openCameraStream(cam: MediaTrackConstraints, landscape: bo
     // Ask for the shape only
     { ...cam, aspectRatio: { ideal: landscape ? longSide / shortSide : shortSide / longSide } },
   ]
-  let first: MediaStream | null = null
   for (const video of tries) {
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video, audio: true })
     } catch (err) {
-      if (!first && video === tries[0]) throw err
+      if (video === tries[0]) throw err
       continue
     }
-    if (shapeOk(stream, landscape)) {
-      first?.getTracks().forEach((t) => t.stop())
-      return stream
-    }
-    if (!first) first = stream
-    else stream.getTracks().forEach((t) => t.stop())
+    if (shapeOk(stream, landscape)) return stream
+    // Close it before asking again. Phones end an open camera as soon as another request starts.
+    stream.getTracks().forEach((t) => t.stop())
   }
-  // Nothing gave the right shape, so use the first picture as it is
-  if (first) return first
-  return navigator.mediaDevices.getUserMedia({ video: cam, audio: true })
+  // Nothing gave the right shape, so ask the original way once more and use whatever comes back
+  return navigator.mediaDevices.getUserMedia({ video: { ...cam, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: fps } }, audio: true })
 }

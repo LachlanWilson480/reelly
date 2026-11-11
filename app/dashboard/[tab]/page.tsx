@@ -2418,6 +2418,7 @@ export default function DashboardPage() {
   }
 
   const filmWantedRef = useRef(false)
+  const filmStartSeq = useRef(0)
   const [filmCameraError, setFilmCameraError] = useState('')
 
   const startFilmCamera = () => {
@@ -2426,11 +2427,12 @@ export default function DashboardPage() {
       setFilmCameraError('This browser does not support camera access. Try Chrome or Safari.')
       return
     }
+    const startId = ++filmStartSeq.current
     const filmSize = cam.sizeConstraints(filmOrientationRef.current === 'landscape')
     const filmCamera = filmDeviceIdRef.current ? { deviceId: { exact: filmDeviceIdRef.current } } : { facingMode: filmFacingRef.current }
     openCameraStream(filmCamera, filmOrientationRef.current === "landscape", filmSize)
       .then(stream => {
-        if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
+        if (!filmWantedRef.current || startId !== filmStartSeq.current) { stream.getTracks().forEach(t => t.stop()); return }
         filmStreamRef.current?.getTracks().forEach(t => t.stop())
         filmStreamRef.current = stream
         const vt = stream.getVideoTracks()[0]
