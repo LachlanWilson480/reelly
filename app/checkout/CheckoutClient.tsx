@@ -19,7 +19,7 @@ type Phase = 'loading' | 'ready' | 'login' | 'already' | 'error' | 'returning' |
 
 const check = (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0, marginTop: 3 }}>
-    <circle cx="8" cy="8" r="8" fill="var(--line)" />
+    <circle cx="8" cy="8" r="8" fill="var(--coral)" />
     <path d="M4.6 8.2l2.3 2.3 4.5-4.8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
