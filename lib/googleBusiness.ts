@@ -20,7 +20,10 @@ export class GbpError extends Error {
 }
 
 // ---- signed state, same idea as the other platforms ----
-const sign = (s: string) => createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY || '').update(s).digest('base64url')
+const sign = (s: string) => {
+  if (!process.env.TOKEN_ENCRYPTION_KEY) throw new Error('TOKEN_ENCRYPTION_KEY is not set')
+  return createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY).update(s).digest('base64url')
+}
 export const makeState = (userId: string) => { const body = `${userId}.gbp.${Date.now()}`; return `${body}.${sign(body)}` }
 export function readState(state: string | null): string | null {
   if (!state) return null

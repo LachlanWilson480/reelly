@@ -25,7 +25,11 @@ export const siteOrigin = () => (process.env.NEXT_PUBLIC_SITE_URL || 'https://ww
 export const redirectUri = (p: PlatformId) => `${siteOrigin()}/api/social/callback/${p}`
 
 // ---- signed state so the callback knows which user started the connection ----
-const sign = (s: string) => createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY || '').update(s).digest('base64url')
+const sign = (s: string) => {
+  // Without a key the signature could be forged, so refuse to run
+  if (!process.env.TOKEN_ENCRYPTION_KEY) throw new Error('TOKEN_ENCRYPTION_KEY is not set')
+  return createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY).update(s).digest('base64url')
+}
 export function makeState(userId: string, platform: PlatformId): string {
   const body = `${userId}.${platform}.${Date.now()}`
   return `${body}.${sign(body)}`

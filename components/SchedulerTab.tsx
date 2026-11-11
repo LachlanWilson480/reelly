@@ -17,6 +17,8 @@ import { emptyTikTok, tiktokProblem, type TikTokOptions } from '@/lib/tiktok'
 
 // Switched off for launch while the platforms approve our apps. Set to true to bring them back.
 const SHOW_ACCOUNTS = false
+// The calendar of scheduled posts stays hidden until scheduling is switched on
+const SHOW_CALENDAR = false
 
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
@@ -45,6 +47,34 @@ const TIME_OPTIONS = Array.from({ length: 96 }, (_, i) => {
 const small = { fontSize: 12, color: 'var(--text-muted)', margin: 0 } as const
 const heading = { fontSize: 18, fontWeight: 600, margin: 0 } as const
 const chip = (on: boolean) => ({ padding: '8px 14px', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.08)' : '#fff', color: on ? 'var(--coral)' : 'var(--ink)' })
+
+const CopyIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
+)
+const TickIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+)
+
+const PUBLISH_CSS = `
+.pub-card { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; border: 1px solid var(--line); border-radius: 4px; padding: 14px; background: #fff; }
+.pub-thumb { width: 96px; height: 170px; object-fit: cover; background: #000; border-radius: 2px; display: block; }
+.pub-info { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pub-row { display: flex; gap: 10px; align-items: flex-start; }
+.pub-text { flex: 1; min-width: 0; margin: 0; }
+.pub-title { font-size: 14px; font-weight: 600; margin: 0 0 4px; line-height: 1.35; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pub-desc { font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 96px; overflow-y: auto; }
+.pub-copy { flex-shrink: 0; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); cursor: pointer; padding: 0; }
+.pub-copy:disabled { opacity: 0.4; cursor: default; }
+.pub-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+.pub-dl { flex: 1; min-height: 46px; background: var(--coral); color: #fff; border: none; border-radius: 4px; padding: 12px 18px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.pub-dl:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 640px) {
+  .pub-card { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .pub-thumb { width: 72px; height: 128px; }
+  .pub-copy { width: 44px; height: 44px; }
+  .pub-dl { min-height: 48px; }
+}
+`
 
 export default function SchedulerTab({ userId, carousels, isFree = false }: { userId: string | null; carousels: Carousel[]; isFree?: boolean }) {
   const [renders, setRenders] = useState<Render[]>([])
@@ -103,12 +133,32 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
     if (res.ok) { setQueue((q) => q.filter((p) => p.id !== id)); setConfirmDelete(null); setOpenPost((o) => (o === id ? null : o)) }
     else { const e = await res.json().catch(() => ({})); setDeleteError(e.error || 'Could not delete the post. Please try again.'); setConfirmDelete(null) }
   }
-  const download = async (url: string) => {
-    const blob = await (await fetch(url)).blob()
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'reelezy-video.mp4'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  const [downloading, setDownloading] = useState<string | null>(null)
+  // Saves the video to the device. Only web addresses are fetched; if the browser blocks the save, the video opens in a new tab instead.
+  const download = async (url: string, id: string, title?: string | null) => {
+    if (!/^https:\/\//i.test(url)) return
+    setDownloading(id)
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('download failed')
+      const blob = await res.blob()
+      const name = (cleanString(title || '').replace(/[^\w\s-]/g, '').trim().slice(0, 60) || 'reelezy-video').replace(/\s+/g, '-')
+      const href = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = href; a.download = `${name}.mp4`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(href), 10_000)
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+    setDownloading(null)
   }
-  const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 2000) }
+  const copy = async (text: string, key: string) => {
+    try { await navigator.clipboard.writeText(text) } catch {
+      // Older browsers: fall back to selecting a hidden box
+      try { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t) } catch { return }
+    }
+    setCopied(key); setTimeout(() => setCopied(null), 2000)
+  }
   // After scheduling: refresh, jump the calendar to that week and open the new post
   const scheduled = (msg: string, post?: { id: string; scheduledFor: string }) => {
     setPlan(null); setNotice(msg)
@@ -143,7 +193,8 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
   const openDetail = (id: string) => { setPlan(null); setConfirmDelete(null); setOpenPost(id); setTimeout(() => document.getElementById('post-detail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60) }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, minWidth: 0 }}>
+      <style>{PUBLISH_CSS}</style>
       <div>
         <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>Publish</h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Your finished videos, ready to download and post.</p>
@@ -183,7 +234,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
       {SHOW_ACCOUNTS && <GoogleBusinessPanel isFree={isFree} />}
 
       {/* Calendar */}
-      <section aria-labelledby="pub-week" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {SHOW_CALENDAR && <section aria-labelledby="pub-week" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h3 id="pub-week" style={{ ...heading, flex: 1 }}>Your calendar</h3>
           <button type="button" aria-label="Previous week" onClick={() => setWeek((w) => addDays(w, -7))} style={{ ...buttonSecondary, padding: '8px 10px' }}><Icon n="back" /></button>
@@ -241,7 +292,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                       const r = p.results?.[x]
                       return (
                         <p key={x} style={{ fontSize: 12, margin: '0 0 2px', color: r?.status === 'failed' || r?.status === 'not_connected' ? '#D92D20' : 'var(--text-secondary)' }}>
-                          {label(x)}: {r ? (r.status === 'posted' ? (r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Posted, view it</a> : 'Posted') : r.status === 'not_connected' ? 'Account not connected' : r.error || 'Failed') : p.status === 'scheduled' ? 'Waiting to post' : '-'}
+                          {label(x)}: {r ? (r.status === 'posted' ? (r.url && /^https:\/\//i.test(r.url) ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Posted, view it</a> : 'Posted') : r.status === 'not_connected' ? 'Account not connected' : r.error || 'Failed') : p.status === 'scheduled' ? 'Waiting to post' : '-'}
                         </p>
                       )
                     })}
@@ -250,7 +301,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                {p.video_url && <button type="button" onClick={() => download(p.video_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download video</button>}
+                {p.video_url && <button type="button" onClick={() => download(p.video_url!, p.id, p.title)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download video</button>}
                 {p.status !== 'posting' && (confirmDelete === p.id ? (
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, flexWrap: 'wrap' }}>
                     <span style={{ color: 'var(--text-muted)' }}>{p.status === 'posted' || p.status === 'partial' ? 'Remove from this list? It stays on the platform.' : 'Delete this scheduled post?'}</span>
@@ -268,7 +319,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
         {plan?.from === 'calendar' && (
           <PlanPanel key={`c-${plan.day}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} />
         )}
-      </section>
+      </section>}
 
       {/* Videos */}
       <section aria-labelledby="pub-ready" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -286,31 +337,37 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                   </div>
                 ))}
               </>
-            ) : g.items.map((r) => (
-              <div key={r.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 12, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14 }}>
-                  <video src={r.output_url!} muted playsInline preload="metadata" style={{ width: 72, height: 104, objectFit: 'cover', background: '#000', borderRadius: 2 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.title ? cleanString(r.title) : 'Untitled video'}</p>
-                    <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                    {(r.caption || r.tags) && (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 96, overflowY: 'auto' }}>{cleanString([r.caption, r.tags].filter(Boolean).join('\n'))}</p>
-                    )}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {r.title && <button type="button" onClick={() => copy(cleanString(r.title!), `${r.id}-t`)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>{copied === `${r.id}-t` ? 'Copied' : 'Copy title'}</button>}
-                      {(r.caption || r.tags) && <button type="button" onClick={() => copy(cleanString([r.caption, r.tags].filter(Boolean).join('\n')), `${r.id}-d`)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>{copied === `${r.id}-d` ? 'Copied' : 'Copy description'}</button>}
+            ) : g.items.map((r) => {
+              const desc = cleanString([r.caption, r.tags].filter(Boolean).join('\n'))
+              const title = r.title ? cleanString(r.title) : 'Untitled video'
+              return (
+                <div key={r.id} className="pub-card">
+                  <video className="pub-thumb" src={r.output_url!} muted playsInline preload="metadata" />
+                  <div className="pub-info">
+                    <div className="pub-row">
+                      <div className="pub-text">
+                        <p className="pub-title">{title}</p>
+                        <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                      <button type="button" className="pub-copy" aria-label="Copy title" title="Copy title" onClick={() => copy(title, `${r.id}-t`)}>{copied === `${r.id}-t` ? <TickIcon /> : <CopyIcon />}</button>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {!isFree && connected.length > 0 && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
-                      {!isFree && <button type="button" onClick={() => download(r.output_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download</button>}
+                    <div className="pub-row">
+                      <p className="pub-text pub-desc" style={{ color: desc ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{desc || 'No description yet'}</p>
+                      <button type="button" className="pub-copy" aria-label="Copy description" title="Copy description" disabled={!desc} onClick={() => copy(desc, `${r.id}-d`)}>{copied === `${r.id}-d` ? <TickIcon /> : <CopyIcon />}</button>
                     </div>
                   </div>
+                  {!isFree && (
+                    <div className="pub-actions">
+                      <button type="button" className="pub-dl" disabled={downloading === r.id} onClick={() => download(r.output_url!, r.id, r.title)}>{downloading === r.id ? 'Downloading...' : 'Download'}</button>
+                      {connected.length > 0 && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonSecondary, padding: '12px 16px', fontSize: 14 }}>Schedule</button>}
+                    </div>
+                  )}
+                  {plan?.from === 'video' && plan.renderId === r.id && (
+                    <div style={{ gridColumn: '1 / -1' }}><PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} /></div>
+                  )}
                 </div>
-                {plan?.from === 'video' && plan.renderId === r.id && (
-                  <PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </CollapsibleBox>
         ))}
       </section>

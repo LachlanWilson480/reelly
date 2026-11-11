@@ -8,7 +8,9 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const ALLOWED_FIELDS = ['status', 'scheduled_for', 'caption', 'tags', 'platforms', 'posted_at', 'error_text']
+// People can only change the time, the text, where it posts, or cancel it. Status and result fields are set by the system.
+const ALLOWED_FIELDS = ['status', 'scheduled_for', 'caption', 'tags', 'platforms']
+const PLATFORM_IDS = ['youtube', 'tiktok', 'instagram', 'linkedin', 'facebook']
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,6 +27,18 @@ export async function POST(req: NextRequest) {
     )
     if (Object.keys(safeUpdates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+    if (typeof postId !== 'string') return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    const u = safeUpdates as Record<string, unknown>
+    const bad = (m: string) => NextResponse.json({ error: m }, { status: 400 })
+    if ('status' in u && u.status !== 'cancelled') return bad('That change is not allowed')
+    if ('caption' in u && u.caption !== null && (typeof u.caption !== 'string' || u.caption.length > 5000)) return bad('That text is too long')
+    if ('tags' in u && u.tags !== null && (typeof u.tags !== 'string' || u.tags.length > 1000)) return bad('That text is too long')
+    if ('platforms' in u && (!Array.isArray(u.platforms) || u.platforms.length === 0 || !u.platforms.every((p) => typeof p === 'string' && PLATFORM_IDS.includes(p)))) return bad('Choose where to post')
+    if ('scheduled_for' in u) {
+      const t = new Date(String(u.scheduled_for))
+      if (Number.isNaN(t.getTime()) || t.getTime() < Date.now() || t.getTime() > Date.now() + 366 * 24 * 60 * 60 * 1000) return bad('Pick a time within the next year')
+      u.scheduled_for = t.toISOString()
     }
 
     const { data, error } = await supabaseAdmin
