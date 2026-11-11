@@ -9,7 +9,7 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
-import { useCurrency } from '@/lib/useCurrency'
+import { useCurrency, useDomainCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
 import { cleanReferralInput } from '@/lib/referralInput'
 
@@ -75,6 +75,7 @@ export default function CheckoutClient() {
   const redirectStatus = params.get('redirect_status')
 
   const detectedCurrency = useCurrency()
+  const domainCurrency = useDomainCurrency()
   const [country, setCountry] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [message, setMessage] = useState('')
@@ -88,7 +89,7 @@ export default function CheckoutClient() {
   const [refBusy, setRefBusy] = useState(false)
   const started = useRef(false)
 
-  const currency = currencyForCountry(country) ?? detectedCurrency
+  const currency = domainCurrency ?? currencyForCountry(country) ?? detectedCurrency
   const copy = plan === 'top' ? PLAN_COPY.pro : PLAN_COPY.basic
   const planName = plan === 'top' ? 'Pro' : 'Basic'
 

@@ -11,7 +11,7 @@ import { formatBytes, libraryLimitBytes } from '@/lib/clipLibrary'
 import { authFetch } from '@/lib/authFetch'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } from '@/lib/pricing'
-import { useCurrency } from '@/lib/useCurrency'
+import { useCurrency, useDomainCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { cleanReferralInput } from '@/lib/referralInput'
@@ -22,7 +22,8 @@ export default function PlansPage() {
   const detectedCurrency = useCurrency()
   const [libraryUsed, setLibraryUsed] = useState(0)
   const [profileCountry, setProfileCountry] = useState<string | null>(null)
-  const accountCurrency = currencyForCountry(profileCountry) ?? detectedCurrency
+  const domainCurrency = useDomainCurrency()
+  const accountCurrency = domainCurrency ?? currencyForCountry(profileCountry) ?? detectedCurrency
   const currency = accountCurrency ?? 'AUD'
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)

@@ -29,6 +29,10 @@ const COUNTRY_CURRENCY: Record<string, Currency> = {
   AU: 'AUD', NZ: 'NZD', UK: 'GBP', GB: 'GBP', GG: 'GBP', JE: 'GBP', IM: 'GBP', US: 'USD', CA: 'CAD', SG: 'SGD', ZA: 'ZAR',
 }
 
+// The .co.uk site always charges in pounds, whoever is visiting
+export const currencyForHost = (host: string | null | undefined): Currency | null =>
+  (host || '').toLowerCase().split(':')[0].endsWith('.co.uk') ? 'GBP' : null
+
 // Works with the onboarding country list (AU, NZ, UK, IE, US, CA, ZA, SG, OTHER) and two-letter country codes from the visitor's location.
 // Returns null when the country is unknown. Any other country is charged in USD.
 export function currencyForCountry(country: string | null | undefined): Currency | null {

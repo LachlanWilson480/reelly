@@ -3,7 +3,7 @@ import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { currencyForCountry, REFERRAL_PERCENT_OFF } from '@/lib/pricing'
+import { currencyForCountry, currencyForHost, REFERRAL_PERCENT_OFF } from '@/lib/pricing'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     // Charge in the currency for the account's country (from onboarding), or the visitor's location if there is none
     const { data: profileRow } = await supabaseAdmin.from('business_profiles').select('country').eq('user_id', userId).maybeSingle()
-    const currency = (currencyForCountry(profileRow?.country) ?? currencyForCountry(req.headers.get('x-vercel-ip-country')) ?? 'AUD').toLowerCase()
+    const currency = (currencyForHost(req.headers.get('host')) ?? currencyForCountry(profileRow?.country) ?? currencyForCountry(req.headers.get('x-vercel-ip-country')) ?? 'AUD').toLowerCase()
 
     const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
