@@ -12,8 +12,6 @@ import { trackRenders } from '@/lib/renderTracker'
 import CameraControls from '@/components/CameraControls'
 import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
-import { openCameraStream, isTouchDevice } from "@/lib/openCamera"
-import { useCamRotation, rotatedCanvasStream } from '@/lib/useCamRotation'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 
@@ -196,7 +194,6 @@ export default function MultiFilm(p: Props) {
   const [cameraError, setCameraError] = useState('')
   const [mirrored, setMirrored] = useState(false)
   const camx = useCameraControls(() => streamRef.current)
-  const camRot = useCamRotation(orientation === 'portrait')
   const [deviceLandscape, setDeviceLandscape] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -221,9 +218,7 @@ export default function MultiFilm(p: Props) {
 
   const effective = (key: string): Settings => ({ ...globalSettings, ...(overrides[key] || {}) })
 
-  const startSeqRef = useRef(0)
   const startCamera = () => {
-    const startId = ++startSeqRef.current
     setCameraError('')
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('This browser does not support camera access. Try Chrome or Safari.')
@@ -232,9 +227,9 @@ export default function MultiFilm(p: Props) {
     const land = orientationRef.current === 'landscape'
     const size = camx.sizeConstraints(land)
     const cam = deviceIdRef.current ? { deviceId: { exact: deviceIdRef.current } } : { facingMode: facingRef.current }
-    openCameraStream(cam, land, size)
+    navigator.mediaDevices.getUserMedia({ video: { ...cam, ...size }, audio: true })
       .then((stream) => {
-        if (!wantedRef.current || startId !== startSeqRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
+        if (!wantedRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current?.getTracks().forEach((t) => t.stop())
         streamRef.current = stream
         const vt = stream.getVideoTracks()[0]
@@ -383,12 +378,7 @@ export default function MultiFilm(p: Props) {
       let stopCanvas: (() => void) | null = null
       const vid = videoElRef.current
       const target = orientationRef.current === 'landscape' ? 16 / 9 : 9 / 16
-      if (isTouchDevice() && vid && camRot.rotRef.current !== 0) {
-        const rs = rotatedCanvasStream(vid, camRot.rotRef.current, orientationRef.current !== 'landscape', camx.frameRate())
-        streamRef.current.getAudioTracks().forEach((t) => rs.stream.addTrack(t))
-        recordStream = rs.stream
-        stopCanvas = rs.stop
-      } else if (!isTouchDevice() && vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
+      if (vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
         const vw = vid.videoWidth
         const vh = vid.videoHeight
         let sw = vw
@@ -407,7 +397,6 @@ export default function MultiFilm(p: Props) {
         if (ctx) {
           let raf = 0
           const draw = () => {
-            ctx.imageSmoothingQuality = "high"
             ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, outW, outH)
             raf = requestAnimationFrame(draw)
           }
@@ -418,8 +407,7 @@ export default function MultiFilm(p: Props) {
           stopCanvas = () => { cancelAnimationFrame(raf); cs.getVideoTracks().forEach((t) => t.stop()) }
         }
       }
-      const recOpts: MediaRecorderOptions = { videoBitsPerSecond: camx.videoBitrate(), audioBitsPerSecond: 128000, ...(mimeType ? { mimeType } : {}) }
-      const recorder = new MediaRecorder(recordStream, recOpts)
+      const recorder = mimeType ? new MediaRecorder(recordStream, { mimeType }) : new MediaRecorder(recordStream)
       const baseType = (recorder.mimeType || mimeType || 'video/webm').split(';')[0]
       const ext = baseType.includes('mp4') ? 'mp4' : 'webm'
       const chunks: Blob[] = []
@@ -751,9 +739,7 @@ export default function MultiFilm(p: Props) {
               <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: portrait ? '9 / 16' : '16 / 9', width: frameW }}>
                 <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                 {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                {isTouchDevice() && orientation === 'landscape' && !deviceLandscape && <div style={{ position: 'absolute', inset: 0, zIndex: 8, background: 'rgba(11,10,16,0.94)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M20 8a9 9 0 0 1 0 8M22 10l-2-2-2 2" /></svg><p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Turn your phone sideways</p><p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>You picked landscape. Hold your phone on its side to film it.</p></div>}
-                    {camRot.touch && camRot.mismatch && <button type="button" onClick={camRot.cycle} aria-label="Rotate the camera picture" style={{ position: 'absolute', left: 8, top: 8, zIndex: 9, background: 'rgba(0,0,0,0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 4, fontSize: 12, fontWeight: 600, padding: '6px 10px', cursor: 'pointer' }}>Rotate</button>}
-                    <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline onLoadedData={(e) => camRot.onMeta(e.currentTarget)} style={camRot.videoStyle(mirrored)} />
+                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
                 <CameraControls
                   cam={camx}
                   cameraActive={cameraActive}

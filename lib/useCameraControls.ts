@@ -27,14 +27,9 @@ export function useCameraControls(getStream: () => MediaStream | null) {
   // The size and frame rate to ask the camera for
   const sizeConstraints = (landscape: boolean) => {
     const [longSide, shortSide] = resRef.current === '4k' ? [3840, 2160] : resRef.current === '720' ? [1280, 720] : [1920, 1080]
-    return { width: { ideal: landscape ? longSide : shortSide }, height: { ideal: landscape ? shortSide : longSide }, frameRate: { ideal: fpsRef.current }, resizeMode: { ideal: "none" } }
+    return { width: { ideal: landscape ? longSide : shortSide }, height: { ideal: landscape ? shortSide : longSide }, frameRate: { ideal: fpsRef.current } }
   }
   const frameRate = () => fpsRef.current
-  // Bits per second for the recorder. The browser default is only about 2.5 Mbps, which looks soft and blocky.
-  const videoBitrate = () => {
-    const base = resRef.current === "4k" ? 28_000_000 : resRef.current === "720" ? 6_000_000 : 12_000_000
-    return fpsRef.current === 60 ? Math.round(base * 1.4) : base
-  }
 
   const setQuality = (r: CamRes, f: CamFps) => {
     resRef.current = r
@@ -48,11 +43,6 @@ export function useCameraControls(getStream: () => MediaStream | null) {
     const vt = stream.getVideoTracks()[0]
     setTorch(false)
     setZoom(1)
-    // Always start at the camera's widest view, never zoomed in
-    try {
-      const zc = (vt?.getCapabilities?.() || {}) as unknown as { zoom?: { min: number; max: number } }
-      if (zc.zoom && zc.zoom.max > zc.zoom.min) vt.applyConstraints({ advanced: [{ zoom: Math.max(zc.zoom.min, 1) }] } as unknown as MediaTrackConstraints).catch(() => {})
-    } catch {}
     try {
       const caps = (vt?.getCapabilities?.() || {}) as unknown as { torch?: boolean; zoom?: { min: number; max: number } }
       setTorchOk(!!caps.torch)
@@ -88,7 +78,7 @@ export function useCameraControls(getStream: () => MediaStream | null) {
     await applyTrack({ zoom: z })
   }
 
-  return { grid, setGrid, timer, setTimer, res, fps, frameRate, torchOk, torch, zoomCaps, zoom, lenses, lensId, panel, setPanel, sizeConstraints, videoBitrate, setQuality, onStream, toggleTorch, changeZoom }
+  return { grid, setGrid, timer, setTimer, res, fps, frameRate, torchOk, torch, zoomCaps, zoom, lenses, lensId, panel, setPanel, sizeConstraints, setQuality, onStream, toggleTorch, changeZoom }
 }
 
 export type CameraControlsApi = ReturnType<typeof useCameraControls>
