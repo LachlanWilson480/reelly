@@ -28,6 +28,7 @@ import OverlayPicker from '@/components/OverlayPicker'
 import OverlayElements from '@/components/OverlayElements'
 import { useCameraControls } from '@/lib/useCameraControls'
 import { openCameraStream, isTouchDevice } from "@/lib/openCamera"
+import { useCamRotation, rotatedCanvasStream } from '@/lib/useCamRotation'
 import { photoToClip } from '@/lib/photoToClip'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
@@ -1668,6 +1669,7 @@ export default function DashboardPage() {
   const [filmRedoIdx, setFilmRedoIdx] = useState<number | null>(null)
   const [filmPlayIdx, setFilmPlayIdx] = useState(0)
   const [filmOrientation, setFilmOrientation] = useState<'portrait' | 'landscape'>('portrait')
+  const camRot = useCamRotation(filmOrientation === 'portrait')
   const [filmMulti, setFilmMulti] = useState(false)
   const [filmRecordError, setFilmRecordError] = useState('')
   const filmBadMimeRef = useRef<Set<string>>(new Set())
@@ -2775,7 +2777,12 @@ export default function DashboardPage() {
       let stopCanvas: (() => void) | null = null
       const vid = filmVideoRef.current
       const target = filmOrientationRef.current === 'landscape' ? 16 / 9 : 9 / 16
-      if (!isTouchDevice() && vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
+      if (isTouchDevice() && vid && camRot.rotRef.current !== 0) {
+        const rs = rotatedCanvasStream(vid, camRot.rotRef.current, filmOrientationRef.current !== 'landscape', cam.frameRate())
+        filmStreamRef.current.getAudioTracks().forEach((t) => rs.stream.addTrack(t))
+        recordStream = rs.stream
+        stopCanvas = rs.stop
+      } else if (!isTouchDevice() && vid && vid.videoWidth > 0 && vid.videoHeight > 0 && Math.abs(vid.videoWidth / vid.videoHeight - target) / target > 0.03) {
         const vw = vid.videoWidth
         const vh = vid.videoHeight
         let sw = vw
@@ -6178,8 +6185,9 @@ export default function DashboardPage() {
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
                     {isTouchDevice() && filmOrientation === 'landscape' && !filmDeviceLandscape && <div style={{ position: 'absolute', inset: 0, zIndex: 8, background: 'rgba(11,10,16,0.94)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M20 8a9 9 0 0 1 0 8M22 10l-2-2-2 2" /></svg><p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Turn your phone sideways</p><p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>You picked landscape. Hold your phone on its side to film it.</p></div>}
+                    {camRot.touch && camRot.mismatch && <button type="button" onClick={camRot.cycle} aria-label="Rotate the camera picture" style={{ position: 'absolute', left: 8, top: 8, zIndex: 9, background: 'rgba(0,0,0,0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 4, fontSize: 12, fontWeight: 600, padding: '6px 10px', cursor: 'pointer' }}>Rotate</button>}
                     {filmCamInfo && <div style={{ position: 'absolute', left: 8, bottom: 8, zIndex: 9, background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, padding: '3px 6px', borderRadius: 3 }}>{filmCamInfo}</div>}
-                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: isTouchDevice() ? 'contain' : 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline onLoadedData={(e) => camRot.onMeta(e.currentTarget)} style={camRot.videoStyle(filmMirrored)} />
                     <CameraControls
                       cam={cam}
                       cameraActive={filmCameraActive}
