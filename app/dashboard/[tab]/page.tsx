@@ -2789,6 +2789,7 @@ export default function DashboardPage() {
         if (ctx) {
           let raf = 0
           const draw = () => {
+            ctx.imageSmoothingQuality = "high"
             ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, outW, outH)
             raf = requestAnimationFrame(draw)
           }
@@ -2802,7 +2803,8 @@ export default function DashboardPage() {
           }
         }
       }
-      const recorder = mimeType ? new MediaRecorder(recordStream, { mimeType }) : new MediaRecorder(recordStream)
+      const recOpts: MediaRecorderOptions = { videoBitsPerSecond: cam.videoBitrate(), audioBitsPerSecond: 128000, ...(mimeType ? { mimeType } : {}) }
+      const recorder = new MediaRecorder(recordStream, recOpts)
       const baseType = (recorder.mimeType || mimeType || 'video/webm').split(';')[0]
       const ext = baseType.includes('mp4') ? 'mp4' : 'webm'
       const chunks: Blob[] = []

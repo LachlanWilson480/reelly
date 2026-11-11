@@ -397,6 +397,7 @@ export default function MultiFilm(p: Props) {
         if (ctx) {
           let raf = 0
           const draw = () => {
+            ctx.imageSmoothingQuality = "high"
             ctx.drawImage(vid, sx, sy, sw, sh, 0, 0, outW, outH)
             raf = requestAnimationFrame(draw)
           }
@@ -407,7 +408,8 @@ export default function MultiFilm(p: Props) {
           stopCanvas = () => { cancelAnimationFrame(raf); cs.getVideoTracks().forEach((t) => t.stop()) }
         }
       }
-      const recorder = mimeType ? new MediaRecorder(recordStream, { mimeType }) : new MediaRecorder(recordStream)
+      const recOpts: MediaRecorderOptions = { videoBitsPerSecond: camx.videoBitrate(), audioBitsPerSecond: 128000, ...(mimeType ? { mimeType } : {}) }
+      const recorder = new MediaRecorder(recordStream, recOpts)
       const baseType = (recorder.mimeType || mimeType || 'video/webm').split(';')[0]
       const ext = baseType.includes('mp4') ? 'mp4' : 'webm'
       const chunks: Blob[] = []
