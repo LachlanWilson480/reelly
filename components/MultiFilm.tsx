@@ -168,7 +168,7 @@ export default function MultiFilm(p: Props) {
   const [refilming, setRefilming] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
 
-  const [globalSettings, setGlobalSettings] = useState<Settings>({ captions: true, ...p.captionDefaults, resolution: 'high', cutDeadSpace: false })
+  const [globalSettings, setGlobalSettings] = useState<Settings>({ captions: true, ...p.captionDefaults, resolution: 'high', cutDeadSpace: true })
   const [overrides, setOverrides] = useState<Record<string, Partial<Settings>>>({})
   const [openCustom, setOpenCustom] = useState<string | null>(null)
   const [playIdx, setPlayIdx] = useState<Record<string, number>>({})

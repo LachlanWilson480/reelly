@@ -123,6 +123,7 @@ export default function PlansPage() {
       setDiscountError(data.error || 'Invalid code')
     } else {
       setDiscountCode(data.code)
+      try { sessionStorage.setItem('reelezy-discount-code', data.code) } catch {}
       setDiscountPercent(data.percentOff)
     }
   }

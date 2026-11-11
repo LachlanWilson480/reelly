@@ -1739,7 +1739,7 @@ export default function DashboardPage() {
   const [uploadSpeechSlots, setUploadSpeechSlots] = useState<Set<number>>(new Set())
   const [uploadLandscapeSlots, setUploadLandscapeSlots] = useState<Set<number>>(new Set())
   const [uploadAddCaptions, setUploadAddCaptions] = useState(true)
-  const [cutDeadSpace, setCutDeadSpace] = useState(false)
+  const [cutDeadSpace, setCutDeadSpace] = useState(true)
   const [showUploadSpeechWarning, setShowUploadSpeechWarning] = useState(false)
   const [extractingAudio, setExtractingAudio] = useState(false)
   const [extractAudioError, setExtractAudioError] = useState('')
@@ -6250,11 +6250,7 @@ export default function DashboardPage() {
                           <>
                           
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : 'Scroll speed'}</span>
-                              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{filmScrollSpeed}x</span>
-                            </div>
-                            <input type="range" min={1} max={10} value={filmScrollSpeed} onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)' }} />
+                            {filmRedoIdx !== null && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{`Re-recording clip ${filmRedoIdx + 1}`}</span>}
                           </div>
                           </>
                         )}

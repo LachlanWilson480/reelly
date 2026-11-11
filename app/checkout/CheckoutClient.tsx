@@ -71,7 +71,7 @@ export default function CheckoutClient() {
   const rawPlan = params.get('plan')
   const plan: 'mid' | 'top' | null = rawPlan === 'top' ? 'top' : rawPlan === 'mid' || rawPlan === 'basic' ? 'mid' : null
   const interval: 'monthly' | 'yearly' = params.get('interval') === 'monthly' ? 'monthly' : 'yearly'
-  const code = params.get('code') || ''
+  const urlCode = params.get('code') || ''
   const redirectStatus = params.get('redirect_status')
 
   const detectedCurrency = useCurrency()
@@ -80,6 +80,7 @@ export default function CheckoutClient() {
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState('')
   const [clientSecret, setClientSecret] = useState('')
+  const [code, setCode] = useState(urlCode)
   const [percentOff, setPercentOff] = useState<number | null>(null)
   const [referred, setReferred] = useState(false)
   const [refInput, setRefInput] = useState('')
@@ -93,16 +94,17 @@ export default function CheckoutClient() {
 
   const finish = () => {
     setPhase('success')
+    try { sessionStorage.removeItem('reelezy-discount-code') } catch {}
     trackEvent('checkout_completed', { plan: plan || 'unknown', interval })
     // Ask Stripe for the final status so the plan is on straight away
     authFetch('/api/sync-subscription', { method: 'POST' }).catch(() => {}).finally(() => setTimeout(() => router.push('/dashboard'), 2200))
   }
 
   // Starts the payment. Run again after a referral code is added, so the 30% off is on the new payment
-  const createSub = async (mail: string) => {
+  const createSub = async (mail: string, useCode: string = code) => {
     const res = await authFetch('/api/create-subscription', {
       method: 'POST',
-      body: JSON.stringify({ email: mail, plan, billingInterval: interval, discountCode: code || null }),
+      body: JSON.stringify({ email: mail, plan, billingInterval: interval, discountCode: useCode || null }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data.clientSecret) {
@@ -144,15 +146,18 @@ export default function CheckoutClient() {
         if (ref && ref.status === 'signed_up') setReferred(true)
       } catch {}
 
-      if (code) {
+      let startCode = urlCode
+      if (!startCode) { try { startCode = sessionStorage.getItem('reelezy-discount-code') || '' } catch {} }
+      let goodCode = ''
+      if (startCode) {
         try {
-          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })
+          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
           const d = await r.json()
-          if (r.ok && typeof d.percentOff === 'number') setPercentOff(d.percentOff)
+          if (r.ok && typeof d.percentOff === 'number') { setPercentOff(d.percentOff); setCode(startCode); goodCode = startCode }
         } catch {}
       }
 
-      await createSub(user.email || '')
+      await createSub(user.email || '', goodCode)
     }
     run().catch(() => { setMessage('We could not start checkout. Please try again.'); setPhase('error') })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,6 +169,20 @@ export default function CheckoutClient() {
     setRefBusy(true)
     setRefMsg('')
     try {
+      // A discount code first. If it is not one of those, try it as a friend's referral code.
+      const dr = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) })
+      const dd = await dr.json().catch(() => ({}))
+      if (dr.ok && typeof dd.percentOff === 'number') {
+        try { sessionStorage.setItem('reelezy-discount-code', c) } catch {}
+        setPercentOff(dd.percentOff)
+        setCode(c)
+        setRefInput('')
+        setClientSecret('')
+        setPhase('loading')
+        await createSub(email, c)
+        setRefBusy(false)
+        return
+      }
       const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
       const d = await res.json().catch(() => ({}))
       if (d.claimed) {
@@ -247,21 +266,26 @@ export default function CheckoutClient() {
       <div style={{ maxWidth: 460, margin: '0 auto' }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 4px' }}>Payment details</h2>
         {email && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 22px' }}>Your receipt will go to {email}</p>}
+        {percentOff !== null && !referred && (
+          <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
+            Code {code} applied: {percentOff}% off your first payment.
+          </p>
+        )}
         {referred && (
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
             A friend referred you. You get 30% off your first month, and they get 30% off their next month when you subscribe.
           </p>
         )}
-        {!referred && (
+        {!referred && percentOff === null && (
           <div style={{ margin: '0 0 20px' }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={refInput}
                 onChange={(e) => setRefInput(cleanReferralInput(e.target.value))}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyReferral() } }}
-                placeholder="Referral code (optional)"
+                placeholder="Discount or referral code (optional)"
                 autoComplete="off"
-                aria-label="Referral code"
+                aria-label="Discount or referral code"
                 style={{ flex: 1, minWidth: 0, padding: '11px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit' }}
               />
               <button type="button" onClick={applyReferral} disabled={refBusy || !refInput.trim()} style={{ padding: '11px 18px', borderRadius: 4, border: '1px solid var(--coral)', background: 'transparent', color: 'var(--coral)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}>{refBusy ? 'Checking…' : 'Apply'}</button>
@@ -287,7 +311,7 @@ export default function CheckoutClient() {
     <div style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', background: 'var(--background)' }}>
       <style>{`
         .co-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); min-height: 100vh; }
-        .co-left { background: #F9F9F9; border-right: 1px solid #E5E5E5; color: #111111; padding: 40px clamp(24px, 5vw, 72px); display: flex; flex-direction: column; }
+        .co-left { background: var(--sand); border-right: 1px solid var(--line); color: var(--ink); padding: 40px clamp(24px, 5vw, 72px); display: flex; flex-direction: column; }
         .co-right { padding: 56px clamp(24px, 5vw, 72px); display: flex; flex-direction: column; justify-content: center; }
         @media (max-width: 860px) {
           .co-grid { grid-template-columns: minmax(0, 1fr); min-height: 0; }

@@ -1,4 +1,5 @@
 import LegalLogo from '@/components/LegalLogo'
+import Sidebar from '@/components/Sidebar'
 export const metadata = { title: 'Terms of Service | Reelezy' }
 
 const H2 = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
@@ -8,7 +9,9 @@ const P = { marginBottom: 24 } as const
 
 export default function TermsPage() {
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+      <div style={{ flex: 1, overflow: 'auto' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', lineHeight: 1.7 }}>
         <div><LegalLogo /></div>
           <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Terms of Service</h1>
@@ -60,6 +63,7 @@ export default function TermsPage() {
 
         <h2 style={H2}>Contact</h2>
         <p style={{ marginBottom: 48 }}>Questions about these terms: info@reelezy.com</p>
+      </div>
       </div>
     </div>
   )

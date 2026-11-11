@@ -10,10 +10,10 @@ export function ReelezyLogo({ size = 44 }: { size?: number }) {
   return (
     <span
       aria-label="Reelezy"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(mark * 0.34), fontFamily: 'var(--serif)', fontSize: fs, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1, height: size }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(mark * 0.34), fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: fs, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)', lineHeight: 1, height: size }}
     >
       <ReelezyMark size={mark} />
-      <span>Reelezy</span>
+      <span>Reel<b style={{ color: 'var(--coral)', fontWeight: 600 }}>ezy</b></span>
     </span>
   )
 }

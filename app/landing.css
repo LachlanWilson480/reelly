@@ -47,7 +47,7 @@
 .lp-logo b { color: var(--lp-coral); font-weight: 600; }
 
 /* Top bar */
-.lp-nav { position: sticky; top: 0; z-index: 40; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--lp-line); }
+.lp-nav { position: sticky; top: 0; z-index: 40; background: #fff; border-bottom: 1px solid var(--lp-line); }
 .lp-nav-in { max-width: 1200px; margin: 0 auto; padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .lp-nav-links { display: flex; gap: 36px; }
 .lp-nav-links a { color: var(--lp-muted); font-size: 14px; font-weight: 400; text-decoration: none; }

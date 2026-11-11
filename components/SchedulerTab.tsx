@@ -294,8 +294,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                     <p style={{ fontSize: 14, fontWeight: 600, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.title ? cleanString(r.title) : 'Untitled video'}</p>
                     <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {isFree ? <a href="/plans" style={{ ...buttonPrimary, textDecoration: 'none', padding: '8px 14px', fontSize: 13 }}>Upgrade to schedule</a>
-                        : <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+                      {!isFree && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
                       {!isFree && <button type="button" onClick={() => download(r.output_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download</button>}
                     </div>
                   </div>
