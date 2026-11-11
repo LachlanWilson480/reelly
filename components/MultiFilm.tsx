@@ -12,6 +12,7 @@ import { trackRenders } from '@/lib/renderTracker'
 import CameraControls from '@/components/CameraControls'
 import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
+import { openCameraStream } from "@/lib/openCamera"
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 
@@ -227,7 +228,7 @@ export default function MultiFilm(p: Props) {
     const land = orientationRef.current === 'landscape'
     const size = camx.sizeConstraints(land)
     const cam = deviceIdRef.current ? { deviceId: { exact: deviceIdRef.current } } : { facingMode: facingRef.current }
-    navigator.mediaDevices.getUserMedia({ video: { ...cam, ...size }, audio: true })
+    openCameraStream(cam, land, size)
       .then((stream) => {
         if (!wantedRef.current) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current?.getTracks().forEach((t) => t.stop())

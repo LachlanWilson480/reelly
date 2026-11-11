@@ -27,6 +27,7 @@ import Tour, { type TourStep } from '@/components/Tour'
 import OverlayPicker from '@/components/OverlayPicker'
 import OverlayElements from '@/components/OverlayElements'
 import { useCameraControls } from '@/lib/useCameraControls'
+import { openCameraStream } from "@/lib/openCamera"
 import { photoToClip } from '@/lib/photoToClip'
 import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
 import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
@@ -2427,7 +2428,7 @@ export default function DashboardPage() {
     }
     const filmSize = cam.sizeConstraints(filmOrientationRef.current === 'landscape')
     const filmCamera = filmDeviceIdRef.current ? { deviceId: { exact: filmDeviceIdRef.current } } : { facingMode: filmFacingRef.current }
-    navigator.mediaDevices.getUserMedia({ video: { ...filmCamera, ...filmSize }, audio: true })
+    openCameraStream(filmCamera, filmOrientationRef.current === "landscape", filmSize)
       .then(stream => {
         if (!filmWantedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
         filmStreamRef.current?.getTracks().forEach(t => t.stop())
