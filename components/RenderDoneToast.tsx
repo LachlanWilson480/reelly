@@ -134,21 +134,21 @@ export default function RenderDoneToast() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>
-                {phase === 'done' ? 'Scheduled' : phase === 'noacct' ? 'Connect an account first' : phase === 'tiktok' ? 'Choose your TikTok settings' : ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
+                {phase === 'done' ? 'Scheduled' : phase === 'noacct' ? 'Your video is ready' : phase === 'tiktok' ? 'Choose your TikTok settings' : ready.length === 1 ? 'Your video is ready' : `${ready.length} videos are ready`}
               </p>
               <p style={{ fontSize: 12, color: phase === 'error' ? '#D92D20' : 'var(--text-secondary)', margin: '3px 0 0', lineHeight: 1.4 }}>
-                {phase === 'done' ? 'You can see it in your Publish calendar.' : phase === 'noacct' ? 'Connect YouTube, Instagram or another account in Publish so we can post for you.' : phase === 'tiktok' ? 'TikTok asks you to choose who can view each video. Open Publish to set that and schedule it.' : phase === 'error' ? 'Could not schedule it. Try again, or open Publish.' : ready.length === 1 ? 'Want us to schedule it for you?' : 'Want us to schedule them for you?'}
+                {phase === 'done' ? 'You can see it in your Publish calendar.' : phase === 'noacct' ? 'Find it in Publish, ready to download.' : phase === 'tiktok' ? 'TikTok asks you to choose who can view each video. Open Publish to set that and schedule it.' : phase === 'error' ? 'Open Publish to find it.' : ready.length === 1 ? 'Find it in Publish, with its title and description ready to copy.' : 'Find them in Publish, with their titles and descriptions ready to copy.'}
               </p>
               {pending.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{pending.length} still rendering</p>}
               {failed.length > 0 && phase === 'ask' && <p style={{ fontSize: 11, color: '#D92D20', margin: '3px 0 0' }}>{failed.length} could not be rendered</p>}
               <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 {(phase === 'ask' || phase === 'error' || phase === 'busy') && (
-                  <button onClick={autoSchedule} disabled={phase === 'busy'} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: phase === 'busy' ? 'default' : 'pointer', opacity: phase === 'busy' ? 0.6 : 1, fontFamily: 'inherit' }}>{phase === 'busy' ? 'Scheduling...' : 'Yes, schedule it'}</button>
+                  <button onClick={openPublish} disabled={phase === 'busy'} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: phase === 'busy' ? 'default' : 'pointer', opacity: phase === 'busy' ? 0.6 : 1, fontFamily: 'inherit' }}>Open Publish</button>
                 )}
                 {(phase === 'noacct' || phase === 'tiktok' || phase === 'done') && (
                   <button onClick={openPublish} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'done' ? 'View calendar' : 'Open Publish'}</button>
                 )}
-                {phase !== 'busy' && <button onClick={phase === 'ask' || phase === 'error' ? openPublish : dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{phase === 'ask' || phase === 'error' ? "No, I'll choose" : 'Close'}</button>}
+                {phase !== 'busy' && <button onClick={dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>}
               </div>
             </div>
           </div>

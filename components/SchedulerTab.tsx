@@ -293,8 +293,15 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.title ? cleanString(r.title) : 'Untitled video'}</p>
                     <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    {(r.caption || r.tags) && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 96, overflowY: 'auto' }}>{cleanString([r.caption, r.tags].filter(Boolean).join('\n'))}</p>
+                    )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {!isFree && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+                      {r.title && <button type="button" onClick={() => copy(cleanString(r.title!), `${r.id}-t`)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>{copied === `${r.id}-t` ? 'Copied' : 'Copy title'}</button>}
+                      {(r.caption || r.tags) && <button type="button" onClick={() => copy(cleanString([r.caption, r.tags].filter(Boolean).join('\n')), `${r.id}-d`)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>{copied === `${r.id}-d` ? 'Copied' : 'Copy description'}</button>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {!isFree && connected.length > 0 && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonPrimary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
                       {!isFree && <button type="button" onClick={() => download(r.output_url!)} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Download</button>}
                     </div>
                   </div>
@@ -346,7 +353,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
       } else {
         res = await authFetch('/api/auto-schedule', { method: 'POST', body: JSON.stringify({ renderId: render.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, caption: text, platforms: picked, force: true, tiktok: picked.includes('tiktok') ? tt : undefined }) })
       }
-      if (!res.ok) { const e = await res.json().catch(() => ({})); setMsg(e.error === 'no_accounts' ? 'Connect an account first.' : e.error || 'Could not schedule. Please try again.'); setBusy(false); return }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); setMsg(e.error && e.error !== 'no_accounts' ? e.error : 'Could not schedule. Please try again.'); setBusy(false); return }
       const j = await res.json().catch(() => ({}))
       const post = j.post ? { id: j.post.id, scheduledFor: j.post.scheduled_for } : j.id ? { id: j.id, scheduledFor: j.scheduledFor } : undefined
       onDone('Scheduled. It is on your calendar below.', post)
@@ -355,14 +362,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
   const lab = { fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 } as const
   const link = { background: 'none', border: 'none', color: 'var(--coral)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: 0 } as const
 
-  if (connected.length === 0) {
-    return (
-      <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <p style={{ fontSize: 13, margin: 0, flex: 1, minWidth: 200 }}>Connect an account at the top of this page, then you can schedule.</p>
-        <button type="button" onClick={onClose} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Close</button>
-      </div>
-    )
-  }
+  if (connected.length === 0) return null
 
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 4, background: 'var(--sand)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>

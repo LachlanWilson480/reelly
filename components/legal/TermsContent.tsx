@@ -96,7 +96,7 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
       <h2 style={H2}>Governing law</h2>
       <p style={P}>
         {au && 'These terms are governed by the laws of Australia and the courts of Australia have jurisdiction, without limiting any consumer rights you have under the law where you live.'}
-        {uk && 'These terms are governed by the laws of Australia. If you are a consumer in the UK, you keep the mandatory consumer protections of the law of the part of the UK where you live, and you can bring a claim in the courts there.'}
+        {uk && 'For customers in the UK, these terms are governed by the laws of England and Wales, and the courts of England and Wales have jurisdiction. If you live in Scotland or Northern Ireland, you can also rely on the law of that country and bring a claim in the courts there.'}
         {region === 'intl' && 'These terms are governed by the laws of Australia. If you are a consumer, you keep the mandatory consumer protections of the law of the country where you live, and you can bring a claim in the courts there.'}
       </p>
 
