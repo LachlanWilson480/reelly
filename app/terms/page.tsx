@@ -1,6 +1,7 @@
+'use client'
+
 import LegalLogo from '@/components/LegalLogo'
 import Sidebar from '@/components/Sidebar'
-export const metadata = { title: 'Terms of Service | Reelezy' }
 
 const H2 = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 700, marginTop: 40, marginBottom: 12 } as const
 const UL = { paddingLeft: 24, marginBottom: 24 } as const
