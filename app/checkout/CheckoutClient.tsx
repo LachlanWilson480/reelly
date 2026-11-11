@@ -11,6 +11,7 @@ import { authFetch } from '@/lib/authFetch'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency, useDomainCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
+import { saveAfterLogin } from '@/lib/afterLogin'
 import { cleanCodeInput } from '@/lib/referralInput'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -122,9 +123,26 @@ export default function CheckoutClient() {
     started.current = true
     const run = async () => {
       if (!plan) { router.replace('/plans'); return }
+      // Check the discount code first, so the price shows the discount even before someone logs in
+      let startCode = urlCode
+      if (!startCode) { try { startCode = sessionStorage.getItem('reelezy-discount-code') || '' } catch {} }
+      let goodCode = ''
+      if (startCode) {
+        try {
+          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
+          const d = await r.json()
+          if (r.ok && Number.isFinite(Number(d.percentOff)) && Number(d.percentOff) > 0) { setPercentOff(Number(d.percentOff)); setCode(startCode); goodCode = startCode }
+          else setRefMsg(d?.error ? `Code ${startCode}: ${d.error}.` : 'That discount code could not be applied.')
+        } catch { setRefMsg('That discount code could not be checked. Enter it again below.') }
+      }
+
       const { data: userRes } = await supabase.auth.getUser()
       const user = userRes.user
-      if (!user) { setPhase('login'); return }
+      if (!user) {
+        saveAfterLogin(`/checkout?plan=${rawPlan || ''}&interval=${interval}${goodCode ? `&code=${encodeURIComponent(goodCode)}` : ''}`)
+        setPhase('login')
+        return
+      }
       setEmail(user.email || '')
 
       // Back from a bank or card check that opened another page
@@ -146,18 +164,6 @@ export default function CheckoutClient() {
         const { data: ref } = await supabase.from('referrals').select('status').eq('referred_id', user.id).maybeSingle()
         if (ref && ref.status === 'signed_up') setReferred(true)
       } catch {}
-
-      let startCode = urlCode
-      if (!startCode) { try { startCode = sessionStorage.getItem('reelezy-discount-code') || '' } catch {} }
-      let goodCode = ''
-      if (startCode) {
-        try {
-          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
-          const d = await r.json()
-          if (r.ok && Number.isFinite(Number(d.percentOff)) && Number(d.percentOff) > 0) { setPercentOff(Number(d.percentOff)); setCode(startCode); goodCode = startCode }
-          else setRefMsg(d?.error ? `Code ${startCode}: ${d.error}.` : 'That discount code could not be applied.')
-        } catch { setRefMsg('That discount code could not be checked. Enter it again below.') }
-      }
 
       await createSub(user.email || '', goodCode)
     }

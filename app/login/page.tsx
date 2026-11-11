@@ -6,6 +6,7 @@ import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { takeAfterLogin } from '@/lib/afterLogin'
 import Sidebar from '@/components/Sidebar'
 import { mountGoogleButton } from '@/lib/googleSignIn'
 
@@ -50,7 +51,7 @@ export default function LoginPage() {
     localStorage.setItem('reelezy-has-logged-in', 'true')
 
     if (profile) {
-      router.push('/dashboard')
+      router.push(takeAfterLogin('/dashboard'))
     } else {
       router.push('/onboarding')
     }
@@ -80,7 +81,7 @@ export default function LoginPage() {
           .eq('user_id', data.user.id)
           .maybeSingle()
         localStorage.setItem('reelezy-has-logged-in', 'true')
-        router.push(profile ? '/dashboard' : '/onboarding')
+        router.push(profile ? takeAfterLogin('/dashboard') : '/onboarding')
       },
     }).catch((err) => setMessage(err instanceof Error ? err.message : 'Could not load Google sign-in.'))
   }, [router])

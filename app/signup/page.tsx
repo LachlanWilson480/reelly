@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
+import { takeAfterLogin } from '@/lib/afterLogin'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -99,7 +100,7 @@ export default function SignUpPage() {
           .maybeSingle()
         localStorage.setItem('reelezy-has-logged-in', 'true')
         trackEvent(profile ? 'google_login' : 'signup', { method: 'google' })
-        router.push(profile ? '/dashboard' : '/onboarding')
+        router.push(profile ? takeAfterLogin('/dashboard') : '/onboarding')
       },
     }).catch((err) => setMessage(err instanceof Error ? err.message : 'Could not load Google sign-in.'))
   }, [router])
