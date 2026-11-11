@@ -4620,27 +4620,6 @@ export default function DashboardPage() {
             </p>
             {!tourDone && <button type="button" onClick={() => setTourRun((n) => n + 1)} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', marginTop: 12 }}>Take the tour</button>}
             </div>
-            <div className="dash-stats" style={{ flex: '3 1 460px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 14 }}>
-              {stats.map((s) => (
-                s.tab ? (
-                  <button
-                    key={s.label}
-                    type="button"
-                    onClick={() => { setTab(s.tab); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                    aria-label={`${s.label}: ${s.value}. Open the ${s.tab} tab`}
-                    style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
-                  >
-                    <p style={{ fontSize: 18, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', margin: 0 }}>{s.value}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
-                  </button>
-                ) : (
-                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px' }}>
-                  <p style={{ fontSize: 18, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>{s.value}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
-                </div>
-                )
-              ))}
-            </div>
           </div>
 
           <div style={{ position: 'relative', marginBottom: 22 }}>
@@ -4721,6 +4700,29 @@ export default function DashboardPage() {
 
           {SHOW_OVERVIEW_PANELS && tab === 'overview' && (
             <OverviewPanel isFree={isFreeTier} ideasReady={ideas.length} onGo={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
+          )}
+          {tab === 'overview' && (
+            <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 14, marginBottom: 20 }}>
+              {stats.map((s) => (
+                s.tab ? (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => { setTab(s.tab); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                    aria-label={`${s.label}: ${s.value}. Open the ${s.tab} tab`}
+                    style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px', textAlign: 'left', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+                  >
+                    <p style={{ fontSize: 18, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)', margin: 0 }}>{s.value}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
+                  </button>
+                ) : (
+                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px' }}>
+                  <p style={{ fontSize: 18, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>{s.value}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{s.label}</p>
+                </div>
+                )
+              ))}
+            </div>
           )}
           {tab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
