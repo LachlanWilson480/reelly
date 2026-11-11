@@ -125,7 +125,6 @@ export default function CheckoutClient() {
       if (!plan) { router.replace('/plans'); return }
       // Check the discount code first, so the price shows the discount even before someone logs in
       let startCode = urlCode
-      if (!startCode) { try { startCode = sessionStorage.getItem('reelezy-discount-code') || '' } catch {} }
       let goodCode = ''
       if (startCode) {
         try {
