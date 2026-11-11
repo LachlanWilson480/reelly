@@ -89,8 +89,9 @@ export async function POST(req: NextRequest) {
 
     const couponForPercent = async (percent: number) => {
       const couponName = `${percent}OFF`
+      // Only reuse a coupon that is still valid and has no limits, so an old dashboard coupon with the same name cannot break checkout
       const existingCoupons = await stripe.coupons.list({ limit: 100 })
-      const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === percent)
+      const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === percent && c.valid && c.duration === 'once' && !c.redeem_by && !c.max_redemptions && !c.applies_to)
       if (existing) return existing.id
       const created = await stripe.coupons.create({ percent_off: percent, duration: 'once', name: couponName })
       return created.id
@@ -114,7 +115,6 @@ export async function POST(req: NextRequest) {
       couponId = await couponForPercent(referralPercent)
     } else if (codeRow) {
       couponId = await couponForPercent(codePercent)
-      await supabaseAdmin.from('discount_codes').update({ uses: codeRow.uses + 1 }).eq('id', codeRow.id)
     }
 
     const subscription = await stripe.subscriptions.create({
@@ -125,6 +125,8 @@ export async function POST(req: NextRequest) {
       payment_settings: { save_default_payment_method: 'on_subscription' },
       expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent'],
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
+      // The code is counted as used once the payment goes through (see the Stripe webhook), not each time checkout opens
+      ...(codeRow && couponId && !(referralPercent > 0 && referralPercent >= codePercent) ? { metadata: { discount_code_id: String(codeRow.id) } } : {}),
     })
 
     await supabaseAdmin

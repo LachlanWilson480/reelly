@@ -11,7 +11,7 @@ import { authFetch } from '@/lib/authFetch'
 import { CURRENCY_PRICES, PLAN_COPY, currencyForCountry } from '@/lib/pricing'
 import { useCurrency, useDomainCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
-import { cleanReferralInput } from '@/lib/referralInput'
+import { cleanCodeInput } from '@/lib/referralInput'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -155,7 +155,8 @@ export default function CheckoutClient() {
           const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
           const d = await r.json()
           if (r.ok && typeof d.percentOff === 'number') { setPercentOff(d.percentOff); setCode(startCode); goodCode = startCode }
-        } catch {}
+          else setRefMsg(d?.error ? `Code ${startCode}: ${d.error}.` : 'That discount code could not be applied.')
+        } catch { setRefMsg('That discount code could not be checked. Enter it again below.') }
       }
 
       await createSub(user.email || '', goodCode)
@@ -282,7 +283,7 @@ export default function CheckoutClient() {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={refInput}
-                onChange={(e) => setRefInput(cleanReferralInput(e.target.value))}
+                onChange={(e) => setRefInput(cleanCodeInput(e.target.value))}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyReferral() } }}
                 placeholder="Discount or referral code (optional)"
                 autoComplete="off"

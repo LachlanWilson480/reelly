@@ -63,6 +63,17 @@ export async function POST(req: NextRequest) {
           .update({ status: 'active', deletion_scheduled_at: null, deletion_warning_sent: false })
           .eq('stripe_subscription_id', subscriptionId)
       }
+      // Count a discount code as used once its first payment goes through
+      try {
+        if (subscriptionId && (invoice as unknown as { billing_reason?: string }).billing_reason === 'subscription_create') {
+          const sub = await stripe.subscriptions.retrieve(subscriptionId)
+          const codeId = sub.metadata?.discount_code_id
+          if (codeId) {
+            const { data: row } = await supabaseAdmin.from('discount_codes').select('uses').eq('id', codeId).maybeSingle()
+            if (row) await supabaseAdmin.from('discount_codes').update({ uses: (row.uses || 0) + 1 }).eq('id', codeId)
+          }
+        }
+      } catch (e) { console.error('discount use count failed:', e) }
       // A friend's first real payment earns their referrer 30% off their next month
       await rewardReferrerForInvoice(stripe, invoice)
     }
