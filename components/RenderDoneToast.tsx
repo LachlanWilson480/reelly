@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/authFetch'
+import { trackEvent } from '@/lib/track'
 import { readTracked, writeTracked, trackRenders, TRACK_EVENT, type TrackedRender } from '@/lib/renderTracker'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -71,7 +72,7 @@ export default function RenderDoneToast() {
         const updated = fresh.map((r) => {
           const d = byId.get(r.id)
           if (!d || r.state !== 'pending') return r
-          if (d.status === 'done') { changed = true; return { ...r, state: 'done' as const, outputUrl: d.outputUrl || null } }
+          if (d.status === 'done') { try { if (!localStorage.getItem('reelezy-first-reel')) { localStorage.setItem('reelezy-first-reel', '1'); trackEvent('first_reel_created') } } catch {} changed = true; return { ...r, state: 'done' as const, outputUrl: d.outputUrl || null } }
           if (d.status === 'failed') { changed = true; return { ...r, state: 'failed' as const } }
           if (typeof d.progress === 'number') nextProgress[r.id] = d.progress
           return r

@@ -131,9 +131,9 @@ export default function HomePage() {
       <header className="lp-hero">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
-            <h1 className="lp-h1">Content ideas, filmed and posted in minutes.</h1>
+            <h1 className="lp-h1">Your reels done for you: what to film, edited and ready to post.</h1>
             <p className="lp-hero-sub">
-              Reelezy gives small businesses video ideas, a script to read off your screen while you film, and automatic editing with captions and music. No editing skills needed.
+              Reelezy tells you what to film, gives you a script to read off your screen, then edits it with captions and music. Ready for Instagram, Facebook, TikTok and YouTube. No editing skills needed.
             </p>
             <div className="lp-hero-actions">
               <Link href="/signup" className="lp-btn">Get started free</Link>
@@ -184,7 +184,7 @@ export default function HomePage() {
       </header>
 
       <div className="lp-for">
-        <p className="lp-for-in"><b>Made for small businesses:</b> cafés, salons, trades, makers and market stalls.</p>
+        <p className="lp-for-in"><b>Made for busy small-business owners:</b> cafés and restaurants, salons and beauty, tradies, makers and market stalls.</p>
       </div>
 
       <section id="how" className="lp-sec lp-anchor">
@@ -354,12 +354,12 @@ export default function HomePage() {
                 <div className="lp-foot-col">
                   <Link href="/privacy">Privacy Policy</Link>
                   <Link href="/terms">Terms of Service</Link>
-                  <a href="mailto:info@reelezy.com">Contact</a>
+                  <Link href="/contact">Contact</Link>
                 </div>
               </div>
             </div>
           </div>
-          <p className="lp-copy">© 2026 Reelezy.</p>
+          <p className="lp-copy">© 2026 Reelezy (ABN 76 182 998 115). All rights reserved.</p>
         </div>
       </footer>
     </div>

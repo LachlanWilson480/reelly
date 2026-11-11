@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#16151c",
+  themeColor: "#ffffff",
 };
 
 export const metadata: Metadata = {
@@ -31,29 +31,28 @@ export const metadata: Metadata = {
     shortcut: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
   },
-  title: "Reelezy - Social Media Generator and Editor",
+  title: "Reelezy – Reels done for you, for cafés, salons and tradies",
   description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
   keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media scheduler"],
-  themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Reelezy",
   },
   openGraph: {
-    title: "Reelezy - Social Media Generator and Editor",
-    description: "AI-powered content ideas, filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
+    title: "Reelezy – Reels done for you, for cafés, salons and tradies",
+    description: "Know what to film, get a script to read, and get your reel edited with captions and music. Made for busy small-business owners in Australia.",
     url: "https://www.reelezy.com",
     siteName: "Reelezy",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Reelezy - Social Media Generator and Editor",
-    description: "AI-powered content ideas, filming instructions, and automatic video editing for small businesses and creators.",
+    title: "Reelezy – Reels done for you, for cafés, salons and tradies",
+    description: "Know what to film, get a script to read, and get your reel edited with captions and music.",
   },
   alternates: {
-    canonical: "https://www.reelezy.com",
+    canonical: "./",
   },
 };
 
@@ -78,8 +77,6 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
 
       <body

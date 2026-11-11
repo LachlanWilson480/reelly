@@ -55,14 +55,32 @@ export default function TermsPage() {
         <h2 style={H2}>Cancelling and deleting your account</h2>
         <p style={P}>You can cancel your subscription or delete your account at any time from Settings. If you delete your account, your data is deleted as described in our <a href="/privacy">Privacy Policy</a>.</p>
 
+        <h2 style={H2}>Refunds and your consumer rights</h2>
+        <p style={P}>Our services come with guarantees that cannot be excluded under the Australian Consumer Law. If Reelezy has a major problem, you are entitled to cancel and receive a refund for the unused part of your plan, and to compensation for other reasonably foreseeable loss. You are also entitled to have the service fixed or re-supplied if it is not of acceptable quality and the failure does not amount to a major failure. Apart from these rights, subscription fees already paid are not refundable, and you can cancel at any time to stop future charges. To ask for a refund, contact us using the details below.</p>
+
+        <h2 style={H2}>Fair use</h2>
+        <p style={P}>Reelezy is designed for normal business use. To keep the service fast for everyone, these limits apply and may be adjusted over time:</p>
+        <ul style={UL}>
+          <li style={LI}>Free: 24 ideas in total (3 per batch), 7 filming instructions, 3 scripts, and 1 minute of video in total.</li>
+          <li style={LI}>Basic: 5 ideas per batch (95 a week), 50 filming instructions a week, 20 scripts a week, and 5 GB of storage.</li>
+          <li style={LI}>Pro: 7 ideas per batch (210 a week), 98 filming instructions a week, 96 scripts a week, and 10 GB of storage.</li>
+        </ul>
+        <p style={P}>We may limit or suspend use that is automated, shared between businesses, or clearly outside normal use.</p>
+
+        <h2 style={H2}>Who we are</h2>
+        <p style={P}>Reelezy is operated from Australia (ABN 76 182 998 115).</p>
+
         <h2 style={H2}>Our responsibility</h2>
         <p style={P}>We work hard to keep Reelezy running, but we cannot promise it will always be available or error free. Platforms such as YouTube, TikTok and Instagram can change their rules or reject posts, which is outside our control. To the extent the law allows, we are not liable for indirect losses, and our liability for any claim is limited to the amount you paid us in the 12 months before it. Nothing here excludes rights that cannot be excluded under Australian law.</p>
 
         <h2 style={H2}>Changes to these terms</h2>
         <p style={P}>If we make important changes, we will update the date at the top of this page and let you know in the app or by email.</p>
 
+        <h2 style={H2}>Governing law</h2>
+        <p style={P}>These terms are governed by the laws of Australia and the courts of Australia have jurisdiction, without limiting any consumer rights you have under the law where you live.</p>
+
         <h2 style={H2}>Contact</h2>
-        <p style={{ marginBottom: 48 }}>Questions about these terms: info@reelezy.com</p>
+        <p style={{ marginBottom: 48 }}>Questions about these terms: <a href="/contact">contact us</a> or email info@reelezy.com</p>
       </div>
       </div>
     </div>

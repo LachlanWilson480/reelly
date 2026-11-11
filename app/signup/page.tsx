@@ -47,7 +47,7 @@ export default function SignUpPage() {
     if (isSigningUp) return
 
     if (!agreedToTerms) {
-      setMessage('Please agree to the Privacy Policy to continue.')
+      setMessage('Please agree to the Terms of Service and Privacy Policy to continue.')
       return
     }
 
@@ -224,6 +224,7 @@ export default function SignUpPage() {
             </div>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.5, marginBottom: 20 }}>
               By continuing with Google you agree to the{' '}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Terms of Service</a>{' '}and{' '}
               <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--coral)', fontWeight: 600 }}>Privacy Policy</a>.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -311,6 +312,15 @@ export default function SignUpPage() {
                 />
                 <span>
                   I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--coral)', fontWeight: 600 }}
+                  >
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
                   <Link
                     href="/privacy"
                     target="_blank"

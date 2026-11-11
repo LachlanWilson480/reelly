@@ -44,16 +44,16 @@ export const PLAN_COPY = {
   free: {
     name: 'Free',
     desc: 'Try Reelezy, no card needed',
-    features: ['24 ideas in total (3 per batch)', '7 filming instructions', '3 scripts', '1 minute of video in total, with a Reelezy watermark'],
+    features: ['A taste of ideas, filming steps and scripts', '1 minute of edited video, with a Reelezy watermark'],
   },
   basic: {
     name: 'Basic',
     desc: 'About 40 reels a month',
-    features: ['5 ideas per batch (95 a week)', '50 filming instructions a week', '20 scripts a week', 'AI Editor and video uploads', '1080p video', 'Sound library', 'Video scheduler', '5 GB of storage'],
+    features: ['Plenty of ideas, filming steps and scripts every week', 'AI Editor and video uploads', '1080p video', 'Sound library', '5 GB of storage'],
   },
   pro: {
     name: 'Pro',
     desc: 'About 90 reels a month',
-    features: ['7 ideas per batch (210 a week)', '98 filming instructions a week', '96 scripts a week', 'AI Editor and video uploads', '1080p and 4K video', 'Sound library', 'Full video scheduler', 'Higher capacity AI for better content', '10 GB of storage'],
+    features: ['Even more ideas, filming steps and scripts every week', 'AI Editor and video uploads', '1080p and 4K video', 'Sound library', 'Priority processing and longer scripts', '10 GB of storage'],
   },
 } as const

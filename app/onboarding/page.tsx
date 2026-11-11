@@ -1,5 +1,6 @@
 'use client'
 
+import { trackEvent } from '@/lib/track'
 import Link from 'next/link'
 import Dropdown from '@/components/Dropdown'
 import { parseLocationTypes, toggleLocationType } from '@/lib/locationTypes'
@@ -186,6 +187,7 @@ export default function OnboardingPage() {
     if (error) {
       setMessage(error.message)
     } else {
+      trackEvent('onboarding_finished')
       router.push('/dashboard/ideas')
     }
   }

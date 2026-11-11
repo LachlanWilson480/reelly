@@ -62,7 +62,7 @@ export default function PlansPage() {
 
   const p = CURRENCY_PRICES[currency]
 
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('yearly')
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
   const [discountCode, setDiscountCode] = useState('')
   const [discountInput, setDiscountInput] = useState('')
   const [discountError, setDiscountError] = useState('')
@@ -353,7 +353,7 @@ export default function PlansPage() {
                   <span style={{ fontSize: 16, fontWeight: 400 }}>/mo</span>
                 </p>
                 <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.3, marginTop: -2, marginBottom: 6, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{currency}</p>
-                {billingInterval === 'yearly' && (
+                {billingInterval === 'yearly' && tier.id !== 'free' && (
                   <p style={{ fontSize: 12, color: tier.highlight ? 'var(--text-secondary)' : 'var(--text-muted)', marginBottom: 8 }}>
                     Billed {tier.yearlyPrice} annually
                   </p>
@@ -396,12 +396,14 @@ export default function PlansPage() {
 
           {/* Discount code */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
+            <label htmlFor="plans-code" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Have a code?</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
+                id="plans-code"
                 value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
-                placeholder="Have a code?"
+                placeholder="Enter your code"
                 style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
