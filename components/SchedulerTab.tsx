@@ -81,6 +81,8 @@ const PUBLISH_CSS = `
 @media (max-width: 640px) {
   .pub-card { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .pub-thumb { width: 72px; height: 128px; }
+  /* On phones the title, description and hashtags get the full width under the video */
+  .pub-info { grid-column: 1 / -1; }
   .pub-copy { width: 44px; height: 44px; }
   .pub-dl { min-height: 40px; }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rateLimit'
+import { userIdsForEmail } from '@/lib/userIdsForEmail'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,13 +20,7 @@ export async function POST(req: NextRequest) {
     const target = typeof email === 'string' ? email.trim().toLowerCase() : ''
     if (!target || target.length > 200 || !target.includes('@')) return NextResponse.json({ error: 'Enter a valid email.' }, { status: 400 })
 
-    for (let page = 1; page <= 10; page++) {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 })
-      if (error) throw error
-      if (data.users.some((u) => (u.email || '').toLowerCase() === target)) return NextResponse.json({ exists: true })
-      if (data.users.length < 1000) break
-    }
-    return NextResponse.json({ exists: false })
+    return NextResponse.json({ exists: (await userIdsForEmail(supabaseAdmin, target)).length > 0 })
   } catch (error) {
     console.error('account-exists error:', error instanceof Error ? error.message : 'Unknown error')
     // If we cannot tell, do not guess: the login page falls back to a plain message

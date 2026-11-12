@@ -1,5 +1,6 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { BADGE_SPOT, BADGE_SRC } from '@/lib/madeWithBadge'
+import { userIdsForEmail } from '@/lib/userIdsForEmail'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
@@ -76,10 +77,7 @@ export async function POST(req: NextRequest) {
       const { data: userRecord } = await supabaseAdmin.auth.admin.getUserById(userId)
       const email = userRecord?.user?.email
       const allUserIds = [userId]
-      if (email) {
-        const { data: { users: allUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-        allUsers.filter(u => u.email === email && u.id !== userId).forEach(u => allUserIds.push(u.id))
-      }
+      if (email) (await userIdsForEmail(supabaseAdmin, email)).forEach((id) => { if (!allUserIds.includes(id)) allUserIds.push(id) })
       const { data: allRenders } = await supabaseAdmin
         .from('renders')
         .select('duration_seconds')
@@ -251,10 +249,7 @@ export async function POST(req: NextRequest) {
       const { data: userRecord2 } = await supabaseAdmin.auth.admin.getUserById(userId)
       const email2 = userRecord2?.user?.email
       const allUserIds2 = [userId]
-      if (email2) {
-        const { data: { users: allUsers2 } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-        allUsers2.filter(u => u.email === email2 && u.id !== userId).forEach(u => allUserIds2.push(u.id))
-      }
+      if (email2) (await userIdsForEmail(supabaseAdmin, email2)).forEach((id) => { if (!allUserIds2.includes(id)) allUserIds2.push(id) })
       const { data: allRenders2 } = await supabaseAdmin.from('renders').select('duration_seconds').in('user_id', allUserIds2)
       const totalUsed = (allRenders2 || []).reduce((sum: number, r: { duration_seconds: number | null }) => sum + (r.duration_seconds || 0), 0)
       overQuota = totalUsed >= 60

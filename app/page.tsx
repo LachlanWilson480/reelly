@@ -107,9 +107,10 @@ export default function HomePage() {
     'Book in and I will show you the fix.',
   ]
 
+  // Film with the script on screen, then the edit, then the finished video
   const heroSteps = [
+    { label: 'Read your script while you film' },
     { label: 'Preview and edit your reel' },
-    { label: 'Filmed by a real business' },
     { label: 'Download it, ready to post' },
   ]
   const exportRows = ['Captions added', 'Music mixed', 'Pauses cut', 'Exported in HD', 'Saved to your phone']
@@ -147,21 +148,25 @@ export default function HomePage() {
               <div className="hp-notch" />
               <div className="hp-screen">
                 {heroStep === 0 && (
+                  <div className="hp-s hp-film" key="film">
+                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
+                    <div className="hp-prompter">
+                      <p className="hp-line">{phoneLines[0]}</p>
+                      <p className="hp-line hp-line-on">{phoneLines[1]}</p>
+                      <p className="hp-line">{phoneLines[2]}</p>
+                    </div>
+                    <div className="hp-rec"><span className="hp-rec-dot" />REC</div>
+                    <div className="hp-clips">Clip 2 of 3</div>
+                    <div className="hp-shutter"><span /></div>
+                  </div>
+                )}
+                {heroStep === 1 && (
                   <div className="hp-s hp-film" key="edit">
                     <div className="hp-subject hp-dim"><span className="hp-head" /><span className="hp-shoulders" /></div>
                     <div className="hp-bar-top">Preview</div>
                     <div className="hp-caption">Booking slots <b>open</b> this week</div>
                     <div className="hp-chips"><span>Captions</span><span>Music</span><span>Pauses cut</span></div>
                     <div className="hp-progress"><span /></div>
-                  </div>
-                )}
-                {heroStep === 1 && (
-                  <div className="hp-s hp-film" key="real">
-                    <div className="hp-subject"><span className="hp-head" /><span className="hp-shoulders" /></div>
-                    {/* Drop a short clip of a real business at public/hero-demo.mp4 and it plays here */}
-                    <video className="hp-video" src="/hero-demo.mp4" autoPlay muted loop playsInline preload="metadata" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <div className="hp-bar-top">A real salon, filmed on a phone</div>
-                    <div className="hp-caption">Here&apos;s the mistake I see <b>every week</b></div>
                   </div>
                 )}
                 {heroStep === 2 && (
