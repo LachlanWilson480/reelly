@@ -110,9 +110,9 @@ export default function HomePage() {
   const heroSteps = [
     { label: 'Preview and edit your reel' },
     { label: 'Filmed by a real business' },
-    { label: 'Posted to your social accounts' },
+    { label: 'Download it, ready to post' },
   ]
-  const platformRows = ['YouTube', 'TikTok', 'Instagram', 'LinkedIn', 'Facebook']
+  const exportRows = ['Captions added', 'Music mixed', 'Pauses cut', 'Exported in HD', 'Saved to your phone']
 
   return (
     <div className="lp">
@@ -165,13 +165,13 @@ export default function HomePage() {
                   </div>
                 )}
                 {heroStep === 2 && (
-                  <div className="hp-s hp-post" key="post">
-                    <p className="hp-title">Posting your reel</p>
-                    {platformRows.map((name, i) => (
+                  <div className="hp-s hp-post" key="export">
+                    <p className="hp-title">Finishing your reel</p>
+                    {exportRows.map((name, i) => (
                       <div key={name} className="hp-plat" style={{ animationDelay: `${i * 160}ms` }}>
                         <span>{name}</span>
                         <i style={{ animationDelay: `${i * 160 + 200}ms` }} />
-                        <b style={{ animationDelay: `${i * 160 + 900}ms` }}>Posted</b>
+                        <b style={{ animationDelay: `${i * 160 + 900}ms` }}>Done</b>
                       </div>
                     ))}
                   </div>
@@ -191,7 +191,7 @@ export default function HomePage() {
         <div className="lp-wrap">
           <div className="lp-head">
             <h2 className="lp-h2">How it works</h2>
-            <p className="lp-lead">From setup to your first posted video in under an hour.</p>
+            <p className="lp-lead">From setup to your first finished video in under an hour.</p>
           </div>
           <div className="lp-steps">
             {steps.map((st, i) => (
@@ -212,7 +212,7 @@ export default function HomePage() {
         <div className="lp-wrap">
           <div className="lp-head">
             <h2 className="lp-h2">Everything you need to post consistently</h2>
-            <p className="lp-lead">Built so you can go from idea to scheduled post without opening a single other app.</p>
+            <p className="lp-lead">Built so you can go from idea to finished video without opening a single other app.</p>
           </div>
           <div className="lp-rows">
             <div className="lp-row">
@@ -359,7 +359,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <p className="lp-copy">© 2026 Reelezy (ABN 76 182 998 115). All rights reserved.</p>
+          <p className="lp-copy">© 2026 Reelezy. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -1,4 +1,5 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { BADGE_SPOT, BADGE_SRC } from '@/lib/madeWithBadge'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -160,6 +161,15 @@ export async function POST(req: NextRequest) {
         cb: num(ov.cb, 0, 0.45, 0),
       })
     }
+    // The "Made with Reelezy" badge goes in the bottom right corner on every plan, unless the person removed it in the preview.
+    // It is added last so it sits on top of everything else.
+    if (madeWithBadge !== false) {
+      const site = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, '')
+      if (/^https:\/\//i.test(site)) {
+        const spot = BADGE_SPOT[outputOrientation === 'landscape' ? 'landscape' : 'portrait']
+        overlayInfos.push({ url: `${site}${BADGE_SRC}`, kind: 'image', x: spot.x, y: spot.y, size: spot.size, start: 0, end: null, cl: 0, cr: 0, ct: 0, cb: 0 })
+      }
+    }
 
     // The 'appearance' look (skin smoothing, low light lift and a colour look) applies to every clip
     const apNum = (v: unknown) => (Number.isFinite(Number(v)) ? Math.min(100, Math.max(0, Math.round(Number(v)))) : 0)
@@ -268,7 +278,7 @@ export async function POST(req: NextRequest) {
       // bg: a colour, or null for no background even when the shared look has one
       const bg = c?.bg === null ? null : hex(c?.bg)
       // The width of the caption box as a share of the frame, and the person's bold / italic / underline choices (left out when not chosen)
-      const w = typeof c?.w === 'number' && Number.isFinite(c.w) ? Math.min(0.98, Math.max(0.2, c.w)) : undefined
+      const w = typeof c?.w === 'number' && Number.isFinite(c.w) ? Math.min(1, Math.max(0.1, c.w)) : undefined
       const flag = (v: unknown) => (typeof v === 'boolean' ? v : undefined)
       return [{ text, start: Math.max(0, start), end: Math.min(3600, end), x: num01(c?.x, 0.5), y: num01(c?.y, 0.7), w, font, size, color: hex(c?.color), bold: flag(c?.bold), italic: flag(c?.italic), underline: flag(c?.underline), ...(bg !== undefined ? { bg } : {}) }]
     })

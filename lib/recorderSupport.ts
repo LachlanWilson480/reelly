@@ -1,7 +1,9 @@
 // Shared helpers for recording video with MediaRecorder, tuned for iPhone Safari and home-screen apps.
 
 const MP4 = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4']
-const WEBM = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+// H.264 first: Chrome and Edge encode it on the graphics chip, so starting a recording does not stall the camera
+// (VP9 is encoded on the processor, which froze the picture for about a second on Windows laptops)
+const WEBM = ['video/webm;codecs=h264,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm']
 
 // Safari (iPhone and Mac) records best as mp4. Chrome and Edge can claim mp4 support but hand back an
 // empty file, which is what caused "That clip did not record", so they try webm first.
@@ -37,4 +39,20 @@ export function finishRecorder(recorder: MediaRecorder) {
     try { recorder.requestData() } catch {}
   }
   if (recorder.state !== 'inactive') recorder.stop()
+}
+
+// Gets the encoder running while the countdown shows, but paused, so nothing is recorded until resumeRecorder.
+// Returns false if this browser cannot pause a recording; then call beginRecorder when the countdown ends instead.
+export function beginRecorderPaused(recorder: MediaRecorder, mime: string): boolean {
+  try {
+    beginRecorder(recorder, mime)
+    recorder.pause()
+    return recorder.state === 'paused'
+  } catch {
+    return false
+  }
+}
+
+export function resumeRecorder(recorder: MediaRecorder) {
+  try { if (recorder.state === 'paused') recorder.resume() } catch {}
 }

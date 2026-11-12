@@ -55,7 +55,7 @@ export default function ContactPage() {
           <button type="submit" disabled={state === 'sending'} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '12px 22px', fontSize: 15, fontWeight: 700, cursor: state === 'sending' ? 'default' : 'pointer', fontFamily: 'inherit' }}>
             {state === 'sending' ? 'Sending...' : 'Send message'}
           </button>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 20 }}>Or email info@reelezy.com. Reelezy, ABN 76 182 998 115.</p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 20 }}>Or email info@reelezy.com.</p>
         </form>
       )}
     </div>

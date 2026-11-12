@@ -19,6 +19,8 @@ import { emptyTikTok, tiktokProblem, type TikTokOptions } from '@/lib/tiktok'
 const SHOW_ACCOUNTS = false
 // The calendar of scheduled posts stays hidden until scheduling is switched on
 const SHOW_CALENDAR = false
+// The Schedule button on each finished video stays hidden until scheduling is switched on
+const SHOW_SCHEDULING = false
 
 type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
@@ -66,13 +68,21 @@ const PUBLISH_CSS = `
 .pub-copy { flex-shrink: 0; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); cursor: pointer; padding: 0; }
 .pub-copy:disabled { opacity: 0.4; cursor: default; }
 .pub-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
-.pub-dl { flex: 1; min-height: 46px; background: var(--coral); color: #fff; border: none; border-radius: 4px; padding: 12px 18px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.pub-dl { display: inline-flex; align-items: center; gap: 6px; background: var(--coral); color: #fff; border: none; border-radius: 4px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.pub-field { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font: inherit; color: var(--ink); background: #fff; }
+.pub-field:focus { outline: none; border-color: var(--coral); }
+.pub-label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.pub-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pub-tag { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,106,77,0.08); color: var(--coral); border: 1px solid rgba(255,106,77,0.3); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12px; font-weight: 600; }
+.pub-tag button { background: none; border: none; color: inherit; cursor: pointer; padding: 0 4px; font-size: 14px; line-height: 1; }
+.pub-tag-input { flex: 1; min-width: 120px; border: 1px dashed var(--line); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; }
+.pub-tag-input:focus { outline: none; border-color: var(--coral); }
 .pub-dl:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 640px) {
   .pub-card { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .pub-thumb { width: 72px; height: 128px; }
   .pub-copy { width: 44px; height: 44px; }
-  .pub-dl { min-height: 48px; }
+  .pub-dl { min-height: 40px; }
 }
 `
 
@@ -337,37 +347,19 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                   </div>
                 ))}
               </>
-            ) : g.items.map((r) => {
-              const desc = cleanString([r.caption, r.tags].filter(Boolean).join('\n'))
-              const title = r.title ? cleanString(r.title) : 'Untitled video'
-              return (
-                <div key={r.id} className="pub-card">
-                  <video className="pub-thumb" src={r.output_url!} muted playsInline preload="metadata" />
-                  <div className="pub-info">
-                    <div className="pub-row">
-                      <div className="pub-text">
-                        <p className="pub-title">{title}</p>
-                        <p style={small}>{new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                      </div>
-                      <button type="button" className="pub-copy" aria-label="Copy title" title="Copy title" onClick={() => copy(title, `${r.id}-t`)}>{copied === `${r.id}-t` ? <TickIcon /> : <CopyIcon />}</button>
-                    </div>
-                    <div className="pub-row">
-                      <p className="pub-text pub-desc" style={{ color: desc ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{desc || 'No description yet'}</p>
-                      <button type="button" className="pub-copy" aria-label="Copy description" title="Copy description" disabled={!desc} onClick={() => copy(desc, `${r.id}-d`)}>{copied === `${r.id}-d` ? <TickIcon /> : <CopyIcon />}</button>
-                    </div>
-                  </div>
-                  {!isFree && (
-                    <div className="pub-actions">
-                      <button type="button" className="pub-dl" disabled={downloading === r.id} onClick={() => download(r.output_url!, r.id, r.title)}>{downloading === r.id ? 'Downloading...' : 'Download'}</button>
-                      {connected.length > 0 && <button type="button" onClick={() => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }} style={{ ...buttonSecondary, padding: '12px 16px', fontSize: 14 }}>Schedule</button>}
-                    </div>
-                  )}
-                  {plan?.from === 'video' && plan.renderId === r.id && (
-                    <div style={{ gridColumn: '1 / -1' }}><PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} /></div>
-                  )}
-                </div>
-              )
-            })}
+            ) : g.items.map((r) => (
+              <VideoCard
+                key={r.id}
+                r={r}
+                isFree={isFree}
+                copied={copied}
+                downloading={downloading === r.id}
+                onCopy={copy}
+                onDownload={() => download(r.output_url!, r.id, r.title)}
+                onSaved={(patch) => setRenders((cur) => cur.map((x) => (x.id === r.id ? { ...x, ...patch } : x)))}
+                schedule={SHOW_SCHEDULING && connected.length > 0 ? { open: plan?.from === 'video' && plan.renderId === r.id, toggle: () => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }, panel: plan?.from === 'video' && plan.renderId === r.id ? <PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} /> : null } : null}
+              />
+            ))}
           </CollapsibleBox>
         ))}
       </section>
@@ -463,6 +455,87 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
         <button type="button" onClick={onClose} style={buttonSecondary}>Cancel</button>
         {!fromCalendar && <button type="button" onClick={() => setCustom((c) => !c)} style={{ ...link, marginLeft: 'auto' }}>{custom ? 'Pick the time for me' : 'Choose a date and time'}</button>}
       </div>
+    </div>
+  )
+}
+
+// Splits saved hashtags ("#a #b, c") into a clean list with one # each
+const parseTags = (t: string | null | undefined) => Array.from(new Set((t || '').split(/[\s,]+/).map((x) => x.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '')).filter(Boolean))).map((x) => `#${x}`)
+
+// One finished video in Publish: edit its title, description and hashtags, copy them, and download the video
+function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, schedule }: {
+  r: Render; isFree: boolean; copied: string | null; downloading: boolean
+  onCopy: (text: string, key: string) => void; onDownload: () => void
+  onSaved: (patch: Partial<Render>) => void
+  schedule: { open: boolean; toggle: () => void; panel: React.ReactNode } | null
+}) {
+  const [title, setTitle] = useState(() => (r.title ? cleanString(r.title) : ''))
+  const [desc, setDesc] = useState(() => (r.caption ? cleanString(r.caption) : ''))
+  const [tags, setTags] = useState<string[]>(() => parseTags(r.tags))
+  const [tagDraft, setTagDraft] = useState('')
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
+
+  const save = async (patch: { title?: string; caption?: string; tags?: string }) => {
+    setState('saving')
+    try {
+      const res = await authFetch('/api/update-render-text', { method: 'POST', body: JSON.stringify({ renderId: r.id, ...patch }) })
+      if (!res.ok) throw new Error('save failed')
+      onSaved(patch)
+      setState('saved'); setTimeout(() => setState((s) => (s === 'saved' ? 'idle' : s)), 1500)
+    } catch { setState('failed') }
+  }
+  const saveTags = (next: string[]) => { setTags(next); save({ tags: next.join(' ') }) }
+  const addTag = () => {
+    const extra = parseTags(tagDraft)
+    setTagDraft('')
+    if (extra.length === 0) return
+    saveTags(Array.from(new Set([...tags, ...extra])))
+  }
+  const fullDesc = [desc.trim(), tags.join(' ')].filter(Boolean).join('\n\n')
+
+  return (
+    <div className="pub-card">
+      <video className="pub-thumb" src={r.output_url!} muted playsInline preload="metadata" />
+      <div className="pub-info">
+        <div>
+          <p className="pub-label">Title</p>
+          <div className="pub-row">
+            <input className="pub-field" aria-label="Video title" value={title} maxLength={200} placeholder="Untitled video" onChange={(e) => setTitle(e.target.value)} onBlur={() => { if (title !== (r.title ? cleanString(r.title) : '')) save({ title }) }} style={{ fontSize: 14, fontWeight: 600 }} />
+            <button type="button" className="pub-copy" aria-label="Copy title" title="Copy title" disabled={!title.trim()} onClick={() => onCopy(title.trim(), `${r.id}-t`)}>{copied === `${r.id}-t` ? <TickIcon /> : <CopyIcon />}</button>
+          </div>
+        </div>
+        <div>
+          <p className="pub-label">Description</p>
+          <div className="pub-row">
+            <textarea className="pub-field" aria-label="Video description" value={desc} maxLength={2200} rows={3} placeholder="Add a description" onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc !== (r.caption ? cleanString(r.caption) : '')) save({ caption: desc }) }} style={{ fontSize: 12, lineHeight: 1.5, resize: 'vertical' }} />
+            <button type="button" className="pub-copy" aria-label="Copy description and hashtags" title="Copy description and hashtags" disabled={!fullDesc} onClick={() => onCopy(fullDesc, `${r.id}-d`)}>{copied === `${r.id}-d` ? <TickIcon /> : <CopyIcon />}</button>
+          </div>
+        </div>
+        <div>
+          <p className="pub-label">Hashtags</p>
+          <div className="pub-row">
+            <div className="pub-tags" style={{ flex: 1, minWidth: 0 }}>
+              {tags.map((t) => (
+                <span key={t} className="pub-tag">{t}<button type="button" aria-label={`Remove ${t}`} onClick={() => saveTags(tags.filter((x) => x !== t))}>×</button></span>
+              ))}
+              <input className="pub-tag-input" aria-label="Add a hashtag" value={tagDraft} placeholder="Add a hashtag" onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',' || e.key === ' ') { e.preventDefault(); addTag() } else if (e.key === 'Backspace' && !tagDraft && tags.length) saveTags(tags.slice(0, -1)) }} onBlur={addTag} />
+            </div>
+            <button type="button" className="pub-copy" aria-label="Copy hashtags" title="Copy hashtags" disabled={tags.length === 0} onClick={() => onCopy(tags.join(' '), `${r.id}-h`)}>{copied === `${r.id}-h` ? <TickIcon /> : <CopyIcon />}</button>
+          </div>
+        </div>
+        <p style={{ ...small, minHeight: 16 }} role="status">
+          {new Date(r.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {state === 'saving' && ' · Saving...'}{state === 'saved' && ' · Saved'}
+          {state === 'failed' && <span style={{ color: '#D92D20' }}> · Could not save. Please try again.</span>}
+        </p>
+      </div>
+      {!isFree && (
+        <div className="pub-actions">
+          <button type="button" className="pub-dl" disabled={downloading} onClick={onDownload}><Icon n="download" />{downloading ? 'Downloading...' : 'Download'}</button>
+          {schedule && <button type="button" onClick={schedule.toggle} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+        </div>
+      )}
+      {schedule?.panel && <div style={{ gridColumn: '1 / -1' }}>{schedule.panel}</div>}
     </div>
   )
 }

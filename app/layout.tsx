@@ -31,16 +31,16 @@ export const metadata: Metadata = {
     shortcut: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
   },
-  title: "Reelezy – Reels done for you, for cafés, salons and tradies",
-  description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently - anywhere in the world.",
-  keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media scheduler"],
+  title: "Reelezy | Reels done for you, for cafés, salons and tradies",
+  description: "Reelezy generates AI-powered content ideas, step-by-step filming instructions, and automatic video editing for small businesses and creators. Plan, film, and post consistently, anywhere in the world.",
+  keywords: ["social media content generator", "AI video editor", "small business marketing", "content ideas generator", "video editing app", "social media video maker"],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Reelezy",
   },
   openGraph: {
-    title: "Reelezy – Reels done for you, for cafés, salons and tradies",
+    title: "Reelezy | Reels done for you, for cafés, salons and tradies",
     description: "Know what to film, get a script to read, and get your reel edited with captions and music. Made for busy small-business owners in Australia.",
     url: "https://www.reelezy.com",
     siteName: "Reelezy",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Reelezy – Reels done for you, for cafés, salons and tradies",
+    title: "Reelezy | Reels done for you, for cafés, salons and tradies",
     description: "Know what to film, get a script to read, and get your reel edited with captions and music.",
   },
   alternates: {

@@ -409,12 +409,35 @@ export default function ClipLibrary({ userId, plan, onPlans }: { userId: string 
 }
 
 // The picker opened from the editors: choose clips from the library to add to the video
-export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userId: string | null; onClose: () => void; onAdd: (files: File[], clips: LibraryClip[]) => void; single?: boolean; title?: string }) {
-  const { clips, albums, urls, loading } = useLibrary(userId)
+export function LibraryPicker({ userId, onClose, onAdd, single, title, plan = 'basic' }: { userId: string | null; onClose: () => void; onAdd: (files: File[], clips: LibraryClip[]) => void; single?: boolean; title?: string; plan?: LibraryPlan }) {
+  const { clips, albums, urls, loading, refresh } = useLibrary(userId)
   const [view, setView] = useState<View>('all')
   const [picked, setPicked] = useState<string[]>([])
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
+  // Adding new videos from the device (the camera roll on a phone) straight into the library, then picking them
+  const uploadRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState<{ done: number; total: number; pct: number } | null>(null)
+  const uploadFiles = async (files: File[]) => {
+    if (!userId || files.length === 0) return
+    setError('')
+    const list = single ? files.slice(0, 1) : files
+    const current = await listLibrary()
+    let used = current.reduce((n, c) => n + (c.size_bytes || 0), 0)
+    let count = current.length
+    const added: string[] = []
+    let why = ''
+    for (let i = 0; i < list.length; i++) {
+      setUploading({ done: i, total: list.length, pct: 0 })
+      const r = await saveToLibrary(userId, list[i], used, libraryLimitBytes(plan), view !== 'all' ? view : null, count, libraryMaxClips(plan), (f) => setUploading({ done: i, total: list.length, pct: Math.round(f * 100) }))
+      if (r.clip) { added.push(r.clip.id); used += r.clip.size_bytes || 0; count++ }
+      else if (r.error) { why = r.error; break }
+    }
+    setUploading(null)
+    await refresh()
+    if (added.length > 0) setPicked((p) => (single ? [added[added.length - 1]] : [...p, ...added.filter((id) => !p.includes(id))]))
+    if (why) setError(why)
+  }
 
   const toggle = (id: string) => setPicked((p) => (single ? (p.includes(id) ? [] : [id]) : p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
@@ -444,7 +467,11 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
     <div role="dialog" aria-label="Add from library" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg, #fff)', color: 'var(--ink)', borderRadius: 4, width: '100%', maxWidth: 760, maxHeight: '86vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title || 'Add from library'}</p>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, flex: 1 }}>{title || 'Add from library'}</p>
+          <input ref={uploadRef} type="file" accept="video/*" multiple={!single} style={{ display: 'none' }} onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void uploadFiles(f) }} />
+          <button type="button" onClick={() => uploadRef.current?.click()} disabled={!!uploading} title="Add videos from your device or camera roll to your library" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '7px 12px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: uploading ? 'default' : 'pointer', marginRight: 12, opacity: uploading ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+            <Icon n="upload" />{uploading ? `Uploading${uploading.total > 1 ? ` ${uploading.done + 1} of ${uploading.total}` : ''}… ${uploading.pct}%` : 'Upload from camera roll'}
+          </button>
           <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}><Icon n="close" /></button>
         </div>
         <div style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
@@ -454,7 +481,7 @@ export function LibraryPicker({ userId, onClose, onAdd, single, title }: { userI
           {loading ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading your clips…</p>
           ) : clips.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>Your library is empty. Add clips in the Library tab, or press &quot;Save to library&quot; on a clip.</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>Your library is empty. Press Upload from camera roll to add videos from your device.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
               {clips.filter((c) => inView(c, view)).sort(byDate).map((c) => {

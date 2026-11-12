@@ -21,7 +21,7 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
       {gdpr && (
         <>
           <h2 style={H2}>Who is responsible for your data</h2>
-          <p style={P}>Reelezy is operated from Australia (ABN 76 182 998 115) and is the controller of your personal data. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
+          <p style={P}>Reelezy is operated from Australia and is the controller of your personal data. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
         </>
       )}
 

@@ -1,18 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import CaptionLayersPanel from '@/components/CaptionLayersPanel'
-import Dropdown from '@/components/Dropdown'
-import { type CaptionLayers, resolveCaptionLayers } from '@/lib/captionLayers'
+import { type CaptionLayers } from '@/lib/captionLayers'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
-import { trackRenders } from '@/lib/renderTracker'
 import CameraControls from '@/components/CameraControls'
 import { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { useCameraControls } from '@/lib/useCameraControls'
-import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
+import { pickRecorderMime, streamIsLive, beginRecorder, beginRecorderPaused, resumeRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 
 export type MultiFilmIdea = {
@@ -53,6 +50,12 @@ type Clip = {
 }
 
 type Video = { idea: MultiFilmIdea; clips: Clip[] }
+
+// What the editor needs to open every filmed video in its own tab
+export type MultiFilmHandoff = {
+  landscape: boolean
+  videos: { key: string; title: string; ideaId: string | null; source: 'idea' | 'script'; caption: string | null; tags: unknown; lines: string[]; actions: string[]; texts: string[][]; clips: { file: File; path: string; duration: number }[] }[]
+}
 type RenderInfo = { id: string; status: 'queued' | 'done' | 'failed'; outputUrl?: string | null }
 type Pending = { blob: Blob; ext: string; type: string; url: string }
 
@@ -68,6 +71,8 @@ type Props = {
   gateRender: (action: () => void) => void
   onCleared: (data: { clearedIdeaId?: string | null; clearedScriptTitle?: string | null }) => void
   onBusy?: (busy: boolean) => void
+  // Opens every filmed video in the full editor, one tab each
+  onOpenEditor: (handoff: MultiFilmHandoff) => void
 }
 
 const clipCountOf = (idea: MultiFilmIdea) => Math.max(idea.lines.length, idea.actions.length)
@@ -95,64 +100,9 @@ const blobDuration = (blob: Blob): Promise<number> =>
     video.src = url
   })
 
-const label11: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }
 const pill = (active: boolean): React.CSSProperties => ({ padding: '9px 14px', borderRadius: 4, border: active ? '1px solid var(--coral)' : '1px solid var(--line)', background: active ? 'rgba(255,106,77,0.1)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' })
 const primaryBtn = (disabled = false): React.CSSProperties => ({ padding: '14px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1, boxShadow: disabled ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' })
 const ghostBtn: React.CSSProperties = { padding: '12px 18px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
-const field: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }
-
-function SettingsFields({ value, onChange, props }: { value: Settings; onChange: (patch: Partial<Settings>) => void; props: Pick<Props, 'captionPresets' | 'fontOptions' | 'userPlan'> }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <label style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <input type="checkbox" checked={value.captions} onChange={(e) => onChange({ captions: e.target.checked })} style={{ accentColor: '#FF6A4D' }} />
-          Add captions
-        </label>
-        {value.captions && (
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
-              {props.captionPresets.map((p) => (
-                <button key={p.id} type="button" onClick={() => onChange({ preset: p.id })} style={{ textAlign: 'left', padding: '9px 11px', borderRadius: 4, border: value.preset === p.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: value.preset === p.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', cursor: 'pointer' }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 2px', color: value.preset === p.id ? 'var(--coral)' : 'var(--ink)' }}>{p.label}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.3, margin: 0 }}>{p.desc}</p>
-                </button>
-              ))}
-            </div>
-            <div style={{ marginTop: 10 }}><CaptionLayersPanel value={value.layers} onChange={(layers) => onChange({ layers })} position={value.position} /></div>
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>Font, size, colour and position</summary>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginTop: 8 }}>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Font</p><Dropdown height={34} ariaLabel="Caption font" value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} options={props.fontOptions.map((f) => ({ value: f, label: f }))} /></div>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Size</p><input type="text" inputMode="numeric" value={value.fontSize || ''} onFocus={(e) => e.target.select()} onChange={(e) => onChange({ fontSize: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} onBlur={() => { if (value.fontSize < 10) onChange({ fontSize: 36 }) }} style={field} /></div>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Colour</p><input type="color" value={value.color} onChange={(e) => onChange({ color: e.target.value })} style={{ ...field, padding: 3, height: 34 }} /></div>
-                <div><p style={{ ...label11, textTransform: 'none', marginBottom: 4 }}>Position</p><Dropdown height={34} ariaLabel="Caption position" value={value.position} onChange={(v) => onChange({ position: v as Settings['position'] })} options={[{ value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }]} /></div>
-              </div>
-            </details>
-          </div>
-        )}
-      </div>
-      <div>
-        <p style={{ ...label11, marginBottom: 8 }}>Video quality</p>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {([['high', '1080p', 'Great for everyday Reels.'], ['4k', '4K', 'Pro plan only, takes longer.']] as const).map(([val, name, desc]) => (
-            <button key={val} type="button" onClick={() => { if (val === '4k' && props.userPlan !== 'top') { window.location.href = '/plans'; return } onChange({ resolution: val }) }} style={{ flex: 1, padding: '9px 11px', borderRadius: 4, border: value.resolution === val ? '2px solid var(--coral)' : '1px solid var(--line)', background: value.resolution === val ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', textAlign: 'left', cursor: 'pointer' }}>
-              <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 2px', color: value.resolution === val ? 'var(--coral)' : 'var(--ink)' }}>{name}{val === '4k' && props.userPlan !== 'top' ? <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--coral)' }}>Pro</span> : null}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>{desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: value.cutDeadSpace ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', border: value.cutDeadSpace ? '1px solid var(--coral)' : '1px solid var(--line)', borderRadius: 4, padding: '10px 14px' }}>
-        <input type="checkbox" checked={value.cutDeadSpace} onChange={(e) => onChange({ cutDeadSpace: e.target.checked })} style={{ accentColor: '#FF6A4D' }} />
-        <span>
-          <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Smart Trim</span>
-          <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>Cuts long silences and the start and end</span>
-        </span>
-      </label>
-    </div>
-  )
-}
 
 export default function MultiFilm(p: Props) {
   const { userId, ideas, isFreeTier } = p
@@ -168,13 +118,8 @@ export default function MultiFilm(p: Props) {
   const [refilming, setRefilming] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
 
-  const [globalSettings, setGlobalSettings] = useState<Settings>({ captions: true, ...p.captionDefaults, resolution: 'high', cutDeadSpace: true })
-  const [overrides, setOverrides] = useState<Record<string, Partial<Settings>>>({})
-  const [openCustom, setOpenCustom] = useState<string | null>(null)
   const [playIdx, setPlayIdx] = useState<Record<string, number>>({})
 
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState('')
   const [renders, setRenders] = useState<Record<string, RenderInfo>>({})
 
   // Camera + recorder
@@ -215,8 +160,6 @@ export default function MultiFilm(p: Props) {
   const uploadingCount = videos.reduce((n, v) => n + v.clips.filter((c) => c.status === 'uploading').length, 0)
   const errorCount = videos.reduce((n, v) => n + v.clips.filter((c) => c.status === 'error').length, 0)
   const allUploaded = videos.length > 0 && videos.every((v) => isComplete(v) && v.clips.every((c) => c.status === 'done'))
-
-  const effective = (key: string): Settings => ({ ...globalSettings, ...(overrides[key] || {}) })
 
   const startCamera = () => {
     setCameraError('')
@@ -365,12 +308,6 @@ export default function MultiFilm(p: Props) {
     if (!streamRef.current || clipTotal === 0) return
     if (!streamIsLive(streamRef.current)) { setRecordError('The camera stopped. It is restarting, press record again in a moment.'); streamRef.current = null; setCameraActive(false); startCamera(); return }
     setRecordError('')
-    for (let n = camx.timer; n > 0; n--) {
-      setCountdown(n)
-      await new Promise((r) => setTimeout(r, 1000))
-    }
-    setCountdown(null)
-    if (!streamRef.current) return
     try {
       const mimeType = pickRecorderMime(badMimeRef.current)
       // Record exactly 9:16 or 16:9. If the camera gives another shape, crop the centre of every frame.
@@ -429,7 +366,16 @@ export default function MultiFilm(p: Props) {
         setPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
       }
       recorder.onerror = () => { setRecordError('Recording stopped unexpectedly. Please try again.'); setIsRecording(false) }
-      beginRecorder(recorder, mimeType)
+      // The encoder warms up during the countdown, so the camera does not freeze when recording starts
+      const warm = camx.timer > 0 && beginRecorderPaused(recorder, mimeType)
+      for (let n = camx.timer; n > 0; n--) {
+        setCountdown(n)
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      setCountdown(null)
+      if (!streamRef.current) { if (stopCanvas) stopCanvas(); recorder.onstop = null; try { recorder.stop() } catch {} return }
+      if (warm) resumeRecorder(recorder)
+      else beginRecorder(recorder, mimeType)
       recorderRef.current = recorder
       setIsRecording(true)
     } catch {
@@ -519,8 +465,6 @@ export default function MultiFilm(p: Props) {
     setCi(0)
     setBetween(false)
     setRefilming(false)
-    setSubmitError('')
-    setOverrides({})
     setRenders({})
     setStage('filming')
   }
@@ -566,81 +510,32 @@ export default function MultiFilm(p: Props) {
     setVideos([])
     setSelected([])
     setRenders({})
-    setOverrides({})
-    setOpenCustom(null)
-    setSubmitError('')
     setStage('pick')
   }
 
-  const setGlobal = (patch: Partial<Settings>) => {
-    setGlobalSettings((s) => ({ ...s, ...patch }))
-    // Changing a setting for every video replaces any different choice made for a single video
-    setOverrides((o) => {
-      const next: Record<string, Partial<Settings>> = {}
-      for (const [k, v] of Object.entries(o)) {
-        const copy = { ...v } as Record<string, unknown>
-        Object.keys(patch).forEach((f) => { delete copy[f] })
-        next[k] = copy as Partial<Settings>
-      }
-      return next
+  const openEditor = () => {
+    if (!allUploaded) return
+    p.onOpenEditor({
+      landscape: orientationRef.current === 'landscape',
+      videos: videos.map((v) => ({
+        key: v.idea.key,
+        title: v.idea.title,
+        ideaId: v.idea.ideaId,
+        source: v.idea.source,
+        caption: v.idea.caption,
+        tags: v.idea.tags,
+        lines: v.idea.lines,
+        actions: v.idea.actions,
+        texts: v.idea.texts,
+        clips: v.clips.map((c, i) => ({ file: new File([c.blob], `filmed-${i + 1}.${c.ext}`, { type: c.type }), path: c.path as string, duration: c.duration })),
+      })),
     })
-  }
-  const setOverride = (key: string, patch: Partial<Settings>) => setOverrides((o) => ({ ...o, [key]: { ...(o[key] || {}), ...patch } }))
-
-  const submitAll = async () => {
-    if (!allUploaded || submitting) return
-    setSubmitting(true)
-    setSubmitError('')
-    const done: Record<string, RenderInfo> = { ...renders }
-    for (const v of videos) {
-      const key = v.idea.key
-      if (done[key]) continue
-      const s = effective(key)
-      const land = orientationRef.current === 'landscape'
-      const clipTrims = v.clips.map((c) => (c.duration > 1.5 && c.duration !== 5 ? { duration: c.duration, trimStart: 0.3, trimLength: c.duration - 0.6 } : { duration: c.duration }))
-      const hasTexts = v.idea.texts.some((t) => t.length > 0)
-      const textActive = hasTexts && s.layers.onScreen.on
-      const speechActive = s.captions && s.layers.speech.on
-      const captionStyle = speechActive || textActive ? { preset: s.preset, custom: { font: { family: s.fontFamily, size: s.fontSize || 36, color: s.color }, position: s.position, borderColor: s.borderColor }, layers: resolveCaptionLayers(s.layers, s.position, false) } : null
-      try {
-        const res = await authFetch('/api/render-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            clipPaths: v.clips.map((c) => c.path),
-            captionStyle,
-            captionTextOnly: textActive && !speechActive,
-            musicPath: null,
-            voiceovers: [],
-            clipTrims,
-            clipSettings: v.clips.map(() => (land ? { letterbox: true } : {})),
-            clipTexts: v.clips.map((_, i) => v.idea.texts[i] || []),
-            outputOrientation: land ? 'landscape' : undefined,
-            resolution: s.resolution,
-            cutDeadSpace: s.cutDeadSpace,
-            ideaId: v.idea.ideaId,
-            ideaSource: v.idea.source,
-            ideaTitle: v.idea.title,
-            ideaCaption: v.idea.caption,
-            ideaTags: v.idea.tags ?? null,
-          }),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok || !data.renderId) {
-          setSubmitError(`${v.idea.title}: ${data.error || 'could not start rendering.'}`)
-          break
-        }
-        done[key] = { id: data.renderId, status: 'queued' }
-        trackRenders([{ id: data.renderId, title: v.idea.title }])
-        setRenders({ ...done })
-      } catch {
-        setSubmitError('Lost connection while sending. Check your internet and press Render again. Videos already sent are not repeated.')
-        break
-      }
-    }
-    setSubmitting(false)
-    if (videos.every((v) => done[v.idea.key])) setStage('submitted')
+    // The editor has the clips now, so this screen starts fresh
+    videos.forEach((v) => v.clips.forEach((c) => URL.revokeObjectURL(c.url)))
+    setVideos([])
+    setSelected([])
+    setRenders({})
+    setStage('pick')
   }
 
   // Follow the renders until they finish
@@ -828,6 +723,7 @@ export default function MultiFilm(p: Props) {
         {showLibrary && (
           <LibraryPicker
             userId={userId}
+            plan={isFreeTier ? 'free' : p.userPlan}
             single
             title="Use a saved clip"
             onClose={() => setShowLibrary(false)}
@@ -852,54 +748,36 @@ export default function MultiFilm(p: Props) {
     )
   }
 
-  // ───────────────────────── Review + settings ─────────────────────────
+  // ───────────────────────── Review, then the editor ─────────────────────────
   if (stage === 'review') {
-    const settingsProps = { captionPresets: p.captionPresets, fontOptions: p.fontOptions, userPlan: p.userPlan }
-    const summary = (s: Settings) => `${s.captions ? 'Captions on' : 'No captions'} · ${s.resolution === '4k' ? '4K' : '1080p'}${s.cutDeadSpace ? ' · Smart Trim' : ''}`
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Set up your {videos.length === 1 ? 'video' : `${videos.length} videos`}</h3>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Everything is filmed. Choose the settings for all videos, change any single video if you need to, then render.</p>
-        </div>
-
-        <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '16px 18px' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 14px' }}>Settings for every video</p>
-          <SettingsFields value={globalSettings} onChange={setGlobal} props={settingsProps} />
+          <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Your {videos.length === 1 ? 'video is' : `${videos.length} videos are`} filmed</h3>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch them back and re-film any you don&apos;t like. Then open the editor: each video gets its own tab with clips, audio, voiceover, captions and overlays, and its own Render button.</p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {videos.map((v, index) => {
             const key = v.idea.key
-            const s = effective(key)
-            const custom = Object.keys(overrides[key] || {}).length > 0
-            const open = openCustom === key
             const pi = Math.min(playIdx[key] || 0, v.clips.length - 1)
             const up = v.clips.filter((c) => c.status === 'uploading').length
             const bad = v.clips.filter((c) => c.status === 'error').length
             return (
-              <div key={key} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: 12, border: custom ? '1px solid var(--coral)' : '1px solid var(--line)' }}>
+              <div key={key} style={{ background: 'var(--card-bg)', borderRadius: 4, padding: 12, border: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ width: 78, aspectRatio: orientation === 'portrait' ? '9 / 16' : '16 / 9', flexShrink: 0, borderRadius: 4, overflow: 'hidden', background: '#0b0a10', position: 'relative' }}>
                     {v.clips[pi] && <video key={v.clips[pi].url} src={v.clips[pi].url} controls playsInline preload="metadata" controlsList="nodownload noremoteplayback" onEnded={() => { if (pi + 1 < v.clips.length) setPlayIdx((m) => ({ ...m, [key]: pi + 1 })) }} onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0, lineHeight: 1.35 }}>{v.idea.title}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0, lineHeight: 1.35 }}>{index + 1}. {v.idea.title}</p>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{v.clips.length} {v.clips.length === 1 ? 'clip' : 'clips'} · {bad > 0 ? <span style={{ color: 'var(--coral)' }}>{bad} failed to upload</span> : up > 0 ? `Uploading ${up}…` : 'Uploaded'}</p>
-                    <p style={{ fontSize: 11, color: custom ? 'var(--coral)' : 'var(--text-muted)', margin: '3px 0 0' }}>{custom ? 'Custom: ' : ''}{summary(s)}</p>
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => setOpenCustom(open ? null : key)} style={{ ...pill(open), padding: '6px 12px', fontSize: 12 }}>{open ? 'Done' : 'Customise'}</button>
                       <button type="button" onClick={() => refilm(index)} style={{ ...pill(false), padding: '6px 12px', fontSize: 12 }}>Re-film</button>
                       {videos.length > 1 && <button type="button" onClick={() => removeVideo(index)} style={{ ...pill(false), padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)' }}>Remove</button>}
                     </div>
                   </div>
                 </div>
-                {open && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
-                    <SettingsFields value={s} onChange={(patch) => setOverride(key, patch)} props={settingsProps} />
-                    {custom && <button type="button" onClick={() => setOverrides((o) => ({ ...o, [key]: {} }))} style={{ marginTop: 12, background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--coral)', fontWeight: 600, cursor: 'pointer' }}>Use the settings for every video</button>}
-                  </div>
-                )}
               </div>
             )
           })}
@@ -911,17 +789,10 @@ export default function MultiFilm(p: Props) {
             <button type="button" onClick={retryUploads} style={{ ...pill(true), padding: '7px 14px', fontSize: 12 }}>Retry upload</button>
           </div>
         )}
-        {submitError && <p role="alert" style={{ fontSize: 13, color: 'var(--coral)', margin: 0 }}>{submitError}</p>}
 
-        <button
-          type="button"
-          disabled={!p.renderBlocked && (!allUploaded || submitting)}
-          onClick={() => { if (p.renderBlocked) { window.location.href = '/plans'; return } p.gateRender(() => { void submitAll() }) }}
-          style={primaryBtn(!p.renderBlocked && (!allUploaded || submitting))}
-        >
-          {p.renderBlocked ? 'Upgrade to render' : submitting ? 'Sending to render…' : !allUploaded ? 'Finishing uploads…' : `Render ${videos.length} ${videos.length === 1 ? 'video' : 'videos'}`}
+        <button type="button" disabled={!allUploaded} onClick={openEditor} style={primaryBtn(!allUploaded)}>
+          {!allUploaded ? `Finishing uploads${uploadingCount > 0 ? ` (${uploadingCount} left)` : ''}…` : `Open ${videos.length === 1 ? 'the video' : `all ${videos.length} videos`} in the editor`}
         </button>
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Once you press Render you can close the app. Your videos keep rendering and we email you as each one finishes.</p>
         <button type="button" onClick={resetAll} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}>Start over</button>
       </div>
     )

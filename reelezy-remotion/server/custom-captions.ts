@@ -55,7 +55,7 @@ export async function burnCustomCaptions(
     const { fontSize, borderW, fontColor, borderColor, boxPart, fontPart, fontFile, underline } = look(c);
     const lineH = Math.round(fontSize * 1.2);
     // The caption box is as wide as the person drew it (a share of the frame), and the words wrap inside it
-    const boxShare = Math.min(0.98, Math.max(0.2, typeof c.w === 'number' && Number.isFinite(c.w) ? c.w : 0.88));
+    const boxShare = Math.min(1, Math.max(0.1, typeof c.w === 'number' && Number.isFinite(c.w) ? c.w : 0.88));
     const lines = wrapText(fontFile, c.text, fontSize, outputWidth * boxShare * 0.96, 6);
     const x = clamp01(c.x).toFixed(4);
     const y = clamp01(c.y).toFixed(4);

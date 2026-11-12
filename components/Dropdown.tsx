@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useId, useRef, useState } from 'react'
 
-export type DropdownOption = { value: string; label: string }
+// style lets an option show itself, e.g. a font name written in that font
+export type DropdownOption = { value: string; label: string; style?: React.CSSProperties }
 
 // A drop-down that matches the rest of the site (the browser's own menu cannot be styled).
 export default function Dropdown({ value, onChange, options, ariaLabel, style, height = 40, disabled = false, placeholder }: {
@@ -63,7 +64,7 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
       <button type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={ariaLabel}
         disabled={disabled} onClick={() => (open ? setOpen(false) : openList())} onKeyDown={onKey}
         style={{ width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px', borderRadius: 4, border: `1px solid ${open ? 'var(--ink)' : 'rgba(128,128,128,0.25)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', boxSizing: 'border-box' }}>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: !current && placeholder ? 'var(--text-muted)' : undefined }}>{current?.label ?? (value || placeholder || '')}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: !current && placeholder ? 'var(--text-muted)' : undefined, ...current?.style }}>{current?.label ?? (value || placeholder || '')}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
       </button>
       {open && (
@@ -75,7 +76,7 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
               <li key={o.value} role="option" aria-selected={sel} data-active={i === active}
                 onMouseEnter={() => setActive(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.value)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 10px', borderRadius: 3, fontSize: 13, cursor: 'pointer', color: sel ? 'var(--coral)' : 'var(--ink)', fontWeight: sel ? 600 : 400, background: i === active ? 'var(--sand, #F9F9F9)' : 'transparent' }}>
-                <span>{o.label}</span>
+                <span style={o.style}>{o.label}</span>
                 {sel && <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2.5 6.5 2.3 2.3 4.7-5.1" /></svg>}
               </li>
             )

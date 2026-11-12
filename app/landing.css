@@ -275,6 +275,6 @@
 .hp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
 .hp-real .hp-caption, .hp-film .hp-caption { z-index: 2; }
 .hp-post { padding: 58px 15px 15px; display: flex; flex-direction: column; gap: 9px; background: #ffffff; }
-.hp-plat { display: grid; grid-template-columns: 82px 1fr auto; align-items: center; gap: 10px; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px; font-size: 13px; font-weight: 500; color: #111111; animation: hpUp 0.45s ease both; }
+.hp-plat { display: grid; grid-template-columns: 1fr 40px auto; align-items: center; gap: 10px; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px; font-size: 13px; font-weight: 500; color: #111111; animation: hpUp 0.45s ease both; }
 .hp-plat i { display: block; height: 3px; background: #ff6a4d; transform-origin: left; transform: scaleX(0); animation: hpBar 0.8s ease forwards; }
 .hp-plat b { font-size: 12px; font-weight: 600; color: #1a7f37; opacity: 0; animation: hpIn 0.3s ease forwards; }

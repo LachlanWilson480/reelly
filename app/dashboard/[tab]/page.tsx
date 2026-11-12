@@ -28,10 +28,12 @@ import OverlayPicker from '@/components/OverlayPicker'
 import OverlayElements from '@/components/OverlayElements'
 import { useCameraControls } from '@/lib/useCameraControls'
 import { photoToClip } from '@/lib/photoToClip'
-import MultiFilm, { type MultiFilmIdea } from '@/components/MultiFilm'
-import { pickRecorderMime, streamIsLive, beginRecorder, finishRecorder } from '@/lib/recorderSupport'
+import MultiFilm, { type MultiFilmIdea, type MultiFilmHandoff } from '@/components/MultiFilm'
+import { trackRenders } from '@/lib/renderTracker'
+import { pickRecorderMime, streamIsLive, beginRecorder, beginRecorderPaused, resumeRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 import OverviewPanel from '@/components/OverviewPanel'
+import { BADGE_SPOT, BADGE_SRC, BADGE_RATIO } from '@/lib/madeWithBadge'
 type Profile = {
   business_name: string
   industry: string
@@ -86,7 +88,6 @@ type Idea = {
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
 
-const FONT_OPTIONS = ['Montserrat ExtraBold', 'Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Roboto Bold', 'Open Sans Bold', 'Lato Bold']
 
 const CAPTION_PRESETS = [
   { id: 'word_by_word', label: 'Word by Word', desc: 'One big word at a time, in the middle of the screen' },
@@ -110,16 +111,33 @@ type VoiceoverSegment = { file: File; start: number; end: number | null; speed?:
 type CustomCaption = { id: string; text: string; start: number; end: number; x: number; y: number; w?: number; font?: string; size?: number; color?: string; bg?: string | null; bold?: boolean; italic?: boolean; underline?: boolean }
 // Is a font bold when nothing else is said? ("Sans Bold" is, "Sans" is not)
 const fontIsBold = (name?: string) => /bold|impact|anton|bebas/i.test(name || 'Sans Bold')
-const CAPTION_TEXT_FONTS: { name: string; css: string; weight: number }[] = [
-  { name: 'Sans', css: 'Arial, Helvetica, sans-serif', weight: 400 },
-  { name: 'Sans Bold', css: "Arial Black, Arial, sans-serif", weight: 900 },
-  { name: 'Mono', css: "'Courier New', monospace", weight: 400 },
-  { name: 'Narrow', css: "'Arial Narrow', Arial, sans-serif", weight: 400 },
-  { name: 'Serif', css: "Georgia, 'Times New Roman', serif", weight: 400 },
-  { name: 'Serif Bold', css: "Georgia, 'Times New Roman', serif", weight: 800 },
-  { name: 'Mono Bold', css: "'Courier New', monospace", weight: 800 },
-  { name: 'Narrow Bold', css: "'Arial Narrow', Arial, sans-serif", weight: 800 },
+// Picking up a range slider inside a card that can be dragged must move the slider, not the card
+const holdCardDrag = (e: React.PointerEvent) => {
+  const card = (e.currentTarget as HTMLElement).closest('[draggable="true"]') as HTMLElement | null
+  if (!card) return
+  card.draggable = false
+  const restore = () => { card.draggable = true; window.removeEventListener('pointerup', restore); window.removeEventListener('pointercancel', restore) }
+  window.addEventListener('pointerup', restore)
+  window.addEventListener('pointercancel', restore)
+}
+// The fonts the finished video can use. The render server has the Liberation fonts, which are drawn to match
+// Arial, Times New Roman, Courier New and Arial Narrow, so the preview and the menu show those.
+// The names are what gets saved and sent; the labels are what people see.
+const CAPTION_TEXT_FONTS: { name: string; label: string; css: string; weight: number }[] = [
+  { name: 'Sans Bold', label: 'Arial Bold', css: "Arial, 'Liberation Sans', Helvetica, sans-serif", weight: 700 },
+  { name: 'Sans', label: 'Arial', css: "Arial, 'Liberation Sans', Helvetica, sans-serif", weight: 400 },
+  { name: 'Narrow Bold', label: 'Arial Narrow Bold', css: "'Arial Narrow', 'Liberation Sans Narrow', 'Roboto Condensed', Arial, sans-serif", weight: 700 },
+  { name: 'Narrow', label: 'Arial Narrow', css: "'Arial Narrow', 'Liberation Sans Narrow', 'Roboto Condensed', Arial, sans-serif", weight: 400 },
+  { name: 'Serif Bold', label: 'Times New Roman Bold', css: "'Times New Roman', 'Liberation Serif', Times, serif", weight: 700 },
+  { name: 'Serif', label: 'Times New Roman', css: "'Times New Roman', 'Liberation Serif', Times, serif", weight: 400 },
+  { name: 'Mono Bold', label: 'Courier New Bold', css: "'Courier New', 'Liberation Mono', Courier, monospace", weight: 700 },
+  { name: 'Mono', label: 'Courier New', css: "'Courier New', 'Liberation Mono', Courier, monospace", weight: 400 },
 ]
+// Older saved choices (Montserrat, Impact and so on) were always drawn with these, so show them as what they really are
+const toCaptionFont = (name?: string | null) => CAPTION_TEXT_FONTS.some((f) => f.name === name) ? (name as string) : /impact|anton|bebas|oswald|narrow/i.test(name || '') ? 'Narrow Bold' : 'Sans Bold'
+const FONT_OPTIONS = CAPTION_TEXT_FONTS.map((f) => f.name)
+// Menu entries that show each font in its own typeface
+const FONT_MENU = CAPTION_TEXT_FONTS.map((f) => ({ value: f.name, label: f.label, style: { fontFamily: f.css, fontWeight: f.weight, fontSize: 14 } as React.CSSProperties }))
 // Ready-made looks for the captions the person types. Each one sets the font, text colour and background in one press.
 const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | null }[] = [
   { name: 'Classic', font: 'Sans Bold', color: '#FFFFFF', bg: null },
@@ -138,6 +156,17 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 // An image or video the person lays over their video. x and y are the centre as a share of the frame,
 // size is its width as a share of the frame, start and end are seconds on the timeline (end null = to the end).
 type OverlayItem = { id: string; file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null; ar: number; cl: number; cr: number; ct: number; cb: number }
+// Everything one video holds in the editor, so several filmed videos can each have their own tab
+type EditorSnap = {
+  slots: number[]; files: Record<number, File>; paths: Record<number, string>; trims: Record<number, ClipTrimRange>; speeds: Record<number, number>; vols: Record<number, number>
+  looks: Record<number, AppearanceSettings>; texts: Record<number, string[]>; ownTexts: Record<number, string>; speech: Set<number>; landscape: Set<number>
+  caps: CustomCaption[]; overlays: OverlayItem[]; takes: VoiceTake[]; assets: Record<string, string>
+  musicFile: File | null; libMusicUrl: string | null; libMusicName: string | null; extracted: string | null
+  badge: boolean; autoCaptions: boolean; preset: string; script: { id: string; label: string; lines: string[] } | null
+  renderId: string | null; renderStatus: string | null; renderProgress: number; outputUrl: string | null; overQuota: boolean; renderError: string | null; uploadError: string
+  ctx: { ideaId: string | null; source: string; title: string | null; caption: string | null; tags: string | null } | null
+  orientation: 'portrait' | 'landscape' | null
+}
 // The 'appearance' look: skin smoothing and low light lift (0 to 100 each) and a colour look. It is applied to every clip.
 type AppearanceSettings = { touchUp: number; light: number; look: 'none' | 'warm' | 'cool' | 'vivid' | 'soft' | 'bw' }
 const APPEARANCE_LOOKS: [AppearanceSettings['look'], string][] = [['none', 'None'], ['warm', 'Warm'], ['cool', 'Cool'], ['vivid', 'Vivid'], ['soft', 'Soft'], ['bw', 'Black and white']]
@@ -232,7 +261,7 @@ const fmtClock = (s: number) => {
 
 function VolumeRow({ label, hint, value, onChange, color }: { label: string; hint?: string; value: number; onChange: (v: number) => void; color: string }) {
   return (
-    <label style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 150px) 1fr 44px', alignItems: 'center', columnGap: 10 }}>
+    <label onPointerDownCapture={holdCardDrag} onDragStart={(e) => { e.preventDefault(); e.stopPropagation() }} style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 150px) 1fr 44px', alignItems: 'center', columnGap: 10 }}>
       <span style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.25 }}>
         {label}
         {hint && <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>{hint}</span>}
@@ -297,7 +326,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
       {/* 2. Voiceover */}
       {section !== 'rest' && <div style={section === 'voiceover' ? undefined : divider}>
-        {heading('Voiceover', 'Talk over your clips.')}
+        {section !== 'voiceover' && heading('Voiceover', 'Talk over your clips.')}
         <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onAddFile(f); e.target.value = '' }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -369,7 +398,11 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu, onPickLibrary }: {
+function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
+  // The "Made with Reelezy" badge: shown in the corner while on, with an x to take it off
+  badge?: boolean
+  onBadge?: (on: boolean) => void
+  autoCapFont?: string
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -418,8 +451,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
   const ovDragRef = useRef<string | null>(null)
   const ovVideosRef = useRef<Record<string, HTMLVideoElement | null>>({})
-  const ovResizeRef = useRef<{ id: string; size: number; dist: number; cx: number; cy: number } | null>(null)
+  // Resizing an overlay: the corner or edge being dragged moves, the opposite one stays put. Cropping is its own mode.
+  type OvHandle = 'tl' | 'tr' | 'bl' | 'br' | 'l' | 'r' | 't' | 'b'
+  const ovResizeRef = useRef<{ id: string; mode: OvHandle; size: number; w: number; h: number; ax: number; ay: number; dist: number; bx: number; by: number; bw: number; bh: number } | null>(null)
+  const [ovCrop, setOvCrop] = useState<string | null>(null)
+  // Two players take turns: while one plays a clip, the next clip loads in the other, so moving between clips never flashes black
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const vidA = useRef<HTMLVideoElement | null>(null)
+  const vidB = useRef<HTMLVideoElement | null>(null)
+  const slotRef = useRef<0 | 1>(0)
+  const [slot, setSlot] = useState<0 | 1>(0)
+  const loadSeqRef = useRef(0)
+  const volRef = useRef(1)
+  const playerOf = (n: 0 | 1) => (n === 0 ? vidA.current : vidB.current)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
   const scriptBoxRef = useRef<HTMLDivElement | null>(null)
@@ -472,17 +516,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Show the first frame straight away
-  useEffect(() => {
-    const v = videoRef.current
-    const first = segments[0]
-    if (!v || !first) return
-    const src = previewUrlFor(first.file)
-    v.setAttribute('data-src', src)
-    v.src = src
-    v.onloadedmetadata = () => { v.onloadedmetadata = null; v.currentTime = first.start }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const lengths = segments.map((s) => {
     const d = durations[previewFileKey(s.file)] || 0
@@ -493,29 +526,106 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const before = lengths.slice(0, index).reduce((a, b) => a + b, 0)
   const globalTime = Math.min(total, before + localTime)
 
+  // Gets the other player ready on the next clip so it can take over straight away
+  const preloadNext = (i: number) => {
+    const next = segments[i + 1]
+    const cur = playerOf(slotRef.current)
+    const other = playerOf(slotRef.current === 0 ? 1 : 0)
+    if (!next || !cur || !other) return
+    const src = previewUrlFor(next.file)
+    if (cur.getAttribute('data-src') === src) return
+    other.muted = true
+    if (!other.paused) other.pause()
+    if (other.getAttribute('data-src') === src && other.readyState >= 1) {
+      try { if (Math.abs(other.currentTime - next.start) > 0.05) other.currentTime = next.start } catch {}
+      return
+    }
+    other.setAttribute('data-src', src)
+    other.onloadedmetadata = () => { other.onloadedmetadata = null; try { other.currentTime = next.start } catch {} }
+    other.src = src
+    other.preload = 'auto'
+  }
+
   const load = (i: number, offset: number, autoplay: boolean) => {
-    const v = videoRef.current
+    const cur = playerOf(slotRef.current)
     const seg = segments[i]
-    if (!v || !seg) return
+    if (!cur || !seg) return
     indexRef.current = i
     setIndex(i)
     const src = previewUrlFor(seg.file)
-    const go = () => {
-      v.playbackRate = seg.speed || 1
-      v.currentTime = seg.start + offset * (seg.speed || 1)
+    const sp = seg.speed || 1
+    const target = seg.start + offset * sp
+    const seq = ++loadSeqRef.current
+    if (cur.getAttribute('data-src') === src) {
+      // Same file: just move within it
+      cur.playbackRate = sp
+      try { cur.currentTime = target } catch {}
       setLocalTime(offset)
       switchingRef.current = false
       advancingRef.current = false
-      if (autoplay) void v.play().catch(() => {})
+      if (autoplay) void cur.play().catch(() => {})
+      preloadNext(i)
+      return
     }
-    if (v.getAttribute('data-src') !== src) {
-      switchingRef.current = true
-      window.setTimeout(() => { switchingRef.current = false }, 2500)
-      v.setAttribute('data-src', src)
-      v.src = src
-      v.onloadedmetadata = () => { v.onloadedmetadata = null; go() }
-    } else go()
+    const nextSlot: 0 | 1 = slotRef.current === 0 ? 1 : 0
+    const nv = playerOf(nextSlot)
+    if (!nv) return
+    switchingRef.current = true
+    // Hold the last frame of the old clip (instead of going black) until the new one is ready
+    if (!cur.paused) cur.pause()
+    let shown = false
+    const show = () => {
+      if (shown || seq !== loadSeqRef.current) return
+      shown = true
+      cur.pause()
+      cur.muted = true
+      nv.muted = false
+      nv.volume = volRef.current
+      nv.playbackRate = sp
+      slotRef.current = nextSlot
+      videoRef.current = nv
+      setLocalTime(offset)
+      switchingRef.current = false
+      advancingRef.current = false
+      if (autoplay) void nv.play().catch(() => {})
+      // Only swap which player is on top once the new one has a picture to show, so there is never a black flash
+      let revealed = false
+      const reveal = () => { if (revealed || seq !== loadSeqRef.current) return; revealed = true; setSlot(nextSlot); window.setTimeout(() => { if (seq === loadSeqRef.current) preloadNext(i) }, 50) }
+      const rvfc = (nv as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback
+      if (rvfc) rvfc.call(nv, reveal)
+      else if (nv.readyState >= 2) reveal()
+      else nv.addEventListener('loadeddata', reveal, { once: true })
+      window.setTimeout(reveal, 300)
+    }
+    const seekThenShow = () => {
+      nv.playbackRate = sp
+      if (nv.readyState >= 2 && Math.abs(nv.currentTime - target) < 0.04) { show(); return }
+      const onSeeked = () => { nv.removeEventListener('seeked', onSeeked); show() }
+      nv.addEventListener('seeked', onSeeked)
+      try { nv.currentTime = target } catch { show() }
+    }
+    if (nv.getAttribute('data-src') === src && nv.readyState >= 1) seekThenShow()
+    else {
+      nv.setAttribute('data-src', src)
+      nv.onloadedmetadata = () => { nv.onloadedmetadata = null; seekThenShow() }
+      nv.src = src
+    }
+    // Never get stuck if the browser does not report the seek
+    window.setTimeout(show, 2500)
   }
+
+  // Show the first frame straight away, and get the second clip ready in the other player
+  useEffect(() => {
+    const v = vidA.current
+    const first = segments[0]
+    if (!v || !first) return
+    videoRef.current = v
+    const src = previewUrlFor(first.file)
+    v.setAttribute('data-src', src)
+    v.src = src
+    v.onloadedmetadata = () => { v.onloadedmetadata = null; v.currentTime = first.start; preloadNext(0) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const seekGlobal = (t: number, autoplay: boolean) => {
     if (segments.length === 0) return
@@ -628,7 +738,14 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   }, [playing])
 
   const vol = recording ? 0 : (originalVol / 100) * ((segments[index]?.volume ?? 100) / 100)
-  useEffect(() => { if (videoRef.current) videoRef.current.volume = vol }, [vol, index])
+  useEffect(() => {
+    volRef.current = vol
+    const v = videoRef.current
+    if (v) { v.volume = vol; v.muted = false }
+    const other = playerOf(slotRef.current === 0 ? 1 : 0)
+    if (other) other.muted = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vol, index, slot])
 
   // Stop the microphone if the preview goes away mid recording
   useEffect(() => () => {
@@ -686,7 +803,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       setRecording(true)
       setPlaying(true)
       // Start the microphone at the moment the video actually starts moving so they line up
-      const v = videoRef.current
       let began = false
       const begin = () => {
         if (began || rec.state !== 'inactive' || !stream.active) return
@@ -694,7 +810,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         recWallRef.current = uploadStamp()
         rec.start()
       }
-      v?.addEventListener('playing', begin, { once: true })
+      ;[vidA.current, vidB.current].forEach((p) => p?.addEventListener('playing', begin, { once: true }))
       window.setTimeout(begin, 1500)
       seekGlobal(startAt, true)
     } catch (e) {
@@ -768,24 +884,51 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   // Pinch to resize: two fingers on a caption (touch), or a trackpad pinch over it
   const ptrsRef = useRef(new Map<number, { x: number; y: number }>())
   const pinchRef = useRef<{ id: string; dist: number; size: number } | null>(null)
-  // Drag the side handles of a caption to change how wide it is, and the corner handles to make the text bigger or smaller
-  const resizeRef = useRef<{ id: string; mode: 'side' | 'corner'; size: number; dist: number; cx: number; cy: number } | null>(null)
-  const startResize = (e: React.PointerEvent, c: CustomCaption, mode: 'side' | 'corner') => {
+  // Side handles change only that side of the caption box (the other side stays put). Corner handles make the
+  // whole caption bigger or smaller while the opposite corner stays where it is. Nothing else changes the text size.
+  type CapHandle = 'l' | 'r' | 'tl' | 'tr' | 'bl' | 'br'
+  const resizeRef = useRef<{ id: string; mode: CapHandle; size: number; w: number; left: number; right: number; top: number; bottom: number; ax: number; ay: number; dist: number } | null>(null)
+  const startResize = (e: React.PointerEvent, c: CustomCaption, mode: CapHandle) => {
     const box = stageRef.current?.getBoundingClientRect()
-    if (!box || !captionStyle) return
+    const el = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect()
+    if (!box || !el || !captionStyle || box.width <= 0 || box.height <= 0) return
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
-    const cx = box.left + c.x * box.width
-    const cy = box.top + c.y * box.height
-    resizeRef.current = { id: c.id, mode, size: c.size ?? captionStyle.size, dist: Math.hypot(e.clientX - cx, e.clientY - cy) || 1, cx, cy }
+    const w = Math.min(1, Math.max(0.1, c.w ?? 0.88))
+    const left = c.x - w / 2, right = c.x + w / 2
+    const top = (el.top - box.top) / box.height, bottom = (el.bottom - box.top) / box.height
+    // The corner that stays still while a corner is dragged
+    const ax = mode === 'tl' || mode === 'bl' ? right : left
+    const ay = mode === 'tl' || mode === 'tr' ? bottom : top
+    const pf = frac(e)
+    resizeRef.current = { id: c.id, mode, size: c.size ?? captionStyle.size, w, left, right, top, bottom, ax, ay, dist: Math.max(0.01, Math.hypot((pf.x - ax) * box.width, (pf.y - ay) * box.height)) }
   }
   const moveResize = (e: React.PointerEvent) => {
     const r = resizeRef.current
     const box = stageRef.current?.getBoundingClientRect()
     if (!r || !box) return
     if (mouseUp(e)) { dropAll(); return }
-    if (r.mode === 'side') updateCap(r.id, { w: Math.min(0.96, Math.max(0.2, (Math.abs(e.clientX - r.cx) / box.width) * 2)) })
-    else updateCap(r.id, { size: Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist)))) })
+    const pf = frac(e)
+    if (r.mode === 'l') {
+      const left = Math.min(r.right - 0.1, Math.max(Math.max(0, r.right - 1), pf.x))
+      updateCap(r.id, { w: r.right - left, x: (left + r.right) / 2 })
+      return
+    }
+    if (r.mode === 'r') {
+      const right = Math.max(r.left + 0.1, Math.min(Math.min(1, r.left + 1), pf.x))
+      updateCap(r.id, { w: right - r.left, x: (r.left + right) / 2 })
+      return
+    }
+    const d = Math.hypot((pf.x - r.ax) * box.width, (pf.y - r.ay) * box.height)
+    let scale = d / r.dist
+    // Keep the text between 16 and 200. The box grows with it but never past the width of the video.
+    scale = Math.min(scale, 200 / r.size)
+    scale = Math.max(scale, 16 / r.size, 0.1 / r.w)
+    const w = Math.min(1, r.w * scale)
+    const h = (r.bottom - r.top) * scale
+    const x = r.mode === 'tl' || r.mode === 'bl' ? r.ax - w / 2 : r.ax + w / 2
+    const y = r.mode === 'tl' || r.mode === 'tr' ? r.ay - h / 2 : r.ay + h / 2
+    updateCap(r.id, { size: Math.round(r.size * scale), w, x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) })
   }
   const endResize = () => { resizeRef.current = null }
   // A mouse that is not being pressed must never drag or resize anything
@@ -793,7 +936,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const dropAll = () => { capPosRef.current = null; resizeRef.current = null; ovDragRef.current = null; ovResizeRef.current = null; ovCropRef.current = null; pinchRef.current = null; ptrsRef.current.clear() }
   const autoDragRef = useRef(false)
   const [clipMenuOpen, setClipMenuOpen] = useState(false)
-  const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number; axis: 'x' | 'y' | 'xy' } | null>(null)
+  const autoSizeRef = useRef<{ size: number; dist: number; cx: number; cy: number; axis: 'x' | 'y' | 'xy'; h: number; boxTop: number; boxH: number } | null>(null)
   const ovCropRef = useRef<{ id: string; edge: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; x: number; y: number; size: number; cl: number; cr: number; ct: number; cb: number; ar: number; w: number; h: number } | null>(null)
   const latestRef = useRef<{ caps: CustomCaption[]; size: number; update: (id: string, p: Partial<CustomCaption>) => void }>({ caps: [], size: 60, update: () => {} })
   useEffect(() => { latestRef.current = { caps, size: captionStyle?.size ?? 60, update: updateCap } })
@@ -914,7 +1057,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   return (
     <div>
       <div ref={stageRef} style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 4, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
-        <video ref={videoRef} playsInline onEnded={advance} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: appearanceCss(segments[index]?.appearance ?? appearance) }} />
+        {/* Both players are always drawn; the one in use sits on top, so the other has its first frame ready underneath */}
+        {([0, 1] as const).map((n) => (
+          <video key={n} ref={n === 0 ? vidA : vidB} playsInline preload="auto"
+            onEnded={(e) => { if (e.currentTarget === videoRef.current) advance() }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#000', zIndex: n === slot ? 1 : 0, pointerEvents: 'none', filter: n === slot ? appearanceCss(segments[index]?.appearance ?? appearance) : undefined }} />
+        ))}
         {captionStyle && caps.filter((c) => globalTime >= c.start && globalTime < c.end).map((c) => {
           const unit = ((c.size ?? captionStyle.size) / 1080) * 100
           const sel = selCap === c.id
@@ -925,11 +1073,11 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const underline = c.underline ?? captionStyle.underline ?? false
           const weight = boldPick === undefined ? (cFont ? cFont.weight : 900) : boldPick ? Math.max(700, cFont ? cFont.weight : 900) : 400
           const family = cFont ? cFont.css : boldPick === false ? 'Arial, Helvetica, sans-serif' : "Arial Black, 'Poppins', sans-serif"
-          const boxW = Math.min(0.96, Math.max(0.2, c.w ?? 0.88))
-          const handle = (style: React.CSSProperties, mode: 'side' | 'corner', cursor: string, label: string, hidden = false) => (
+          const boxW = Math.min(1, Math.max(0.1, c.w ?? 0.88))
+          const handle = (style: React.CSSProperties, mode: CapHandle, cursor: string, label: string, hidden = false) => (
             <span role="slider" aria-label={label} aria-valuenow={Math.round(boxW * 100)}
               onPointerDown={(e) => { setSelCap(c.id); startResize(e, c, mode) }} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
-              style={{ position: 'absolute', background: hidden ? 'transparent' : '#fff', border: hidden ? 'none' : '1.5px solid #222', borderRadius: mode === 'side' ? 4 : 2, cursor, touchAction: 'none', zIndex: hidden ? 3 : 4, boxSizing: 'border-box', ...style }} />
+              style={{ position: 'absolute', background: hidden ? 'transparent' : '#fff', border: hidden ? 'none' : '1.5px solid #222', borderRadius: mode === 'l' || mode === 'r' ? 4 : 2, cursor, touchAction: 'none', zIndex: hidden ? 3 : 4, boxSizing: 'border-box', ...style }} />
           )
           return (
             <div key={c.id} aria-label={`Caption: ${c.text}`}
@@ -937,9 +1085,11 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               onPointerDown={(e) => {
                 if (recording || !onCaptions) return
                 e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); setSelCap(c.id)
+                // The first finger or the mouse starts fresh, so a finger that lifted somewhere else can never turn a move into a resize
+                if (e.isPrimary) { ptrsRef.current.clear(); pinchRef.current = null }
                 ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
                 if (ptrsRef.current.size === 1) { const pf = frac(e); capPosRef.current = { id: c.id, dx: c.x - pf.x, dy: c.y - pf.y } }
-                else if (ptrsRef.current.size === 2) {
+                else if (ptrsRef.current.size === 2 && e.pointerType === 'touch') {
                   const [a, b] = Array.from(ptrsRef.current.values())
                   pinchRef.current = { id: c.id, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, size: c.size ?? captionStyle.size }
                   capPosRef.current = null
@@ -949,7 +1099,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 if (mouseUp(e)) { dropAll(); return }
                 if (ptrsRef.current.has(e.pointerId)) ptrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
                 const pin = pinchRef.current
-                if (pin && ptrsRef.current.size >= 2) {
+                if (pin && e.pointerType === 'touch' && ptrsRef.current.size >= 2) {
                   const [a, b] = Array.from(ptrsRef.current.values())
                   const d = Math.hypot(a.x - b.x, a.y - b.y)
                   updateCap(pin.id, { size: Math.min(200, Math.max(16, Math.round(pin.size * (d / pin.dist)))) })
@@ -958,7 +1108,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 const p = capPosRef.current
                 const box = stageRef.current?.getBoundingClientRect()
                 if (!p || !box) return
-                updateCap(p.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + p.dx)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + p.dy)) })
+                updateCap(p.id, { x: Math.min(1, Math.max(0, (e.clientX - box.left) / box.width + p.dx)), y: Math.min(0.97, Math.max(0.03, (e.clientY - box.top) / box.height + p.dy)) })
               }}
               onPointerUp={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
               onPointerCancel={(e) => { ptrsRef.current.delete(e.pointerId); if (ptrsRef.current.size < 2) pinchRef.current = null; capPosRef.current = null }}
@@ -966,12 +1116,12 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               {cBg ? <span style={{ background: cBg, padding: '0.25em 0.5em', borderRadius: 4, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>{c.text}</span> : c.text}
               {sel && onCaptions && !recording && (
                 <>
-                  {handle({ left: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
-                  {handle({ right: -7, top: '50%', width: 12, height: 26, marginTop: -13 }, 'side', 'ew-resize', 'Drag to make the caption box narrower or wider')}
-                  {handle({ left: -7, top: -7, width: 12, height: 12 }, 'corner', 'nwse-resize', 'Drag to make the caption text bigger or smaller')}
-                  {handle({ right: -7, top: -7, width: 12, height: 12 }, 'corner', 'nesw-resize', 'Drag to make the caption text bigger or smaller')}
-                  {handle({ left: -7, bottom: -7, width: 12, height: 12 }, 'corner', 'nesw-resize', 'Drag to make the caption text bigger or smaller')}
-                  {handle({ right: -7, bottom: -7, width: 12, height: 12 }, 'corner', 'nwse-resize', 'Drag to make the caption text bigger or smaller')}
+                  {handle({ left: -6, top: '50%', width: 12, height: 26, marginTop: -13 }, 'l', 'ew-resize', 'Drag to move the left side of the caption box')}
+                  {handle({ right: -6, top: '50%', width: 12, height: 26, marginTop: -13 }, 'r', 'ew-resize', 'Drag to move the right side of the caption box')}
+                  {handle({ left: -6, top: -6, width: 12, height: 12 }, 'tl', 'nwse-resize', 'Drag to make the caption bigger or smaller')}
+                  {handle({ right: -6, top: -6, width: 12, height: 12 }, 'tr', 'nesw-resize', 'Drag to make the caption bigger or smaller')}
+                  {handle({ left: -6, bottom: -6, width: 12, height: 12 }, 'bl', 'nesw-resize', 'Drag to make the caption bigger or smaller')}
+                  {handle({ right: -6, bottom: -6, width: 12, height: 12 }, 'br', 'nwse-resize', 'Drag to make the caption bigger or smaller')}
                 </>
               )}
             </div>
@@ -980,26 +1130,37 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         {autoCap && hasClips && !recording && (() => {
           const sizeNow = captionStyle?.size ?? 60
           const unit = (sizeNow / 1080) * 100
-          const startAutoSize = (e: React.PointerEvent, axis: 'x' | 'y' | 'xy') => {
+          // Only the corners change the size. The opposite edge stays where it is, so dragging a top corner up grows the captions upwards.
+          const startAutoSize = (e: React.PointerEvent, corner: 'tl' | 'tr' | 'bl' | 'br') => {
+            // eslint-disable-next-line react-hooks/refs -- only runs when a corner is pressed
             const box = stageRef.current?.getBoundingClientRect()
-            if (!box || !onAutoCapSize) return
+            const el = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect()
+            if (!box || !el || !onAutoCapSize) return
             e.stopPropagation()
             e.currentTarget.setPointerCapture(e.pointerId)
-            const cx = box.left + autoCap.x * box.width, cy = box.top + autoCap.y * box.height
-            autoSizeRef.current = { size: sizeNow, dist: Math.max(8, axis === 'x' ? Math.abs(e.clientX - cx) : axis === 'y' ? Math.abs(e.clientY - cy) : Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy, axis }
+            const top = corner === 'tl' || corner === 'tr'
+            const ax = corner === 'tl' || corner === 'bl' ? el.right : el.left
+            const ay = top ? el.bottom : el.top
+            autoSizeRef.current = { size: sizeNow, dist: Math.max(8, Math.hypot(e.clientX - ax, e.clientY - ay)), cx: ax, cy: ay, axis: top ? 'y' : 'xy', h: el.height, boxTop: box.top, boxH: box.height }
           }
           const moveAutoSize = (e: React.PointerEvent) => {
             const r = autoSizeRef.current
             if (!r || !onAutoCapSize) return
             if (e.pointerType === 'mouse' && e.buttons === 0) { autoSizeRef.current = null; return }
-            const d = r.axis === 'x' ? Math.abs(e.clientX - r.cx) : r.axis === 'y' ? Math.abs(e.clientY - r.cy) : Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
-            onAutoCapSize(Math.min(200, Math.max(16, Math.round(r.size * (d / r.dist)))))
+            const next = Math.min(200, Math.max(16, Math.round(r.size * (Math.hypot(e.clientX - r.cx, e.clientY - r.cy) / r.dist))))
+            onAutoCapSize(next)
+            if (onAutoCapMove && r.boxH > 0) {
+              const h = r.h * (next / r.size)
+              const centre = r.axis === 'y' ? r.cy - h / 2 : r.cy + h / 2
+              onAutoCapMove(autoCap.x, Math.min(0.95, Math.max(0.05, (centre - r.boxTop) / r.boxH)))
+            }
           }
           const endAutoSize = () => { autoSizeRef.current = null }
-          const edge = (style: React.CSSProperties, cursor: string, label: string, visible: boolean, axis: 'x' | 'y' | 'xy' = 'xy') => onAutoCapSize ? (
-            <span role="slider" aria-label={label} aria-valuenow={sizeNow} onPointerDown={(e) => startAutoSize(e, axis)} onPointerMove={moveAutoSize} onPointerUp={endAutoSize} onPointerCancel={endAutoSize}
-              style={{ position: 'absolute', background: visible ? '#fff' : 'transparent', border: visible ? '1.5px solid #222' : 'none', borderRadius: 3, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
+          const edge = (style: React.CSSProperties, cursor: string, label: string, corner: 'tl' | 'tr' | 'bl' | 'br') => onAutoCapSize ? (
+            <span role="slider" aria-label={label} aria-valuenow={sizeNow} onPointerDown={(e) => startAutoSize(e, corner)} onPointerMove={moveAutoSize} onPointerUp={endAutoSize} onPointerCancel={endAutoSize}
+              style={{ position: 'absolute', background: '#fff', border: '1.5px solid #222', borderRadius: 3, cursor, touchAction: 'none', zIndex: 4, boxSizing: 'border-box', ...style }} />
           ) : null
+          const autoFont = CAPTION_TEXT_FONTS.find((f) => f.name === autoCapFont) ?? CAPTION_TEXT_FONTS.find((f) => f.name === 'Sans Bold')!
           return (
           <div aria-label="Auto captions position"
             onPointerDown={(e) => { if (!onAutoCapMove) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); autoDragRef.current = true; const pf = frac(e); grabRef.current = { dx: autoCap.x - pf.x, dy: autoCap.y - pf.y } }}
@@ -1012,21 +1173,17 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             }}
             onPointerUp={() => { autoDragRef.current = false }}
             onPointerCancel={() => { autoDragRef.current = false }}
-            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '92%', textAlign: 'center', padding: '4px 10px', outline: '1.5px solid rgba(255,255,255,0.95)', background: 'rgba(0,0,0,0.12)' }}>
-            <span style={{ display: 'inline-block', fontFamily: "Arial Black, 'Poppins', sans-serif", fontWeight: captionStyle?.bold === false ? 400 : 900, fontStyle: captionStyle?.italic ? 'italic' : 'normal', textDecoration: captionStyle?.underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle?.color ?? '#fff', WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle?.border ?? '#000'}`, paintOrder: 'stroke fill', background: captionStyle?.background ?? 'transparent', padding: captionStyle?.background ? '0.25em 0.5em' : 0, borderRadius: 4 }}>The words you speak</span>
+            style={{ position: 'absolute', left: `${autoCap.x * 100}%`, top: `${autoCap.y * 100}%`, transform: 'translate(-50%, -50%)', zIndex: 3, cursor: 'grab', touchAction: 'none', userSelect: 'none', maxWidth: '100%', width: 'max-content', boxSizing: 'border-box', textAlign: 'center', padding: '4px 10px', outline: '1.5px solid rgba(255,255,255,0.95)', background: 'rgba(0,0,0,0.12)' }}>
+            <span style={{ display: 'inline-block', fontFamily: autoFont.css, fontWeight: captionStyle?.bold === undefined ? autoFont.weight : captionStyle.bold ? Math.max(700, autoFont.weight) : 400, fontStyle: captionStyle?.italic ? 'italic' : 'normal', textDecoration: captionStyle?.underline ? 'underline' : 'none', lineHeight: 1.15, fontSize: `${unit}cqw`, color: captionStyle?.color ?? '#fff', WebkitTextStroke: `${Math.max(0.25, unit * 0.12)}cqw ${captionStyle?.border ?? '#000'}`, paintOrder: 'stroke fill', background: captionStyle?.background ?? 'transparent', padding: captionStyle?.background ? '0.25em 0.5em' : 0, borderRadius: 4 }}>The words you speak</span>
             {onAutoCapRemove && (
               <button type="button" aria-label="Remove auto captions" title="Turn auto captions off"
                 onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAutoCapRemove() }}
                 style={{ position: 'absolute', right: -2, top: -30, zIndex: 5, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: 0 }}>×</button>
             )}
-            {edge({ left: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the left handle to change the auto caption size', true, 'x')}
-            {edge({ right: -6, top: '50%', width: 10, height: 10, marginTop: -5 }, 'ew-resize', 'Drag the right handle to change the auto caption size', true, 'x')}
-            {edge({ top: -6, left: '50%', width: 10, height: 10, marginLeft: -5 }, 'ns-resize', 'Drag the top handle to change the auto caption size', true, 'y')}
-            {edge({ bottom: -6, left: '50%', width: 10, height: 10, marginLeft: -5 }, 'ns-resize', 'Drag the bottom handle to change the auto caption size', true, 'y')}
-            {edge({ left: -6, top: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
-            {edge({ right: -6, top: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
-            {edge({ left: -6, bottom: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', true)}
-            {edge({ right: -6, bottom: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', true)}
+            {edge({ left: -6, top: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', 'tl')}
+            {edge({ right: -6, top: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', 'tr')}
+            {edge({ left: -6, bottom: -6, width: 11, height: 11 }, 'nesw-resize', 'Drag the corner to change the auto caption size', 'bl')}
+            {edge({ right: -6, bottom: -6, width: 11, height: 11 }, 'nwse-resize', 'Drag the corner to change the auto caption size', 'br')}
           </div>
           )
         })()}
@@ -1035,26 +1192,38 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           const selected = selOverlay === ov.id && !recording
           const vw = Math.max(0.1, 1 - ov.cl - ov.cr)
           const vh = Math.max(0.1, 1 - ov.ct - ov.cb)
-          const corner = (key: string, pos: React.CSSProperties) => (
-            <span key={key} aria-label="Drag to resize"
+          const cropping = ovCrop === ov.id
+          const sizer = (mode: OvHandle, pos: React.CSSProperties, cursor: string) => (
+            <span key={mode} aria-label="Drag to resize" role="slider" aria-valuenow={Math.round(ov.size * 100)}
               onPointerDown={(e) => {
                 if (!onOverlayPatch) return
                 e.stopPropagation()
                 const box = stageRef.current?.getBoundingClientRect()
-                if (!box) return
+                const el = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect()
+                if (!box || !el || box.width <= 0) return
                 e.currentTarget.setPointerCapture(e.pointerId)
-                const cx = box.left + ov.x * box.width, cy = box.top + ov.y * box.height
-                ovResizeRef.current = { id: ov.id, size: ov.size, dist: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy }
+                // The point that stays still: the opposite corner, or the middle of the opposite edge
+                const ax = mode === 'l' || mode === 'tl' || mode === 'bl' ? el.right : mode === 'r' || mode === 'tr' || mode === 'br' ? el.left : el.left + el.width / 2
+                const ay = mode === 't' || mode === 'tl' || mode === 'tr' ? el.bottom : mode === 'b' || mode === 'bl' || mode === 'br' ? el.top : el.top + el.height / 2
+                const dist = mode === 'l' || mode === 'r' ? el.width : mode === 't' || mode === 'b' ? el.height : Math.max(8, Math.hypot(e.clientX - ax, e.clientY - ay))
+                ovResizeRef.current = { id: ov.id, mode, size: ov.size, w: el.width, h: el.height, ax, ay, dist, bx: box.left, by: box.top, bw: box.width, bh: box.height }
               }}
               onPointerMove={(e) => {
                 const r = ovResizeRef.current
                 if (!r || r.id !== ov.id || !onOverlayPatch) return
                 if (mouseUp(e)) { dropAll(); return }
-                const d = Math.hypot(e.clientX - r.cx, e.clientY - r.cy)
-                onOverlayPatch(ov.id, { size: Math.min(1, Math.max(0.05, r.size * (d / r.dist))) })
+                const raw = r.mode === 'l' ? r.ax - e.clientX : r.mode === 'r' ? e.clientX - r.ax : r.mode === 't' ? r.ay - e.clientY : r.mode === 'b' ? e.clientY - r.ay : Math.hypot(e.clientX - r.ax, e.clientY - r.ay)
+                const size = Math.min(1, Math.max(0.05, r.size * (Math.max(1, raw) / r.dist)))
+                const k = size / r.size
+                const w = r.w * k, h = r.h * k
+                // Where the middle of the overlay ends up so the still point does not move
+                const sx = r.mode === 'l' || r.mode === 'tl' || r.mode === 'bl' ? -1 : r.mode === 'r' || r.mode === 'tr' || r.mode === 'br' ? 1 : 0
+                const sy = r.mode === 't' || r.mode === 'tl' || r.mode === 'tr' ? -1 : r.mode === 'b' || r.mode === 'bl' || r.mode === 'br' ? 1 : 0
+                const cx = r.ax + sx * (w / 2), cy = r.ay + sy * (h / 2)
+                onOverlayPatch(ov.id, { size, x: Math.min(1, Math.max(0, (cx - r.bx) / r.bw)), y: Math.min(1, Math.max(0, (cy - r.by) / r.bh)) })
               }}
               onPointerUp={() => { ovResizeRef.current = null }} onPointerCancel={() => { ovResizeRef.current = null }}
-              style={{ position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: '#fff', border: '2px solid var(--coral)', boxSizing: 'border-box', cursor: 'nwse-resize', touchAction: 'none', zIndex: 3, ...pos }} />
+              style={{ position: 'absolute', background: '#fff', border: '2px solid var(--coral)', borderRadius: mode.length === 2 ? '50%' : 4, boxSizing: 'border-box', cursor, touchAction: 'none', zIndex: 3, ...pos }} />
           )
           // Edge handles trim the picture. The part that is left stays where it was, so the edge follows the mouse.
           const cropEdge = (edge: 'l' | 'r' | 't' | 'b', pos: React.CSSProperties, cursor: string) => (
@@ -1102,7 +1271,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                 if (mouseUp(e)) { dropAll(); return }
                 const box = stageRef.current?.getBoundingClientRect()
                 if (!box) return
-                onOverlayPatch(ov.id, { x: Math.min(0.95, Math.max(0.05, (e.clientX - box.left) / box.width + grabRef.current.dx)), y: Math.min(0.95, Math.max(0.05, (e.clientY - box.top) / box.height + grabRef.current.dy)) })
+                onOverlayPatch(ov.id, { x: Math.min(1, Math.max(0, (e.clientX - box.left) / box.width + grabRef.current.dx)), y: Math.min(1, Math.max(0, (e.clientY - box.top) / box.height + grabRef.current.dy)) })
               }}
               onPointerUp={() => { ovDragRef.current = null }}
               onPointerCancel={() => { ovDragRef.current = null }}
@@ -1119,19 +1288,47 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               </div>
               {selected && onOverlayPatch && (
                 <>
-                  {corner('tl', { left: -7, top: -7 })}
-                  {corner('tr', { right: -7, top: -7 })}
-                  {corner('bl', { left: -7, bottom: -7 })}
-                  {corner('br', { right: -7, bottom: -7 })}
-                  {cropEdge('l', { left: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
-                  {cropEdge('r', { right: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
-                  {cropEdge('t', { top: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
-                  {cropEdge('b', { bottom: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                  <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setOvCrop(cropping ? null : ov.id) }}
+                    aria-pressed={cropping} title={cropping ? 'Finish cropping' : 'Crop: drag the edges to trim the picture'}
+                    style={{ position: 'absolute', left: '50%', top: -34, transform: 'translateX(-50%)', zIndex: 4, background: cropping ? 'var(--coral)' : 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>{cropping ? 'Done cropping' : 'Crop'}</button>
+                  {cropping ? (
+                    <>
+                      {cropEdge('l', { left: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                      {cropEdge('r', { right: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                      {cropEdge('t', { top: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                      {cropEdge('b', { bottom: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                    </>
+                  ) : (
+                    <>
+                      {sizer('tl', { left: -7, top: -7, width: 14, height: 14 }, 'nwse-resize')}
+                      {sizer('tr', { right: -7, top: -7, width: 14, height: 14 }, 'nesw-resize')}
+                      {sizer('bl', { left: -7, bottom: -7, width: 14, height: 14 }, 'nesw-resize')}
+                      {sizer('br', { right: -7, bottom: -7, width: 14, height: 14 }, 'nwse-resize')}
+                      {sizer('l', { left: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                      {sizer('r', { right: -6, top: '50%', width: 12, height: 28, marginTop: -14 }, 'ew-resize')}
+                      {sizer('t', { top: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                      {sizer('b', { bottom: -6, left: '50%', width: 28, height: 12, marginLeft: -14 }, 'ns-resize')}
+                    </>
+                  )}
                 </>
               )}
             </div>
           )
         })}
+        {hasClips && badge && (() => {
+          const b = BADGE_SPOT.portrait
+          return (
+            <div aria-label="Made with Reelezy badge" style={{ position: 'absolute', left: `${(b.x - b.size / 2) * 100}%`, top: `${b.y * 100}%`, transform: 'translateY(-50%)', width: `${b.size * 100}%`, aspectRatio: `${BADGE_RATIO}`, zIndex: 3, pointerEvents: 'none' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={BADGE_SRC} alt="Made with Reelezy" draggable={false} style={{ width: '100%', display: 'block' }} />
+              {onBadge && !recording && (
+                <button type="button" aria-label="Remove the Made with Reelezy badge" title="Remove the badge from this video"
+                  onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onBadge(false) }}
+                  style={{ position: 'absolute', top: -9, right: -9, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.75)', color: '#fff', fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0, pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon n="close" /></button>
+              )}
+            </div>
+          )
+        })()}
         {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
           // A teleprompter: every line shows in full, the text glides up at reading pace and the line being read sits on a fixed reading line.
           // When you are not recording you can scroll the script yourself.
@@ -1197,6 +1394,9 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
+        {onBadge && hasClips && !badge && !recording && (
+          <button type="button" onClick={() => onBadge(true)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--coral)', textDecoration: 'underline', cursor: 'pointer' }}>Add Made with Reelezy badge</button>
+        )}
         {!recording ? (
           <button type="button" onClick={startRecording} disabled={!hasClips || countdown !== null}
             style={{ ...choiceBtn(false, !hasClips || countdown !== null), display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 20px', margin: 2 }}>
@@ -1389,8 +1589,11 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, clipMenu, onPickLibrary, below }: {
+function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
   below?: React.ReactNode
+  badge?: boolean
+  onBadge?: (on: boolean) => void
+  autoCapFont?: string
   segments: VoiceoverSegment[]
   takes: VoiceTake[]
   originalVol: number
@@ -1441,7 +1644,7 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -1479,30 +1682,32 @@ const choiceBtn = (active = false, disabled = false) => ({
   opacity: disabled ? 0.6 : 1,
 }) as const
 
-function MusicPicker({ libraryName, musicFile, extractedPath, uploadStatus, onOpenLibrary, onPickFile, onClear, onRetry }: {
+function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extractError, uploadStatus, onOpenLibrary, onOpenPicker, onClear, onRetry }: {
   libraryName: string | null
   musicFile: File | null
   extractedPath: string | null
+  extracting: boolean
+  extractError: string
   uploadStatus: ClipUploadState | undefined
   onOpenLibrary: () => void
-  onPickFile: (f: File | null) => void
+  onOpenPicker: () => void
   onClear: () => void
   onRetry: () => void
 }) {
-  const fileRef = useRef<HTMLInputElement | null>(null)
-  const chosen = libraryName ? `${libraryName} (from the library)` : musicFile ? musicFile.name : extractedPath ? 'Sound taken from your video' : null
+  const chosen = libraryName ? `${libraryName} (from the music library)` : musicFile ? musicFile.name : extractedPath ? 'Sound taken from your video' : null
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Music</p>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional.</span>
       </div>
-      <input ref={fileRef} type="file" accept="audio/*" onChange={(e) => { onPickFile(e.target.files?.[0] || null); e.target.value = '' }} style={{ display: 'none' }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Browse the library</button>
-        <button type="button" onClick={() => fileRef.current?.click()} style={choiceBtn(!!musicFile && !libraryName)}>Upload a song</button>
+        <button type="button" onClick={onOpenPicker} disabled={extracting} style={choiceBtn(!!(musicFile || extractedPath) && !libraryName, extracting)}>Pick from the library</button>
+        <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Browse the music library</button>
       </div>
-      {chosen ? (
+      {extracting ? (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '10px 0 0', display: 'flex', alignItems: 'center' }}><span className="rly-spinner rly-spinner-coral" />Getting the sound from your video...</p>
+      ) : chosen ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>Using: {chosen}</span>
           {musicFile && !libraryName && <ClipUploadBadge status={uploadStatus} onRetry={onRetry} />}
@@ -1510,33 +1715,35 @@ function MusicPicker({ libraryName, musicFile, extractedPath, uploadStatus, onOp
         </div>
       ) : (
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Skip this to keep your clips&apos; own sound.
+          Pick from the library has your saved sounds, a file from your device, or the sound from a video. Skip this to keep your clips&apos; own sound.
         </p>
       )}
+      {extractError && <p role="alert" style={{ fontSize: 11, color: 'var(--coral)', margin: '8px 0 0' }}>{extractError}</p>}
     </div>
   )
 }
 
-// Its own card under Audio: take the sound from another video and use it as the music
-function ExtractAudioCard({ extracting, extractedPath, error, onExtract, onClear }: { extracting: boolean; extractedPath: string | null; error: string; onExtract: (f: File) => void; onClear: () => void }) {
-  const videoRef = useRef<HTMLInputElement | null>(null)
+// The tabs over the editor when several filmed videos are open, one per video
+function EditorTabsBar({ tabs, active, note, onSwitch, onClose }: { tabs: { key: string; title: string; status: string }[]; active: number; note: string; onSwitch: (i: number) => void; onClose: () => void }) {
   return (
-    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Extract audio</p>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Use the sound from another video as your music.</span>
+    <div style={{ marginBottom: 20 }}>
+      <div role="tablist" aria-label="Your filmed videos" style={{ display: 'flex', alignItems: 'stretch', gap: 2, borderBottom: '1px solid var(--line)', overflowX: 'auto', scrollbarWidth: 'thin' }}>
+        {tabs.map((t, i) => {
+          const on = i === active
+          return (
+            <button key={t.key} type="button" role="tab" aria-selected={on} onClick={() => onSwitch(i)} title={t.title}
+              style={{ background: on ? 'var(--sand)' : 'none', border: 'none', borderBottom: on ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 18px', fontSize: 13, fontWeight: on ? 700 : 500, color: on ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap', maxWidth: 260, display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Video {i + 1}: {t.title}</span>
+              {t.status && <span style={{ fontSize: 11, fontWeight: 700, color: t.status === 'Ready' ? '#1a7f37' : t.status === 'Failed' ? '#d92d20' : 'var(--coral)' }}>{t.status}</span>}
+            </button>
+          )
+        })}
       </div>
-      <input ref={videoRef} type="file" accept="video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onExtract(f); e.target.value = '' }} style={{ display: 'none' }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => videoRef.current?.click()} disabled={extracting} style={choiceBtn(!!extractedPath, extracting)}>{extracting ? 'Getting the sound...' : extractedPath ? 'Choose a different video' : 'Choose a video'}</button>
-        {extractedPath && !extracting && (
-          <>
-            <span style={{ fontSize: 13, color: 'var(--ink)' }}>Using the sound from your video</span>
-            <button type="button" onClick={onClear} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Remove</button>
-          </>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, flex: 1, minWidth: 200 }}>Each video has its own clips, audio, captions and overlays. Render renders only the video you are looking at.</p>
+        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>Close the other videos</button>
       </div>
-      {error && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '8px 0 0' }}>{error}</p>}
+      {note && <p role="alert" style={{ fontSize: 12, color: 'var(--coral)', margin: '6px 0 0' }}>{note}</p>}
     </div>
   )
 }
@@ -1548,6 +1755,10 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [libraryPicker, setLibraryPicker] = useState<null | 'any' | 'ai' | 'film' | 'slot' | 'step'>(null)
+  // The Audio section's Pick from the library pop-up (saved sounds, a file, or the sound from a video)
+  const [musicPicker, setMusicPicker] = useState(false)
+  // The "Made with Reelezy" badge in the corner of the video. On unless the person removes it in the preview.
+  const [madeWithBadge, setMadeWithBadge] = useState(true)
   // Which clip spot the library picker is filling (an upload slot id, or an AI step number)
   const [libraryTarget, setLibraryTarget] = useState<number>(0)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
@@ -1803,8 +2014,14 @@ export default function DashboardPage() {
   const [audioPicker, setAudioPicker] = useState(false)
   const [scriptSpeed, setScriptSpeed] = useState(1)
   const [selCap, setSelCap] = useState<string | null>(null)
+  // Several filmed videos open in the editor at once: one tab each. The tab being looked at lives in the normal editor state,
+  // the others wait in their snapshots.
+  const [editorTabs, setEditorTabs] = useState<{ key: string; title: string; snap: EditorSnap | null }[]>([])
+  const [editorTab, setEditorTab] = useState(0)
+  const [editorTabNote, setEditorTabNote] = useState('')
   const [capDraft, setCapDraft] = useState('')
-  const [openCapStyle, setOpenCapStyle] = useState<string | null>(null)
+  // One look for every caption the person types: picking a style or changing the font, size or colours changes all of them
+  const [ownLook, setOwnLook] = useState<{ font: string; size: number; color: string; bg: string | null; bold?: boolean; italic: boolean; underline: boolean }>({ font: 'Sans Bold', size: 60, color: '#FFFFFF', bg: null, italic: false, underline: false })
   const playheadRef = useRef({ t: 0, total: 0 })
   const handlePlayhead = useCallback((t: number, total: number) => { playheadRef.current = { t, total } }, [])
   // Original sound stays full volume on its own and drops under a voiceover until the user picks a level
@@ -2757,11 +2974,6 @@ export default function DashboardPage() {
     if (!filmStreamRef.current || filmClipCount === 0) return
     if (!streamIsLive(filmStreamRef.current)) { setFilmRecordError('The camera stopped. It is restarting, press record again in a moment.'); filmStreamRef.current = null; setFilmCameraActive(false); startFilmCamera(); return }
     setFilmRecordError('')
-    for (let n = cam.timer; n > 0; n--) {
-      setFilmCountdown(n)
-      await new Promise(r => setTimeout(r, 1000))
-    }
-    setFilmCountdown(null)
     try {
       const mimeType = pickRecorderMime(filmBadMimeRef.current)
       // Record exactly 9:16 (portrait) or 16:9 (landscape). If the camera gives a different shape
@@ -2826,7 +3038,15 @@ export default function DashboardPage() {
         setFilmPending({ blob, ext, type: baseType, url: pendingUrl })
       }
       recorder.onerror = () => { setFilmRecordError('Recording stopped unexpectedly. Please try again.'); setFilmIsRecording(false) }
-      beginRecorder(recorder, mimeType)
+      // The encoder warms up during the countdown, so the camera does not freeze when recording starts
+      const warm = cam.timer > 0 && beginRecorderPaused(recorder, mimeType)
+      for (let n = cam.timer; n > 0; n--) {
+        setFilmCountdown(n)
+        await new Promise(r => setTimeout(r, 1000))
+      }
+      setFilmCountdown(null)
+      if (warm) resumeRecorder(recorder)
+      else beginRecorder(recorder, mimeType)
       filmMediaRecorderRef.current = recorder
       setFilmIsRecording(true)
     } catch (err) {
@@ -2951,22 +3171,23 @@ export default function DashboardPage() {
             libraryName={libraryMusicName}
             musicFile={musicFile}
             extractedPath={extractedMusicPath}
+            extracting={extractingAudio}
+            extractError={extractAudioError}
             uploadStatus={clipUploadStatus['m']}
             onOpenLibrary={() => setShowMusicLibrary(musicTarget)}
-            onPickFile={pickMusicFile}
+            onOpenPicker={() => setMusicPicker(true)}
             onClear={clearMusic}
             onRetry={() => { if (musicFile) startAssetUpload('m', musicFile, musicFile.name) }}
           />
         }
       />
-      <ExtractAudioCard extracting={extractingAudio} extractedPath={extractedMusicPath} error={extractAudioError} onExtract={handleExtractAudio} onClear={clearMusic} />
     </CollapsibleBox>
   )
 
-  // The voiceover settings sit under the preview and its timeline
+  // The voiceover settings have their own box under Audio. Recording itself starts from the button under the preview.
   const renderVoiceoverSection = (scriptLabel?: string, noScriptFor?: string) => (
-    <div style={{ marginTop: 16 }}>
-      <CollapsibleBox title="Voiceover" defaultOpen summary={voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : 'Record or upload a voiceover'}>
+    <div>
+      <CollapsibleBox title="Voiceover" summary={voiceTakes.length > 0 ? `${voiceTakes.length} voiceover${voiceTakes.length === 1 ? '' : 's'}` : 'Record or upload a voiceover'}>
         <AudioPanel
         section="voiceover"
         takes={voiceTakes}
@@ -3031,43 +3252,94 @@ export default function DashboardPage() {
                               </button>
                             ))}
                           </div>
+                          <div style={{ marginTop: 14 }}>{renderCaptionStyle()}</div>
           </>
         )}
       </div>
     )
   }
 
-  // Caption style: one place for how every caption looks, whether typed or from the voice
-  const renderCaptionStyle = () => (
-    <div>
-      <div style={{ background: '#111', borderRadius: 4, height: 84, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
-                            <p style={{ fontFamily: 'Arial Black, sans-serif', fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: (captionBold ?? fontIsBold(captionFontFamily)) ? 900 : 400, fontStyle: captionItalic ? 'italic' : 'normal', textDecoration: captionUnderline ? 'underline' : 'none', color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>Your caption</p>
-                          </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4, marginTop: 8 }}>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Font</label><Dropdown ariaLabel="Caption font" value={captionFontFamily} onChange={setCaptionFontFamily} options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ""); setCaptionFontSize(v || "") }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Colour</label><ColorSelect ariaLabel="Caption text colour" value={captionColor} onChange={(v) => setCaptionColor(v ?? '#FFFFFF')} /></div>
-                              <div><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Text</label>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                  {([['B', 'Bold', captionBold ?? fontIsBold(captionFontFamily), () => setCaptionBold(!(captionBold ?? fontIsBold(captionFontFamily))), { fontWeight: 800 }],
-                                    ['I', 'Italic', captionItalic, () => setCaptionItalic(!captionItalic), { fontStyle: 'italic' }],
-                                    ['U', 'Underline', captionUnderline, () => setCaptionUnderline(!captionUnderline), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
-                                    <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
-                                  ))}
-                                </div></div>
-                              <div style={{ gridColumn: 'span 2' }}><label style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' }}>Background</label>
-                                <ColorSelect ariaLabel="Caption background colour" allowNone value={captionBg} onChange={setCaptionBg} /></div>
-                            </div>
-    </div>
-  )
+  // How the auto captions look: font, size, colours. It sits inside the Auto captions box.
+  const renderCaptionStyle = () => {
+    const font = CAPTION_TEXT_FONTS.find((f) => f.name === toCaptionFont(captionFontFamily))!
+    const lab = { fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' } as const
+    const bold = captionBold ?? fontIsBold(font.name)
+    return (
+      <div>
+        <div style={{ background: '#111', borderRadius: 4, height: 84, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', position: 'relative' }}>
+          <p style={{ fontFamily: font.css, fontSize: Math.min(Number(captionFontSize) * 0.44, 28), fontWeight: bold ? Math.max(700, font.weight) : 400, fontStyle: captionItalic ? 'italic' : 'normal', textDecoration: captionUnderline ? 'underline' : 'none', color: captionColor, WebkitTextStroke: `2px ${captionBorderColor}`, paintOrder: 'stroke fill', letterSpacing: 1, textAlign: 'center', margin: 0, background: captionBg ?? 'transparent', padding: captionBg ? '4px 12px' : 0, borderRadius: 4 }}>The words you speak</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4 }}>
+          <div><label style={lab}>Font</label><Dropdown ariaLabel="Auto caption font" value={font.name} onChange={setCaptionFontFamily} options={FONT_MENU} /></div>
+          <div><label style={lab}>Size</label><input type="text" inputMode="numeric" value={captionFontSize} onFocus={(e) => e.target.select()} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setCaptionFontSize(v || '') }} onBlur={(e) => { const v = Number(e.target.value); setCaptionFontSize(v >= 10 ? v : 36) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
+          <div><label style={lab}>Colour</label><ColorSelect ariaLabel="Auto caption text colour" value={captionColor} onChange={(v) => setCaptionColor(v ?? '#FFFFFF')} /></div>
+          <div><label style={lab}>Text</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {([['B', 'Bold', bold, () => setCaptionBold(!bold), { fontWeight: 800 }],
+                ['I', 'Italic', captionItalic, () => setCaptionItalic(!captionItalic), { fontStyle: 'italic' }],
+                ['U', 'Underline', captionUnderline, () => setCaptionUnderline(!captionUnderline), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
+                <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
+              ))}
+            </div></div>
+          <div style={{ gridColumn: 'span 2' }}><label style={lab}>Background</label>
+            <ColorSelect ariaLabel="Auto caption background colour" allowNone value={captionBg} onChange={setCaptionBg} /></div>
+        </div>
+      </div>
+    )
+  }
+
+  // The one style editor for the captions the person types. Every typed caption shares it.
+  const renderOwnCaptionStyle = (caps: CustomCaption[], setCaps: (c: CustomCaption[]) => void) => {
+    const lab = { fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' } as const
+    const set = (patch: Partial<typeof ownLook>) => {
+      const next = { ...ownLook, ...patch }
+      setOwnLook(next)
+      setCaps(caps.map((c) => ({ ...c, font: next.font, size: 'size' in patch ? next.size : c.size ?? next.size, color: next.color, bg: next.bg, bold: next.bold, italic: next.italic, underline: next.underline })))
+    }
+    const font = CAPTION_TEXT_FONTS.find((f) => f.name === ownLook.font) ?? CAPTION_TEXT_FONTS[0]
+    const bold = ownLook.bold ?? fontIsBold(font.name)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+        <div>
+          <label style={lab}>Style</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {CAPTION_LOOKS.map((lk) => {
+              const f = CAPTION_TEXT_FONTS.find((x) => x.name === lk.font)
+              const on = ownLook.font === lk.font && ownLook.color === lk.color && ownLook.bg === lk.bg
+              return (
+                <button key={lk.name} type="button" aria-pressed={on} title={`${lk.name}: ${f?.label ?? lk.font}, ${lk.bg ? 'on a coloured box' : 'no box'}`} onClick={() => set({ font: lk.font, color: lk.color, bg: lk.bg, bold: undefined, italic: false, underline: false })}
+                  style={{ minWidth: 78, padding: '6px 8px', borderRadius: 4, border: on ? '2px solid var(--coral)' : '1px solid var(--line)', background: '#2a2a2f', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontFamily: f?.css, fontWeight: f?.weight, fontSize: 15, color: lk.color, background: lk.bg ?? 'transparent', padding: lk.bg ? '1px 6px' : 0, borderRadius: 2, textShadow: lk.bg ? 'none' : '0 0 2px #000, 0 0 2px #000' }}>Aa</span>
+                  <span style={{ fontSize: 10, color: '#ddd' }}>{lk.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 14, borderRadius: 4 }}>
+          <div><label style={lab}>Font</label><Dropdown ariaLabel="Caption font" value={font.name} onChange={(v) => set({ font: v })} options={FONT_MENU} /></div>
+          <div><label style={lab}>Size</label>
+            <input type="number" min={16} max={200} value={ownLook.size} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') set({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
+          <div><label style={lab}>Colour</label><ColorSelect ariaLabel="Caption text colour" value={ownLook.color} onChange={(v) => set({ color: v ?? '#FFFFFF' })} /></div>
+          <div><label style={lab}>Text</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {([['B', 'Bold', bold, () => set({ bold: !bold }), { fontWeight: 800 }],
+                ['I', 'Italic', ownLook.italic, () => set({ italic: !ownLook.italic }), { fontStyle: 'italic' }],
+                ['U', 'Underline', ownLook.underline, () => set({ underline: !ownLook.underline }), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
+                <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
+              ))}
+            </div></div>
+          <div style={{ gridColumn: 'span 2' }}><label style={lab}>Background</label>
+            <ColorSelect ariaLabel="Caption background colour" allowNone value={ownLook.bg} onChange={(v) => set({ bg: v })} /></div>
+        </div>
+      </div>
+    )
+  }
 
   const renderOwnCaptions = (m: 'upload' | 'ai') => {
     const caps = m === 'upload' ? uploadCaps : aiCaps
     const setCaps = m === 'upload' ? setUploadCaps : setAiCaps
     const canAdd = m === 'upload' ? uploadSlots.some((id) => !!uploadSlotFiles[id]) : Object.keys(stepUploads).length > 0
-    // Captions are linked while they all share one look. Editing one caption's look unlinks just that caption.
-    const sig = (x: CustomCaption) => JSON.stringify([x.font ?? null, x.size ?? null, x.color ?? null, x.bg === undefined ? 'u' : x.bg, x.bold ?? null, x.italic ?? null, x.underline ?? null])
-    const allLinked = caps.every((x) => sig(x) === sig(caps[0]))
     const add = () => {
       const { t, total } = playheadRef.current
       const text = capDraft.trim()
@@ -3076,9 +3348,7 @@ export default function DashboardPage() {
       const end = Math.min(total, start + 3)
       const stacked = caps.filter((c) => c.start < end && c.end > start).length
       const id = `cap-${uploadStamp()}-${Math.random().toString(36).slice(2, 6)}`
-      // A new caption joins the linked look, so it matches the others straight away
-      const look = caps.length > 0 && allLinked ? { font: caps[0].font, size: caps[0].size, color: caps[0].color, bg: caps[0].bg, bold: caps[0].bold, italic: caps[0].italic, underline: caps[0].underline } : {}
-      setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12), ...look }])
+      setCaps([...caps, { id, text: text.slice(0, 140), start, end, x: 0.5, y: Math.max(0.2, 0.72 - stacked * 0.12), font: ownLook.font, size: ownLook.size, color: ownLook.color, bg: ownLook.bg, bold: ownLook.bold, italic: ownLook.italic, underline: ownLook.underline }])
       setSelCap(id)
       setCapDraft('')
     }
@@ -3093,99 +3363,38 @@ export default function DashboardPage() {
           <button type="button" onClick={add} disabled={!canAdd || !capDraft.trim()} style={{ ...choiceBtn(false, !canAdd || !capDraft.trim()), flexShrink: 0 }}>Add caption</button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Shows for 3 seconds at the playhead. Drag it on the preview to place it. Select it, then drag the side handles to change its width and the corner handles to change its text size.
+          Shows for 3 seconds at the playhead. Drag it on the preview to place it. Select it, then drag a side handle to move that side of the box, or a corner to make the caption bigger or smaller.
         </p>
         {caps.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-            {caps.map((c) => {
-              const patch = (p: Partial<CustomCaption>) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, ...p } : x)))
-              const open = openCapStyle === c.id
-              const customised = c.font !== undefined || c.size !== undefined || c.color !== undefined || c.bg !== undefined || c.bold !== undefined || c.italic !== undefined || c.underline !== undefined || c.w !== undefined
-              const lab = { fontSize: 11, fontWeight: 600, marginBottom: 4, display: 'block', color: 'var(--text-muted)' } as const
-              return (
-              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {caps.map((c) => (
+              <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input type="text" value={c.text} maxLength={140} aria-label="Edit caption" onFocus={() => setSelCap(c.id)}
                   onChange={(e) => setCaps(caps.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))}
                   style={{ flex: 1, minWidth: 0, height: 40, boxSizing: 'border-box', padding: '0 12px', borderRadius: 4, border: `1px solid ${sel?.id === c.id ? 'var(--coral)' : 'rgba(128,128,128,0.3)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13 }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{c.start.toFixed(1)}s to {c.end.toFixed(1)}s</span>
-                <button type="button" onClick={() => setOpenCapStyle(open ? null : c.id)} aria-expanded={open} aria-label="Text settings for this caption" title="Text settings" style={{ ...choiceBtn(open || customised), flexShrink: 0, height: 40, width: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="13" cy="8" r="1.5" /></svg>
-                </button>
                 <button type="button" onClick={() => { setCaps(caps.filter((x) => x.id !== c.id)); if (selCap === c.id) setSelCap(null) }} style={{ ...choiceBtn(), flexShrink: 0, height: 40, padding: '0 14px' }}>Delete</button>
               </div>
-              {open && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'end', background: 'var(--card-bg)', padding: 12, borderRadius: 4, border: '1px solid var(--line)' }}>
-                  <div style={{ gridColumn: '1 / -1' }}><label style={lab}>Style</label>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {CAPTION_LOOKS.map((lk) => {
-                        const f = CAPTION_TEXT_FONTS.find((x) => x.name === lk.font)
-                        return (
-                          <button key={lk.name} type="button" title={`${lk.name}: ${lk.font}, ${lk.bg ? 'on a coloured box' : 'no box'}`} onClick={() => patch({ font: lk.font, color: lk.color, bg: lk.bg, bold: undefined, italic: undefined, underline: undefined })}
-                            style={{ minWidth: 78, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: '#2a2a2f', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                            <span style={{ fontFamily: f?.css, fontWeight: f?.weight, fontSize: 15, color: lk.color, background: lk.bg ?? 'transparent', padding: lk.bg ? '1px 6px' : 0, borderRadius: 2, textShadow: lk.bg ? 'none' : '0 0 2px #000, 0 0 2px #000' }}>Aa</span>
-                            <span style={{ fontSize: 10, color: '#ddd' }}>{lk.name}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                  <div><label style={lab}>Text</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {([['B', 'Bold', c.bold ?? captionBold ?? fontIsBold(c.font ?? captionFontFamily), () => patch({ bold: !(c.bold ?? captionBold ?? fontIsBold(c.font ?? captionFontFamily)) }), { fontWeight: 800 }],
-                        ['I', 'Italic', c.italic ?? captionItalic, () => patch({ italic: !(c.italic ?? captionItalic) }), { fontStyle: 'italic' }],
-                        ['U', 'Underline', c.underline ?? captionUnderline, () => patch({ underline: !(c.underline ?? captionUnderline) }), { textDecoration: 'underline' }]] as const).map(([ch, name, on, toggle, st]) => (
-                        <button key={name} type="button" aria-pressed={on} aria-label={name} title={name} onClick={toggle} style={{ ...choiceBtn(on), width: 40, height: 40, padding: 0, fontSize: 15, ...st }}>{ch}</button>
-                      ))}
-                    </div></div>
-                  <div><label style={lab}>Box width</label>
-                    <input type="range" min={20} max={96} value={Math.round((c.w ?? 0.88) * 100)} aria-label="Caption box width" onChange={(e) => patch({ w: Number(e.target.value) / 100 })} style={{ width: '100%', accentColor: 'var(--coral)', height: 40 }} /></div>
-                  <div><label style={lab}>Font</label>
-                    <Dropdown ariaLabel="Caption font" value={c.font && c.font !== 'Sans Bold' ? c.font : ''} onChange={(v) => patch({ font: v || undefined })} options={[{ value: '', label: 'Sans Bold (default)' }, ...CAPTION_TEXT_FONTS.filter((f) => f.name !== 'Sans Bold').map((f) => ({ value: f.name, label: f.name }))]} /></div>
-                  <div><label style={lab}>Size</label>
-                    <input type="number" min={16} max={200} value={c.size ?? (Number(captionFontSize) || 60)} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== '') patch({ size: Math.min(200, Math.max(16, n)) }) }} style={{ ...inputStyle, marginBottom: 0, fontSize: 13, height: 40 }} /></div>
-                  <div><label style={lab}>Colour</label>
-                    <ColorSelect ariaLabel="Caption text colour" value={c.color ?? captionColor} onChange={(v) => patch({ color: v ?? undefined })} /></div>
-                  <div style={{ gridColumn: 'span 2' }}><label style={lab}>Background</label>
-                    <ColorSelect ariaLabel="Caption background colour" allowNone value={c.bg !== undefined ? c.bg : captionBg} onChange={(v) => patch({ bg: v })} /></div>
-                  <div><label style={lab}>Link</label>
-                    <button type="button" aria-pressed={allLinked} disabled={allLinked}
-                      aria-label={allLinked ? 'All captions share one look' : 'Make every caption match this one'}
-                      title={allLinked ? 'Linked: all your captions share this look.' : 'Press to make every caption match this one. Until you do, each caption keeps its own look.'}
-                      onClick={() => setCaps(caps.map((x) => ({ ...x, font: c.font, size: c.size, color: c.color, bg: c.bg, bold: c.bold, italic: c.italic, underline: c.underline })))}
-                      style={{ ...choiceBtn(allLinked), width: '100%', height: 40, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: allLinked ? 'default' : 'pointer', opacity: 1 }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M9 17H7a5 5 0 0 1 0-10h2" /><path d="M15 7h2a5 5 0 0 1 0 10h-2" />{allLinked && <path d="M8 12h8" />}
-                      </svg>
-                      <span style={{ fontSize: 12 }}>{allLinked ? 'Linked' : 'Link'}</span>
-                    </button></div>
-                </div>
-              )}
-              </div>
-              )
-            })}
+            ))}
           </div>
         )}
+        {renderOwnCaptionStyle(caps, setCaps)}
         {caps.length > 0 && captionTimingNote && <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>{captionTimingNote}</p>}
       </div>
     )
   }
 
-  // The Captions card: auto captions, then the look, then typed captions
+  // The Captions card: auto captions (with their own look), then typed captions (with theirs)
   const renderCaptionsCard = (m: 'upload' | 'ai') => (
     <CollapsibleBox title="Captions" summary={[(m === 'ai' ? aiAddCaptions : uploadAddCaptions) ? `Auto: ${CAPTION_PRESETS.find((p) => p.id === (m === 'ai' ? aiCaptionPreset : captionPreset))?.label ?? 'on'}` : 'Auto captions off', (m === 'ai' ? aiCaps : uploadCaps).length > 0 ? `${(m === 'ai' ? aiCaps : uploadCaps).length} of your own` : ''].filter(Boolean).join(' · ')}>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Add words from your voice, type your own, or both. They all use the same look.</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Add words from your voice, type your own, or both.</p>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         {subHead('1. Auto captions', 'Words from your voice, added for you.')}
         {renderAutoCaptions(m)}
       </div>
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. Press the three dots on a caption to change its own font, bold, italic, underline, size and colours. Select a caption on the preview to drag its edges and corners and resize it.')}
+        {subHead('2. Your own captions', 'Type a caption, then drag its bar on the preview timeline to time it. The style below applies to all of your own captions.')}
         {renderOwnCaptions(m)}
-      </div>
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 18 }}>
-        {subHead('3. Caption look', 'Font, size, colours and where they sit. Applies to both kinds.')}
-        {renderCaptionStyle()}
       </div>
     </CollapsibleBox>
   )
@@ -3196,7 +3405,7 @@ export default function DashboardPage() {
     return (
       <CollapsibleBox title="Overlay" summary={overlays.length === 0 ? 'None' : overlays.length === 1 ? (overlays[0].isLogo ? 'Logo' : overlays[0].file.name) : `${overlays.length} on the video`}>
         <div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay pictures or clips over your video, like a logo or a product shot. Add as many as you like (up to {MAX_OVERLAYS}). Drag one on the preview to place it, drag its corners to resize it, and set when it shows on the timeline.</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Lay pictures or clips over your video, like a logo or a product shot. Add as many as you like (up to {MAX_OVERLAYS}). Drag one on the preview to place it, drag its corners or edges to resize it, and set when it shows on the timeline.</p>
         </div>
         <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
         <label title={bizLogoUrl ? 'Puts the logo from your Settings on the video. Drag it on the preview to move it.' : 'Upload your logo in Settings first'} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: bizLogoUrl ? 'var(--ink)' : 'var(--text-muted)', cursor: bizLogoUrl ? 'pointer' : 'not-allowed' }}>
@@ -3228,7 +3437,7 @@ export default function DashboardPage() {
         {sel && (
           <>
             <div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>On the preview: drag the overlay to move it, drag a corner to resize it, and drag the middle of an edge to crop it.</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>On the preview: drag the overlay to move it, drag any corner or edge to resize it. Press Crop above it to trim its edges instead.</p>
               {(sel.cl > 0 || sel.cr > 0 || sel.ct > 0 || sel.cb > 0) && (
                 <button type="button" onClick={() => patchOverlay(sel.id, { cl: 0, cr: 0, ct: 0, cb: 0 })} style={{ background: 'none', border: 'none', padding: 0, marginTop: 8, fontSize: 12, color: 'var(--coral)', cursor: 'pointer', textDecoration: 'underline' }}>Reset crop</button>
               )}
@@ -3347,22 +3556,6 @@ export default function DashboardPage() {
     </CollapsibleBox>
   )
 
-  // Used by the review screen after filming
-  const renderPreferencesFields = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <div>
-        {subHead('Auto captions', 'Words from your voice, added for you.')}
-        {renderAutoCaptions('upload')}
-      </div>
-      <div>
-        {subHead('Caption look', 'Font, size, colours and where they sit.')}
-        {renderCaptionStyle()}
-      </div>
-      {renderVideoSettingsBody('upload')}
-    </div>
-  )
-
-
   const getVideoSize = (file: File) => new Promise<{ w: number; h: number } | null>((resolve) => {
     const v = document.createElement('video')
     const url = URL.createObjectURL(file)
@@ -3463,6 +3656,7 @@ export default function DashboardPage() {
       setFilmLineIdx(0)
       setFilmReview(false)
       setFilmRecorderOpen(false)
+      closeEditorTabs()
       if (renderNow) setFilmAutoRender(true)
       setTab('uploads')
     } catch (err) {
@@ -4012,6 +4206,27 @@ export default function DashboardPage() {
     } else forgetAsset('m')
   }
 
+  // A song picked from the device is used as the music and kept in the audio library for next time
+  const pickMusicFileAndSave = (file: File) => {
+    pickMusicFile(file)
+    if (!userId) return
+    const paid = realSubStatus === 'active' || realSubStatus === 'trialing'
+    const plan = realSubPlan && paid ? userPlan : 'free'
+    void saveAudioToLibrary(userId, file, plan).then((r) => { if (r.clip && !r.existed) announceAudioLibraryChanged() })
+  }
+
+  // A sound from the audio library is already in storage, so use it where it is as the music
+  const applySavedSoundAsMusic = (file: File, path: string) => {
+    setLibraryMusicUrl(null)
+    setLibraryMusicName(null)
+    setExtractedMusicPath(null)
+    setExtractAudioError('')
+    setMusicFile(file)
+    clipUploadPromises.set('m', Promise.resolve(path))
+    setAssetPaths((prev) => ({ ...prev, m: path }))
+    setClipUploadStatus((prev) => ({ ...prev, m: 'done' }))
+  }
+
   const clearMusic = () => {
     setLibraryMusicUrl(null)
     setLibraryMusicName(null)
@@ -4233,6 +4448,7 @@ export default function DashboardPage() {
           customCaptionStyle,
           overlays: overlayPayload,
           appearance: appearancePayload,
+          madeWithBadge,
           
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
@@ -4257,6 +4473,87 @@ export default function DashboardPage() {
       setAiUploading(false)
     }
   }
+  // ---- Editor tabs for several filmed videos
+  const captureEditor = (): EditorSnap => ({
+    slots: uploadSlots, files: uploadSlotFiles, paths: uploadSlotPaths, trims: uploadTrims, speeds: uploadSpeeds, vols: uploadVols,
+    looks: uploadLooks, texts: uploadSlotTexts, ownTexts: uploadOwnTexts, speech: uploadSpeechSlots, landscape: uploadLandscapeSlots,
+    caps: uploadCaps, overlays, takes: voiceTakes, assets: assetPaths,
+    musicFile, libMusicUrl: libraryMusicUrl, libMusicName: libraryMusicName, extracted: extractedMusicPath,
+    badge: madeWithBadge, autoCaptions: uploadAddCaptions, preset: captionPreset, script: voiceScript,
+    renderId, renderStatus, renderProgress, outputUrl, overQuota: renderOverQuota, renderError, uploadError,
+    ctx: filmRenderContextRef.current, orientation: filmOutputOrientationRef.current,
+  })
+  const applyEditor = (sn: EditorSnap) => {
+    setUploadSlots(sn.slots); setUploadSlotFiles(sn.files); setUploadSlotPaths(sn.paths); setUploadTrims(sn.trims); setUploadSpeeds(sn.speeds); setUploadVols(sn.vols)
+    setUploadLooks(sn.looks); setUploadSlotTexts(sn.texts); setUploadOwnTexts(sn.ownTexts); setUploadSpeechSlots(sn.speech); setUploadLandscapeSlots(sn.landscape)
+    setUploadCaps(sn.caps); setOverlays(sn.overlays); setVoiceTakes(sn.takes); setAssetPaths(sn.assets)
+    setMusicFile(sn.musicFile); setLibraryMusicUrl(sn.libMusicUrl); setLibraryMusicName(sn.libMusicName); setExtractedMusicPath(sn.extracted); setExtractAudioError('')
+    setMadeWithBadge(sn.badge); setUploadAddCaptions(sn.autoCaptions); setCaptionPreset(sn.preset); setVoiceScript(sn.script)
+    setRenderId(sn.renderId); setRenderStatus(sn.renderStatus); setRenderProgress(sn.renderProgress); setOutputUrl(sn.outputUrl); setRenderOverQuota(sn.overQuota); setRenderError(sn.renderError); setUploadError(sn.uploadError)
+    setSelOverlay(null); setSelCap(null); setCapDraft('')
+    filmRenderContextRef.current = sn.ctx
+    filmOutputOrientationRef.current = sn.orientation
+    // Everything in a waiting tab is already in storage, so point the upload bookkeeping at it
+    const mine = (k: string) => /^u\d/.test(k) || k === 'm' || k.startsWith('v:')
+    Array.from(clipUploadPromises.keys()).filter(mine).forEach((k) => clipUploadPromises.delete(k))
+    const st: Record<string, ClipUploadState> = {}
+    Object.entries(sn.paths).forEach(([id, path]) => { clipUploadPromises.set(`u${id}`, Promise.resolve(path)); st[`u${id}`] = 'done' })
+    Object.entries(sn.assets).forEach(([k, path]) => { clipUploadPromises.set(k, Promise.resolve(path)); st[k] = 'done' })
+    setClipUploadStatus((prev) => ({ ...Object.fromEntries(Object.entries(prev).filter(([k]) => !mine(k))), ...st }))
+  }
+  const switchEditorTab = (i: number) => {
+    if (i === editorTab || !editorTabs[i]?.snap) return
+    const busy = uploading || extractingAudio || Object.entries(clipUploadStatus).some(([k, v]) => v === 'uploading' && (/^u\d/.test(k) || k === 'm' || k.startsWith('v:')))
+    if (busy) { setEditorTabNote('This video is still uploading. Switch videos when it has finished.'); return }
+    setEditorTabNote('')
+    const cur = captureEditor()
+    const target = editorTabs[i].snap as EditorSnap
+    setEditorTabs((tabs) => tabs.map((t, n) => (n === editorTab ? { ...t, snap: cur } : n === i ? { ...t, snap: null } : t)))
+    applyEditor(target)
+    setEditorTab(i)
+  }
+  // Videos filmed in Several videos arrive here: each one gets its own editor tab
+  const openMultiInEditor = async (h: MultiFilmHandoff) => {
+    const lowComfort = parseComfort(profile?.filming_comfort).level === 'low'
+    const snaps = await Promise.all(h.videos.map(async (v): Promise<EditorSnap> => {
+      const slots = v.clips.map((_, i) => i)
+      const files: Record<number, File> = {}
+      const paths: Record<number, string> = {}
+      const trims: Record<number, ClipTrimRange> = {}
+      const texts: Record<number, string[]> = {}
+      v.clips.forEach((c, i) => {
+        files[i] = c.file
+        paths[i] = c.path
+        // Cut the screen taps at the start and end of each filmed clip, like a single filmed video
+        if (c.duration > 1.5 && c.duration !== 5) trims[i] = { start: 0.3, end: c.duration - 0.3, total: c.duration, file: c.file }
+        const own = v.texts[i] && v.texts[i].length > 0 ? v.texts[i] : lowComfort && v.lines[i] ? [v.lines[i]] : []
+        if (own.length > 0) texts[i] = own
+      })
+      const landscape = new Set<number>()
+      if (!h.landscape) {
+        const sizes = await Promise.all(v.clips.map((c) => getVideoSize(c.file)))
+        sizes.forEach((sz, i) => { if (sz && sz.w > sz.h) landscape.add(i) })
+      }
+      const tags = typeof v.tags === 'string' ? v.tags : Array.isArray(v.tags) ? v.tags.filter((t) => typeof t === 'string').join(' ') : null
+      return {
+        slots, files, paths, trims, speeds: {}, vols: {}, looks: {}, texts, ownTexts: {}, speech: new Set(slots), landscape,
+        caps: [], overlays: [], takes: [], assets: {}, musicFile: null, libMusicUrl: null, libMusicName: null, extracted: null,
+        badge: true, autoCaptions: true, preset: captionPreset, script: v.lines.length > 0 ? { id: `multi-${v.key}`, label: v.title, lines: v.lines } : null,
+        renderId: null, renderStatus: null, renderProgress: 0, outputUrl: null, overQuota: false, renderError: null, uploadError: '',
+        ctx: { ideaId: v.ideaId, source: v.source, title: v.title, caption: v.caption, tags },
+        orientation: h.landscape ? 'landscape' : 'portrait',
+      }
+    }))
+    if (snaps.length === 0) return
+    setEditorTabs(h.videos.map((v, i) => ({ key: v.key, title: v.title, snap: i === 0 ? null : snaps[i] })))
+    setEditorTab(0)
+    setEditorTabNote('')
+    applyEditor(snaps[0])
+    setTab('uploads')
+    window.scrollTo({ top: 0 })
+  }
+  const closeEditorTabs = () => { setEditorTabs([]); setEditorTab(0); setEditorTabNote('') }
+
   const runUploadAndRender = async () => {
     if (!userId) return
     const slotIds = uploadSlots.filter((id) => uploadSlotFiles[id])
@@ -4275,7 +4572,7 @@ export default function DashboardPage() {
       const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
-      const isFilmRender = slotIds.every((id) => (uploadSlotPaths[id] || '').includes('/film/filmed-'))
+      const isFilmRender = slotIds.every((id) => /\/film\/(filmed|multi)-/.test(uploadSlotPaths[id] || ''))
       const filmCtx = isFilmRender ? filmRenderContextRef.current : null
       const filmLandscapeOut = isFilmRender && filmOutputOrientationRef.current === 'landscape'
 
@@ -4374,7 +4671,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
       })
 
       const data = await res.json()
@@ -4383,6 +4680,8 @@ export default function DashboardPage() {
       setRenderId(data.renderId)
       setRenderStatus('queued')
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
+      // With several videos open, the "ready" pop-up follows this one while you edit the others
+      if (editorTabs.length > 1) trackRenders([{ id: data.renderId, title: filmCtx?.title || 'Your video' }])
       filmRenderContextRef.current = null
       filmOutputOrientationRef.current = null
       setUploadSlots([0])
@@ -4536,6 +4835,8 @@ export default function DashboardPage() {
           .ed-split { display: grid !important; grid-template-columns: 380px minmax(0, 1fr); column-gap: 32px !important; row-gap: 0 !important; align-items: start; }
           .ed-split > .ed-main { grid-column: 2; grid-row: 1; min-width: 0; margin: 0; }
           .ed-split > .ed-preview { grid-column: 1; grid-row: 1; align-self: start; margin: 0; }
+          /* The preview stays on screen while the settings beside it scroll */
+          .ed-split > .ed-preview { position: sticky !important; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
         }
       `}</style>
       {showOverageModal && (
@@ -5742,9 +6043,13 @@ export default function DashboardPage() {
           {audioPicker && (
             <AudioPicker userId={userId} onClose={() => setAudioPicker(false)} onPick={(file, clip) => addVoiceFile(file, clip.path)} />
           )}
+          {musicPicker && (
+            <AudioPicker userId={userId} title="Pick music" onClose={() => setMusicPicker(false)} onPick={(file, clip) => applySavedSoundAsMusic(file, clip.path)} onPickFile={pickMusicFileAndSave} onExtract={(f) => { void handleExtractAudio(f) }} />
+          )}
           {libraryPicker && (
             <LibraryPicker
               userId={userId}
+              plan={isFreeTier ? 'free' : userPlan}
               single={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step'}
               title={libraryPicker === 'film' || libraryPicker === 'slot' || libraryPicker === 'step' ? 'Use a saved clip' : undefined}
               onClose={() => setLibraryPicker(null)}
@@ -5776,6 +6081,19 @@ export default function DashboardPage() {
             />
           )}
 
+          {tab === 'uploads' && editorTabs.length > 1 && (
+            <EditorTabsBar
+              tabs={editorTabs.map((t, i) => {
+                const id = i === editorTab ? renderId : t.snap?.renderId ?? null
+                const st = i === editorTab ? renderStatus : t.snap?.renderStatus ?? null
+                return { key: t.key, title: t.title, status: !id ? '' : st === 'done' ? 'Ready' : st === 'failed' ? 'Failed' : 'Rendering' }
+              })}
+              active={editorTab}
+              note={editorTabNote}
+              onSwitch={switchEditorTab}
+              onClose={closeEditorTabs}
+            />
+          )}
           {tab === 'uploads' && (
             <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -5904,6 +6222,7 @@ export default function DashboardPage() {
 
               {/* ── AUDIO ── */}
               {renderAudioSection('upload', voiceScript?.label)}
+              {renderVoiceoverSection(voiceScript?.label)}
 
               {/* ── CAPTIONS ── */}
               {renderCaptionsCard('upload')}
@@ -5932,7 +6251,7 @@ export default function DashboardPage() {
                 disabled={uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])}
                 style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
-                {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
+                {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : editorTabs.length > 1 ? `Render video ${editorTab + 1}` : 'Create video'}
               </button>
 
               {/* ── Result ── */}
@@ -5985,6 +6304,9 @@ export default function DashboardPage() {
                 onAutoCapMove={moveAutoCap}
                 onAutoCapRemove={() => setUploadAddCaptions(false)}
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
+                autoCapFont={toCaptionFont(captionFontFamily)}
+                badge={madeWithBadge}
+                onBadge={setMadeWithBadge}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -6002,7 +6324,6 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
-                below={renderVoiceoverSection(voiceScript?.label)}
               />}
             </div>
           )}
@@ -6035,6 +6356,7 @@ export default function DashboardPage() {
                       renderBlocked={freeQuotaExceeded}
                       gateRender={gateRenderAction}
                       onCleared={applyFilmCleared}
+                      onOpenEditor={(h) => { void openMultiInEditor(h) }}
                       onBusy={setFilmMultiBusy}
                     />
                   ) : (
@@ -6287,6 +6609,7 @@ export default function DashboardPage() {
                         ))}
                       </div>
                       {renderAudioSection('upload', voiceScript?.label)}
+                      {renderVoiceoverSection(voiceScript?.label)}
                       {renderCaptionsCard('upload')}
                       {renderOverlayCard()}
                       {renderVideoSettings('upload')}
@@ -6309,6 +6632,9 @@ export default function DashboardPage() {
                         onAutoCapMove={moveAutoCap}
                         onAutoCapRemove={() => setUploadAddCaptions(false)}
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
+                autoCapFont={toCaptionFont(captionFontFamily)}
+                badge={madeWithBadge}
+                onBadge={setMadeWithBadge}
                         selCap={selCap}
                         onSelCap={setSelCap}
                         onPlayhead={handlePlayhead}
@@ -6326,7 +6652,6 @@ export default function DashboardPage() {
                         onAddTake={addVoiceTake}
                         onRemoveTake={removeVoiceTake}
                         onMoveTake={moveVoiceTake}
-                        below={renderVoiceoverSection(voiceScript?.label)}
                       />
                     </div>
                   )}
@@ -6486,6 +6811,7 @@ export default function DashboardPage() {
 
                     {/* ── AUDIO ── */}
                     {renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}
+                    {renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}
 
                     {/* ── CAPTIONS ── */}
                     {renderCaptionsCard('ai')}
@@ -6560,6 +6886,9 @@ export default function DashboardPage() {
                 onAutoCapMove={moveAutoCap}
                 onAutoCapRemove={() => setAiAddCaptions(false)}
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
+                autoCapFont={toCaptionFont(captionFontFamily)}
+                badge={madeWithBadge}
+                onBadge={setMadeWithBadge}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -6577,7 +6906,6 @@ export default function DashboardPage() {
                 onAddTake={addVoiceTake}
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
-                below={renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}
               />}
             </div>
           )}

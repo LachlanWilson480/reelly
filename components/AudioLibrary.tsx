@@ -107,11 +107,21 @@ export function AudioLibrary({ userId, plan }: { userId: string | null; plan: Li
   )
 }
 
-// The picker opened from the Voiceover section: choose a saved sound to use as a voiceover
-export function AudioPicker({ userId, onClose, onPick }: { userId: string | null; onClose: () => void; onPick: (file: File, clip: LibraryClip) => void }) {
+// The picker for saved sounds. The Voiceover section uses it to pick a voiceover; the Audio section uses it for music,
+// and also offers a file from the device and the sound from a video.
+export function AudioPicker({ userId, onClose, onPick, title = 'Pick audio from your library', onPickFile, onExtract }: {
+  userId: string | null
+  onClose: () => void
+  onPick: (file: File, clip: LibraryClip) => void
+  title?: string
+  onPickFile?: (file: File) => void
+  onExtract?: (video: File) => void
+}) {
   const { items, urls, loading } = useAudioList(userId)
   const [working, setWorking] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
 
   const use = async (c: LibraryClip) => {
     setWorking(c.id)
@@ -125,12 +135,31 @@ export function AudioPicker({ userId, onClose, onPick }: { userId: string | null
 
   if (typeof document === 'undefined') return null
   return createPortal(
-    <div role="dialog" aria-label="Pick audio from your library" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div role="dialog" aria-label={title} onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg, #fff)', color: 'var(--ink)', borderRadius: 4, width: '100%', maxWidth: 560, maxHeight: '86vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Pick audio from your library</p>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title}</p>
           <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}><Icon n="close" /></button>
         </div>
+        {(onPickFile || onExtract) && (
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {onPickFile && (
+              <>
+                <input ref={fileRef} type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { onPickFile(f); onClose() } }} />
+                <button type="button" onClick={() => fileRef.current?.click()} style={{ ...smallBtn, padding: '9px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon n="upload" />Pick from files</button>
+              </>
+            )}
+            {onExtract && (
+              <>
+                <input ref={videoRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { onExtract(f); onClose() } }} />
+                <button type="button" onClick={() => videoRef.current?.click()} style={{ ...smallBtn, padding: '9px 14px', fontSize: 13 }}>Extract audio from video</button>
+              </>
+            )}
+            <p style={{ flexBasis: '100%', margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              {onExtract ? 'Extract audio takes the sound from a video on your device and uses it as your music. ' : ''}Or pick a saved sound below.
+            </p>
+          </div>
+        )}
         <div style={{ padding: 18, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {loading ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Loading your audio…</p>

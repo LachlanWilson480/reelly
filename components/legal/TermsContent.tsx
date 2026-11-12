@@ -13,7 +13,7 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
       <p style={P}>These terms apply when you use Reelezy ({site}). By creating an account or using the service you agree to them. If you do not agree, please do not use Reelezy.</p>
 
       <h2 style={H2}>Who we are</h2>
-      <p style={P}>Reelezy is operated from Australia (ABN 76 182 998 115). You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
+      <p style={P}>Reelezy is operated from Australia. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
 
       <h2 style={H2}>What Reelezy does</h2>
       <p style={P}>Reelezy helps small businesses plan, film, edit and schedule short videos. It generates ideas, scripts, captions and filming instructions with AI, and can publish videos you have approved to social accounts you connect.</p>
