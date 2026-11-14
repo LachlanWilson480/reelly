@@ -260,8 +260,15 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file || !userId) return
 
+    // The logos bucket only takes these picture types, up to 5 MB (see supabase/migrations/limit_logo_uploads.sql)
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setMessage('Your logo needs to be a PNG, JPG, WebP or GIF file under 5 MB.')
+      e.target.value = ''
+      return
+    }
     setUploadingLogo(true)
-    const path = `${userId}/logo-${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-').slice(-80)
+    const path = `${userId}/logo-${Date.now()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage.from('business-logos').upload(path, file, { upsert: true })
 
@@ -468,7 +475,7 @@ export default function SettingsPage() {
                 )}
               </div>
               <div>
-                <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleLogoUpload} style={{ display: 'none' }} />
                 <button
                   onClick={() => logoInputRef.current?.click()}
                   disabled={uploadingLogo}
