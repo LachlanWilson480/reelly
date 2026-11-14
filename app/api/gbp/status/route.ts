@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { supabaseAdmin } from '@/lib/platforms'
 import { gbpEnabled, getConn, chooseLocation, listLocations, failure } from '@/lib/googleBusiness'
@@ -7,6 +8,7 @@ import { gbpEnabled, getConn, chooseLocation, listLocations, failure } from '@/l
 export async function GET(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  { const limited = await tooMany('gbp/status:' + authed.userId, 60, 60000); if (limited) return limited }
   if (!gbpEnabled()) return NextResponse.json({ enabled: false, connected: false })
   const c = await getConn(authed.userId)
   if (!c) return NextResponse.json({ enabled: true, connected: false })

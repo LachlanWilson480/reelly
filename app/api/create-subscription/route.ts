@@ -1,4 +1,6 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { upsertSubscription } from '@/lib/subscriptionWrite'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -30,10 +32,12 @@ export async function POST(req: NextRequest) {
 
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    { const limited = await tooMany('create-subscription:' + authed.userId, 10, 600000); if (limited) return limited }
     const userId = authed.userId
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
     const { email, plan, billingInterval, discountCode } = await req.json()
+    if (plan !== 'basic' && plan !== 'mid' && plan !== 'top') return NextResponse.json({ error: 'Unknown plan.' }, { status: 400 })
     const interval = billingInterval === 'yearly' ? 'yearly' : 'monthly'
 
     const priceId = interval === 'yearly' ? YEARLY_PRICE_MAP[plan] : MONTHLY_PRICE_MAP[plan]
@@ -50,9 +54,20 @@ export async function POST(req: NextRequest) {
 
     const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_subscription_id, status')
       .eq('user_id', userId)
       .maybeSingle()
+
+    // Someone who already pays must change plan instead. Starting a second checkout would overwrite their paid
+    // subscription here (cutting their access) while Stripe keeps billing it, and paying again would charge them twice.
+    if (existingSub?.stripe_subscription_id && (existingSub.status === 'active' || existingSub.status === 'trialing')) {
+      try {
+        const live = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id)
+        if (live.status === 'active' || live.status === 'trialing') {
+          return NextResponse.json({ error: 'You already have a subscription. To switch plans, use Change plan in Settings.', alreadySubscribed: true }, { status: 409 })
+        }
+      } catch {}
+    }
 
     let customerId = existingSub?.stripe_customer_id
 
@@ -123,22 +138,24 @@ export async function POST(req: NextRequest) {
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
+      // Lets the Stripe webhook find the right person even if they opened checkout more than once
+      metadata: { userId, plan, billing_interval: interval },
       expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent'],
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
       // The code is counted as used once the payment goes through (see the Stripe webhook), not each time checkout opens
-      ...(codeRow && couponId && !(referralPercent > 0 && referralPercent >= codePercent) ? { metadata: { discount_code_id: String(codeRow.id) } } : {}),
+      ...(codeRow && couponId && !(referralPercent > 0 && referralPercent >= codePercent) ? { metadata: { userId, plan, billing_interval: interval, discount_code_id: String(codeRow.id) } } : {}),
     })
 
-    await supabaseAdmin
-      .from('subscriptions')
-      .upsert({
+    await upsertSubscription(supabaseAdmin, {
         user_id: userId,
         stripe_customer_id: customerId,
         stripe_subscription_id: subscription.id,
         plan,
         status: subscription.status,
         billing_interval: interval,
-      }, { onConflict: 'user_id' })
+        // An unpaid checkout attempt until the Stripe webhook confirms the payment
+        paid: false,
+      })
 
     // Reset weekly usage counters so the new plan's limits start fresh, rather than
     // carrying over usage from before the user subscribed.

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany } from '@/lib/limit'
 import { createClient } from '@supabase/supabase-js'
 import { randomInt } from 'node:crypto'
 import { getAuthedUser } from '@/lib/getAuthedUser'
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    { const limited = await tooMany('referral:' + authed.userId, 30, 60000); if (limited) return limited }
 
     let { data: row } = await admin.from('referral_codes').select('code').eq('user_id', authed.userId).maybeSingle()
     for (let attempt = 0; !row && attempt < 5; attempt++) {

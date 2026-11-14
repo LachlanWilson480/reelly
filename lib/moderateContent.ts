@@ -1,3 +1,4 @@
+import { MODEL_FREE } from '@/lib/aiModel'
 import Anthropic from '@anthropic-ai/sdk'
 import { logUsage } from '@/lib/logUsage'
 import { recordAiSpend } from '@/lib/aiBudget'
@@ -21,7 +22,7 @@ export async function moderateTexts(items: string[], userId?: string): Promise<S
     const numbered = items.map((t, i) => `${i}: ${t}`).join('\n')
 
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      model: MODEL_FREE,
       max_tokens: 200,
       messages: [
         {
@@ -38,8 +39,8 @@ ${numbered}`,
         },
       ],
     })
-    logUsage('moderation', 'claude-haiku-4-5', message)
-    await recordAiSpend(userId, 'claude-haiku-4-5', message)
+    logUsage('moderation', MODEL_FREE, message)
+    await recordAiSpend(userId, MODEL_FREE, message)
 
     const textBlock = message.content.find((block) => block.type === 'text')
     const rawText = textBlock && 'text' in textBlock ? textBlock.text : '[]'

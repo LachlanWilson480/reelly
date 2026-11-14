@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { supabaseAdmin } from '@/lib/platforms'
 
@@ -6,6 +7,7 @@ import { supabaseAdmin } from '@/lib/platforms'
 export async function POST(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  { const limited = await tooMany('delete-scheduled-post:' + authed.userId, 30, 60000); if (limited) return limited }
   const { postId } = await req.json().catch(() => ({}))
   if (typeof postId !== 'string' || !postId) return NextResponse.json({ error: 'Missing post' }, { status: 400 })
   const { data: post } = await supabaseAdmin.from('scheduled_posts').select('status').eq('id', postId).eq('user_id', authed.userId).maybeSingle()

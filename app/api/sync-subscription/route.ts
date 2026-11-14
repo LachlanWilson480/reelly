@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { updateSubscription } from '@/lib/subscriptionWrite'
+import { tooMany } from '@/lib/limit'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { getAuthedUser } from '@/lib/getAuthedUser'
@@ -24,6 +26,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: 'Billing not configured' }, { status: 500 })
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    { const limited = await tooMany('sync-subscription:' + authed.userId, 20, 60000); if (limited) return limited }
 
     const { data: row } = await supabaseAdmin
       .from('subscriptions')
@@ -71,8 +74,11 @@ export async function POST(req: NextRequest) {
     if (subscription.status === 'active' || subscription.status === 'trialing') {
       update.deletion_scheduled_at = null
       update.deletion_warning_sent = false
+      update.paid = true
+    } else {
+      update.paid = false
     }
-    await supabaseAdmin.from('subscriptions').update(update).eq('user_id', authed.userId)
+    await updateSubscription(supabaseAdmin, 'user_id', authed.userId, update)
 
     const cancelAt = (subscription as unknown as { cancel_at?: number | null }).cancel_at
     const endsAtPeriodEnd = subscription.cancel_at_period_end === true || typeof cancelAt === 'number'

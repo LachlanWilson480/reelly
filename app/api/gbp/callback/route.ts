@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany, ipOf } from '@/lib/limit'
 import { siteOrigin } from '@/lib/platforms'
 import { gbpEnabled, readState, finishConnect, GbpError } from '@/lib/googleBusiness'
 
 export async function GET(req: NextRequest) {
+  { const limited = await tooMany('gbp-ip:' + ipOf(req), 20, 60000); if (limited) return limited }
   const back = (q: string) => NextResponse.redirect(`${siteOrigin()}/dashboard/scheduler?${q}`)
   if (!gbpEnabled()) return back('gbp_error=unavailable')
   const sp = req.nextUrl.searchParams

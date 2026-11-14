@@ -1,4 +1,5 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { isOwnPath } from '@/lib/ownPath'
 import { BADGE_SPOT, BADGE_SRC } from '@/lib/madeWithBadge'
 import { userIdsForEmail } from '@/lib/userIdsForEmail'
 import { getMonthStartISO } from '@/lib/billingMonth'
@@ -47,16 +48,16 @@ export async function POST(req: NextRequest) {
     }
 
     for (const path of clipPaths) {
-      if (!path.startsWith(`${userId}/`)) {
+      if (!isOwnPath(path, userId)) {
         return NextResponse.json({ error: 'Invalid clip path' }, { status: 403 })
       }
     }
-    if (musicPath && !musicPath.startsWith(`${userId}/`)) {
+    if (musicPath && !isOwnPath(musicPath, userId)) {
       return NextResponse.json({ error: 'Invalid music path' }, { status: 403 })
     }
     const voiceoverList: { path: string; start: number; duration: number; volume?: number }[] = Array.isArray(voiceovers) ? voiceovers.slice(0, 30) : []
     for (const v of voiceoverList) {
-      if (!v || typeof v.path !== 'string' || !v.path.startsWith(`${userId}/`)) {
+      if (!v || !isOwnPath(v.path, userId)) {
         return NextResponse.json({ error: 'Invalid voiceover path' }, { status: 403 })
       }
     }
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
     for (const item of rawList) {
       const ov = item as { path?: unknown; kind?: unknown; x?: unknown; y?: unknown; size?: unknown; start?: unknown; end?: unknown; cl?: unknown; cr?: unknown; ct?: unknown; cb?: unknown } | null
       if (!ov || typeof ov !== 'object' || typeof ov.path !== 'string') continue
-      if (!ov.path.startsWith(`${userId}/`) || ov.path.includes('..')) {
+      if (!isOwnPath(ov.path, userId)) {
         return NextResponse.json({ error: 'Invalid overlay path' }, { status: 403 })
       }
       const { data: ovData, error: ovError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(ov.path, 21600)

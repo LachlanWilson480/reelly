@@ -9,11 +9,11 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
   const site = LEGAL_SITE[region]
 
   return (
-    <LegalShell title="Terms of Service" updated="11 November 2026">
+    <LegalShell title="Terms of Service" updated="14 November 2026">
       <p style={P}>These terms apply when you use Reelezy ({site}). By creating an account or using the service you agree to them. If you do not agree, please do not use Reelezy.</p>
 
       <h2 style={H2}>Who we are</h2>
-      <p style={P}>Reelezy is operated from Australia. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
+      <p style={P}>Reelezy is an online service for planning, filming and editing social media videos. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
 
       <h2 style={H2}>What Reelezy does</h2>
       <p style={P}>Reelezy helps small businesses plan, film, edit and schedule short videos. It generates ideas, scripts, captions and filming instructions with AI, and can publish videos you have approved to social accounts you connect.</p>
@@ -93,15 +93,16 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
       <h2 style={H2}>Changes to these terms</h2>
       <p style={P}>If we make important changes, we will update the date at the top of this page and let you know in the app or by email.</p>
 
-      <h2 style={H2}>Governing law</h2>
-      <p style={P}>
+      <h2 style={H2}>Contact</h2>
+      <p style={P}>Questions about these terms: <a href="/contact">contact us</a> or email info@reelezy.com</p>
+
+      <h2 style={H2}>General</h2>
+      <p style={{ ...P, marginBottom: 48 }}>
+        If any part of these terms cannot be enforced, the rest still applies. If we do not enforce a term straight away, we can still enforce it later. These terms are the whole agreement between you and Reelezy about the service.{' '}
         {au && 'These terms are governed by the laws of Australia and the courts of Australia have jurisdiction, without limiting any consumer rights you have under the law where you live.'}
         {uk && 'For customers in the UK, these terms are governed by the laws of England and Wales, and the courts of England and Wales have jurisdiction. If you live in Scotland or Northern Ireland, you can also rely on the law of that country and bring a claim in the courts there.'}
         {region === 'intl' && 'These terms are governed by the laws of Australia. If you are a consumer, you keep the mandatory consumer protections of the law of the country where you live, and you can bring a claim in the courts there.'}
       </p>
-
-      <h2 style={H2}>Contact</h2>
-      <p style={{ marginBottom: 48 }}>Questions about these terms: <a href="/contact">contact us</a> or email info@reelezy.com</p>
     </LegalShell>
   )
 }

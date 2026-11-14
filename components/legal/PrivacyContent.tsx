@@ -10,18 +10,18 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
   const site = LEGAL_SITE[region]
 
   return (
-    <LegalShell title="Privacy Policy" updated="11 November 2026">
+    <LegalShell title="Privacy Policy" updated="14 November 2026">
       <p style={P}>
         Reelezy ({site}) helps small businesses plan, film and edit social media videos. This policy explains what personal information we collect, how we use it, who we share it with and the choices you have.{' '}
         {au && 'We handle your information in line with the Australian Privacy Act 1988 and the Australian Privacy Principles.'}
         {uk && 'We handle your personal data in line with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018 and the Privacy and Electronic Communications Regulations (PECR).'}
-        {region === 'intl' && 'We handle your personal information in line with the Australian Privacy Act 1988 and, where it applies to you, the data protection laws of your country, including the EU and UK GDPR.'}
+        {region === 'intl' && 'We handle your personal information in line with the privacy laws that apply to us and, where they apply to you, the data protection laws of your country, including the EU and UK GDPR.'}
       </p>
 
       {gdpr && (
         <>
           <h2 style={H2}>Who is responsible for your data</h2>
-          <p style={P}>Reelezy is operated from Australia and is the controller of your personal data. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
+          <p style={P}>Reelezy is the controller of your personal data. You can contact us at info@reelezy.com or through our <a href="/contact">contact page</a>.</p>
         </>
       )}
 
@@ -69,7 +69,7 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
         <p style={P}>Some of these providers are based or store data outside Australia, including in the United States. We take reasonable steps to make sure they handle your information with care. We may also disclose information where the law requires it.</p>
       ) : (
         <p style={P}>
-          Reelezy is based in Australia, and some of our providers are based or store data in the United States or other countries outside {uk ? 'the UK' : 'your country'}. Where your data is sent outside {uk ? 'the UK' : 'your country'}, we make sure it is protected by appropriate safeguards, such as the provider&apos;s standard contractual clauses{uk ? ' and the UK International Data Transfer Addendum' : ''}, or another lawful transfer mechanism. Contact us if you would like more detail. We may also disclose information where the law requires it.
+          We and some of our providers handle or store data in other countries, including the United States and Australia. Where your data is sent outside {uk ? 'the UK' : 'your country'}, we make sure it is protected by appropriate safeguards, such as the provider&apos;s standard contractual clauses{uk ? ' and the UK International Data Transfer Addendum' : ''}, or another lawful transfer mechanism. Contact us if you would like more detail. We may also disclose information where the law requires it.
         </p>
       )}
 

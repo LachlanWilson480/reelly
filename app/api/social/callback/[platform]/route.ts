@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany, ipOf } from '@/lib/limit'
 import { completeConnection, isConfigured, isPlatform, readState, siteOrigin } from '@/lib/platforms'
 
 // The platform sends the person back here after they approve access
 export async function GET(req: NextRequest, ctx: { params: Promise<{ platform: string }> }) {
+  { const limited = await tooMany('social-ip:' + ipOf(req), 20, 60000); if (limited) return limited }
   const { platform } = await ctx.params
   const back = (q: string) => NextResponse.redirect(`${siteOrigin()}/dashboard/scheduler?${q}`)
   if (!isPlatform(platform) || !isConfigured(platform)) return back('connect_error=unavailable')

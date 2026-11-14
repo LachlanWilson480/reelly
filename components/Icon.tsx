@@ -1,5 +1,5 @@
 // Small inline SVG icons (replace text symbols such as arrows, ticks and stars). They take the surrounding text colour and size.
-export type IconName = 'close' | 'back' | 'forward' | 'star' | 'starOutline' | 'play' | 'pause' | 'check' | 'redo' | 'up' | 'down' | 'grip' | 'menu' | 'dot' | 'home' | 'dollar' | 'clock' | 'megaphone' | 'privacy' | 'terms' | 'cog' | 'download' | 'upload'
+export type IconName = 'close' | 'back' | 'forward' | 'star' | 'starOutline' | 'play' | 'pause' | 'check' | 'redo' | 'up' | 'down' | 'grip' | 'menu' | 'dot' | 'home' | 'dollar' | 'clock' | 'megaphone' | 'privacy' | 'terms' | 'cog' | 'download' | 'upload' | 'copy'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   close: <path d="M6 6l12 12M18 6L6 18" fill="none" />,
@@ -24,6 +24,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   cog: <><path d="M12.220 2h-.440a2 2 0 0 0-2 2v.180a2 2 0 0 1-1 1.730l-.430.250a2 2 0 0 1-2 0l-.150-.080a2 2 0 0 0-2.730.730l-.220.380a2 2 0 0 0 .730 2.730l.150.100a2 2 0 0 1 1 1.720v.510a2 2 0 0 1-1 1.740l-.150.090a2 2 0 0 0-.730 2.730l.220.380a2 2 0 0 0 2.730.730l.150-.080a2 2 0 0 1 2 0l.430.250a2 2 0 0 1 1 1.730V20a2 2 0 0 0 2 2h.440a2 2 0 0 0 2-2v-.180a2 2 0 0 1 1-1.730l.430-.250a2 2 0 0 1 2 0l.150.080a2 2 0 0 0 2.730-.730l.220-.390a2 2 0 0 0-.730-2.730l-.150-.080a2 2 0 0 1-1-1.740v-.500a2 2 0 0 1 1-1.740l.150-.090a2 2 0 0 0 .730-2.730l-.220-.380a2 2 0 0 0-2.730-.730l-.150.080a2 2 0 0 1-2 0l-.430-.250a2 2 0 0 1-1-1.730V4a2 2 0 0 0-2-2z" fill="none" /><circle cx="12" cy="12" r="3" fill="none" /></>,
   download: <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" fill="none" />,
   upload: <path d="M12 16V5M7 9.5l5-5 5 5M5 20h14" fill="none" />,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" fill="none" /><path d="M5 15V5a1 1 0 0 1 1-1h10" fill="none" /></>,
   dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
 }
 

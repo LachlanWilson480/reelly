@@ -33,6 +33,7 @@ import { trackRenders } from '@/lib/renderTracker'
 import { pickRecorderMime, streamIsLive, beginRecorder, beginRecorderPaused, resumeRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
 import OverviewPanel from '@/components/OverviewPanel'
+import CarouselCard, { carouselBtn } from '@/components/CarouselCard'
 import { BADGE_SPOT, BADGE_SRC, BADGE_RATIO } from '@/lib/madeWithBadge'
 type Profile = {
   business_name: string
@@ -1774,6 +1775,10 @@ export default function DashboardPage() {
   const [scriptStyle, setScriptStyle] = useState('')
   const [generatedScript, setGeneratedScript] = useState<string | null>(null)
   const [savedScripts, setSavedScripts] = useState<{ id: string; topic: string; script: string; length: string | null; style: string | null; created_at: string }[]>([])
+  // Scripts page: which saved script is open, copy feedback, and the confirm step for deleting
+  const [openScriptId, setOpenScriptId] = useState<string | null>(null)
+  const [scriptCopied, setScriptCopied] = useState<string | null>(null)
+  const [confirmScriptDelete, setConfirmScriptDelete] = useState<string | null>(null)
   const [dismissedScriptIds, setDismissedScriptIds] = useState<Set<string>>(new Set())
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptGenError, setScriptGenError] = useState<string | null>(null)
@@ -1905,7 +1910,6 @@ export default function DashboardPage() {
   const [filmClips, setFilmClips] = useState<{ blob: Blob; ext: string; type: string; url: string }[]>([])
   const filmSegFiles = useMemo(() => filmClips.map((c, i) => new File([c.blob], `film-${i}.${c.ext}`, { type: c.type })), [filmClips])
   const [filmPending, setFilmPending] = useState<{ blob: Blob; ext: string; type: string; url: string } | null>(null)
-  const [carouselThumbnails, setCarouselThumbnails] = useState<Record<string, string>>({})
   const [uploadSlots, setUploadSlots] = useState<number[]>([0])
   const [uploadSlotFiles, setUploadSlotFiles] = useState<Record<number, File>>({})
   const [uploadTrims, setUploadTrims] = useState<Record<number, ClipTrimRange>>({})
@@ -2359,21 +2363,6 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [aiRenderId, aiRenderStatus])
 
-  useEffect(() => {
-    const loadThumbnails = async () => {
-      const missing = savedCarousels.filter((c) => c.image_paths.length > 0 && !carouselThumbnails[c.id])
-      if (missing.length === 0) return
-      const updates: Record<string, string> = {}
-      for (const c of missing) {
-        const { data, error } = await supabase.storage.from('video-uploads').createSignedUrl(c.image_paths[0], 3600)
-        if (!error && data) updates[c.id] = data.signedUrl
-      }
-      if (Object.keys(updates).length > 0) {
-        setCarouselThumbnails((prev) => ({ ...prev, ...updates }))
-      }
-    }
-    loadThumbnails()
-  }, [savedCarousels])
 
   const updateIdeaNotes = (id: string, notes: string) => {
     setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, notes } : idea)))
@@ -2612,12 +2601,6 @@ export default function DashboardPage() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }
-
-  const downloadCarouselImages = async (imagePaths: string[], index?: number) => {
-    const files = await fetchCarouselImageBlobs(imagePaths)
-    if (files.length === 0) return
-    await downloadZip(files, `carousel${typeof index === 'number' ? `-${index + 1}` : ''}.zip`)
   }
 
   const downloadAllCarousels = async () => {
@@ -5342,12 +5325,6 @@ export default function DashboardPage() {
                         View old ideas
                       </button>
                     </div>
-                    <button
-                      onClick={() => { setSelectedIdeaIdsForFilming(savedIdeas.map((i) => i.id)); setTab('filming') }}
-                      style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      Get filming instructions
-                    </button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
                     {savedIdeas.map((idea) => (
@@ -5359,12 +5336,13 @@ export default function DashboardPage() {
                             top: 16,
                             right: 16,
                             background: 'none',
-                            border: '1px solid rgba(217,45,32,0.4)',
+                            border: '1px solid #D92D20',
                             borderRadius: 4,
                             padding: '3px 10px',
                             cursor: 'pointer',
                             fontSize: 12,
-                            color: 'rgba(217,45,32,0.8)',
+                            fontWeight: 600,
+                            color: '#D92D20',
                           }}
                         >
                           Remove
@@ -5447,7 +5425,7 @@ export default function DashboardPage() {
                                     .eq('title', s.topic)
                                   setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === s.topic)))
                                 }}
-                                style={{ background: 'none', border: '1px solid rgba(217,45,32,0.4)', borderRadius: 4, padding: '3px 10px', fontSize: 12, color: 'rgba(217,45,32,0.8)', cursor: 'pointer' }}
+                                style={{ background: 'none', border: '1px solid #D92D20', borderRadius: 4, padding: '3px 10px', fontSize: 12, fontWeight: 600, color: '#D92D20', cursor: 'pointer' }}
                               >
                                 Remove
                               </button>
@@ -5769,7 +5747,7 @@ export default function DashboardPage() {
                   Create a carousel
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  Upload multiple images and arrange their order. No video rendering involved - this creates a static carousel post.
+                  Add your pictures, put them in order and save. This makes a swipeable picture post, not a video.
                 </p>
 
                 <input
@@ -5853,47 +5831,18 @@ export default function DashboardPage() {
 
               {savedCarousels.length > 0 && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600 }}>
-                      Saved carousels
-                    </h3>
-                    <button
-                      onClick={downloadAllCarousels}
-                      style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 12, color: 'var(--ink)', cursor: 'pointer' }}
-                    >
-                      Download all
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Your carousels</h3>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>{savedCarousels.length} saved. They also appear in Publish.</p>
+                    </div>
+                    {savedCarousels.length > 1 && (
+                      <button type="button" onClick={downloadAllCarousels} style={carouselBtn.secondary}><Icon n="download" />Download all</button>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 420px), 1fr))', gap: 12 }}>
                     {savedCarousels.map((c, ci) => (
-                      <div key={c.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 96, gap: 16 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 0 }}>
-                          <div style={{ width: 72, height: 72, borderRadius: 4, overflow: 'hidden', background: 'var(--card-bg)', flexShrink: 0 }}>
-                            {carouselThumbnails[c.id] && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={carouselThumbnails[c.id]} alt="Carousel preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            )}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{c.image_paths.length} images</p>
-                            {c.caption && <p style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.caption}</p>}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
-                          <button
-                            onClick={() => downloadCarouselImages(c.image_paths, ci)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--coral)', fontSize: 13, fontWeight: 600 }}
-                          >
-                            Download
-                          </button>
-                          <button
-                            onClick={() => deleteCarousel(c.id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+                      <CarouselCard key={c.id} c={c} index={savedCarousels.length - 1 - ci} onDelete={() => deleteCarousel(c.id)} onPublish={() => setTab('scheduler')} />
                     ))}
                   </div>
                 </div>
@@ -5918,7 +5867,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                  Type in any idea or topic, pick a length and style, and generate a full word-for-word script - no saved idea required.
+                  Type in any idea or topic, pick a length and style, and get a full word-for-word script. You don&apos;t need a saved idea.
                 </p>
 
                 <label style={labelStyle}>What's the video about?</label>
@@ -5968,69 +5917,85 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{scriptGenError}</p>
                 )}
 
-                {savedScripts.length > 0 && !generatedScript && (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Previous scripts</p>
-                      <button
-                        onClick={async () => {
-                          if (!userId) return
-                          await supabase.from('generated_scripts').delete().eq('user_id', userId)
-                          setSavedScripts([])
-                        }}
-                        style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {savedScripts.map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={() => { setGeneratedScript(s.script); setScriptTopic(s.topic) }}
-                          style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', cursor: 'pointer', width: '100%' }}
-                        >
-                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{s.topic}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.length ? `${s.length}` : ''}{s.style ? ` · ${s.style}` : ''} · {new Date(s.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {generatedScript && (
-                  <div style={{ background: "var(--card-bg)", borderRadius: 4, padding: "24px" }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Full script</p>
-                      <button onClick={() => setGeneratedScript(null)} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Back to history</button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {generatedScript
-                        .split(/(?<=[.!?])\s+/)
-                        .map((s: string) => s.trim())
-                        .filter((s: string) => s.length > 0)
-                        .map((sentence: string, i: number, arr: string[]) => (
-                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 12, paddingBottom: 12, borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                            <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontWeight: 500 }}>{sentence}</p>
+                {generatedScript && (() => {
+                  const sentences = generatedScript.split(/(?<=[.!?])\s+/).map((x: string) => x.trim()).filter((x: string) => x.length > 0)
+                  const open = savedScripts.find((x) => x.id === openScriptId)
+                  return (
+                    <div style={{ background: 'var(--card-bg)', borderRadius: 4, padding: 24, border: '1px solid var(--line)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 4px' }}>Your script</p>
+                          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', margin: 0, lineHeight: 1.4 }}>{open?.topic || scriptTopic}</p>
+                        </div>
+                        <button type="button" onClick={() => { setGeneratedScript(null); setOpenScriptId(null) }} aria-label="Close script" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, flexShrink: 0 }}><Icon n="close" /></button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {sentences.map((sentence: string, i: number) => (
+                          <div key={i} style={{ paddingTop: i === 0 ? 0 : 12, paddingBottom: 12, borderBottom: i < sentences.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                            <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500, margin: 0 }}>{sentence}</p>
                           </div>
-                        ))
-                      }
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+                        <button type="button" onClick={async () => { if (!profile) return; await proceedToFilming([{ id: 'script-gen', title: open?.topic || scriptTopic, hook: generatedScript.split(/[.!?]/)[0] || scriptTopic, description: open?.topic || scriptTopic, tags: '', script: generatedScript } as Idea]) }} style={carouselBtn.primary}>Make filming instructions</button>
+                        <button type="button" onClick={() => { void navigator.clipboard.writeText(generatedScript).then(() => { setScriptCopied('open'); setTimeout(() => setScriptCopied(null), 1500) }) }} style={carouselBtn.secondary}><Icon n={scriptCopied === 'open' ? 'check' : 'copy'} />{scriptCopied === 'open' ? 'Copied' : 'Copy script'}</button>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {generatedScript && (
-                  <button
-                    onClick={async () => {
-                      if (!profile) return
-                      const idea = { id: 'script-gen', title: scriptTopic, hook: generatedScript.split(/[.!?]/)[0] || scriptTopic, description: scriptTopic, tags: '', script: generatedScript }
-                      await proceedToFilming([idea])
-                    }}
-                    style={{ marginTop: 12, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
-                  >
-                    Make filming instructions for this
-                  </button>
-                )}
+                  )
+                })()}
               </div>
+
+              {savedScripts.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Your scripts</h3>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>{savedScripts.length} saved, newest first</p>
+                    </div>
+                    {confirmScriptDelete === 'all' ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Delete all {savedScripts.length} scripts?</span>
+                        <button type="button" onClick={() => setConfirmScriptDelete(null)} style={carouselBtn.secondary}>Keep</button>
+                        <button type="button" onClick={async () => { if (!userId) return; await supabase.from('generated_scripts').delete().eq('user_id', userId); setSavedScripts([]); setGeneratedScript(null); setOpenScriptId(null); setConfirmScriptDelete(null) }} style={{ ...carouselBtn.danger, background: '#D92D20', color: '#fff' }}>Delete all</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmScriptDelete('all')} style={carouselBtn.danger}>Delete all</button>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', gap: 12 }}>
+                    {savedScripts.map((sc) => {
+                      const isOpen = openScriptId === sc.id && !!generatedScript
+                      const first = sc.script.split(/(?<=[.!?])\s+/)[0] || sc.script
+                      const meta = [sc.length ? sc.length.charAt(0).toUpperCase() + sc.length.slice(1) : null, sc.style, new Date(sc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })].filter(Boolean)
+                      return (
+                        <div key={sc.id} style={{ background: '#fff', border: `1px solid ${isOpen ? 'var(--coral)' : 'var(--line)'}`, borderRadius: 4, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: '0 0 6px', lineHeight: 1.4 }}>{sc.topic}</p>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {meta.map((m) => <span key={m as string} style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--sand)', borderRadius: 999, padding: '2px 9px' }}>{m}</span>)}
+                            </div>
+                          </div>
+                          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{first}</p>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 'auto' }}>
+                            <button type="button" onClick={() => { setGeneratedScript(sc.script); setScriptTopic(sc.topic); setOpenScriptId(sc.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={carouselBtn.primary}>{isOpen ? 'Open now' : 'Open'}</button>
+                            <button type="button" onClick={async () => { if (!profile) return; await proceedToFilming([{ id: 'script-gen', title: sc.topic, hook: first, description: sc.topic, tags: '', script: sc.script } as Idea]) }} style={carouselBtn.secondary}>Film this</button>
+                            <button type="button" onClick={() => { void navigator.clipboard.writeText(sc.script).then(() => { setScriptCopied(sc.id); setTimeout(() => setScriptCopied(null), 1500) }) }} style={carouselBtn.secondary} aria-label="Copy script"><Icon n={scriptCopied === sc.id ? 'check' : 'copy'} />{scriptCopied === sc.id ? 'Copied' : 'Copy'}</button>
+                            <span style={{ flex: 1 }} />
+                            {confirmScriptDelete === sc.id ? (
+                              <>
+                                <button type="button" onClick={() => setConfirmScriptDelete(null)} style={carouselBtn.secondary}>Keep</button>
+                                <button type="button" onClick={async () => { if (!userId) return; await supabase.from('generated_scripts').delete().eq('id', sc.id).eq('user_id', userId); setSavedScripts((prev) => prev.filter((x) => x.id !== sc.id)); if (openScriptId === sc.id) { setGeneratedScript(null); setOpenScriptId(null) } setConfirmScriptDelete(null) }} style={{ ...carouselBtn.danger, background: '#D92D20', color: '#fff' }}>Delete</button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => setConfirmScriptDelete(sc.id)} style={carouselBtn.danger}>Delete</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {tab === 'library' && (

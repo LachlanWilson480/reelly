@@ -1,4 +1,5 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest) {
   try {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  { const limited = await tooMany('delete-draft-clip:' + authed.userId, 60, 60000); if (limited) return limited }
   const userId = authed.userId
     const { editorType, slotIndex } = await req.json()
     if (!editorType) return NextResponse.json({ error: 'Missing editorType' }, { status: 400 })

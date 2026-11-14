@@ -9,6 +9,7 @@ import { cleanString } from '@/lib/cleanText'
 import { buttonPrimary, buttonSecondary, inputCompact } from '@/lib/ui'
 import Icon from '@/components/Icon'
 import CollapsibleBox from '@/components/CollapsibleBox'
+import CarouselCard from '@/components/CarouselCard'
 import Dropdown from '@/components/Dropdown'
 import DatePicker from '@/components/DatePicker'
 import TikTokSettings from '@/components/TikTokSettings'
@@ -196,7 +197,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
   const groups = [
     { key: 'idea', title: 'Generated idea videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'idea') },
     { key: 'script', title: 'Script generated videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'script') },
-    { key: 'reels', title: 'Image reels', noun: 'reel', items: [] as Render[] },
+    { key: 'reels', title: 'Carousel posts', noun: 'carousel', items: [] as Render[] },
     { key: 'other', title: 'Other videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'other') },
   ].map((g) => ({ ...g, count: g.key === 'reels' ? carousels.length : g.items.length })).filter((g) => g.count > 0)
 
@@ -341,13 +342,8 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
           <CollapsibleBox key={g.key} title={g.title} summary={`${g.count} ${g.noun}${g.count === 1 ? '' : 's'}`} defaultOpen={gi === 0}>
             {g.key === 'reels' ? (
               <>
-                <p style={small}>Image reels can not be posted automatically yet. Copy the caption and post them from your phone.</p>
-                {carousels.map((c) => (
-                  <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', background: '#fff', display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <span style={{ flex: 1, fontSize: 13, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.caption ? cleanString(c.caption) : `${c.image_paths.length} image carousel, ${new Date(c.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}`}</span>
-                    {c.caption && <button type="button" onClick={() => copy(cleanString(c.caption!), c.id)} style={{ ...buttonSecondary, padding: '6px 12px', fontSize: 12 }}>{copied === c.id ? 'Copied' : 'Copy'}</button>}
-                  </div>
-                ))}
+                <p style={small}>Download the pictures and post them from your phone in the same order.</p>
+                {carousels.map((c, ci) => <CarouselCard key={c.id} c={c} index={carousels.length - 1 - ci} />)}
               </>
             ) : g.items.map((r) => (
               <VideoCard

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { updateSubscription } from '@/lib/subscriptionWrite'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { rewardReferrerForInvoice } from '@/lib/referralReward'
@@ -9,6 +10,31 @@ const supabaseAdmin = createClient(
 )
 
 const DELETION_GRACE_DAYS = 60
+
+const PLAN_BY_PRICE: Record<string, { plan: string; interval: 'monthly' | 'yearly' }> = {}
+const addPrice = (id: string | undefined, plan: string, interval: 'monthly' | 'yearly') => { if (id) PLAN_BY_PRICE[id] = { plan, interval } }
+addPrice(process.env.STRIPE_PRICE_BASIC, 'basic', 'monthly')
+addPrice(process.env.STRIPE_PRICE_MID, 'mid', 'monthly')
+addPrice(process.env.STRIPE_PRICE_TOP, 'top', 'monthly')
+addPrice(process.env.STRIPE_PRICE_BASIC_YEARLY, 'basic', 'yearly')
+addPrice(process.env.STRIPE_PRICE_MID_YEARLY, 'mid', 'yearly')
+addPrice(process.env.STRIPE_PRICE_TOP_YEARLY, 'top', 'yearly')
+
+// Updates the row for this Stripe subscription. If the row points at a different checkout attempt (the person
+// opened checkout twice and paid the other one), it finds the person from the subscription and points the row at it.
+async function updateForSubscription(sub: Stripe.Subscription, update: Record<string, unknown>) {
+  const { data } = await updateSubscription(supabaseAdmin, 'stripe_subscription_id', sub.id, update)
+  if (data && data.length > 0) return
+  const userId = sub.metadata?.userId
+  if (!userId || !(sub.status === 'active' || sub.status === 'trialing')) return
+  const matched = PLAN_BY_PRICE[sub.items?.data?.[0]?.price?.id || '']
+  await updateSubscription(supabaseAdmin, 'user_id', userId, {
+    ...update,
+    stripe_subscription_id: sub.id,
+    stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
+    ...(matched ? { plan: matched.plan, billing_interval: matched.interval } : {}),
+  })
+}
 
 export async function POST(req: NextRequest) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -27,7 +53,9 @@ export async function POST(req: NextRequest) {
   try {
     if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription
-      const updateData: Record<string, unknown> = { status: subscription.status }
+      const paidNow = subscription.status === 'active' || subscription.status === 'trialing'
+      // Only a subscription that has really been paid for counts as paid. An unpaid attempt stays false.
+      const updateData: Record<string, unknown> = { status: subscription.status, ...(paidNow ? {} : { paid: false }) }
 
       const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
         || subscription.items?.data?.[0]?.current_period_end
@@ -48,20 +76,20 @@ export async function POST(req: NextRequest) {
         updateData.deletion_scheduled_at = deletionDate.toISOString()
       }
 
-      await supabaseAdmin
-        .from('subscriptions')
-        .update(updateData)
-        .eq('stripe_subscription_id', subscription.id)
+      await updateForSubscription(subscription, updateData)
     }
     if (event.type === 'invoice.payment_succeeded') {
       const invoice = event.data.object as Stripe.Invoice
       const subscriptionId = (invoice as unknown as { subscription?: string }).subscription
         || (invoice as unknown as { parent?: { subscription_details?: { subscription?: string } } }).parent?.subscription_details?.subscription
+      // A real payment (not a zero amount invoice) marks the subscription as paid
+      const amountPaid = (invoice as unknown as { amount_paid?: number }).amount_paid ?? 0
       if (subscriptionId) {
-        await supabaseAdmin
-          .from('subscriptions')
-          .update({ status: 'active', deletion_scheduled_at: null, deletion_warning_sent: false })
-          .eq('stripe_subscription_id', subscriptionId)
+        const sub = await stripe.subscriptions.retrieve(subscriptionId)
+        await updateForSubscription(sub, {
+          status: 'active', deletion_scheduled_at: null, deletion_warning_sent: false,
+          ...(amountPaid > 0 || sub.status === 'active' ? { paid: true, paid_at: new Date().toISOString() } : {}),
+        })
       }
       // Count a discount code as used once its first payment goes through
       try {

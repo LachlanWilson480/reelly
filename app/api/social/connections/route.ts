@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { isConfigured, supabaseAdmin } from '@/lib/platforms'
 import { PLATFORMS } from '@/lib/socialProfiles'
@@ -7,6 +8,7 @@ import { PLATFORMS } from '@/lib/socialProfiles'
 export async function GET(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  { const limited = await tooMany('social/connections:' + authed.userId, 60, 60000); if (limited) return limited }
   const { data } = await supabaseAdmin.from('social_connections').select('platform, account_name, status').eq('user_id', authed.userId).neq('platform', 'google_business')
   return NextResponse.json({
     connections: data || [],

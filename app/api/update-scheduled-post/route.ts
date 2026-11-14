@@ -1,4 +1,5 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    { const limited = await tooMany('update-scheduled-post:' + authed.userId, 30, 60000); if (limited) return limited }
     const userId = authed.userId
 
     const { postId, updates } = await req.json()

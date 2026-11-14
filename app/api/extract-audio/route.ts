@@ -1,4 +1,6 @@
 import { rateLimit } from '@/lib/rateLimit'
+import { tooMany } from '@/lib/limit'
+import { isOwnPath } from '@/lib/ownPath'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -12,12 +14,13 @@ export async function POST(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    { const limited = await tooMany('extract-audio:' + authed.userId, 10, 600000); if (limited) return limited }
     const userId = authed.userId
 
     const { videoPath } = await req.json()
     if (!videoPath) return NextResponse.json({ error: 'No video provided' }, { status: 400 })
 
-    if (!videoPath.startsWith(`${userId}/`)) {
+    if (!isOwnPath(videoPath, userId)) {
       return NextResponse.json({ error: 'Invalid video path' }, { status: 403 })
     }
 

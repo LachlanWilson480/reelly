@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
 import { supabaseAdmin } from '@/lib/platforms'
 
@@ -6,6 +7,7 @@ import { supabaseAdmin } from '@/lib/platforms'
 export async function GET(req: NextRequest) {
   const authed = await getAuthedUser(req)
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  { const limited = await tooMany('analytics:' + authed.userId, 60, 60000); if (limited) return limited }
   const { data } = await supabaseAdmin.from('post_metrics').select('scheduled_post_id, platform, views, likes, comments, shares, scheduled_posts(title)').eq('user_id', authed.userId)
   type Row = { scheduled_post_id: string; platform: string; views: number; likes: number; comments: number; shares: number; scheduled_posts: { title: string } | { title: string }[] | null }
   const rows = (data || []) as unknown as Row[]
