@@ -6401,7 +6401,7 @@ export default function DashboardPage() {
                   Content ideas
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {ideas.length > 0 ? `You have ${ideas.length} ideas ready to review.` : `Generate ideas tailored for ${profile?.suburb}.`}
+                  {ideas.length > 0 ? `You have ${ideas.length} ${ideas.length === 1 ? 'idea' : 'ideas'} ready to review.` : profile?.suburb ? `Generate ideas tailored for ${profile.suburb}.` : 'Generate ideas tailored for your business.'}
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Content Ideas</p>
               </button>
@@ -6907,9 +6907,9 @@ export default function DashboardPage() {
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Filming style</p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {[
-                          { id: 'default', label: 'Standard', tip: 'Best for most reels - balanced mix of shots, clear instructions, works for any business.' },
-                          { id: 'multi', label: 'Multi-shot', tip: 'Lots of fast cuts - great for real estate, tutorials, or product showcases with high production value.' },
-                          { id: 'single', label: 'Single shot', tip: 'One continuous shot - perfect for vlogs, talking-to-camera, or quick product demos.' },
+                          { id: 'default', label: 'Standard', tip: 'Best for most reels. A balanced mix of shots and clear instructions that works for any business.' },
+                          { id: 'multi', label: 'Multi-shot', tip: 'Lots of fast cuts. Great for real estate, tutorials or product showcases that need a polished look.' },
+                          { id: 'single', label: 'Single shot', tip: 'One continuous shot. Perfect for vlogs, talking to camera or quick product demos.' },
                           { id: 'quick', label: 'Limited time', tip: 'Busy? 2-3 simple steps, 15-25 seconds total. Grab your phone and film in under 2 minutes.' },
                         ].map((mode) => (
                           <Tooltip key={mode.id} text={mode.tip} position="bottom">

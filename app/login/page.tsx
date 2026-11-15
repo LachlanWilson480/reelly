@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { takeAfterLogin } from '@/lib/afterLogin'
 import Sidebar from '@/components/Sidebar'
-import { mountGoogleButton } from '@/lib/googleSignIn'
+import { googleSignInOn, mountGoogleButton } from '@/lib/googleSignIn'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -58,6 +58,17 @@ export default function LoginPage() {
   }
 
   const googleButtonRef = useRef<HTMLDivElement>(null)
+
+  // Already logged in: straight to the dashboard (or to finish setting up)
+  useEffect(() => {
+    let off = false
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (off || !data.user) return
+      const { data: profile } = await supabase.from('business_profiles').select('id').eq('user_id', data.user.id).maybeSingle()
+      if (!off) router.replace(profile ? takeAfterLogin('/dashboard') : '/onboarding')
+    })
+    return () => { off = true }
+  }, [router])
 
   useEffect(() => {
     const container = googleButtonRef.current
@@ -109,12 +120,14 @@ export default function LoginPage() {
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 28 }}>
               Welcome back.
             </p>
+            {googleSignInOn && <>
             <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: 20, minHeight: 44 }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>or</span>
               <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
             </div>
+            </>}
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: 16 }}>
                 <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />

@@ -67,6 +67,7 @@ export default function Sidebar() {
     return (
       <>
         <button
+          aria-label={isMobileDrawer ? 'Close the menu' : expanded ? 'Collapse the menu' : 'Expand the menu'}
           onClick={() => (isMobileDrawer ? setMobileOpen(false) : setExpanded(!expanded))}
           style={{
             background: 'none',
@@ -138,6 +139,7 @@ export default function Sidebar() {
               <Tooltip key={item.href} text={item.label}>
                 <Link
                   href={item.href}
+                  aria-label={item.label}
                   onClick={() => isMobileDrawer && setMobileOpen(false)}
                   style={{
                     display: 'flex',
@@ -165,6 +167,7 @@ export default function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            aria-label={item.label}
             onClick={() => isMobileDrawer && setMobileOpen(false)}
             style={{
               display: "flex",
@@ -212,6 +215,7 @@ export default function Sidebar() {
 
       <button
         className="sidebar-mobile-trigger"
+        aria-label="Open the menu"
         onClick={() => setMobileOpen(true)}
         style={{
           position: 'fixed',

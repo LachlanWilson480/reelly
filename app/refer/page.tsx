@@ -22,9 +22,16 @@ export default function ReferPage() {
         </nav>
         <div style={{ padding: '16px 24px 64px', maxWidth: 640, margin: '0 auto' }}>
           {signedIn === false ? (
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              <Link href="/login" style={{ color: 'var(--coral)', fontWeight: 600 }}>Log in</Link> to get your referral link.
-            </p>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '28px 24px', textAlign: 'center' }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 10px' }}>Refer a friend, you both get 30% off</h1>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+                Share your link with another business owner. When they join and subscribe, they get 30% off their first month and you get 30% off your next month. Make a free account to get your own link.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/signup" style={{ display: 'inline-block', background: 'var(--coral)', color: '#fff', padding: '12px 22px', borderRadius: 4, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>Sign up free</Link>
+                <Link href="/login" style={{ display: 'inline-block', background: 'var(--card-bg)', color: 'var(--ink)', border: '1px solid var(--line)', padding: '11px 22px', borderRadius: 4, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>Log in</Link>
+              </div>
+            </div>
           ) : signedIn ? <ReferralCard /> : null}
         </div>
       </div>

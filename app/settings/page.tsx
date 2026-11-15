@@ -18,12 +18,15 @@ const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif"
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
-    <label style={labelStyle}>{label}</label>
-    {textarea ? (
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
-    ) : (
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
-    )}
+    {/* The label wraps the box, so tapping the label goes to the box and screen readers read it out */}
+    <label style={{ display: 'block' }}>
+      <span style={labelStyle}>{label}</span>
+      {textarea ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+      )}
+    </label>
   </div>
 )
 
@@ -533,6 +536,7 @@ export default function SettingsPage() {
               <label style={labelStyle}>People in video: {videoPeopleCount === 0 ? 'No one (faceless)' : videoPeopleCount}</label>
               <input
                 type="range"
+                aria-label="People in video"
                 min={0}
                 max={4}
                 step={1}
@@ -628,6 +632,7 @@ export default function SettingsPage() {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="New email address"
+                aria-label="New email address"
                 style={inputStyle}
               />
               <button
@@ -650,6 +655,7 @@ export default function SettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="New password"
+                  aria-label="New password"
                   style={{ ...inputStyle, padding: '12px 44px 12px 14px', marginBottom: 0 }}
                 />
                 <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
@@ -681,6 +687,7 @@ export default function SettingsPage() {
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
                 placeholder="Type DELETE"
+                aria-label="Type DELETE to confirm"
                 style={{ ...inputStyle, maxWidth: 200 }}
               />
               <button

@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import CheckoutClient from './CheckoutClient'
 
-export const metadata: Metadata = { title: 'Checkout - Reelezy' }
+export const metadata: Metadata = { title: 'Checkout | Reelezy' }
 
 export default function CheckoutPage() {
   return (

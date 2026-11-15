@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { mountGoogleButton } from '@/lib/googleSignIn'
+import { googleSignInOn, mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
 import { takeAfterLogin } from '@/lib/afterLogin'
 
@@ -77,6 +77,17 @@ export default function SignUpPage() {
   }
 
   const googleButtonRef = useRef<HTMLDivElement>(null)
+
+  // Already logged in: straight to the dashboard (or to finish setting up)
+  useEffect(() => {
+    let off = false
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (off || !data.user) return
+      const { data: profile } = await supabase.from('business_profiles').select('id').eq('user_id', data.user.id).maybeSingle()
+      if (!off) router.replace(profile ? takeAfterLogin('/dashboard') : '/onboarding')
+    })
+    return () => { off = true }
+  }, [router])
   useEffect(() => {
     const container = googleButtonRef.current
     if (!container) return
@@ -219,7 +230,7 @@ export default function SignUpPage() {
               </p>
             )}
 
-            {message !== 'check-email' && <>
+            {message !== 'check-email' && googleSignInOn && <>
             <div style={{ marginBottom: 8, minHeight: 44 }}>
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center' }} />
             </div>

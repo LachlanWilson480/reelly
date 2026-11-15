@@ -71,7 +71,8 @@ export default function CheckoutClient() {
   const params = useSearchParams()
   const rawPlan = params.get('plan')
   const plan: 'mid' | 'top' | null = rawPlan === 'top' ? 'top' : rawPlan === 'mid' || rawPlan === 'basic' ? 'mid' : null
-  const interval: 'monthly' | 'yearly' = params.get('interval') === 'monthly' ? 'monthly' : 'yearly'
+  // Monthly unless yearly was picked, the same as the plans page
+  const interval: 'monthly' | 'yearly' = params.get('interval') === 'yearly' ? 'yearly' : 'monthly'
   const urlCode = params.get('code') || ''
   const redirectStatus = params.get('redirect_status')
 
@@ -251,7 +252,12 @@ export default function CheckoutClient() {
   if (phase === 'loading') {
     right = <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center' }}>Getting your checkout ready…</p>
   } else if (phase === 'login') {
-    right = panel('Log in to continue', 'You need an account to subscribe.', <Link href="/login" style={{ display: 'inline-block', background: 'var(--coral)', color: '#fff', padding: '12px 22px', borderRadius: 4, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>Log in</Link>)
+    right = panel('Create an account to continue', 'You need a free Reelezy account to subscribe. It takes a minute, and you come straight back here after.', (
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link href="/signup" style={{ display: 'inline-block', background: 'var(--coral)', color: '#fff', padding: '12px 22px', borderRadius: 4, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>Create an account</Link>
+        <Link href="/login" style={{ display: 'inline-block', background: 'var(--card-bg)', color: 'var(--ink)', border: '1px solid var(--line)', padding: '11px 22px', borderRadius: 4, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>Log in</Link>
+      </div>
+    ))
   } else if (phase === 'already') {
     right = panel('You already have a plan', 'To change or cancel it, open Manage billing on the plans page.', backLink)
   } else if (phase === 'failed') {

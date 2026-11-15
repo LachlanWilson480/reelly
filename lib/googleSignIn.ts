@@ -52,6 +52,9 @@ const loadGoogleScript = (): Promise<void> =>
     document.head.appendChild(script)
   })
 
+// Google sign-in only shows when it has been set up, so nobody sees a "not configured" message
+export const googleSignInOn = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
 export async function mountGoogleButton(options: {
   container: HTMLElement
   onCredential: (idToken: string, rawNonce: string) => void | Promise<void>

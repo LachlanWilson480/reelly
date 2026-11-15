@@ -119,8 +119,9 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     filters.push(`scale='if(gt(iw,${outputWidth}),${outputWidth},iw)':'if(gt(ih,${outputHeight}),${outputHeight},ih)':force_original_aspect_ratio=decrease`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   } else {
-    // Portrait clip: scale to fit width, pad height if needed (no crop)
-    filters.push(`scale=${outputWidth}:-2`);
+    // Portrait clip: fitted inside the frame, the same as the preview shows it. A clip taller than the frame
+    // (a screen recording, say) gets black bars at the sides instead of failing the render.
+    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
   }
 

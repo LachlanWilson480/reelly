@@ -72,6 +72,7 @@ const PUBLISH_CSS = `
 .pub-dl { display: inline-flex; align-items: center; gap: 6px; background: var(--coral); color: #fff; border: none; border-radius: 4px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .pub-field { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font: inherit; color: var(--ink); background: #fff; }
 .pub-field:focus { outline: none; border-color: var(--coral); }
+.pub-title-field { resize: none; overflow: hidden; white-space: nowrap; height: 38px; line-height: 20px; }
 .pub-label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 .pub-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .pub-tag { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,106,77,0.08); color: var(--coral); border: 1px solid rgba(255,106,77,0.3); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12px; font-weight: 600; }
@@ -84,6 +85,10 @@ const PUBLISH_CSS = `
   .pub-thumb { width: 72px; height: 128px; }
   /* On phones the title, description and hashtags get the full width under the video */
   .pub-info { grid-column: 1 / -1; }
+  /* Less box-in-a-box on phones, so the title and description get the room */
+  .pub-groups div[id] { padding-left: 10px !important; padding-right: 10px !important; }
+  .pub-card { padding: 12px 10px; }
+  .pub-title-field { white-space: normal; height: auto; min-height: 58px; }
   .pub-copy { width: 44px; height: 44px; }
   .pub-dl { min-height: 40px; }
 }
@@ -350,7 +355,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
       </section>}
 
       {/* Videos */}
-      <section aria-labelledby="pub-ready" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <section aria-labelledby="pub-ready" className="pub-groups" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h3 id="pub-ready" style={heading}>Your videos</h3>
         {groups.length === 0 && <p style={{ ...small, fontSize: 13 }}>Finished videos show up here. Make one from Content Ideas or an AI Editor.</p>}
         {groups.map((g, gi) => (
@@ -530,7 +535,12 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
         <div>
           <p className="pub-label">Title</p>
           <div className="pub-row">
-            <input className="pub-field" aria-label="Video title" value={title} maxLength={200} placeholder="Untitled video" onChange={(e) => setTitle(e.target.value)} onBlur={() => { if (title !== (r.title ? cleanString(r.title) : '')) save({ title }) }} style={{ fontSize: 14, fontWeight: 600 }} />
+            {/* One line on a computer; on a phone a long title wraps onto a second line instead of being cut off */}
+            <textarea className="pub-field pub-title-field" aria-label="Video title" value={title} maxLength={200} rows={1} placeholder="Untitled video"
+              ref={(el) => { if (el && typeof window !== 'undefined' && window.innerWidth <= 640) { el.style.height = 'auto'; el.style.height = `${Math.max(58, el.scrollHeight + 2)}px` } }}
+              onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, ' '))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+              onBlur={() => { if (title !== (r.title ? cleanString(r.title) : '')) save({ title }) }} style={{ fontSize: 14, fontWeight: 600 }} />
             <button type="button" className="pub-copy" aria-label="Copy title" title="Copy title" disabled={!title.trim()} onClick={() => onCopy(title.trim(), `${r.id}-t`)}>{copied === `${r.id}-t` ? <TickIcon /> : <CopyIcon />}</button>
           </div>
         </div>

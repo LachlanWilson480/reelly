@@ -5,7 +5,8 @@ import Link from 'next/link'
 import Dropdown from '@/components/Dropdown'
 import { parseLocationTypes, toggleLocationType } from '@/lib/locationTypes'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { takeAfterLogin } from '@/lib/afterLogin'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
@@ -18,17 +19,26 @@ const sectionTitle = { fontFamily: "var(--font-geist-sans), 'Inter', sans-serif"
 
 const Field = ({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) => (
   <div>
-    <label style={labelStyle}>{label}</label>
-    {textarea ? (
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
-    ) : (
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
-    )}
+    {/* The label wraps the box, so tapping the label goes to the box and screen readers read it out */}
+    <label style={{ display: 'block' }}>
+      <span style={labelStyle}>{label}</span>
+      {textarea ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} placeholder={placeholder} style={{ ...inputStyle, resize: 'vertical' as const }} />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+      )}
+    </label>
   </div>
 )
 
 export default function OnboardingPage() {
   const router = useRouter()
+  // Setting up needs an account, so someone who is not logged in starts at sign up instead of filling this in for nothing
+  useEffect(() => {
+    let off = false
+    supabase.auth.getUser().then(({ data }) => { if (!off && !data.user) router.replace('/signup') })
+    return () => { off = true }
+  }, [router])
   const [showOptional, setShowOptional] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -188,7 +198,7 @@ export default function OnboardingPage() {
       setMessage(error.message)
     } else {
       trackEvent('onboarding_finished')
-      router.push('/dashboard/ideas')
+      router.push(takeAfterLogin('/dashboard/ideas'))
     }
   }
 

@@ -29,8 +29,8 @@ function buildDeletionWarningEmail(deletionDate: string) {
                 after a grace period.
               </p>
               <p style="font-size:15px;line-height:1.5;margin:0 0 16px;">
-                Your data - including your business profile, saved ideas, and
-                rendered videos - is scheduled to be permanently deleted on
+                Your data, including your business profile, saved ideas and
+                rendered videos, is scheduled to be permanently deleted on
                 <strong>${formattedDate}</strong>.
               </p>
               <p style="font-size:15px;line-height:1.5;margin:0 0 24px;">
