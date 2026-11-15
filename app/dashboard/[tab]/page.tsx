@@ -4645,11 +4645,26 @@ export default function DashboardPage() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [anyClipUploading])
 
+  // Each Create video press gets a number; Cancel moves the number on, so the old attempt stops where it is
+  const aiRunRef = useRef(0)
+  const uploadRunRef = useRef(0)
+  const cancelAiUpload = () => { aiRunRef.current += 1; setAiUploading(false); setAiEditorError('') }
+  const cancelUpload = () => { uploadRunRef.current += 1; setUploading(false); setUploadError('') }
+  // A request that never reached the server ("Load failed" on iPhone, "Failed to fetch" elsewhere) means the
+  // connection or the storage service is down, so say that in plain words
+  const uploadErrorText = (err: unknown, fallback: string) => {
+    const msg = err instanceof Error ? err.message : ''
+    if (/load failed|failed to fetch|networkerror|network request failed/i.test(msg)) return 'Your clips could not upload: the connection to our storage dropped. Check your signal and press Create video again. If it keeps happening, try again in a few minutes.'
+    return msg || fallback
+  }
+
   const runAiEditorUploads = async () => {
     if (!userId) return
     const selectedItem = filmingItems.find((f) => f.id === selectedFilmingId)
     if (!selectedItem) return
 
+    const run = ++aiRunRef.current
+    setAiEditorError('')
     setAiUploading(true)
     setAiRenderId(null)
     setAiRenderStatus(null)
@@ -4759,6 +4774,8 @@ export default function DashboardPage() {
         : null
 
       const overlayPayload = await uploadOverlay()
+      // Cancelled while the clips were uploading: do not start a render
+      if (run !== aiRunRef.current) return
       const res = await authFetch("/api/render-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -4802,9 +4819,9 @@ export default function DashboardPage() {
       clearVoiceTakes()
       setExtractedMusicPath(null)
     } catch (err) {
-      setAiEditorError(err instanceof Error ? err.message : 'Something went wrong uploading your clips. Check file sizes and try again.')
+      if (run === aiRunRef.current) setAiEditorError(uploadErrorText(err, 'Something went wrong uploading your clips. Check file sizes and try again.'))
     } finally {
-      setAiUploading(false)
+      if (run === aiRunRef.current) setAiUploading(false)
     }
   }
   // ---- Editor tabs for several filmed videos
@@ -4893,6 +4910,7 @@ export default function DashboardPage() {
     const slotIds = uploadSlots.filter((id) => uploadSlotFiles[id])
     if (slotIds.length === 0) return
 
+    const run = ++uploadRunRef.current
     setUploading(true)
     setUploadError('')
     setRenderId(null)
@@ -5002,6 +5020,8 @@ export default function DashboardPage() {
         : null
 
       const overlayPayload = await uploadOverlay()
+      // Cancelled while the clips were uploading: do not start a render
+      if (run !== uploadRunRef.current) return
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5030,9 +5050,9 @@ export default function DashboardPage() {
       setExtractedMusicPath(null)
       authFetch('/api/delete-draft-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, editorType: 'upload' }) })
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Something went wrong')
+      if (run === uploadRunRef.current) setUploadError(uploadErrorText(err, 'Something went wrong'))
     } finally {
-      setUploading(false)
+      if (run === uploadRunRef.current) setUploading(false)
     }
   }
 
@@ -6623,6 +6643,7 @@ export default function DashboardPage() {
                 <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
                   <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
+                  <button type="button" onClick={cancelUpload} style={{ marginTop: 8, padding: '6px 14px', borderRadius: 4, border: '1px solid rgba(217,45,32,0.4)', background: 'var(--card-bg)', color: 'rgb(217,45,32)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
                 </div>
               )}
               {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)', margin: phone ? 0 : undefined, padding: phone ? '10px 16px' : undefined }}>{uploadError}</p>}</>)}
@@ -7240,6 +7261,7 @@ export default function DashboardPage() {
                       <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
                         <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
+                        <button type="button" onClick={cancelAiUpload} style={{ marginTop: 8, padding: '6px 14px', borderRadius: 4, border: '1px solid rgba(217,45,32,0.4)', background: 'var(--card-bg)', color: 'rgb(217,45,32)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
                       </div>
                     )}
                     {aiEditorError && (
