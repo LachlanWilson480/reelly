@@ -34,6 +34,7 @@ import MultiFilm, { type MultiFilmIdea, type MultiFilmHandoff } from '@/componen
 import { trackRenders } from '@/lib/renderTracker'
 import { pickRecorderMime, streamIsLive, beginRecorder, beginRecorderPaused, resumeRecorder, finishRecorder } from '@/lib/recorderSupport'
 import Icon from '@/components/Icon'
+import MusicLibrary, { type PickedTrack } from '@/components/MusicLibrary'
 import OverviewPanel from '@/components/OverviewPanel'
 import CarouselCard, { carouselBtn } from '@/components/CarouselCard'
 import { BADGE_SPOT, BADGE_SRC, BADGE_RATIO } from '@/lib/madeWithBadge'
@@ -116,7 +117,7 @@ type ClipCrop = { x: number; y: number; w: number; h: number }
 type ClipPlace = { x: number; y: number; s: number }
 const placeIsPlain = (p: ClipPlace | null | undefined) => !p || (Math.abs(p.x) < 0.002 && Math.abs(p.y) < 0.002 && Math.abs(p.s - 1) < 0.002)
 // Where the + on a timeline line can add from: the user's Reelezy library, their photo library or their files
-type AddSource = { library: () => void; photos: (files: File[]) => void; files: (files: File[]) => void; photoAccept: string; fileAccept: string; multiple?: boolean; photoLabel?: string; libraryLabel?: string }
+type AddSource = { music?: () => void; library: () => void; photos: (files: File[]) => void; files: (files: File[]) => void; photoAccept: string; fileAccept: string; multiple?: boolean; photoLabel?: string; libraryLabel?: string }
 type AddSources = { video?: AddSource; audio?: AddSource }
 // What tapping the other things on the timeline can do: voiceovers, music, overlays and captions
 type TimelineOps = { onTakeVolume?: (id: string, v: number) => void; onMusicVol?: (v: number) => void; onRemoveMusic?: () => void; onRemoveOverlay?: (id: string) => void; musicStart?: number; onMusicStart?: (s: number) => void }
@@ -250,7 +251,7 @@ type EditorSnap = {
   slots: number[]; files: Record<number, File>; paths: Record<number, string>; trims: Record<number, ClipTrimRange>; speeds: Record<number, number>; vols: Record<number, number>; muted?: Record<number, boolean>; screenTexts?: Record<number, string>; crops?: Record<number, ClipCrop>; places?: Record<number, ClipPlace>
   looks: Record<number, AppearanceSettings>; texts: Record<number, string[]>; ownTexts: Record<number, string>; speech: Set<number>; landscape: Set<number>
   caps: CustomCaption[]; overlays: OverlayItem[]; takes: VoiceTake[]; assets: Record<string, string>
-  musicFile: File | null; libMusicUrl: string | null; libMusicName: string | null; extracted: string | null; musicStart?: number
+  musicFile: File | null; libMusicUrl: string | null; libMusicId?: string | null; libMusicName: string | null; extracted: string | null; musicStart?: number
   badge: boolean; autoCaptions: boolean; preset: string; script: { id: string; label: string; lines: string[] } | null
   renderId: string | null; renderStatus: string | null; renderProgress: number; outputUrl: string | null; overQuota: boolean; renderError: string | null; uploadError: string
   ctx: { ideaId: string | null; source: string; title: string | null; caption: string | null; tags: string | null } | null
@@ -2424,6 +2425,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
             <div ref={addMenuRef} role="dialog" aria-label={addMenu.kind === 'video' ? 'Add a video from' : 'Add audio from'}
               style={{ position: 'fixed', zIndex: 1100, left: addMenu.left, top: addMenu.top, width: 240, boxSizing: 'border-box', background: 'rgba(28,28,32,0.97)', borderRadius: 6, padding: 4, boxShadow: '0 6px 24px rgba(0,0,0,0.28)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
               <span aria-hidden="true" style={{ position: 'absolute', left: addMenu.arrow - 8, [addMenu.below ? 'top' : 'bottom']: -8, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', [addMenu.below ? 'borderBottom' : 'borderTop']: '8px solid rgba(28,28,32,0.97)' }} />
+              {addMenu.kind === 'audio' && src.music && row(<LineIcon n="audio" size={20} />, 'Music library', 'Thousands of licensed songs', () => { setAddMenu(null); src.music!() })}
               {addMenu.kind === 'audio' && row(<LineIcon n="mic" size={20} />, 'Record a voiceover', 'Starts where the line is', () => { setAddMenu(null); void startRecording() })}
               {row(lib, 'Library', src.libraryLabel || 'Saved in Reelezy', () => { setAddMenu(null); src.library() })}
               {row(box, 'Photo library', src.photoLabel || 'Videos on this device', () => addPhotoRef.current?.click())}
@@ -2574,8 +2576,8 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Optional.</span>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={onOpenPicker} disabled={extracting} style={choiceBtn(!!(musicFile || extractedPath) && !libraryName, extracting)}>Pick from the library</button>
-        <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Browse the music library</button>
+        <button type="button" onClick={onOpenPicker} disabled={extracting} style={choiceBtn(!!(musicFile || extractedPath) && !libraryName, extracting)}>Your sounds</button>
+        <button type="button" onClick={onOpenLibrary} style={choiceBtn(!!libraryName)}>Music library</button>
       </div>
       {extracting ? (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '10px 0 0', display: 'flex', alignItems: 'center' }}><span className="rly-spinner rly-spinner-coral" />Getting the sound from your video...</p>
@@ -2587,7 +2589,7 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
         </div>
       ) : (
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Pick from the library has your saved sounds, a file from your device, or the sound from a video. Skip this to keep your clips&apos; own sound.
+          Music library has thousands of licensed songs to search. Your sounds has your saved sounds, a file from your device, or the sound from a video. Skip this to keep your clips&apos; own sound.
         </p>
       )}
       {extractError && <p role="alert" style={{ fontSize: 11, color: 'var(--coral)', margin: '8px 0 0' }}>{extractError}</p>}
@@ -2788,15 +2790,9 @@ export default function DashboardPage() {
   const [showMusicLibrary, setShowMusicLibrary] = useState<null | 'ai' | 'upload'>(null)
   const [libraryMusicUrl, setLibraryMusicUrl] = useState<string | null>(null)
   const [libraryMusicName, setLibraryMusicName] = useState<string | null>(null)
-  const [previewingTrackId, setPreviewingTrackId] = useState<string | null>(null)
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  // The Soundstripe track id, so the render can fetch the full quality file. Empty for Reelezy's own tracks.
+  const [libraryMusicId, setLibraryMusicId] = useState<string | null>(null)
 
-  const MUSIC_LIBRARY_TRACKS = [
-    { id: 'track-2', name: 'Chill Lo-fi', mood: 'Relaxed', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/chill-lofi.mp3' },
-    { id: 'track-3', name: 'Cinematic Build', mood: 'Dramatic', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/cinematic.mp3' },
-    { id: 'track-4', name: 'Trending Pop', mood: 'Fun', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/trending-pop.mp3' },
-    { id: 'track-1', name: 'Upbeat Piano', mood: 'Energetic', url: 'https://rhnbpkkghdwegnkystdf.supabase.co/storage/v1/object/public/music-library/upbeat-corporate.mp3' },
-  ]
   const [carouselFiles, setCarouselFiles] = useState<File[]>([])
   const [carouselCaption, setCarouselCaption] = useState('')
   const [savingCarousel, setSavingCarousel] = useState(false)
@@ -4679,6 +4675,7 @@ export default function DashboardPage() {
       libraryLabel: 'Clips saved in Reelezy',
     },
     audio: {
+      music: () => setShowMusicLibrary(m),
       library: () => setAudioPicker(true),
       photos: (f) => { if (f[0]) void handleExtractAudio(f[0]) },
       files: (f) => { if (f[0]) uploadVoiceFile(f[0]) },
@@ -4971,26 +4968,10 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filmAutoRender, uploadSlotFiles])
 
-    const togglePreviewTrack = (trackId: string, url: string) => {
-    if (previewingTrackId === trackId) {
-      previewAudioRef.current?.pause()
-      setPreviewingTrackId(null)
-      return
-    }
-    if (!url) return
-    previewAudioRef.current?.pause()
-    const audio = new Audio(url)
-    audio.play()
-    audio.onended = () => setPreviewingTrackId(null)
-    previewAudioRef.current = audio
-    setPreviewingTrackId(trackId)
-  }
-
-  const selectLibraryTrack = (trackId: string, name: string, url: string, target: 'ai' | 'upload') => {
-    previewAudioRef.current?.pause()
-    setPreviewingTrackId(null)
-    setLibraryMusicUrl(url)
-    setLibraryMusicName(name)
+  const selectLibraryTrack = (t: PickedTrack) => {
+    setLibraryMusicUrl(t.url)
+    setLibraryMusicId(t.source === 'soundstripe' ? t.id : null)
+    setLibraryMusicName(t.artist && t.source === 'soundstripe' ? `${t.title} by ${t.artist}` : t.title)
     setMusicFile(null)
     setExtractedMusicPath(null)
     setShowMusicLibrary(null)
@@ -5484,7 +5465,7 @@ export default function DashboardPage() {
     setMusicFile(file)
     if (file) {
       // One music choice at a time
-      setLibraryMusicUrl(null)
+      setLibraryMusicUrl(null); setLibraryMusicId(null)
       setLibraryMusicName(null)
       setExtractedMusicPath(null)
       startAssetUpload('m', file, file.name)
@@ -5502,7 +5483,7 @@ export default function DashboardPage() {
 
   // A sound from the audio library is already in storage, so use it where it is as the music
   const applySavedSoundAsMusic = (file: File, path: string) => {
-    setLibraryMusicUrl(null)
+    setLibraryMusicUrl(null); setLibraryMusicId(null)
     setLibraryMusicName(null)
     setExtractedMusicPath(null)
     setExtractAudioError('')
@@ -5513,7 +5494,7 @@ export default function DashboardPage() {
   }
 
   const clearMusic = () => {
-    setLibraryMusicUrl(null)
+    setLibraryMusicUrl(null); setLibraryMusicId(null)
     setLibraryMusicName(null)
     setMusicFile(null)
     setExtractedMusicPath(null)
@@ -5750,7 +5731,7 @@ export default function DashboardPage() {
           originalVolume: originalVol, musicVolume: musicVol, musicStart,
           // The script that was read out, so captions can use it as well as what was heard
           captionScript: (voiceScript?.lines?.length ? voiceScript.lines : aiIdeaLines).join('\n') || undefined,
-          musicUrl: libraryMusicUrl,
+          musicUrl: libraryMusicUrl, musicTrackId: libraryMusicId || undefined,
           speechClipIndices: speechIndices,
           clipTrims,
           clipSettings,
@@ -5793,7 +5774,7 @@ export default function DashboardPage() {
     slots: uploadSlots, files: uploadSlotFiles, paths: uploadSlotPaths, trims: uploadTrims, speeds: uploadSpeeds, vols: uploadVols, muted: uploadMuted, screenTexts: uploadScreenTexts, crops: uploadCrops, places: uploadPlaces,
     looks: uploadLooks, texts: uploadSlotTexts, ownTexts: uploadOwnTexts, speech: uploadSpeechSlots, landscape: uploadLandscapeSlots,
     caps: uploadCaps, overlays, takes: voiceTakes, assets: assetPaths,
-    musicFile, libMusicUrl: libraryMusicUrl, libMusicName: libraryMusicName, extracted: extractedMusicPath, musicStart,
+    musicFile, libMusicUrl: libraryMusicUrl, libMusicId: libraryMusicId, libMusicName: libraryMusicName, extracted: extractedMusicPath, musicStart,
     badge: madeWithBadge, autoCaptions: uploadAddCaptions, preset: captionPreset, script: voiceScript,
     renderId, renderStatus, renderProgress, outputUrl, overQuota: renderOverQuota, renderError, uploadError,
     ctx: filmRenderContextRef.current, orientation: filmOutputOrientationRef.current,
@@ -5802,7 +5783,7 @@ export default function DashboardPage() {
     setUploadSlots(sn.slots); setUploadSlotFiles(sn.files); setUploadSlotPaths(sn.paths); setUploadTrims(sn.trims); setUploadSpeeds(sn.speeds); setUploadVols(sn.vols); setUploadMuted(sn.muted ?? {}); setUploadScreenTexts(sn.screenTexts ?? {}); setUploadCrops(sn.crops ?? {}); setUploadPlaces(sn.places ?? {})
     setUploadLooks(sn.looks); setUploadSlotTexts(sn.texts); setUploadOwnTexts(sn.ownTexts); setUploadSpeechSlots(sn.speech); setUploadLandscapeSlots(sn.landscape)
     setUploadCaps(sn.caps); setOverlays(sn.overlays); setVoiceTakes(sn.takes); setAssetPaths(sn.assets)
-    setMusicFile(sn.musicFile); setLibraryMusicUrl(sn.libMusicUrl); setLibraryMusicName(sn.libMusicName); setExtractedMusicPath(sn.extracted); setExtractAudioError('')
+    setMusicFile(sn.musicFile); setLibraryMusicUrl(sn.libMusicUrl); setLibraryMusicId(sn.libMusicId ?? null); setLibraryMusicName(sn.libMusicName); setExtractedMusicPath(sn.extracted); setExtractAudioError('')
     // After the music itself is set, so the reset for new music does not undo it
     window.setTimeout(() => setMusicStart(sn.musicStart ?? 0), 0)
     setMadeWithBadge(sn.badge); setUploadAddCaptions(sn.autoCaptions); setCaptionPreset(sn.preset); setVoiceScript(sn.script)
@@ -5992,7 +5973,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, captionScript: voiceScript?.lines?.join('\n') || undefined, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, captionScript: voiceScript?.lines?.join('\n') || undefined, musicUrl: libraryMusicUrl, musicTrackId: libraryMusicId || undefined, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
       })
 
       const data = await res.json()
@@ -6093,7 +6074,7 @@ export default function DashboardPage() {
     setExtractAudioError('')
     setExtractedMusicPath(null)
     setMusicFile(null)
-    setLibraryMusicUrl(null)
+    setLibraryMusicUrl(null); setLibraryMusicId(null)
     setLibraryMusicName(null)
 
     try {
@@ -8539,49 +8520,7 @@ export default function DashboardPage() {
       )}
 
       {showMusicLibrary && (
-        <div
-          onClick={() => { previewAudioRef.current?.pause(); setPreviewingTrackId(null); setShowMusicLibrary(null) }}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
-        >
-          <div
-            role="dialog" aria-label="Music library"
-            onClick={(e) => e.stopPropagation()}
-            style={{ position: "relative", background: "var(--card-bg)", borderRadius: 4, padding: "32px", maxWidth: 480, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
-          >
-            <button type="button" aria-label="Close" onClick={() => { previewAudioRef.current?.pause(); setPreviewingTrackId(null); setShowMusicLibrary(null) }}
-              style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 4, border: "none", background: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon n="close" /></button>
-            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, paddingRight: 28 }}>
-              Music library
-            </h2>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
-              Browse licensed tracks and preview before adding them to your video.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {MUSIC_LIBRARY_TRACKS.map((track) => (
-                <div key={track.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--sand)", borderRadius: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => togglePreviewTrack(track.id, track.url)}
-                    style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "var(--coral)", color: "#fff", fontSize: 14, cursor: "pointer", flexShrink: 0 }}
-                  >
-                    {previewingTrackId === track.id ? <Icon n="pause" /> : <Icon n="play" />}
-                  </button>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600 }}>{track.name}</p>
-                    <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>{track.mood}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => selectLibraryTrack(track.id, track.name, track.url, showMusicLibrary)}
-                    style={{ background: "none", border: "1px solid var(--line)", borderRadius: 4, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "var(--ink)", cursor: "pointer" }}
-                  >
-                    Use this track
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <MusicLibrary chosenId={libraryMusicId} onClose={() => setShowMusicLibrary(null)} onPick={selectLibraryTrack} />
       )}
     </div>
   )

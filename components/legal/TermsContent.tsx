@@ -41,6 +41,9 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
         <li style={LI}>AI generated ideas, scripts and captions can contain mistakes. Check them before you post</li>
       </ul>
 
+      <h2 style={H2}>Music from the music library</h2>
+      <p style={P}>Music in the Reelezy music library is supplied by Soundstripe. Before you use it you must agree to <a href="https://www.soundstripe.com/end-user-license-agreement" target="_blank" rel="noopener noreferrer">Soundstripe&apos;s Terms of Use</a>. You may only use these tracks inside videos you make with Reelezy, together with your own content. You must not download, share or sell the tracks on their own, use them to train AI, or share your Reelezy login with anyone else. We keep a record of when you agreed, as Soundstripe requires.</p>
+
       <h2 style={H2}>Connected social accounts</h2>
       <p style={P}>You can connect accounts such as YouTube, TikTok, Instagram and Facebook so Reelezy can post the videos you schedule. We only post content you have approved, to the accounts you connect. You must follow each platform&apos;s own rules, and you can disconnect an account at any time from the Publish page.</p>
       <p style={P}>If you connect YouTube, you also agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>. Information we receive from Google is handled under our <a href="/privacy">Privacy Policy</a> and the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>. You can remove Reelezy&apos;s access to your Google account at any time at <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener noreferrer">security.google.com/settings/security/permissions</a>.</p>

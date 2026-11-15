@@ -4,6 +4,7 @@ import { BADGE_SPOT, BADGE_SRC } from '@/lib/madeWithBadge'
 import { userIdsForEmail } from '@/lib/userIdsForEmail'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { getAuthedUser } from '@/lib/getAuthedUser'
+import { songForRender, soundstripeOn } from '@/lib/soundstripe'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, captionScript, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, captionScript, musicUrl: directMusicUrl, musicTrackId, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -126,7 +127,20 @@ export async function POST(req: NextRequest) {
       const { data: voData, error: voError } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(v.path, 21600)
       if (!voError && voData) signedVoiceovers.push({ url: voData.signedUrl, start: Math.max(0, Number(v.start) || 0), duration: Math.max(0, Number(v.duration) || 0), volume: (Number.isFinite(Number(v.volume)) ? Math.min(100, Math.max(0, Number(v.volume))) : 100) / 100 })
     }
-    let musicUrl: string | null = directMusicUrl || null
+    // A track from the music library. Soundstripe tracks are looked up here by id so the file is fresh and full quality.
+    // Any other direct link must be one of the tracks Reelezy hosts itself.
+    let musicUrl: string | null = null
+    if (typeof musicTrackId === 'string' && musicTrackId && soundstripeOn()) {
+      const { data: who } = await supabaseAdmin.auth.admin.getUserById(userId)
+      if (!who.user?.app_metadata?.soundstripe_terms_accepted_at) {
+        return NextResponse.json({ error: 'Please agree to the music terms in the music library first.' }, { status: 403 })
+      }
+      const song = await songForRender(musicTrackId)
+      if (!song) return NextResponse.json({ error: 'Could not get that music track. Please pick it again.' }, { status: 502 })
+      musicUrl = song.url
+    } else if (typeof directMusicUrl === 'string' && directMusicUrl.startsWith(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/music-library/`) && !directMusicUrl.includes('..')) {
+      musicUrl = directMusicUrl
+    }
     if (!musicUrl && musicPath) {
       const { data, error } = await supabaseAdmin.storage.from('video-uploads').createSignedUrl(musicPath, 21600)
       if (!error && data) musicUrl = data.signedUrl
