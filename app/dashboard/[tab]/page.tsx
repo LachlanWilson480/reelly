@@ -1483,7 +1483,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
                     const d = Math.abs(i - f)
                     const near = Math.max(0, 1 - d)
                     return (
-                      <p key={i} ref={(el) => { lineEls.current[i] = el }} style={{ margin: '0 0 18px', fontSize: 22, fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.35, color: '#fff', opacity: live ? Math.max(0.2, 1 - d * 0.5) : 1, overflowWrap: 'anywhere', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
+                      <p key={i} ref={(el) => { lineEls.current[i] = el }} style={{ margin: '0 0 18px', fontSize: 'clamp(14px, 8cqw, 22px)', fontWeight: near > 0.5 ? 700 : 500, lineHeight: 1.35, color: '#fff', opacity: live ? Math.max(0.2, 1 - d * 0.5) : 1, overflowWrap: 'break-word', hyphens: 'manual', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{l}</p>
                     )
                   })}
                 </div>
@@ -1535,7 +1535,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
         </button>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtClock(globalTime)} / {fmtClock(total)}</span>
         <span style={{ flex: 1 }} />
-        {onBadge && hasClips && !badge && !recording && (
+        {!mobile && onBadge && hasClips && !badge && !recording && (
           <button type="button" onClick={() => onBadge(true)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--coral)', textDecoration: 'underline', cursor: 'pointer' }}>Add Made with Reelezy badge</button>
         )}
         {!recording ? (
@@ -3645,8 +3645,8 @@ export default function DashboardPage() {
         </div>
         <input ref={overlayInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { pickOverlay(e.target.files?.[0] || null); e.target.value = '' }} />
         <label title={bizLogoUrl ? 'Puts the logo from your Settings on the video. Drag it on the preview to move it.' : 'Upload your logo in Settings first'} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: bizLogoUrl ? 'var(--ink)' : 'var(--text-muted)', cursor: bizLogoUrl ? 'pointer' : 'not-allowed' }}>
-          <input type="checkbox" checked={overlays.some((o) => o.isLogo)} disabled={!bizLogoUrl} onChange={(e) => { if (e.target.checked) void addLogoOverlay(); else overlays.filter((o) => o.isLogo).forEach((o) => clearOverlay(o.id)) }} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
-          Add my logo
+          <input type="checkbox" checked={overlays.some((o) => o.isLogo) || logoLoading} disabled={!bizLogoUrl || logoLoading} onChange={(e) => { if (e.target.checked) void addLogoOverlay(); else overlays.filter((o) => o.isLogo).forEach((o) => clearOverlay(o.id)) }} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+          {logoLoading ? 'Adding your logo...' : 'Add my logo'}
           {bizLogoUrl === null && <a href="/settings" style={{ fontSize: 12, color: 'var(--coral)' }}>Upload one in Settings</a>}
         </label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -3794,6 +3794,14 @@ export default function DashboardPage() {
   // On a phone the AI editor goes full screen once an idea is picked; picking the idea is a normal page
   const phoneAi = phone && !!selectedFilmingId
   const aiPhoneTitle = filmingItems.find((f) => f.id === selectedFilmingId)?.title || 'AI editor'
+
+  // Phone editor: the Made with Reelezy badge switch sits in Settings (on a computer it is a link under the preview)
+  const renderPhoneBadgeToggle = () => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 20px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
+      <input type="checkbox" checked={madeWithBadge} onChange={(e) => setMadeWithBadge(e.target.checked)} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+      Show the Made with Reelezy badge
+    </label>
+  )
 
   // Phone editor: Extract audio gets its own page. On a computer it is under Audio > Pick from the library.
   const renderPhoneExtractPanel = () => (
@@ -4428,12 +4436,23 @@ export default function DashboardPage() {
     const item: OverlayItem = opts?.isLogo
       ? { ...base, isLogo: true, x: 0.85, y: 0.1, size: 0.2, start: 0 }
       : { ...base, x: 0.5, y: Math.min(0.8, 0.2 + overlays.filter((o) => !o.isLogo).length * 0.12), size: 0.35, start: playheadRef.current.total > 0 && playheadRef.current.t < playheadRef.current.total - 0.5 ? playheadRef.current.t : 0 }
-    setOverlays((prev) => [...prev, item])
-    setSelOverlay(item.id)
+    // Checked against the latest list, so quick taps can never add more than one logo or go over the limit
+    let added = false
+    setOverlays((prev) => {
+      if ((item.isLogo && prev.some((o) => o.isLogo)) || prev.length >= MAX_OVERLAYS) return prev
+      added = true
+      return [...prev, item]
+    })
+    if (added) setSelOverlay(item.id)
+    else URL.revokeObjectURL(item.url)
   }
-  // Puts the logo from Settings on the video
+  // Puts the logo from Settings on the video. It has to download first, so taps while it does are ignored.
+  const logoLoadingRef = useRef(false)
+  const [logoLoading, setLogoLoading] = useState(false)
   const addLogoOverlay = async () => {
-    if (!bizLogoUrl || overlays.some((o) => o.isLogo)) return
+    if (!bizLogoUrl || overlays.some((o) => o.isLogo) || logoLoadingRef.current) return
+    logoLoadingRef.current = true
+    setLogoLoading(true)
     try {
       const res = await fetch(bizLogoUrl, { cache: 'no-store' })
       if (!res.ok) throw new Error('bad status')
@@ -4442,6 +4461,9 @@ export default function DashboardPage() {
       pickOverlay(new File([blob], `logo.${ext}`, { type: blob.type || 'image/png' }), { isLogo: true })
     } catch {
       setOverlayError('Could not load your logo. Try again, or check it in Settings.')
+    } finally {
+      logoLoadingRef.current = false
+      setLogoLoading(false)
     }
   }
   const clearOverlay = (id: string) => {
@@ -4460,8 +4482,11 @@ export default function DashboardPage() {
       let path = overlayUploadRef.current.get(ov.file) ?? null
       if (!path) {
         path = `${userId}/overlay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${ov.file.name.replace(/[^\w.-]+/g, '_')}`
-        const { error } = await supabase.storage.from('video-uploads').upload(path, ov.file, ov.file.type ? { contentType: ov.file.type } : undefined)
-        if (error) throw new Error(`Overlay upload failed: ${error.message}`)
+        const send = () => supabase.storage.from('video-uploads').upload(path!, ov.file, ov.file.type ? { contentType: ov.file.type, upsert: true } : { upsert: true })
+        let { error } = await send()
+        // A dropped connection on a phone ("Load failed", "Failed to fetch") gets one more go
+        if (error && /load failed|failed to fetch|network/i.test(error.message)) { await new Promise((r) => setTimeout(r, 1200)); ({ error } = await send()) }
+        if (error) throw new Error(/load failed|failed to fetch|network/i.test(error.message) ? 'An overlay could not upload because the connection dropped. Check your signal and press Create video again.' : `Overlay upload failed: ${error.message}`)
         overlayUploadRef.current.set(ov.file, path)
       }
       out.push({ path, kind: ov.kind, x: ov.x, y: ov.y, size: ov.size, start: ov.start, end: ov.end, cl: ov.cl, cr: ov.cr, ct: ov.ct, cb: ov.cb })
@@ -6591,7 +6616,7 @@ export default function DashboardPage() {
               {edT(phone, 'overlay', renderOverlayCard())}
 
               {/* ── VIDEO SETTINGS ── */}
-              {edT(phone, 'settings', renderVideoSettings('upload'))}
+              {edT(phone, 'settings', <>{renderVideoSettings('upload')}{phone && renderPhoneBadgeToggle()}</>)}
 
               {/* ── Render ── */}
               {edT(phone, 'always', <>{uploading && (
@@ -7208,7 +7233,7 @@ export default function DashboardPage() {
                     {edT(phoneAi, 'overlay', renderOverlayCard())}
 
                     {/* ── VIDEO SETTINGS ── */}
-                    {edT(phoneAi, 'settings', renderVideoSettings('ai'))}
+                    {edT(phoneAi, 'settings', <>{renderVideoSettings('ai')}{phoneAi && renderPhoneBadgeToggle()}</>)}
 
                     {/* ── Render ── */}
                     {edT(phoneAi, 'always', <>{aiUploading && (
