@@ -9,7 +9,7 @@ import { cleanString } from '@/lib/cleanText'
 import { buttonPrimary, buttonSecondary, inputCompact } from '@/lib/ui'
 import Icon from '@/components/Icon'
 import CollapsibleBox from '@/components/CollapsibleBox'
-import CarouselCard from '@/components/CarouselCard'
+import CarouselCard, { carouselBtn } from '@/components/CarouselCard'
 import Dropdown from '@/components/Dropdown'
 import DatePicker from '@/components/DatePicker'
 import TikTokSettings from '@/components/TikTokSettings'
@@ -89,7 +89,7 @@ const PUBLISH_CSS = `
 }
 `
 
-export default function SchedulerTab({ userId, carousels, isFree = false }: { userId: string | null; carousels: Carousel[]; isFree?: boolean }) {
+export default function SchedulerTab({ userId, carousels, isFree = false, onDeleteCarousel }: { userId: string | null; carousels: Carousel[]; isFree?: boolean; onDeleteCarousel?: (id: string) => void }) {
   const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
   const [queue, setQueue] = useState<ScheduledPost[]>([])
@@ -128,6 +128,21 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
   }, [userId])
 
   const connected = conns.filter((c) => c.status === 'connected').map((c) => c.platform)
+
+  // Deletes a finished video. Returns a message to show if it could not be deleted.
+  const deleteRender = async (id: string): Promise<string | null> => {
+    try {
+      const res = await authFetch('/api/delete-render', { method: 'POST', body: JSON.stringify({ renderId: id }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) return (j as { error?: string }).error || 'Could not delete the video. Please try again.'
+      setRenders((cur) => cur.filter((x) => x.id !== id))
+      if (plan?.renderId === id) setPlan(null)
+      reloadQueue()
+      return null
+    } catch {
+      return 'Could not delete the video. Check your connection and try again.'
+    }
+  }
 
   const connect = async (platform: PlatformId) => {
     setNotice('')
@@ -343,7 +358,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
             {g.key === 'reels' ? (
               <>
                 <p style={small}>Download the pictures and post them from your phone in the same order.</p>
-                {carousels.map((c, ci) => <CarouselCard key={c.id} c={c} index={carousels.length - 1 - ci} />)}
+                {carousels.map((c, ci) => <CarouselCard key={c.id} c={c} index={carousels.length - 1 - ci} onDelete={onDeleteCarousel ? () => onDeleteCarousel(c.id) : undefined} />)}
               </>
             ) : g.items.map((r) => (
               <VideoCard
@@ -355,6 +370,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false }: { us
                 onCopy={copy}
                 onDownload={() => download(r.output_url!, r.id, r.title)}
                 onSaved={(patch) => setRenders((cur) => cur.map((x) => (x.id === r.id ? { ...x, ...patch } : x)))}
+                onDelete={() => deleteRender(r.id)}
                 schedule={SHOW_SCHEDULING && connected.length > 0 ? { open: plan?.from === 'video' && plan.renderId === r.id, toggle: () => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }, panel: plan?.from === 'video' && plan.renderId === r.id ? <PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} /> : null } : null}
               />
             ))}
@@ -461,10 +477,11 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
 const parseTags = (t: string | null | undefined) => Array.from(new Set((t || '').split(/[\s,]+/).map((x) => x.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '')).filter(Boolean))).map((x) => `#${x}`)
 
 // One finished video in Publish: edit its title, description and hashtags, copy them, and download the video
-function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, schedule }: {
+function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, onDelete, schedule }: {
   r: Render; isFree: boolean; copied: string | null; downloading: boolean
   onCopy: (text: string, key: string) => void; onDownload: () => void
   onSaved: (patch: Partial<Render>) => void
+  onDelete: () => Promise<string | null>
   schedule: { open: boolean; toggle: () => void; panel: React.ReactNode } | null
 }) {
   const [title, setTitle] = useState(() => (r.title ? cleanString(r.title) : ''))
@@ -472,6 +489,15 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
   const [tags, setTags] = useState<string[]>(() => parseTags(r.tags))
   const [tagDraft, setTagDraft] = useState('')
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
+  // Delete asks once before it goes
+  const [confirmDel, setConfirmDel] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [delError, setDelError] = useState('')
+  const doDelete = async () => {
+    setDeleting(true); setDelError('')
+    const err = await onDelete()
+    if (err) { setDelError(err); setDeleting(false); setConfirmDel(false) }
+  }
 
   const save = async (patch: { title?: string; caption?: string; tags?: string }) => {
     setState('saving')
@@ -527,12 +553,21 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
           {state === 'failed' && <span style={{ color: '#D92D20' }}> · Could not save. Please try again.</span>}
         </p>
       </div>
-      {!isFree && (
-        <div className="pub-actions">
-          <button type="button" className="pub-dl" disabled={downloading} onClick={onDownload}><Icon n="download" />{downloading ? 'Downloading...' : 'Download'}</button>
-          {schedule && <button type="button" onClick={schedule.toggle} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
-        </div>
-      )}
+      <div className="pub-actions" style={{ alignItems: 'center' }}>
+        {!isFree && <button type="button" className="pub-dl" disabled={downloading} onClick={onDownload}><Icon n="download" />{downloading ? 'Downloading...' : 'Download'}</button>}
+        {!isFree && schedule && <button type="button" onClick={schedule.toggle} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+        <span style={{ flex: 1 }} />
+        {confirmDel ? (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Delete this video? Posts waiting to go out with it are cancelled.</span>
+            <button type="button" onClick={() => setConfirmDel(false)} disabled={deleting} style={carouselBtn.secondary}>Keep</button>
+            <button type="button" onClick={doDelete} disabled={deleting} style={{ ...carouselBtn.danger, background: '#D92D20', color: '#fff' }}>{deleting ? 'Deleting...' : 'Delete'}</button>
+          </>
+        ) : (
+          <button type="button" aria-label={`Delete ${title.trim() || 'this video'}`} onClick={() => { setDelError(''); setConfirmDel(true) }} style={carouselBtn.danger}>Delete</button>
+        )}
+        {delError && <p role="alert" style={{ flexBasis: '100%', margin: 0, fontSize: 12, color: '#D92D20' }}>{delError}</p>}
+      </div>
       {schedule?.panel && <div style={{ gridColumn: '1 / -1' }}>{schedule.panel}</div>}
     </div>
   )

@@ -68,6 +68,7 @@ export default function HistoryPage() {
         .from('renders')
         .select('id, status, output_url, created_at, title, caption, tags')
         .eq('user_id', user.id)
+        .neq('status', 'deleted')
         .order('created_at', { ascending: false })
 
       const parsedIdeas: IdeaRow[] = (ideaRows || []).map((row) => {

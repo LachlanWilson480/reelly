@@ -7357,7 +7357,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} carousels={savedCarousels} isFree={isFreeTier} />
+          <SchedulerTab userId={userId} carousels={savedCarousels} isFree={isFreeTier} onDeleteCarousel={deleteCarousel} />
           )}
         </div>
       </div>
