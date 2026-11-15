@@ -144,7 +144,8 @@ export default function MultiFilm(p: Props) {
   const [isRecording, setIsRecording] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
-  const [scrollSpeed, setScrollSpeed] = useState(3)
+  // 1x is a slow walking pace, from 0.25x to 2x (the same as the editor's script)
+  const [scrollSpeed, setScrollSpeed] = useState(1)
   const [recordError, setRecordError] = useState('')
   const badMimeRef = useRef<Set<string>>(new Set())
 
@@ -398,7 +399,7 @@ export default function MultiFilm(p: Props) {
       return
     }
     const words = line.split(/\s+/).filter(Boolean).length
-    const secs = Math.max(2, words / (2.3 * (scrollSpeed / 3)))
+    const secs = Math.max(2, words / (1.3 * Math.min(2, Math.max(0.25, scrollSpeed))))
     const distance = el.scrollWidth
     const startTime = performance.now()
     let stopTimer: ReturnType<typeof setTimeout> | null = null
@@ -713,7 +714,7 @@ export default function MultiFilm(p: Props) {
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed {scrollSpeed}x</span>
                     <span style={{ fontSize: 11, color: uploadingCount > 0 ? '#ffd166' : 'rgba(255,255,255,0.45)' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount}…` : videos.some((v) => v.clips.length > 0) ? 'Saved' : ''}</span>
                   </div>
-                  <input type="range" min={1} max={10} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
+                  <input type="range" min={0.25} max={2} step={0.25} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
                 </div>
                 </>
               )}

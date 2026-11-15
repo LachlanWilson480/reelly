@@ -159,7 +159,7 @@ const CAPTION_LOOKS: { name: string; font: string; color: string; bg: string | n
 type OverlayItem = { id: string; file: File; kind: 'image' | 'video'; isLogo?: boolean; url: string; x: number; y: number; size: number; start: number; end: number | null; ar: number; cl: number; cr: number; ct: number; cb: number }
 // Everything one video holds in the editor, so several filmed videos can each have their own tab
 type EditorSnap = {
-  slots: number[]; files: Record<number, File>; paths: Record<number, string>; trims: Record<number, ClipTrimRange>; speeds: Record<number, number>; vols: Record<number, number>
+  slots: number[]; files: Record<number, File>; paths: Record<number, string>; trims: Record<number, ClipTrimRange>; speeds: Record<number, number>; vols: Record<number, number>; muted?: Record<number, boolean>
   looks: Record<number, AppearanceSettings>; texts: Record<number, string[]>; ownTexts: Record<number, string>; speech: Set<number>; landscape: Set<number>
   caps: CustomCaption[]; overlays: OverlayItem[]; takes: VoiceTake[]; assets: Record<string, string>
   musicFile: File | null; libMusicUrl: string | null; libMusicName: string | null; extracted: string | null
@@ -206,6 +206,12 @@ type VoiceTake = { id: string; blob: Blob; url: string; start: number; duration:
 const TAKE_COLORS = ['#FF6A4D', '#2E86AB', '#7B5EA7', '#3A9D6E', '#C99A1B', '#C2456F']
 const takeColor = (i: number) => TAKE_COLORS[i % TAKE_COLORS.length]
 // Clip speeds: slow-mo below 1x, timelapse above it
+// How fast scripts scroll at 1x, in words a second. 1x is a slow, walking pace (people talking on camera usually
+// manage about 2.3 a second, which is the 2x setting's top end). Every teleprompter runs from 0.25x to 2x.
+const SCRIPT_WORDS_PER_SEC = 1.3
+const SCRIPT_SPEED_MIN = 0.25
+const SCRIPT_SPEED_MAX = 2
+const clampScriptSpeed = (v: number) => Math.min(SCRIPT_SPEED_MAX, Math.max(SCRIPT_SPEED_MIN, v))
 const CLIP_SPEEDS: [number, string, string][] = [[0.25, '0.25x', 'Slow-mo: four times slower'], [0.5, '0.5x', 'Slow-mo: half speed'], [1, 'Normal', 'Normal speed'], [2, '2x', 'Twice as fast'], [4, '4x', 'Timelapse: four times faster'], [8, '8x', 'Fast timelapse: eight times faster']]
 const CLIP_SHADES = ['rgba(70,110,160,0.6)', 'rgba(70,140,140,0.6)', 'rgba(110,100,170,0.6)', 'rgba(150,120,80,0.6)']
 const clipShade = (i: number) => CLIP_SHADES[i % CLIP_SHADES.length]
@@ -260,9 +266,9 @@ const fmtClock = (s: number) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
 }
 
-function VolumeRow({ label, hint, value, onChange, color }: { label: string; hint?: string; value: number; onChange: (v: number) => void; color: string }) {
-  return (
-    <label onPointerDownCapture={holdCardDrag} onDragStart={(e) => { e.preventDefault(); e.stopPropagation() }} style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 150px) 1fr 44px', alignItems: 'center', columnGap: 10 }}>
+function VolumeRow({ label, hint, value, onChange, color, muted, onMute }: { label: string; hint?: string; value: number; onChange: (v: number) => void; color: string; muted?: boolean; onMute?: (m: boolean) => void }) {
+  const row = (
+    <label onPointerDownCapture={holdCardDrag} onDragStart={(e) => { e.preventDefault(); e.stopPropagation() }} style={{ display: 'grid', gridTemplateColumns: onMute ? 'minmax(44px, 150px) minmax(48px, 1fr) 44px' : 'minmax(96px, 150px) 1fr 44px', alignItems: 'center', columnGap: onMute ? 8 : 10, flex: 1, minWidth: 0, opacity: muted ? 0.45 : 1 }}>
       <span style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.25 }}>
         {label}
         {hint && <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>{hint}</span>}
@@ -270,8 +276,23 @@ function VolumeRow({ label, hint, value, onChange, color }: { label: string; hin
       <input type="range" min={0} max={100} step={5} value={value} aria-label={`${label} volume`}
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ width: '100%', minWidth: 0, accentColor: color, cursor: 'pointer' }} />
-      <span style={{ fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: value === 0 ? 'var(--text-muted)' : 'var(--ink)' }}>{value === 0 ? 'Off' : `${value}%`}</span>
+      <span style={{ fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: value === 0 || muted ? 'var(--text-muted)' : 'var(--ink)' }}>{muted ? 'Muted' : value === 0 ? 'Off' : `${value}%`}</span>
     </label>
+  )
+  if (!onMute) return row
+  // A clip's own mute: keeps the volume it was set to, ready for when it is unmuted
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {row}
+      <button type="button" aria-pressed={!!muted} aria-label={muted ? `Unmute ${label.toLowerCase()}` : `Mute ${label.toLowerCase()}`} title={muted ? 'Unmute this clip' : 'Mute this clip'}
+        onPointerDownCapture={holdCardDrag} onClick={() => onMute(!muted)}
+        style={{ flexShrink: 0, width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, border: muted ? '1px solid var(--coral)' : '1px solid var(--line)', background: muted ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: muted ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', padding: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M11 5 6 9H2v6h4l5 4V5z" />
+          {muted ? <path d="m23 9-6 6M17 9l6 6" /> : <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />}
+        </svg>
+      </button>
+    </div>
   )
 }
 
@@ -349,8 +370,8 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
         {scriptLabel && (
           <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) 44px', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
-            <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is talking pace)</span></span>
-            <input type="range" min={0.5} max={5} step={0.25} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
+            <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is walking pace)</span></span>
+            <input type="range" min={SCRIPT_SPEED_MIN} max={SCRIPT_SPEED_MAX} step={0.25} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
               onChange={(e) => slideSpeed(Number(e.target.value))}
               onPointerUp={() => commitSpeed(speedDraft)} onPointerCancel={() => commitSpeed(speedDraft)} onTouchEnd={() => commitSpeed(speedDraft)} onKeyUp={() => commitSpeed(speedDraft)} onBlur={() => commitSpeed(speedDraft)} />
             <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)', textAlign: 'right' }}>{speedDraft}x</span>
@@ -395,6 +416,43 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
       </div>}
     </div>
   )
+}
+
+// iPhones and iPads ignore the volume a page sets on video and audio (it always plays at full volume). There the
+// preview's sound goes through a volume control of our own instead. Everywhere else the normal volume works.
+let mediaVolumeWorksCache: boolean | null = null
+const mediaVolumeWorks = () => {
+  if (mediaVolumeWorksCache !== null) return mediaVolumeWorksCache
+  try { const a = document.createElement('audio'); a.volume = 0.5; mediaVolumeWorksCache = Math.abs(a.volume - 0.5) < 0.01 } catch { mediaVolumeWorksCache = true }
+  return mediaVolumeWorksCache
+}
+type PreviewAudio = { ctx: AudioContext | null; gains: WeakMap<HTMLMediaElement, GainNode> }
+const setMediaLevel = (st: PreviewAudio, el: HTMLMediaElement | null | undefined, level: number) => {
+  if (!el) return
+  const lv = Math.min(1, Math.max(0, level))
+  if (mediaVolumeWorks()) { if (Math.abs(el.volume - lv) > 0.001) el.volume = lv; return }
+  let g = st.gains.get(el)
+  if (!g) {
+    // Only our own files can go through the volume control (anything from another site would go silent),
+    // so a sound from elsewhere can only be switched on or off
+    const src = el.currentSrc || el.src || ''
+    if (!src.startsWith('blob:')) { el.muted = lv === 0; return }
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!Ctx) return
+      if (!st.ctx) {
+        st.ctx = new Ctx()
+        // Keep playing with the ring/silent switch on, like a normal video does
+        const nav = navigator as Navigator & { audioSession?: { type: string } }
+        if (nav.audioSession) { try { nav.audioSession.type = 'playback' } catch {} }
+      }
+      const node = st.ctx.createMediaElementSource(el)
+      g = st.ctx.createGain()
+      node.connect(g).connect(st.ctx.destination)
+      st.gains.set(el, g)
+    } catch { return }
+  }
+  if (Math.abs(g.gain.value - lv) > 0.001) g.gain.value = lv
 }
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
@@ -455,7 +513,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
   const [recording, setRecording] = useState(false)
   const [recFrom, setRecFrom] = useState(0)
   const [micError, setMicError] = useState('')
-  // 1x is a normal talking pace (about 2.3 words a second); the script scrolls at this many times that pace
+  // 1x is a slow walking pace (SCRIPT_WORDS_PER_SEC); the script scrolls at this many times that pace
   const ovDragRef = useRef<string | null>(null)
   const ovVideosRef = useRef<Record<string, HTMLVideoElement | null>>({})
   // Resizing an overlay: the corner or edge being dragged moves, the opposite one stays put. Cropping is its own mode.
@@ -491,6 +549,9 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
   const [countdown, setCountdown] = useState<number | null>(null)
   const [holdF, setHoldF] = useState<number | null>(null)
   const scriptFRef = useRef(0)
+  // The teleprompter keeps its own steady clock while recording, so it glides through the whole script without
+  // pausing when one clip hands over to the next or the video stops to load
+  const [promptClock, setPromptClock] = useState<{ start: number; now: number } | null>(null)
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
   const capPosRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const grabRef = useRef({ dx: 0, dy: 0 })
@@ -504,6 +565,17 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
   const switchingRef = useRef(false)
   const advancingRef = useRef(false)
   const lastSyncRef = useRef<Record<string, number>>({})
+  // Our own volume control, used where the browser ignores the normal one (see setMediaLevel)
+  const audioRef = useRef<PreviewAudio>({ ctx: null, gains: new WeakMap() })
+  const setLevel = (el: HTMLMediaElement | null | undefined, level: number) => setMediaLevel(audioRef.current, el, level)
+  // The volume control only makes sound once a tap has woken it, so every tap wakes it
+  useEffect(() => {
+    const wake = () => { const c = audioRef.current.ctx; if (c && c.state !== 'running') void c.resume().catch(() => {}) }
+    document.addEventListener('pointerdown', wake, true)
+    document.addEventListener('touchend', wake, true)
+    // The control is left running when the preview goes: a video wired to it can never be wired to another one
+    return () => { document.removeEventListener('pointerdown', wake, true); document.removeEventListener('touchend', wake, true) }
+  }, [])
 
   // Read each clip's length once so the timeline knows the total
   useEffect(() => {
@@ -592,7 +664,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
       cur.pause()
       cur.muted = true
       nv.muted = false
-      nv.volume = volRef.current
+      setLevel(nv, volRef.current)
       nv.playbackRate = sp
       slotRef.current = nextSlot
       videoRef.current = nv
@@ -666,6 +738,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
     pauseTakes()
     setPlaying(false)
     setHoldF(scriptFRef.current)
+    setPromptClock(null)
     setRecording(false)
   }
 
@@ -728,7 +801,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
           if (!el) return
           const end = t.duration > 0 ? t.start + t.duration : Infinity
           const level = Math.min(1, Math.max(0, t.volume / 100))
-          if (el.volume !== level) el.volume = level
+          setLevel(el, level)
           const hidden = L.takes.slice(i + 1).some((o) => g >= o.start && g < (o.duration > 0 ? o.start + o.duration : Infinity))
           if (el.muted !== hidden) el.muted = hidden
           if (L.recording || g < t.start || g >= end) { if (!el.paused) el.pause(); return }
@@ -738,7 +811,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
         const mus = audioEls.current['music']
         if (mus) {
           const level = Math.min(1, Math.max(0, L.musicVol / 100))
-          if (mus.volume !== level) mus.volume = level
+          setLevel(mus, level)
           if (L.recording) { if (!mus.paused) mus.pause() }
           else sync(mus, 'music', g)
         }
@@ -753,7 +826,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
   useEffect(() => {
     volRef.current = vol
     const v = videoRef.current
-    if (v) { v.volume = vol; v.muted = false }
+    if (v) { v.muted = false; setLevel(v, vol) }
     const other = playerOf(slotRef.current === 0 ? 1 : 0)
     if (other) other.muted = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -823,6 +896,8 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
         if (began || rec.state !== 'inactive' || !stream.active) return
         began = true
         recWallRef.current = uploadStamp()
+        const t0 = performance.now()
+        setPromptClock({ start: t0, now: t0 })
         rec.start()
       }
       ;[vidA.current, vidB.current].forEach((p) => p?.addEventListener('playing', begin, { once: true }))
@@ -1083,17 +1158,25 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, o
   }, [playing, recording, overlays])
 
   // While a voiceover is being recorded the script shows one line at a time, with the next line smaller and faded.
-  // 1x moves at a normal talking pace (about 2.3 words a second).
+  // 1x moves at a slow walking pace (SCRIPT_WORDS_PER_SEC).
   const scriptStarts = (() => {
     let t = 0
-    return scriptLines.map((l) => { const st = t; t += Math.max(1.2, l.split(/\s+/).filter(Boolean).length / 2.3); return st })
+    return scriptLines.map((l) => { const st = t; t += Math.max(1.2, l.split(/\s+/).filter(Boolean).length / SCRIPT_WORDS_PER_SEC); return st })
   })()
-  const spokenSecs = Math.max(0, globalTime - recFrom) * scriptSpeed
+  const spokenSecs = recording && promptClock ? Math.max(0, promptClock.now - promptClock.start) / 1000 * clampScriptSpeed(scriptSpeed) : 0
   let scriptIdx = 0
   scriptStarts.forEach((st, i) => { if (spokenSecs >= st) scriptIdx = i })
-  const scriptDur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, (scriptLines[i] || '').split(/\s+/).filter(Boolean).length / 2.3)) - scriptStarts[i]
-  // Where the script has got to. It stops at the last line and stays there after recording ends.
-  const liveF = scriptLines.length === 0 ? 0 : Math.min(scriptLines.length - 1, scriptIdx + Math.min(1, Math.max(0, (spokenSecs - scriptStarts[scriptIdx]) / scriptDur(scriptIdx))))
+  const scriptDur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, (scriptLines[i] || '').split(/\s+/).filter(Boolean).length / SCRIPT_WORDS_PER_SEC)) - scriptStarts[i]
+  // Where the script has got to. It carries on until the last line has scrolled right past the reading line,
+  // then stays there after recording ends.
+  const liveF = scriptLines.length === 0 ? 0 : Math.min(scriptLines.length, scriptIdx + Math.min(1, Math.max(0, (spokenSecs - scriptStarts[scriptIdx]) / scriptDur(scriptIdx))))
+  useEffect(() => {
+    if (!recording || !promptClock) return
+    let raf = 0
+    const step = () => { setPromptClock((c) => (c ? { ...c, now: performance.now() } : c)); raf = requestAnimationFrame(step) }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [recording, promptClock !== null]) // eslint-disable-line react-hooks/exhaustive-deps
   const scriptF = recording ? liveF : countdown !== null ? 0 : (holdF ?? 0)
   useEffect(() => { scriptFRef.current = scriptF })
   const prompterRef = useRef<HTMLDivElement | null>(null)
@@ -1840,6 +1923,7 @@ const PHONE_TOOL_ICONS: Record<string, React.ReactNode> = {
   clips: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M8 5v14M16 5v14M3 10h5M3 14h5M16 10h5M16 14h5" /></>,
   clip: <><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M8.6 7.6 20 18M8.6 16.4 20 6" /></>,
   audio: <><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>,
+  extract: <><path d="M2 12h2M6 8v8M10 5v14M14 9v6M18 7v10M22 12h-2" /></>,
   voiceover: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,
   captions: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M7 12h4M13 12h4M7 15.5h7" /></>,
   overlay: <><path d="m12 3 9 5-9 5-9-5 9-5z" /><path d="m3 13 9 5 9-5" /></>,
@@ -2013,8 +2097,8 @@ export default function DashboardPage() {
   const [filmScript, setFilmScript] = useState('')
   const [filmClipDraft, setFilmClipDraft] = useState<string | null>(null)
   const [filmOriginal, setFilmOriginal] = useState<{ script: string; actions: string } | null>(null)
-  const [filmScrollSpeed, setFilmScrollSpeed] = useState(3)
-  const filmScrollSpeedRef = useRef(3)
+  const [filmScrollSpeed, setFilmScrollSpeed] = useState(1)
+  const filmScrollSpeedRef = useRef(1)
   const changeFilmSpeed = (v: number) => { filmScrollSpeedRef.current = v; setFilmScrollSpeed(v) }
   const [filmIsRecording, setFilmIsRecording] = useState(false)
   const [filmCountdown, setFilmCountdown] = useState<number | null>(null)
@@ -2081,6 +2165,11 @@ export default function DashboardPage() {
   // Each clip's own volume (0 to 100). A clip with none here plays at full volume, then the master volume applies on top.
   const [uploadVols, setUploadVols] = useState<Record<number, number>>({})
   const [aiVols, setAiVols] = useState<Record<number, number>>({})
+  // Clips switched to silent with their mute button (their volume is kept for when they are unmuted)
+  const [uploadMuted, setUploadMuted] = useState<Record<number, boolean>>({})
+  const [aiMuted, setAiMuted] = useState<Record<number, boolean>>({})
+  const muteUploadClip = (id: number, on: boolean) => setUploadMuted((prev) => { const n = { ...prev }; if (on) n[id] = true; else delete n[id]; return n })
+  const muteAiClip = (id: number, on: boolean) => setAiMuted((prev) => { const n = { ...prev }; if (on) n[id] = true; else delete n[id]; return n })
   const filmSpeedRef = useRef(1)
   const filmClipSpeedsRef = useRef<Record<string, number>>({})
   const [filmSpeed, setFilmSpeed] = useState(1)
@@ -2190,6 +2279,7 @@ export default function DashboardPage() {
   const phone = usePhoneEditor()
   const [mTool, setMTool] = useState<string | null>(null)
   const [mClip, setMClip] = useState(0)
+  const extractInputRef = useRef<HTMLInputElement | null>(null)
   const handlePlayhead = useCallback((t: number, total: number) => { playheadRef.current = { t, total } }, [])
   // Original sound stays full volume on its own and drops under a voiceover until the user picks a level
   const originalVol = originalVolPick ?? (voiceTakes.length > 0 ? 35 : 100)
@@ -2995,7 +3085,7 @@ export default function DashboardPage() {
     const tick = (now: number) => {
       if (!last) last = now
       // Read the speed every frame so the slider works while the line is moving
-      const secs = Math.max(2, words / (2.3 * (filmScrollSpeedRef.current / 3)))
+      const secs = Math.max(2, words / (SCRIPT_WORDS_PER_SEC * clampScriptSpeed(filmScrollSpeedRef.current)))
       progress = Math.min(1, progress + (now - last) / (secs * 1000))
       last = now
       el.style.transform = `translateX(-${distance * progress}px)`
@@ -3699,11 +3789,32 @@ export default function DashboardPage() {
   // Phone editor: each settings card sits in a tool wrapper that only shows while its tool is open.
   // 'always' shows all the time (progress and errors), 'never' only exists on a computer (the big Create button).
   const edT = (on: boolean, t: string, node: React.ReactNode) => (on ? (t === 'never' ? null : <div className={`ed-tool${t === 'always' || mTool === t ? ' on' : ''}`}>{node}</div>) : node)
-  const PHONE_TOOL_NAMES: Record<string, string> = { idea: 'Idea', clips: 'Clips', clip: 'Edit clip', audio: 'Audio', voiceover: 'Voiceover', captions: 'Captions', overlay: 'Overlay', settings: 'Settings' }
+  const PHONE_TOOL_NAMES: Record<string, string> = { idea: 'Idea', clips: 'Clips', clip: 'Edit clip', audio: 'Audio', extract: 'Extract audio', voiceover: 'Voiceover', captions: 'Captions', overlay: 'Overlay', settings: 'Settings' }
   const phoneTools = (ids: string[]): PhoneTool[] => ids.map((id) => ({ id, label: PHONE_TOOL_NAMES[id] }))
   // On a phone the AI editor goes full screen once an idea is picked; picking the idea is a normal page
   const phoneAi = phone && !!selectedFilmingId
   const aiPhoneTitle = filmingItems.find((f) => f.id === selectedFilmingId)?.title || 'AI editor'
+
+  // Phone editor: Extract audio gets its own page. On a computer it is under Audio > Pick from the library.
+  const renderPhoneExtractPanel = () => (
+    <div style={{ padding: '14px 16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>Take the sound from any video on your phone, like a trending sound you saved, and use it as the music for this video.</p>
+      <input ref={extractInputRef} type="file" accept="video/*" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void handleExtractAudio(f) }} />
+      <button type="button" disabled={extractingAudio} onClick={() => extractInputRef.current?.click()}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: extractingAudio ? 'default' : 'pointer', opacity: extractingAudio ? 0.7 : 1 }}>
+        {extractingAudio ? <><span className="rly-spinner" />Taking the sound from your video...</> : extractedMusicPath ? 'Use a different video' : 'Choose a video'}
+      </button>
+      {extractAudioError && <p role="alert" style={{ fontSize: 13, color: 'var(--coral)', margin: 0 }}>{extractAudioError}</p>}
+      {extractedMusicPath && !extractingAudio && (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600, margin: 0 }}>The sound from your video is now this video&apos;s music.</p>
+          <VolumeRow label="Music volume" value={musicVol} onChange={setMusicVol} color="var(--coral)" />
+          <button type="button" onClick={clearMusic} style={{ alignSelf: 'flex-start', padding: '8px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Remove this sound</button>
+        </>
+      )}
+    </div>
+  )
 
   // Phone editor: speed, volume and look for one clip. On a computer these sit under the preview.
   const renderPhoneClipPanel = (m: 'upload' | 'ai') => {
@@ -3742,7 +3853,8 @@ export default function DashboardPage() {
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>Slower than 0.5x or faster than 2x plays without sound.</p>
         </div>
-        <VolumeRow label="Clip volume" value={vol} onChange={(v) => (m === 'upload' ? setUploadVols((prev) => ({ ...prev, [id]: v })) : setAiVols((prev) => ({ ...prev, [id]: v })))} color="var(--coral)" />
+        <VolumeRow label="Clip volume" value={vol} onChange={(v) => (m === 'upload' ? setUploadVols((prev) => ({ ...prev, [id]: v })) : setAiVols((prev) => ({ ...prev, [id]: v })))} color="var(--coral)"
+          muted={!!(m === 'upload' ? uploadMuted[id] : aiMuted[id])} onMute={(on) => (m === 'upload' ? muteUploadClip(id, on) : muteAiClip(id, on))} />
         {renderClipAppearance(m, i)}
       </div>
     )
@@ -4524,7 +4636,7 @@ export default function DashboardPage() {
       const clipPaths: string[] = []
       const speechIndices: number[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; appearance?: AppearanceSettings }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; muted?: boolean; appearance?: AppearanceSettings }[] = []
       const clipTexts: string[][] = []
       let anyLandscape = false
 
@@ -4570,9 +4682,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true, speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, appearance: aiLooks[result.stepIndex] })
+          clipSettings.push({ letterbox: true, speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, muted: aiMuted[result.stepIndex] || undefined, appearance: aiLooks[result.stepIndex] })
         } else {
-          clipSettings.push({ speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, appearance: aiLooks[result.stepIndex] })
+          clipSettings.push({ speed: aiSpeeds[result.stepIndex], volume: aiVols[result.stepIndex] === undefined ? undefined : aiVols[result.stepIndex] / 100, muted: aiMuted[result.stepIndex] || undefined, appearance: aiLooks[result.stepIndex] })
         }
       }
 
@@ -4672,7 +4784,7 @@ export default function DashboardPage() {
   }
   // ---- Editor tabs for several filmed videos
   const captureEditor = (): EditorSnap => ({
-    slots: uploadSlots, files: uploadSlotFiles, paths: uploadSlotPaths, trims: uploadTrims, speeds: uploadSpeeds, vols: uploadVols,
+    slots: uploadSlots, files: uploadSlotFiles, paths: uploadSlotPaths, trims: uploadTrims, speeds: uploadSpeeds, vols: uploadVols, muted: uploadMuted,
     looks: uploadLooks, texts: uploadSlotTexts, ownTexts: uploadOwnTexts, speech: uploadSpeechSlots, landscape: uploadLandscapeSlots,
     caps: uploadCaps, overlays, takes: voiceTakes, assets: assetPaths,
     musicFile, libMusicUrl: libraryMusicUrl, libMusicName: libraryMusicName, extracted: extractedMusicPath,
@@ -4681,7 +4793,7 @@ export default function DashboardPage() {
     ctx: filmRenderContextRef.current, orientation: filmOutputOrientationRef.current,
   })
   const applyEditor = (sn: EditorSnap) => {
-    setUploadSlots(sn.slots); setUploadSlotFiles(sn.files); setUploadSlotPaths(sn.paths); setUploadTrims(sn.trims); setUploadSpeeds(sn.speeds); setUploadVols(sn.vols)
+    setUploadSlots(sn.slots); setUploadSlotFiles(sn.files); setUploadSlotPaths(sn.paths); setUploadTrims(sn.trims); setUploadSpeeds(sn.speeds); setUploadVols(sn.vols); setUploadMuted(sn.muted ?? {})
     setUploadLooks(sn.looks); setUploadSlotTexts(sn.texts); setUploadOwnTexts(sn.ownTexts); setUploadSpeechSlots(sn.speech); setUploadLandscapeSlots(sn.landscape)
     setUploadCaps(sn.caps); setOverlays(sn.overlays); setVoiceTakes(sn.takes); setAssetPaths(sn.assets)
     setMusicFile(sn.musicFile); setLibraryMusicUrl(sn.libMusicUrl); setLibraryMusicName(sn.libMusicName); setExtractedMusicPath(sn.extracted); setExtractAudioError('')
@@ -4765,7 +4877,7 @@ export default function DashboardPage() {
     try {
       const clipPaths: string[] = []
       const clipTrims: { duration: number; trimStart?: number; trimLength?: number }[] = []
-      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; appearance?: AppearanceSettings }[] = []
+      const clipSettings: { letterbox?: boolean; speed?: number; volume?: number; muted?: boolean; appearance?: AppearanceSettings }[] = []
       const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
@@ -4813,9 +4925,9 @@ export default function DashboardPage() {
         clipTrims.push({ duration: result.duration, trimStart: result.trimStart, trimLength: result.trimLength })
         if (result.isLandscape || filmLandscapeOut) {
           anyLandscape = true
-          clipSettings.push({ letterbox: true, speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, appearance: uploadLooks[result.slotId] })
+          clipSettings.push({ letterbox: true, speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, muted: uploadMuted[result.slotId] || undefined, appearance: uploadLooks[result.slotId] })
         } else {
-          clipSettings.push({ speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, appearance: uploadLooks[result.slotId] })
+          clipSettings.push({ speed: uploadSpeeds[result.slotId], volume: uploadVols[result.slotId] === undefined ? undefined : uploadVols[result.slotId] / 100, muted: uploadMuted[result.slotId] || undefined, appearance: uploadLooks[result.slotId] })
         }
       }
 
@@ -4883,6 +4995,8 @@ export default function DashboardPage() {
       filmOutputOrientationRef.current = null
       setUploadSlots([0])
       setUploadSlotFiles({})
+      setUploadVols({})
+      setUploadMuted({})
       setUploadSlotPaths({})
       setUploadSpeechSlots(new Set())
       setUploadLandscapeSlots(new Set())
@@ -6344,6 +6458,7 @@ export default function DashboardPage() {
               <BoxOpenContext.Provider value={phone}>
               {phone && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
               {phone && mTool === 'clip' && renderPhoneClipPanel('upload')}
+              {phone && mTool === 'extract' && renderPhoneExtractPanel()}
 
               {/* ── CLIPS ── */}
               {edT(phone, 'clips', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
@@ -6401,7 +6516,7 @@ export default function DashboardPage() {
                             <button type="button" onClick={() => (document.querySelector(`.upload-slot-input-${slotId}`) as HTMLInputElement)?.click()} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0 }}>Change</button>
                           </div>
                           <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
-                            <VolumeRow label="Clip volume" value={uploadVols[slotId] ?? 100} onChange={(v) => setUploadVols((prev) => ({ ...prev, [slotId]: v }))} color="var(--coral)" />
+                            <VolumeRow label="Clip volume" value={uploadVols[slotId] ?? 100} onChange={(v) => setUploadVols((prev) => ({ ...prev, [slotId]: v }))} color="var(--coral)" muted={!!uploadMuted[slotId]} onMute={(on) => muteUploadClip(slotId, on)} />
                           </div>
                           </>
                         ) : (
@@ -6570,7 +6685,7 @@ export default function DashboardPage() {
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
                 appearance={appearance}
-                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id], volume: uploadVols[id], appearance: uploadLooks[id] } })}
+                segments={uploadSlots.filter((id) => uploadSlotFiles[id]).map((id) => { const f = uploadSlotFiles[id]; const t = uploadTrims[id]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: uploadSpeeds[id], volume: uploadMuted[id] ? 0 : uploadVols[id], appearance: uploadLooks[id] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -6580,7 +6695,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
-              {phone && <PhoneEditorNav tools={phoneTools(['clips', 'clip', 'audio', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
+              {phone && <PhoneEditorNav tools={phoneTools(['clips', 'clip', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
             </div>
           )}
 
@@ -6786,8 +6901,9 @@ export default function DashboardPage() {
                         {!filmPending && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slower</span>
-                            <input type="range" min={1} max={10} value={filmScrollSpeed} aria-label="Teleprompter speed" onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ flex: 1, minWidth: 0, accentColor: 'var(--coral)' }} />
+                            <input type="range" min={SCRIPT_SPEED_MIN} max={SCRIPT_SPEED_MAX} step={0.25} value={filmScrollSpeed} aria-label="Teleprompter speed" onChange={(e) => changeFilmSpeed(Number(e.target.value))} style={{ flex: 1, minWidth: 0, accentColor: 'var(--coral)' }} />
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Faster</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', minWidth: 34, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{filmScrollSpeed}x</span>
                         </div>
                         )}
                       </div>
@@ -6936,6 +7052,7 @@ export default function DashboardPage() {
               <BoxOpenContext.Provider value={phoneAi}>
               {phoneAi && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
               {phoneAi && mTool === 'clip' && renderPhoneClipPanel('ai')}
+              {phoneAi && mTool === 'extract' && renderPhoneExtractPanel()}
 
               {/* ── Select idea ── */}
               {edT(phoneAi, 'idea', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
@@ -6947,7 +7064,7 @@ export default function DashboardPage() {
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([]); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
+                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiVols({}); setAiMuted({}); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([]); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
                         style={{ padding: '8px 14px', borderRadius: 4, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -6993,7 +7110,7 @@ export default function DashboardPage() {
                                   <button type="button" onClick={() => { setStepUploads({}); resetAiClipUploads() }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                 </div>
                                 <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
-                                  <VolumeRow label="Clip volume" value={aiVols[0] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, 0: v }))} color="var(--coral)" />
+                                  <VolumeRow label="Clip volume" value={aiVols[0] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, 0: v }))} color="var(--coral)" muted={!!aiMuted[0]} onMute={(on) => muteAiClip(0, on)} />
                                 </div>
                                 </>
                               ) : (
@@ -7042,7 +7159,7 @@ export default function DashboardPage() {
                                   }} style={{ fontSize: 14, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}><Icon n="close" /></button>
                                   </div>
                                   <div style={{ marginTop: 8, width: 'min(100%, 340px)' }}>
-                                    <VolumeRow label="Clip volume" value={aiVols[i] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, [i]: v }))} color="var(--coral)" />
+                                    <VolumeRow label="Clip volume" value={aiVols[i] ?? 100} onChange={(v) => setAiVols((prev) => ({ ...prev, [i]: v }))} color="var(--coral)" muted={!!aiMuted[i]} onMute={(on) => muteAiClip(i, on)} />
                                   </div>
                                   </>
                                 ) : (
@@ -7178,7 +7295,7 @@ export default function DashboardPage() {
                 onSelOverlay={setSelOverlay}
                 onOverlayPatch={patchOverlay}
                 appearance={appearance}
-                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i], volume: aiVols[i], appearance: aiLooks[i] } })}
+                segments={Object.keys(stepUploads).map(Number).sort((a, b) => a - b).map((i) => { const f = stepUploads[i]; const t = aiTrims[i]; const ok = !!t && t.file === f; return { file: f, start: ok ? t.start : 0, end: ok ? t.end : null, speed: aiSpeeds[i], volume: aiMuted[i] ? 0 : aiVols[i], appearance: aiLooks[i] } })}
                 takes={voiceTakes}
                 originalVol={originalVol}
                 musicUrl={previewMusicUrl}
@@ -7188,7 +7305,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
-              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'audio', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
+              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
             </div>
           )}
 
