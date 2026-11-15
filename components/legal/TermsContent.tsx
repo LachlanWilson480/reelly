@@ -9,7 +9,7 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
   const site = LEGAL_SITE[region]
 
   return (
-    <LegalShell title="Terms of Service" updated="14 November 2026">
+    <LegalShell title="Terms of Service" updated="15 November 2026">
       <p style={P}>These terms apply when you use Reelezy ({site}). By creating an account or using the service you agree to them. If you do not agree, please do not use Reelezy.</p>
 
       <h2 style={H2}>Who we are</h2>
@@ -27,7 +27,7 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
 
       <h2 style={H2}>Plans and payments</h2>
       <p style={P}>
-        Paid plans are subscriptions that renew until you cancel. Prices and what each plan includes are shown on the plans page and at checkout, and the price shown at checkout is the price you pay. Payments are handled by our payment provider.{' '}
+        Reelezy has a Free plan and two paid plans, Basic and Pro. Paid plans can be billed monthly or yearly. A yearly plan costs the same as 10 months, so you get 2 months free. Plans renew automatically at the end of each month or year until you cancel. Prices are shown on the <a href="/plans">plans page</a> in your local currency, and the price shown at checkout is the price you pay. If you change plans or cancel, the change is handled through our payment provider and takes effect as shown at the time. Discount codes apply only as described when you use them and cannot be exchanged for cash. Payments are handled by our payment provider, Stripe.{' '}
         {au && 'Nothing in these terms limits your rights under the Australian Consumer Law.'}
         {uk && 'Nothing in these terms limits your legal rights as a consumer in the UK.'}
         {region === 'intl' && 'Nothing in these terms limits any consumer rights you have under the law where you live that cannot be excluded.'}
@@ -73,14 +73,17 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
         </>
       )}
 
-      <h2 style={H2}>Fair use</h2>
-      <p style={P}>Reelezy is designed for normal business use. To keep the service fast for everyone, these limits apply and may be adjusted over time:</p>
+      <h2 style={H2}>What each plan includes</h2>
+      <p style={P}>These are the limits shown on the plans page. Weekly limits reset each week and render minutes reset each calendar month.</p>
       <ul style={UL}>
-        <li style={LI}>Free: 24 ideas in total (3 per batch), 7 filming instructions, 3 scripts, and 1 minute of video in total.</li>
-        <li style={LI}>Basic: 5 ideas per batch (95 a week), 50 filming instructions a week, 20 scripts a week, and 5 GB of storage.</li>
-        <li style={LI}>Pro: 7 ideas per batch (210 a week), 98 filming instructions a week, 96 scripts a week, and 10 GB of storage.</li>
+        <li style={LI}>Free: 24 ideas in total (3 per batch), 7 filming instructions, 3 scripts, 1 minute of edited video in total with a Reelezy watermark, and 500 MB of clip storage.</li>
+        <li style={LI}>Basic (about 40 reels a month): 5 ideas per batch (95 a week), 50 filming instructions a week, 20 scripts a week, 25 render minutes a month, 1080p video, the AI Editor and sound library, and 5 GB of storage.</li>
+        <li style={LI}>Pro (about 90 reels a month): 7 ideas per batch (210 a week), 98 filming instructions a week, 96 scripts a week, 60 render minutes a month, 1080p and 4K video, priority processing and longer scripts, the AI Editor and sound library, and 10 GB of storage.</li>
       </ul>
-      <p style={P}>We may limit or suspend use that is automated, shared between businesses, or clearly outside normal use.</p>
+      <p style={P}>The number of reels per month is a guide based on typical video length, not a promise. If you use all your render minutes, you can keep rendering for the rest of the month at no extra cost, but very heavy use may be limited. If we ever start charging for extra use, we will tell you first and you will not be charged without agreeing.</p>
+
+      <h2 style={H2}>Fair use</h2>
+      <p style={P}>Reelezy is designed for normal business use. We may adjust plan limits over time and will show the current limits on the plans page. We may limit or suspend use that is automated, shared between businesses, or clearly outside normal use.</p>
 
       <h2 style={H2}>Our responsibility</h2>
       <p style={P}>

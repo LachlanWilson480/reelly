@@ -1,6 +1,6 @@
-import { rateLimit } from '@/lib/rateLimit'
 import { tooMany } from '@/lib/limit'
 import { getAuthedUser } from '@/lib/getAuthedUser'
+import { purgeUser } from '@/lib/purgeUser'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -16,53 +16,8 @@ export async function POST(req: NextRequest) {
     { const limited = await tooMany('delete-account:' + authed.userId, 3, 3600000); if (limited) return limited }
     const userId = authed.userId
 
-    // Delete all storage files for this user
-    const { data: files } = await supabaseAdmin.storage
-      .from('video-uploads')
-      .list(userId, { limit: 1000 })
-
-    if (files && files.length > 0) {
-      const paths = files.map((f) => `${userId}/${f.name}`)
-      await supabaseAdmin.storage.from('video-uploads').remove(paths)
-    }
-
-    // Also delete draft subfolder
-    const { data: draftFiles } = await supabaseAdmin.storage
-      .from('video-uploads')
-      .list(`${userId}/drafts`, { limit: 1000 })
-
-    if (draftFiles && draftFiles.length > 0) {
-      const draftPaths = draftFiles.map((f) => `${userId}/drafts/${f.name}`)
-      await supabaseAdmin.storage.from('video-uploads').remove(draftPaths)
-    }
-
-    // Also delete the clip library
-    const { data: libraryFiles } = await supabaseAdmin.storage
-      .from('video-uploads')
-      .list(`${userId}/library`, { limit: 1000 })
-
-    if (libraryFiles && libraryFiles.length > 0) {
-      await supabaseAdmin.storage.from('video-uploads').remove(libraryFiles.map((f) => `${userId}/library/${f.name}`))
-    }
-    await supabaseAdmin.from('clip_library').delete().eq('user_id', userId)
-
-    // Delete all DB rows
-    await supabaseAdmin.from('business_profiles').delete().eq('user_id', userId)
-    await supabaseAdmin.from('renders').delete().eq('user_id', userId)
-    await supabaseAdmin.from('generated_ideas').delete().eq('user_id', userId)
-    await supabaseAdmin.from('generated_scripts').delete().eq('user_id', userId)
-    await supabaseAdmin.from('carousels').delete().eq('user_id', userId)
-    await supabaseAdmin.from('scheduled_posts').delete().eq('user_id', userId)
-    await supabaseAdmin.from('draft_clips').delete().eq('user_id', userId)
-    await supabaseAdmin.from('subscriptions').delete().eq('user_id', userId)
-    await supabaseAdmin.from('key_events').delete().eq('user_id', userId)
-
-    // Delete the auth user last
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
-    if (error) {
-      console.error('delete-account auth error:', error.message)
-      return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 })
-    }
+    // Stops their billing, then deletes every file, every row and finally the login (see lib/purgeUser.ts)
+    await purgeUser(supabaseAdmin, userId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

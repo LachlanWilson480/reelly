@@ -10,7 +10,7 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
   const site = LEGAL_SITE[region]
 
   return (
-    <LegalShell title="Privacy Policy" updated="14 November 2026">
+    <LegalShell title="Privacy Policy" updated="15 November 2026">
       <p style={P}>
         Reelezy ({site}) helps small businesses plan, film and edit social media videos. This policy explains what personal information we collect, how we use it, who we share it with and the choices you have.{' '}
         {au && 'We handle your information in line with the Australian Privacy Act 1988 and the Australian Privacy Principles.'}
@@ -64,6 +64,7 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
         <li style={LI}>AI providers, so we can generate ideas, scripts and filming instructions from your business details and prompts</li>
         <li style={LI}>Hosting, storage and video processing providers, to run the app and store and render your files</li>
         <li style={LI}>Email providers, to deliver the emails we send you</li>
+        <li style={LI}>Error monitoring providers, so we can find and fix crashes. Error reports include technical details such as the page, browser and error message, but not your name or email</li>
       </ul>
       {au ? (
         <p style={P}>Some of these providers are based or store data outside Australia, including in the United States. We take reasonable steps to make sure they handle your information with care. We may also disclose information where the law requires it.</p>
@@ -83,7 +84,7 @@ export default function PrivacyContent({ region }: { region: LegalRegion }) {
 
       <h2 style={H2}>How long we keep it</h2>
       <p style={P}>
-        We keep your information while your account is active. If you delete your account, your profile, uploaded files and generated content are permanently deleted within 24 hours.{' '}
+        We keep your information while your account is active. If you delete your account, your profile, uploaded files and generated content are permanently deleted straight away. If a paid subscription ends and is not renewed, we keep your account for 60 days so you can come back, email you 10 days before, and then delete it in the same way.{' '}
         {au ? 'We keep billing records for 7 years because tax law requires it.' : 'We keep billing and tax records for as long as the law requires, which can be up to 7 years.'}
       </p>
 

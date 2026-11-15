@@ -4014,12 +4014,8 @@ export default function DashboardPage() {
     }
   }
 
-  const BASIC_CAP_MIN = 10
-  const PRO_CAP_MIN = 25
-  const PREMIUM_CAP_MIN = 60
-
   const isOverRenderCap = () => {
-    const capMin = userPlan === "top" ? PREMIUM_CAP_MIN : userPlan === "mid" ? PRO_CAP_MIN : BASIC_CAP_MIN
+    const capMin = userPlan === "top" ? PLAN_LIMITS.top.renderMinutes : PLAN_LIMITS.basic.renderMinutes
     return totalRenderSeconds / 60 >= capMin
   }
 
@@ -4740,7 +4736,7 @@ export default function DashboardPage() {
   const freeQuotaExceeded = isFreeTier && lifetimeRenderSeconds >= 60
   const isProPlan = userPlan === 'top' && paidStatus
 
-  const renderCapMin = userPlan === 'top' ? 60 : 25
+  const renderCapMin = userPlan === 'top' ? PLAN_LIMITS.top.renderMinutes : PLAN_LIMITS.basic.renderMinutes
 
   const stats = [
     { label: 'Ideas this week', value: isFreeTier ? `${ideasThisWeek} / 24` : `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
@@ -4827,7 +4823,7 @@ export default function DashboardPage() {
           <div style={{ background: "var(--sand)", borderRadius: 4, padding: "32px", maxWidth: 420, width: "100%" }}>
             <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>You&apos;ve reached your monthly render limit</h3>
             <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 24 }}>
-              You&apos;ve used all your included render minutes for this month. Press Continue to keep rendering on overage fees, or Exit to stop here.
+              You&apos;ve used all your included render minutes for this month. You can keep rendering for now at no extra cost, but very heavy use may be limited under our fair use terms. Your minutes reset at the start of next month.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button

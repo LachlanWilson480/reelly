@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // One config file. Next reads next.config.js before next.config.ts, so while both existed the security
 // headers below were never sent. The storage rewrite that lived in next.config.js is merged in here.
@@ -52,4 +53,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Error tracking. Errors go through /monitoring on our own site, so the security policy above
+// needs no changes and ad blockers don't drop them. Source maps are only uploaded when
+// SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT are set in Vercel; without them the build still works.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  tunnelRoute: "/monitoring",
+  widenClientFileUpload: true,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN, deleteSourcemapsAfterUpload: true },
+  telemetry: false,
+});

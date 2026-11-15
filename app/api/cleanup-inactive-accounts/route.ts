@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { purgeUser } from '@/lib/purgeUser'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,11 +105,12 @@ export async function GET(req: NextRequest) {
     if (deleteFetchError) throw deleteFetchError
 
     for (const row of toDelete ?? []) {
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(row.user_id)
-      if (deleteError) {
-        errors.push({ user_id: row.user_id, error: deleteError.message })
-      } else {
+      // Files, rows and login, not just the login (see lib/purgeUser.ts)
+      try {
+        await purgeUser(supabaseAdmin, row.user_id)
         deleted.push(row.user_id)
+      } catch (e) {
+        errors.push({ user_id: row.user_id, error: e instanceof Error ? e.message : 'Unknown error' })
       }
     }
 

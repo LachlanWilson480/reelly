@@ -1,6 +1,8 @@
 {
   "crons": [
     { "path": "/api/cron/process-scheduled-posts", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/refresh-metrics", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/refresh-metrics", "schedule": "0 3 * * *" },
+    { "path": "/api/cleanup-inactive-accounts", "schedule": "30 16 * * *" },
+    { "path": "/api/weekly-reminder", "schedule": "0 21 * * 0" }
   ]
 }
