@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { makeRenderQueue } from "./render-queue";
 import { extractAudio } from "./extract-audio";
-import { cleanCrop } from "./stitch-clips";
+import { cleanCrop, cleanPlace } from "./stitch-clips";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -25,6 +25,7 @@ type IncomingClip = {
   transition?: string;
   captionTexts?: unknown;
   crop?: unknown;
+  place?: unknown;
 };
 
 function setupApp() {
@@ -62,7 +63,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, userId, renderId, watermark, callbackUrl } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, musicStart, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -107,7 +108,7 @@ function setupApp() {
           flipH: clip.flipH,
           flipV: clip.flipV,
           letterbox: clip.letterbox,
-          crop: cleanCrop(clip.crop),
+          crop: cleanCrop(clip.crop), place: cleanPlace(clip.place),
           transition: clip.transition,
           captionTexts: Array.isArray(clip.captionTexts) ? (clip.captionTexts as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
         };
@@ -146,6 +147,7 @@ function setupApp() {
           : undefined,
         originalVolume: typeof originalVolume === 'number' && Number.isFinite(originalVolume) ? Math.min(1, Math.max(0, originalVolume)) : undefined,
         musicVolume: typeof musicVolume === 'number' && Number.isFinite(musicVolume) ? Math.min(1, Math.max(0, musicVolume)) : undefined,
+        musicStart: typeof musicStart === 'number' && Number.isFinite(musicStart) ? Math.min(3600, Math.max(-3600, musicStart)) : undefined,
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,

@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 )
 
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
-type ClipSetting = { crop?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown }; appearance?: { touchUp?: unknown; light?: unknown; look?: unknown }; muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
+type ClipSetting = { crop?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown }; place?: { x?: unknown; y?: unknown; s?: unknown }; appearance?: { touchUp?: unknown; light?: unknown; look?: unknown }; muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
 const BASIC_CAP_MIN = 25
 const PRO_CAP_MIN = 25
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -217,6 +217,10 @@ export async function POST(req: NextRequest) {
         crop: setting.crop && typeof setting.crop === 'object' && [setting.crop.x, setting.crop.y, setting.crop.w, setting.crop.h].every((v) => typeof v === 'number' && Number.isFinite(v))
           ? { x: Number(setting.crop.x), y: Number(setting.crop.y), w: Number(setting.crop.w), h: Number(setting.crop.h) }
           : undefined,
+        // Where the clip was moved and zoomed to on the preview
+        place: setting.place && typeof setting.place === 'object' && [setting.place.x, setting.place.y, setting.place.s].every((v) => typeof v === 'number' && Number.isFinite(v))
+          ? { x: Number(setting.place.x), y: Number(setting.place.y), s: Number(setting.place.s) }
+          : undefined,
         durationInSeconds,
         transition: Array.isArray(perClipTransitions) ? (perClipTransitions[i] || 'none') : 'none',
         captionTexts: Array.isArray(texts[i]) ? (texts[i] as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
@@ -297,6 +301,8 @@ export async function POST(req: NextRequest) {
         voiceovers: signedVoiceovers.length > 0 ? signedVoiceovers : undefined,
         originalVolume: typeof originalVolume === 'number' && Number.isFinite(originalVolume) ? Math.min(100, Math.max(0, originalVolume)) / 100 : undefined,
         musicVolume: typeof musicVolume === 'number' && Number.isFinite(musicVolume) ? Math.min(100, Math.max(0, musicVolume)) / 100 : undefined,
+        // Where the music starts in the video (seconds). Below 0 skips the start of the song.
+        musicStart: typeof musicStart === 'number' && Number.isFinite(musicStart) && musicStart !== 0 ? Math.min(3600, Math.max(-3600, musicStart)) : undefined,
         outputOrientation,
         resolution,
         cutDeadSpace: cutDeadSpace === true,

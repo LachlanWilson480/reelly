@@ -29,6 +29,7 @@ type ClipInput = {
   transition?: string;
   captionTexts?: string[];
   crop?: { x: number; y: number; w: number; h: number };
+  place?: { x: number; y: number; s: number };
 };
 
 type CaptionStyle = {
@@ -50,6 +51,8 @@ type JobData = {
   voiceovers?: { url: string; start: number; duration: number }[];
   originalVolume?: number;
   musicVolume?: number;
+  // Seconds into the video where the music starts. Below 0 skips that much of the start of the song.
+  musicStart?: number;
   outputWidth: number;
   outputHeight: number;
   cutDeadSpace?: boolean;
@@ -120,6 +123,7 @@ export const makeRenderQueue = ({
       // Smart Trim can move these, so they are worked on as copies
       let voiceovers = job.data.voiceovers;
       let overlays = job.data.overlays;
+      let musicStart = job.data.musicStart ?? 0;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -173,6 +177,7 @@ export const makeRenderQueue = ({
         };
         if (voiceovers) voiceovers = voiceovers.map((v) => ({ ...v, start: moveTime(v.start) }));
         if (overlays) overlays = overlays.map((o) => ({ ...o, start: moveTime(o.start), end: o.end === null ? null : moveTime(o.end) }));
+        if (musicStart > 0) musicStart = moveTime(musicStart);
       }
 
       // Step 3: stitch clips + mix music
@@ -186,7 +191,7 @@ export const makeRenderQueue = ({
         port,
         undefined,
         // Voiceover is mixed in before captions are transcribed, so the captions include it
-        { takes: voiceovers, originalVolume, musicVolume }
+        { takes: voiceovers, originalVolume, musicVolume, musicStart }
       );
       if (cancelled) throw new Error('Cancelled');
 

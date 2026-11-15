@@ -30,7 +30,52 @@ type ClipInput = {
   // The part of the picture to keep, as shares of the width and height (0 to 1). The kept part is fitted
   // inside the frame without stretching.
   crop?: { x: number; y: number; w: number; h: number };
+  // Where the clip sits in the frame after being moved or zoomed on the preview: x and y move its middle by that
+  // share of the frame's width and height, s zooms it (1 is the whole picture fitted inside the frame).
+  place?: { x: number; y: number; s: number };
 };
+
+// A position the person set by dragging or zooming the clip. Kept within sensible limits.
+export function cleanPlace(p: unknown): { x: number; y: number; s: number } | undefined {
+  if (!p || typeof p !== 'object') return undefined;
+  const o = p as Record<string, unknown>;
+  const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const x = Math.min(1, Math.max(-1, n(o.x, 0))), y = Math.min(1, Math.max(-1, n(o.y, 0))), s = Math.min(5, Math.max(0.2, n(o.s, 1)));
+  if (Math.abs(x) < 0.002 && Math.abs(y) < 0.002 && Math.abs(s - 1) < 0.002) return undefined;
+  return { x, y, s };
+}
+
+// The size a video shows at (phones often store it sideways with a note to turn it)
+export async function getDisplaySize(filePath: string): Promise<{ w: number; h: number } | null> {
+  try {
+    const FFPROBE = FFMPEG_PATH.replace('ffmpeg', 'ffprobe');
+    const { stdout } = await execFileAsync(FFPROBE, ['-v', 'quiet', '-print_format', 'json', '-select_streams', 'v:0', '-show_streams', filePath]);
+    const st = JSON.parse(stdout).streams?.[0];
+    if (!st?.width || !st?.height) return null;
+    const rot = Math.abs(Number(st.tags?.rotate ?? st.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0)) % 180;
+    return rot === 90 ? { w: st.height, h: st.width } : { w: st.width, h: st.height };
+  } catch {
+    return null;
+  }
+}
+
+// Scale, cut and pad a clip so it sits where the person put it: the frame shows exactly what the preview showed,
+// with black wherever the clip does not reach. Worked out in pixels, so the clip can hang off the edges.
+export function placeFilters(src: { w: number; h: number }, crop: { x: number; y: number; w: number; h: number } | undefined, place: { x: number; y: number; s: number }, W: number, H: number): string[] {
+  const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
+  const cw = src.w * (crop?.w ?? 1), ch = src.h * (crop?.h ?? 1);
+  const fit = Math.min(W / cw, H / ch) * place.s;
+  const vw = even(cw * fit), vh = even(ch * fit);
+  const X = Math.round(W / 2 + place.x * W - vw / 2), Y = Math.round(H / 2 + place.y * H - vh / 2);
+  const x0 = Math.max(0, -X), y0 = Math.max(0, -Y);
+  const w = Math.min(vw, W - X) - x0, h = Math.min(vh, H - Y) - y0;
+  if (w < 2 || h < 2) {
+    // Moved right off the frame: all black
+    return ['scale=2:2', `pad=${W}:${H}:0:0:black`, 'drawbox=x=0:y=0:w=2:h=2:color=black:t=fill'];
+  }
+  const cwE = Math.floor(w / 2) * 2, chE = Math.floor(h / 2) * 2;
+  return [`scale=${vw}:${vh}`, `crop=${cwE}:${chE}:${x0}:${y0}`, `pad=${W}:${H}:${Math.max(0, X)}:${Math.max(0, Y)}:black`];
+}
 
 // A crop box the person drew, kept inside the picture. A box that keeps everything counts as no crop.
 export function cleanCrop(c: unknown): { x: number; y: number; w: number; h: number } | undefined {
@@ -45,7 +90,7 @@ export function cleanCrop(c: unknown): { x: number; y: number; w: number; h: num
   return { x, y, w, h };
 }
 
-function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: number): string {
+function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: number, size?: { w: number; h: number } | null): string {
   const filters: string[] = [];
   const crop = cleanCrop(clip.crop);
   // Cropping comes first, on the picture as it was filmed, so it matches what the preview showed
@@ -62,7 +107,10 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     else if (clip.filter === 'invert') filters.push('negate');
   }
 
-  if (crop) {
+  const place = cleanPlace(clip.place);
+  if (place && size && !clip.rotate) {
+    filters.push(...placeFilters(size, crop, place, outputWidth, outputHeight));
+  } else if (crop) {
     // The kept part fills as much of the frame as it can without stretching, with black around it if needed
     filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
@@ -155,6 +203,13 @@ async function applyTransition(
   ]);
 }
 
+export function musicPlacement(start: number | undefined): string {
+  const s = typeof start === 'number' && Number.isFinite(start) ? start : 0;
+  if (s > 0.01) { const ms = Math.round(s * 1000); return `adelay=${ms}|${ms},`; }
+  if (s < -0.01) return `atrim=start=${(-s).toFixed(3)},asetpts=PTS-STARTPTS,`;
+  return '';
+}
+
 export async function stitchClips(
   clips: ClipInput[],
   musicUrl: string | undefined,
@@ -162,8 +217,10 @@ export async function stitchClips(
   outputHeight: number,
   port: number | string,
   crf: number = 28,
-  voiceover?: { takes?: { url: string; start: number; duration: number; volume?: number }[]; originalVolume?: number; musicVolume?: number }
+  voiceover?: { takes?: { url: string; start: number; duration: number; volume?: number }[]; originalVolume?: number; musicVolume?: number; musicStart?: number }
 ): Promise<{ httpUrl: string; cleanup: () => void }> {
+  // Where the music sits: pushed later into the video, or with the start of the song skipped
+  const musicPlace = musicPlacement(voiceover?.musicStart);
   const cleanups: (() => void)[] = [];
   const processedPaths: string[] = [];
 
@@ -173,7 +230,9 @@ export async function stitchClips(
     const outPath = path.join(tmpDir, `${randomUUID()}-clip${i}.mp4`);
     cleanups.push(() => { try { fs.unlinkSync(outPath); } catch {} });
 
-    const vf = buildVideoFilter(clip, outputWidth, outputHeight);
+    // A clip moved or zoomed on the preview needs its real size to be placed exactly
+    const size = cleanPlace(clip.place) ? await getDisplaySize(clip.localPath) : null;
+    const vf = buildVideoFilter(clip, outputWidth, outputHeight, size);
     const trimStart = clip.trimStart ?? 0;
     const speed = Math.min(8, Math.max(0.25, clip.speed ?? 1));
     const volume = clip.volume ?? 1;
@@ -280,7 +339,7 @@ export async function stitchClips(
     // music sits lower again, the voiceover stays at full volume.
     const parts: string[] = [`[0:a]volume=${Math.min(1, Math.max(0, voiceover.originalVolume ?? 0.35)).toFixed(2)}[orig]`];
     const labels = ['[orig]'];
-    if (musicIdx > 0) { parts.push(`[${musicIdx}:a]volume=${Math.min(1, Math.max(0, voiceover.musicVolume ?? 0.3)).toFixed(2)}[mus]`); labels.push('[mus]'); }
+    if (musicIdx > 0) { parts.push(`[${musicIdx}:a]${musicPlace}volume=${Math.min(1, Math.max(0, voiceover.musicVolume ?? 0.3)).toFixed(2)}[mus]`); labels.push('[mus]'); }
 
     // Each take is placed where the user recorded it. A take recorded later replaces an
     // earlier one wherever they overlap, so the earlier take is silenced for that stretch.
@@ -320,7 +379,7 @@ export async function stitchClips(
       '-y',
       '-i', stitchedPath,
       '-i', musicUrl,
-      '-filter_complex', `[0:a]volume=${Math.min(1, Math.max(0, voiceover?.originalVolume ?? 1)).toFixed(2)}[a0];[1:a]volume=${Math.min(1, Math.max(0, voiceover?.musicVolume ?? 0.35)).toFixed(2)}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=0,volume=2,alimiter=limit=0.95[aout]`,
+      '-filter_complex', `[0:a]volume=${Math.min(1, Math.max(0, voiceover?.originalVolume ?? 1)).toFixed(2)}[a0];[1:a]${musicPlace}volume=${Math.min(1, Math.max(0, voiceover?.musicVolume ?? 0.35)).toFixed(2)}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=0,volume=2,alimiter=limit=0.95[aout]`,
       '-map', '0:v',
       '-map', '[aout]',
       '-c:v', 'copy',

@@ -391,7 +391,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
   const [picked, setPicked] = useState<PlatformId[]>(connected)
   const [tt, setTt] = useState<TikTokOptions>(emptyTikTok)
   const render = renders.find((r) => r.id === renderId)
-  const [text, setText] = useState(() => cleanString([render?.caption, render?.tags].filter(Boolean).join('\n')))
+  const [text, setText] = useState(() => cleanString([render?.caption, tagLine(render?.tags)].filter(Boolean).join('\n')))
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -399,7 +399,7 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
   const pickRender = (id: string) => {
     setRenderId(id)
     const r = renders.find((x) => x.id === id)
-    setText(cleanString([r?.caption, r?.tags].filter(Boolean).join('\n')))
+    setText(cleanString([r?.caption, tagLine(r?.tags)].filter(Boolean).join('\n')))
   }
   const submit = async () => {
     setMsg('')
@@ -475,6 +475,11 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
 
 // Splits saved hashtags ("#a #b, c") into a clean list with one # each
 const parseTags = (t: string | null | undefined) => Array.from(new Set((t || '').split(/[\s,]+/).map((x) => x.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '')).filter(Boolean))).map((x) => `#${x}`)
+// Every video ends with #Reelezy. It is added when shown, copied or posted, so it is always the last one.
+const BRAND_TAG = '#Reelezy'
+const isBrandTag = (t: string) => t.toLowerCase() === BRAND_TAG.toLowerCase()
+const withBrandTag = (tags: string[]) => [...tags.filter((t) => !isBrandTag(t)), BRAND_TAG]
+const tagLine = (t: string | null | undefined) => withBrandTag(parseTags(t)).join(' ')
 
 // One finished video in Publish: edit its title, description and hashtags, copy them, and download the video
 function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, onDelete, schedule }: {
@@ -486,7 +491,7 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
 }) {
   const [title, setTitle] = useState(() => (r.title ? cleanString(r.title) : ''))
   const [desc, setDesc] = useState(() => (r.caption ? cleanString(r.caption) : ''))
-  const [tags, setTags] = useState<string[]>(() => parseTags(r.tags))
+  const [tags, setTags] = useState<string[]>(() => parseTags(r.tags).filter((t) => !isBrandTag(t)))
   const [tagDraft, setTagDraft] = useState('')
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
   // Delete asks once before it goes
@@ -510,12 +515,13 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
   }
   const saveTags = (next: string[]) => { setTags(next); save({ tags: next.join(' ') }) }
   const addTag = () => {
-    const extra = parseTags(tagDraft)
+    const extra = parseTags(tagDraft).filter((t) => !isBrandTag(t))
     setTagDraft('')
     if (extra.length === 0) return
     saveTags(Array.from(new Set([...tags, ...extra])))
   }
-  const fullDesc = [desc.trim(), tags.join(' ')].filter(Boolean).join('\n\n')
+  const shownTags = withBrandTag(tags)
+  const fullDesc = [desc.trim(), shownTags.join(' ')].filter(Boolean).join('\n\n')
 
   return (
     <div className="pub-card">
@@ -542,9 +548,13 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
               {tags.map((t) => (
                 <span key={t} className="pub-tag">{t}<button type="button" aria-label={`Remove ${t}`} onClick={() => saveTags(tags.filter((x) => x !== t))}>×</button></span>
               ))}
+              {/* Always last, on every video */}
+              {[BRAND_TAG].map((t) => (
+                <span key={t} className="pub-tag" title="Added to every video">{t}</span>
+              ))}
               <input className="pub-tag-input" aria-label="Add a hashtag" value={tagDraft} placeholder="Add a hashtag" onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',' || e.key === ' ') { e.preventDefault(); addTag() } else if (e.key === 'Backspace' && !tagDraft && tags.length) saveTags(tags.slice(0, -1)) }} onBlur={addTag} />
             </div>
-            <button type="button" className="pub-copy" aria-label="Copy hashtags" title="Copy hashtags" disabled={tags.length === 0} onClick={() => onCopy(tags.join(' '), `${r.id}-h`)}>{copied === `${r.id}-h` ? <TickIcon /> : <CopyIcon />}</button>
+            <button type="button" className="pub-copy" aria-label="Copy hashtags" title="Copy hashtags" onClick={() => onCopy(shownTags.join(' '), `${r.id}-h`)}>{copied === `${r.id}-h` ? <TickIcon /> : <CopyIcon />}</button>
           </div>
         </div>
         <p style={{ ...small, minHeight: 16 }} role="status">
