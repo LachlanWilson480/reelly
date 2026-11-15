@@ -1,15 +1,20 @@
-// Error tracking for anything that runs on the edge runtime. Does nothing until NEXT_PUBLIC_SENTRY_DSN is set.
-import * as Sentry from '@sentry/nextjs'
-import { SENTRY_DATA_COLLECTION } from '@/lib/sentryPrivacy'
+// This file configures the initialization of Sentry for edge features (middleware, edge routes, and so on).
+// The config you add here will be used whenever one of the edge features is loaded.
+// Note that this config is unrelated to the Vercel Edge Runtime and is also required when running locally.
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN
+import * as Sentry from "@sentry/nextjs";
 
-if (dsn) {
-  Sentry.init({
-    dsn,
-    environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
-    tracesSampleRate: 0.1,
-    // Don't send names, emails, cookies, request bodies or AI prompts.
-    dataCollection: SENTRY_DATA_COLLECTION,
-  })
-}
+Sentry.init({
+  dsn: "https://28a1a06e96e54c993be4c800d20196f1@o4512432894836736.ingest.us.sentry.io/4512432902963200",
+
+  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
+  tracesSampleRate: 1,
+
+  dataCollection: {
+    // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
+    // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#dataCollection
+    // userInfo: false,
+    // httpBodies: [],
+  },
+});
