@@ -11,7 +11,7 @@ type Props = {
 }
 
 const LAYERS: { key: LayerKey; name: string; desc: string }[] = [
-  { key: 'onScreen', name: 'Captions layer 1', desc: 'On-screen text from your filming instructions. Sits above layer 2.' },
+  { key: 'onScreen', name: 'On-screen text', desc: 'Text from your filming instructions, or what you type in the box on the preview. Sits in the top half, above the spoken captions.' },
   { key: 'speech', name: 'Captions layer 2', desc: 'What you say, in the style you picked.' },
 ]
 

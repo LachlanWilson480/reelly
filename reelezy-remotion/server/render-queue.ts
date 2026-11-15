@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { ensureMp4 } from "./convert-clip";
-import { cutSilence } from "./cut-silence";
+import { cutSilence, mapThroughKeep, type Segment } from "./cut-silence";
 import { stitchClips } from "./stitch-clips";
 import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
@@ -28,6 +28,7 @@ type ClipInput = {
   filter?: string;
   transition?: string;
   captionTexts?: string[];
+  crop?: { x: number; y: number; w: number; h: number };
 };
 
 type CaptionStyle = {
@@ -115,7 +116,10 @@ export const makeRenderQueue = ({
     const tmpCleanups: (() => void)[] = [];
 
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, watermark, crf, userId, renderId } = job.data;
+      const { clips, musicSrc, originalVolume, musicVolume, outputWidth, outputHeight, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, watermark, crf, userId, renderId } = job.data;
+      // Smart Trim can move these, so they are worked on as copies
+      let voiceovers = job.data.voiceovers;
+      let overlays = job.data.overlays;
 
       // Step 1: convert MOV → mp4
       setProgress(jobId, 5, job.data, cancel);
@@ -129,19 +133,47 @@ export const makeRenderQueue = ({
       );
       if (cancelled) throw new Error('Cancelled');
 
-      // Step 2: cut dead space (optional)
+      // Step 2: cut dead space (optional). It listens to each clip's own sound and to any voiceover playing over it,
+      // so nothing is cut while someone is talking, then moves the voiceovers and overlays to match the shorter clips.
       setProgress(jobId, 20, job.data, cancel);
+      const speedOf = (c: ClipInput) => Math.min(8, Math.max(0.25, c.speed ?? 1));
+      // durationInSeconds is how long the clip lasts in the video, with its speed already taken into account
+      const startsAt: number[] = [];
+      { let acc = 0; for (const c of convertedClips) { startsAt.push(acc); acc += Math.max(0, c.durationInSeconds || 0); } }
+      const lengthOf = (i: number) => Math.max(0, convertedClips[i].durationInSeconds || 0);
+      const voiceoverIn = (i: number): Segment[] => (voiceovers || []).flatMap((v) => {
+        const vEnd = v.duration > 0 ? v.start + v.duration : Infinity;
+        const a = Math.max(v.start, startsAt[i]);
+        const b = Math.min(vEnd, startsAt[i] + lengthOf(i));
+        return b > a ? [{ start: (a - startsAt[i]) * speedOf(convertedClips[i]), end: (b - startsAt[i]) * speedOf(convertedClips[i]) }] : [];
+      });
+      const kept: (Segment[] | null)[] = convertedClips.map(() => null);
       const readyClips = await Promise.all(
-        convertedClips.map(async (clip) => {
+        convertedClips.map(async (clip, i) => {
           // A clip the user trimmed by hand keeps their exact trim, so skip Smart Trim for it
           if (!cutDeadSpace || customCaptions || clip.trimStart || clip.trimLength) return clip;
           console.info(`[${jobId}] Step 2: cutting silence from clip`);
-          const { outputPath, cleanup } = await cutSilence(clip.localPath);
+          const { outputPath, cleanup, keep } = await cutSilence(clip.localPath, voiceoverIn(i));
           tmpCleanups.push(cleanup);
+          kept[i] = keep;
           return { ...clip, localPath: outputPath, trimStart: undefined };
         })
       );
       if (cancelled) throw new Error('Cancelled');
+      if (kept.some(Boolean)) {
+        // A moment on the original timeline, moved to where it is once the silences are gone
+        const newStarts: number[] = [];
+        { let acc = 0; convertedClips.forEach((c, i) => { newStarts.push(acc); const k = kept[i]; acc += k ? k.reduce((n, s) => n + (s.end - s.start), 0) / speedOf(c) : lengthOf(i); }); }
+        const moveTime = (t: number) => {
+          let i = convertedClips.length - 1;
+          for (let j = 0; j < convertedClips.length; j++) { if (t < startsAt[j] + lengthOf(j)) { i = j; break; } }
+          const local = Math.max(0, t - startsAt[i]) * speedOf(convertedClips[i]);
+          const within = Math.min(local, kept[i] ? kept[i]!.reduce((m, s) => Math.max(m, s.end), 0) : local);
+          return newStarts[i] + mapThroughKeep(kept[i], within) / speedOf(convertedClips[i]);
+        };
+        if (voiceovers) voiceovers = voiceovers.map((v) => ({ ...v, start: moveTime(v.start) }));
+        if (overlays) overlays = overlays.map((o) => ({ ...o, start: moveTime(o.start), end: o.end === null ? null : moveTime(o.end) }));
+      }
 
       // Step 3: stitch clips + mix music
       setProgress(jobId, 40, job.data, cancel);

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { makeRenderQueue } from "./render-queue";
 import { extractAudio } from "./extract-audio";
+import { cleanCrop } from "./stitch-clips";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -23,6 +24,7 @@ type IncomingClip = {
   letterbox?: boolean;
   transition?: string;
   captionTexts?: unknown;
+  crop?: unknown;
 };
 
 function setupApp() {
@@ -105,6 +107,7 @@ function setupApp() {
           flipH: clip.flipH,
           flipV: clip.flipV,
           letterbox: clip.letterbox,
+          crop: cleanCrop(clip.crop),
           transition: clip.transition,
           captionTexts: Array.isArray(clip.captionTexts) ? (clip.captionTexts as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
         };

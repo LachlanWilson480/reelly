@@ -10,7 +10,35 @@ const FFMPEG_PATH = process.env.FFMPEG_PATH || `${process.env.HOME}/bin/ffmpeg`;
 const tmpDir = path.resolve('tmp');
 if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-type Segment = { start: number; end: number };
+export type Segment = { start: number; end: number };
+
+// Takes the parts that must be kept (where a voiceover is talking over this clip) out of the silent stretches,
+// so a quiet moment in the clip is never cut while someone is speaking over it
+function withoutProtected(silent: Segment[], protect: Segment[]): Segment[] {
+  let out = silent;
+  for (const p of protect) {
+    const next: Segment[] = [];
+    for (const s of out) {
+      if (p.end <= s.start || p.start >= s.end) { next.push(s); continue; }
+      if (p.start > s.start) next.push({ start: s.start, end: p.start });
+      if (p.end < s.end) next.push({ start: p.end, end: s.end });
+    }
+    out = next;
+  }
+  return out.filter((s) => s.end - s.start > 0.01);
+}
+
+// Where a moment of the original clip ends up once the cut parts are removed
+export function mapThroughKeep(keep: Segment[] | null, t: number): number {
+  if (!keep) return t;
+  let out = 0;
+  for (const s of keep) {
+    if (t <= s.start) return out;
+    if (t < s.end) return out + (t - s.start);
+    out += s.end - s.start;
+  }
+  return out;
+}
 
 const PADDING = 0.5; // seconds to keep around each long silent stretch
 const MIN_LONG_SILENCE = 1.5; // only silences this long are cut out of the middle of a clip
@@ -110,15 +138,19 @@ async function extractSegments(inputPath: string, segments: Segment[], outputPat
   ]);
 }
 
-export async function cutSilence(inputPath: string): Promise<{ outputPath: string; cleanup: () => void }> {
+// protect: stretches of this clip (in its own seconds) where a voiceover plays. They count as sound and are never cut.
+// Returns the parts that were kept, so voiceovers and overlays later in the video can be moved to match.
+export async function cutSilence(inputPath: string, protect: Segment[] = []): Promise<{ outputPath: string; cleanup: () => void; keep: Segment[]; duration: number }> {
   const outputPath = path.join(tmpDir, `${randomUUID()}-cut.mp4`);
 
   console.info(`Detecting silence in: ${path.basename(inputPath)}`);
   const duration = await getDuration(inputPath);
-  const { segments: silent, hasAudio } = await detectSilence(inputPath, duration);
+  const { segments: rawSilent, hasAudio } = await detectSilence(inputPath, duration);
+  const guard = protect.map((p) => ({ start: Math.max(0, p.start), end: Math.min(duration, p.end) })).filter((p) => p.end - p.start > 0.01);
+  const silent = withoutProtected(rawSilent, guard);
 
   // A clip that is silent from start to finish has no sound to work from
-  const noSound = !hasAudio || (silent.length === 1 && silent[0].start < 0.1 && silent[0].end >= duration - 0.1);
+  const noSound = !hasAudio || (rawSilent.length === 1 && rawSilent[0].start < 0.1 && rawSilent[0].end >= duration - 0.1);
 
   let keepSegments: Segment[];
   let headStart = 0;
@@ -139,6 +171,11 @@ export async function cutSilence(inputPath: string): Promise<{ outputPath: strin
       if (motion.last < duration - 0.4) tailEnd = Math.min(duration, motion.last + EDGE_PAD);
     }
   }
+  // Never start after, or stop before, a voiceover that plays over this clip
+  if (guard.length > 0) {
+    headStart = Math.min(headStart, Math.max(0, Math.min(...guard.map((g) => g.start)) - EDGE_PAD));
+    tailEnd = Math.max(tailEnd, Math.min(duration, Math.max(...guard.map((g) => g.end)) + EDGE_PAD));
+  }
 
   if (tailEnd - headStart < 0.8) { headStart = 0; tailEnd = duration; }
   keepSegments = keepSegments
@@ -151,5 +188,5 @@ export async function cutSilence(inputPath: string): Promise<{ outputPath: strin
   await extractSegments(inputPath, keepSegments, outputPath, hasAudio);
 
   const cleanup = () => { try { fs.unlinkSync(outputPath); } catch {} };
-  return { outputPath, cleanup };
+  return { outputPath, cleanup, keep: keepSegments, duration };
 }

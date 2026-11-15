@@ -27,10 +27,29 @@ type ClipInput = {
   // The 'appearance' look: skin smoothing and low light lift (0 to 100 each) and a colour look
   appearance?: { touchUp?: number; light?: number; look?: string };
   transition?: string; // transition INTO this clip from previous
+  // The part of the picture to keep, as shares of the width and height (0 to 1). The kept part is fitted
+  // inside the frame without stretching.
+  crop?: { x: number; y: number; w: number; h: number };
 };
+
+// A crop box the person drew, kept inside the picture. A box that keeps everything counts as no crop.
+export function cleanCrop(c: unknown): { x: number; y: number; w: number; h: number } | undefined {
+  if (!c || typeof c !== 'object') return undefined;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : NaN);
+  const o = c as Record<string, unknown>;
+  let x = n(o.x), y = n(o.y), w = n(o.w), h = n(o.h);
+  if ([x, y, w, h].some(Number.isNaN)) return undefined;
+  x = Math.min(0.95, Math.max(0, x)); y = Math.min(0.95, Math.max(0, y));
+  w = Math.min(1 - x, Math.max(0.05, w)); h = Math.min(1 - y, Math.max(0.05, h));
+  if (x < 0.002 && y < 0.002 && w > 0.996 && h > 0.996) return undefined;
+  return { x, y, w, h };
+}
 
 function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: number): string {
   const filters: string[] = [];
+  const crop = cleanCrop(clip.crop);
+  // Cropping comes first, on the picture as it was filmed, so it matches what the preview showed
+  if (crop) filters.push(`crop=trunc(iw*${crop.w.toFixed(4)}/2)*2:trunc(ih*${crop.h.toFixed(4)}/2)*2:trunc(iw*${crop.x.toFixed(4)}):trunc(ih*${crop.y.toFixed(4)})`);
 
   if (clip.flipH && clip.flipV) filters.push('hflip,vflip');
   else if (clip.flipH) filters.push('hflip');
@@ -43,7 +62,11 @@ function buildVideoFilter(clip: ClipInput, outputWidth: number, outputHeight: nu
     else if (clip.filter === 'invert') filters.push('negate');
   }
 
-  if (clip.letterbox) {
+  if (crop) {
+    // The kept part fills as much of the frame as it can without stretching, with black around it if needed
+    filters.push(`scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2`);
+    filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
+  } else if (clip.letterbox) {
     // Landscape clip: fit inside portrait frame with black bars
     filters.push(`scale='if(gt(iw,${outputWidth}),${outputWidth},iw)':'if(gt(ih,${outputHeight}),${outputHeight},ih)':force_original_aspect_ratio=decrease`);
     filters.push(`pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`);
@@ -306,6 +329,20 @@ export async function stitchClips(
       mixedPath,
     ]);
 
+    finalPath = mixedPath;
+  } else if (typeof voiceover?.originalVolume === 'number' && voiceover.originalVolume < 0.999) {
+    // No voiceover and no music: the Master volume still applies (Off removes the clips' sound completely)
+    const mixedPath = path.join(tmpDir, `${randomUUID()}-level.mp4`);
+    cleanups.push(() => { try { fs.unlinkSync(mixedPath); } catch {} });
+    await execFileAsync(FFMPEG_PATH, [
+      '-y',
+      '-i', stitchedPath,
+      '-af', `volume=${Math.min(1, Math.max(0, voiceover.originalVolume)).toFixed(2)}`,
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-movflags', '+faststart',
+      mixedPath,
+    ]);
     finalPath = mixedPath;
   }
 

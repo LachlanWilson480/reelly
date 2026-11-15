@@ -7,10 +7,13 @@ export type CaptionLayers = { onScreen: LayerSetting; speech: LayerSetting }
 
 export const DEFAULT_CAPTION_LAYERS: CaptionLayers = { onScreen: { on: true }, speech: { on: true } }
 
+// On-screen text sits in the middle of the top half of the video, away from the spoken captions. The Position
+// setting moves the spoken captions, and they keep clear of the on-screen text when it is set to the top.
 export function autoLayerY(layer: LayerKey, position: CaptionPosition): number {
-  if (position === 'top') return layer === 'onScreen' ? 0.1 : 0.24
-  if (position === 'center') return layer === 'onScreen' ? 0.38 : 0.64
-  return layer === 'onScreen' ? 0.66 : 0.8
+  if (layer === 'onScreen') return 0.25
+  if (position === 'top') return 0.42
+  if (position === 'center') return 0.6
+  return 0.8
 }
 
 export function layerPoint(layers: CaptionLayers, layer: LayerKey, position: CaptionPosition) {

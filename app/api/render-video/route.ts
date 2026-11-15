@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 )
 
 type ClipTrim = { trimStart?: number; trimLength?: number; duration?: number }
-type ClipSetting = { appearance?: { touchUp?: unknown; light?: unknown; look?: unknown }; muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
+type ClipSetting = { crop?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown }; appearance?: { touchUp?: unknown; light?: unknown; look?: unknown }; muted?: boolean; volume?: number; fit?: 'crop' | 'cover' | 'contain'; position?: string; speed?: number; filter?: string; rotate?: number; flipH?: boolean; flipV?: boolean; letterbox?: boolean }
 
 const BASIC_CAP_MIN = 25
 const PRO_CAP_MIN = 25
@@ -213,6 +213,10 @@ export async function POST(req: NextRequest) {
         flipH: setting.flipH,
         flipV: setting.flipV,
         letterbox: setting.letterbox,
+        // The part of the picture the person kept (shares of width and height). The render server checks it again.
+        crop: setting.crop && typeof setting.crop === 'object' && [setting.crop.x, setting.crop.y, setting.crop.w, setting.crop.h].every((v) => typeof v === 'number' && Number.isFinite(v))
+          ? { x: Number(setting.crop.x), y: Number(setting.crop.y), w: Number(setting.crop.w), h: Number(setting.crop.h) }
+          : undefined,
         durationInSeconds,
         transition: Array.isArray(perClipTransitions) ? (perClipTransitions[i] || 'none') : 'none',
         captionTexts: Array.isArray(texts[i]) ? (texts[i] as unknown[]).filter((t): t is string => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim().slice(0, 140)).slice(0, 4) : undefined,
