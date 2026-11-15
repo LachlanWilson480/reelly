@@ -344,7 +344,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
             ? <>Show script puts your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview to read from. Hide it to see the whole video. To record, pause where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.</>
             : noScriptFor
               ? <>There is no script for <strong style={{ color: 'var(--ink)' }}>{noScriptFor}</strong>. Add one in the Film tab or the script writer to read it on the preview. To record, pause where you want to start, then press Record voiceover under the preview. Recordings you upload are saved to your library.</>
-              : 'To record, pause where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.'}
+              : 'To record, drag the line on the timeline to where you want it to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.'}
         </p>
 
         {scriptLabel && (
@@ -468,7 +468,6 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
   const scriptBoxRef = useRef<HTMLDivElement | null>(null)
-  const draggingRef = useRef(false)
   const dragTakeRef = useRef<{ id: string; grab: number; sx: number; sy: number; moved: boolean } | null>(null)
   const binRef = useRef<HTMLDivElement | null>(null)
   // A voiceover block being dragged: the bin shows at the bottom of the screen while it moves
@@ -491,8 +490,9 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   const grabRef = useRef({ dx: 0, dy: 0 })
   const frac = (e: { clientX: number; clientY: number }) => { const r = stageRef.current?.getBoundingClientRect(); return r && r.width > 0 ? { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height } : { x: 0.5, y: 0.5 } }
   const trimDragRef = useRef<{ i: number; side: 'l' | 'r'; startX: number; scale: number; start: number; end: number; dur: number } | null>(null)
-  // While a clip end is being dragged the timeline keeps its scale, so the end follows the finger exactly
-  const [trimView, setTrimView] = useState<{ i: number; side: 'l' | 'r'; shift: number; total: number; start: number; end: number } | null>(null)
+  // While a clip end is being dragged, that clip is shown at its full length with the cut parts faded, so there is
+  // always room to drag an end back out. dispTotal is the length of the timeline drawn that way.
+  const [trimView, setTrimView] = useState<{ i: number; side: 'l' | 'r'; start: number; end: number; dur: number; sp: number; before: number; dispTotal: number } | null>(null)
   // Playback bookkeeping that must not wait for a re-render (this is what kept the voiceover from glitching)
   const indexRef = useRef(0)
   const switchingRef = useRef(false)
@@ -558,9 +558,14 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     const target = seg.start + offset * sp
     const seq = ++loadSeqRef.current
     if (cur.getAttribute('data-src') === src) {
-      // Same file: just move within it
+      // Same file: just move within it. Also make sure this player is the one on top: a quick drag back and forth
+      // can cancel the earlier swap before it is shown, which left a frozen picture over the playing one.
+      setSlot(slotRef.current)
+      cur.style.zIndex = '1'
+      const under = playerOf(slotRef.current === 0 ? 1 : 0)
+      if (under) { under.style.zIndex = '0'; if (!under.paused) under.pause(); under.muted = true }
       cur.playbackRate = sp
-      try { cur.currentTime = target } catch {}
+      try { if (Math.abs(cur.currentTime - target) > 0.04) cur.currentTime = target } catch {}
       setLocalTime(offset)
       switchingRef.current = false
       advancingRef.current = false
@@ -762,14 +767,17 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       v.pause(); pauseTakes(); setPlaying(false)
       return
     }
-    if (total > 0 && globalTime >= total - 0.1) seekGlobal(0, true)
-    else void v.play().catch(() => {})
+    // Always play from where the line is on the timeline
+    seekGlobal(total > 0 && globalTime >= total - 0.1 ? 0 : globalTime, true)
     setPlaying(true)
   }
 
   const startRecording = async () => {
     setMicError('')
     if (segments.length === 0 || recording || countdown !== null) return
+    // The voiceover goes exactly where the line is now, so stop the preview moving while the countdown runs
+    const lineAt = total > 0 && globalTime >= total - 0.2 ? 0 : globalTime
+    if (playing) { videoRef.current?.pause(); pauseTakes(); setPlaying(false) }
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setMicError('Recording is not supported in this browser. Use Upload a recording instead.')
       return
@@ -787,8 +795,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       const mimeType = preferred.find((m) => MediaRecorder.isTypeSupported(m))
       const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
       chunksRef.current = []
-      // Recording starts where the preview was paused (or at the start if it was at the very end)
-      const startAt = total > 0 && globalTime >= total - 0.2 ? 0 : globalTime
+      // Recording starts where the line was when Record was pressed (or at the start if it was at the very end)
+      const startAt = lineAt
       recStartRef.current = startAt
       rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       rec.onstop = () => {
@@ -826,12 +834,48 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     }
   }
 
-  const scaleTotal = trimView ? trimView.total : total
-  const pct = (t: number) => `${scaleTotal > 0 ? Math.min(100, Math.max(0, (t / scaleTotal) * 100)) : 0}%`
+  const scaleTotal = trimView ? trimView.dispTotal : total
+  // Where a moment of the video sits on the drawn timeline. Normally that is just the time, but while a clip end is
+  // being dragged the cut parts of that clip are drawn too, so everything after them shifts along.
+  const dispAt = (t: number) => {
+    if (!trimView) return t
+    const { before, start, end, sp, dur } = trimView
+    const kept = Math.max(0, end - start) / sp
+    if (t <= before) return t
+    if (t <= before + kept) return before + start / sp + (t - before)
+    return t + dur / sp - kept
+  }
+  const pct = (t: number) => `${scaleTotal > 0 ? Math.min(100, Math.max(0, (dispAt(t) / scaleTotal) * 100)) : 0}%`
   const timeAt = (clientX: number) => {
     const r = trackRef.current?.getBoundingClientRect()
     if (!r || total <= 0 || r.width <= 0) return 0
     return Math.min(total, Math.max(0, ((clientX - r.left) / r.width) * total))
+  }
+
+  // Dragging the line (or the strip above the timeline) moves the video to that moment. Playback pauses while
+  // dragging and carries on from the new spot when let go.
+  const scrubRef = useRef<{ wasPlaying: boolean } | null>(null)
+  const startScrub = (e: React.PointerEvent) => {
+    if (recording || total <= 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+    const wasPlaying = playing
+    if (wasPlaying) { videoRef.current?.pause(); pauseTakes(); setPlaying(false) }
+    scrubRef.current = { wasPlaying }
+    seekGlobal(timeAt(e.clientX), false)
+  }
+  const moveScrub = (e: React.PointerEvent) => {
+    if (!scrubRef.current) return
+    if (e.pointerType === 'mouse' && e.buttons === 0) { endScrub(); return }
+    seekGlobal(timeAt(e.clientX), false)
+  }
+  const endScrub = (e?: React.PointerEvent) => {
+    const sc = scrubRef.current
+    scrubRef.current = null
+    if (!sc || !sc.wasPlaying) return
+    seekGlobal(e ? timeAt(e.clientX) : globalTime, true)
+    setPlaying(true)
   }
 
   const clipIndexAt = (clientX: number) => {
@@ -990,10 +1034,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     setPlaying(false)
     const w = trackRef.current?.getBoundingClientRect().width || 1
     const end0 = seg.end != null ? Math.min(seg.end, dur) : dur
-    trimDragRef.current = { i, side, startX: e.clientX, scale: (total / w) * (seg.speed || 1), start: seg.start, end: end0, dur }
+    const sp = seg.speed || 1
+    // The timeline is drawn with this whole clip showing, so the finger moves over the clip's full length
+    const dispTotal = total - (lengths[i] || 0) + dur / sp
+    trimDragRef.current = { i, side, startX: e.clientX, scale: (dispTotal / w) * sp, start: seg.start, end: end0, dur }
     // Show the clip being trimmed in the preview right away
     load(i, 0, false)
-    setTrimView({ i, side, shift: 0, total, start: seg.start, end: end0 })
+    setTrimView({ i, side, start: seg.start, end: end0, dur, sp, before: lengths.slice(0, i).reduce((a, b) => a + b, 0), dispTotal })
   }
   const moveTrim = (e: React.PointerEvent) => {
     const d = trimDragRef.current
@@ -1004,7 +1051,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
     if (d.side === 'r') ne = Math.min(d.dur, Math.max(d.start + 0.3, d.end + delta))
     else ns = Math.max(0, Math.min(d.end - 0.3, d.start + delta))
     onTrimClip(d.i, ns, ne, d.dur)
-    setTrimView((prev) => (prev ? { ...prev, shift: ns - d.start, start: ns, end: ne } : prev))
+    setTrimView((prev) => (prev ? { ...prev, start: ns, end: ne } : prev))
     // The preview shows the exact frame under the end being dragged
     const v = videoRef.current
     const seg = segments[d.i]
@@ -1014,6 +1061,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   }
   const endTrim = () => {
     const d = trimDragRef.current
+    if (!d) return
     trimDragRef.current = null
     setTrimView(null)
     if (d) load(d.i, 0, false)
@@ -1061,7 +1109,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         {/* Both players are always drawn; the one in use sits on top, so the other has its first frame ready underneath */}
         {([0, 1] as const).map((n) => (
           <video key={n} ref={n === 0 ? vidA : vidB} playsInline preload="auto"
-            onEnded={(e) => { if (e.currentTarget === videoRef.current) advance() }}
+            onEnded={(e) => { if (e.currentTarget === videoRef.current && !switchingRef.current) advance() }}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#000', zIndex: n === slot ? 1 : 0, pointerEvents: 'none', filter: n === slot ? appearanceCss(segments[index]?.appearance ?? appearance) : undefined }} />
         ))}
         {captionStyle && caps.filter((c) => globalTime >= c.start && globalTime < c.end).map((c) => {
@@ -1389,7 +1437,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       {musicUrl && <audio ref={(el) => { audioEls.current['music'] = el }} src={musicUrl} preload="auto" />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={toggle} disabled={!hasClips || recording || countdown !== null}
+        <button type="button" onClick={toggle} disabled={!hasClips || recording || countdown !== null} aria-label={playing ? 'Pause' : 'Play'}
           style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: !hasClips || recording ? 'default' : 'pointer', opacity: !hasClips || recording ? 0.4 : 1, flexShrink: 0 }}>
           {playing ? <Icon n="pause" /> : <Icon n="play" />}
         </button>
@@ -1411,6 +1459,21 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
       </div>
 
       <div style={{ marginTop: 12 }}>
+        <style>{`.tl-vo,.tl-clip{container-type:inline-size}.tl-short{display:none}
+@container (max-width:100px){.tl-vo .tl-x{display:none}}
+@container (max-width:74px){.tl-vo .tl-full{display:none}.tl-vo .tl-short{display:inline}}
+@container (max-width:58px){.tl-clip .tl-full{display:none}}`}</style>
+        {/* The strip above the timeline: press or drag anywhere on it to move the line, which has a handle here */}
+        <div aria-hidden="true" onPointerDown={startScrub} onPointerMove={moveScrub} onPointerUp={endScrub} onPointerCancel={() => endScrub()} onLostPointerCapture={() => endScrub()}
+          style={{ position: 'relative', height: 18, marginBottom: 4, cursor: recording || total <= 0 ? 'default' : 'ew-resize', touchAction: 'none', userSelect: 'none' }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 8, height: 2, borderRadius: 1, background: 'rgba(128,128,128,0.25)' }} />
+          {hasClips && (
+            <div style={{ position: 'absolute', top: 0, left: pct(globalTime), width: 14, height: 18, marginLeft: -7, pointerEvents: 'none' }}>
+              <div style={{ width: 14, height: 12, borderRadius: 3, background: 'var(--ink)' }} />
+              <div style={{ width: 0, height: 0, margin: '0 auto', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '6px solid var(--ink)' }} />
+            </div>
+          )}
+        </div>
         <div
           ref={trackRef}
           role="slider"
@@ -1429,7 +1492,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               e.currentTarget.setPointerCapture(e.pointerId)
               return
             }
-            draggingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekGlobal(timeAt(e.clientX), playing)
+            startScrub(e)
           }}
           onPointerMove={(e) => {
             const press = clipPressRef.current
@@ -1440,18 +1503,18 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               setClipDrag({ from: press.from, to: press.to })
               return
             }
-            if (draggingRef.current) seekGlobal(timeAt(e.clientX), playing)
+            moveScrub(e)
           }}
           onPointerUp={(e) => {
             const press = clipPressRef.current
             clipPressRef.current = null
-            draggingRef.current = false
-            if (!press) return
+            if (!press) { endScrub(e); return }
             setClipDrag(null)
             if (press.dragging) { if (press.from !== press.to) onReorderClip?.(press.from, press.to) }
             else seekGlobal(timeAt(e.clientX), playing)
           }}
-          onPointerCancel={() => { draggingRef.current = false; clipPressRef.current = null; setClipDrag(null) }}
+          onPointerCancel={() => { endScrub(); clipPressRef.current = null; setClipDrag(null) }}
+          onLostPointerCapture={() => { endScrub(); if (clipPressRef.current && !clipPressRef.current.dragging) clipPressRef.current = null }}
           onKeyDown={(e) => {
             if (recording || total <= 0) return
             if (e.key === 'ArrowRight') { e.preventDefault(); seekGlobal(Math.min(total, globalTime + 1), playing) }
@@ -1465,16 +1528,31 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               const moving = clipDrag?.from === i
               const landing = !!clipDrag && clipDrag.to === i && clipDrag.from !== i
               const edge = landing && clipDrag ? (clipDrag.to > clipDrag.from ? 'inset -3px 0 0 #fff' : 'inset 3px 0 0 #fff') : 'none'
+              // The clip having an end dragged is drawn at its full length: the parts cut off are faded, and the
+              // white ends sit where the cut is, so they can be dragged back out at any time
+              const tv = trimView && trimView.i === i ? trimView : null
+              const shown = tv ? tv.dur / tv.sp : len
+              const keptL = tv && tv.dur > 0 ? (tv.start / tv.dur) * 100 : 0
+              const keptR = tv && tv.dur > 0 ? (1 - tv.end / tv.dur) * 100 : 0
+              const handle = (side: 'l' | 'r') => (
+                <span key={side} role="separator" aria-label={side === 'l' ? `Trim the start of clip ${i + 1}` : `Trim the end of clip ${i + 1}`}
+                  onPointerDown={(e) => startTrim(e, i, side)} onPointerMove={(e) => moveTrim(e)} onPointerUp={() => endTrim()} onPointerCancel={() => endTrim()} onLostPointerCapture={() => endTrim()}
+                  style={{ position: 'absolute', top: 0, bottom: 0, zIndex: 2, ...(side === 'l' ? { left: `${keptL}%` } : { right: `${keptR}%` }), width: 14, background: '#fff', cursor: 'ew-resize', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: side === 'l' ? '6px 0 0 6px' : '0 6px 6px 0' }}>
+                  <span style={{ width: 2, height: 12, background: 'rgba(0,0,0,0.45)', borderRadius: 1, pointerEvents: 'none' }} />
+                </span>
+              )
               return (
-                <div key={i} style={{ position: 'relative', flex: len > 0 ? '0 0 auto' : 1, width: len > 0 ? `${scaleTotal > 0 ? (len / scaleTotal) * 100 : 0}%` : undefined, marginLeft: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${(trimView.shift / scaleTotal) * 100}%` : undefined, marginRight: trimView && trimView.i === i && trimView.side === 'l' && scaleTotal > 0 ? `${-(trimView.shift / scaleTotal) * 100}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', fontSize: 11, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
-                  {i + 1}
-                  {onTrimClip && !recording && (['l', 'r'] as const).map((side) => (
-                    <span key={side} role="separator" aria-label={side === 'l' ? `Trim the start of clip ${i + 1}` : `Trim the end of clip ${i + 1}`}
-                      onPointerDown={(e) => startTrim(e, i, side)} onPointerMove={(e) => moveTrim(e)} onPointerUp={() => endTrim()} onPointerCancel={() => endTrim()}
-                      style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 14, maxWidth: '40%', background: '#fff', cursor: 'ew-resize', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: side === 'l' ? '6px 0 0 6px' : '0 6px 6px 0' }}>
-                      <span style={{ width: 2, height: 12, background: 'rgba(0,0,0,0.45)', borderRadius: 1, pointerEvents: 'none' }} />
-                    </span>
-                  ))}
+                <div key={i} className="tl-clip" style={{ position: 'relative', flex: shown > 0 ? '0 0 auto' : 1, width: shown > 0 ? `${scaleTotal > 0 ? (shown / scaleTotal) * 100 : 0}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: tv ? 'transparent' : clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box', fontSize: 11, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', whiteSpace: 'nowrap', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
+                  {tv && (
+                    <>
+                      {/* The cut parts, faded, then the part that stays */}
+                      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, background: clipShade(i), opacity: 0.3 }} />
+                      <span aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: `${keptL}%`, right: `${keptR}%`, background: clipShade(i) }} />
+                    </>
+                  )}
+                  <span style={{ position: 'relative', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', paddingLeft: tv ? `${keptL}%` : 0 }}><span className="tl-full">Clip </span>{i + 1}</span>
+                  {onTrimClip && !recording && handle('l')}
+                  {onTrimClip && !recording && handle('r')}
                 </div>
               )
             })}
@@ -1502,12 +1580,13 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                   if (dropped) onRemoveTake(t.id)
                 }}
                 onPointerCancel={() => { dragTakeRef.current = null; setTakeDrag(null) }}
-                style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? pct(Math.min(t.duration, Math.max(0, total - t.start))) : `calc(100% - ${pct(t.start)})`, background: `${takeColor(ti)}B3`, border: `1.5px solid ${takeColor(ti)}`, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box', overflow: 'hidden', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
-                <span style={{ color: '#fff', pointerEvents: 'none', fontSize: 11, fontWeight: 600, paddingLeft: 7 }}>{ti + 1}</span>
-                <button type="button" aria-label="Remove this voiceover part"
+                className="tl-vo" style={{ position: 'absolute', top: 0, bottom: 0, left: pct(t.start), width: t.duration > 0 ? `${scaleTotal > 0 ? Math.min(100, Math.max(0, ((dispAt(Math.min(total, t.start + t.duration)) - dispAt(t.start)) / scaleTotal) * 100)) : 0}%` : `calc(100% - ${pct(t.start)})`, background: `${takeColor(ti)}B3`, border: `1.5px solid ${takeColor(ti)}`, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box', overflow: 'hidden', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
+                <span className="tl-full" style={{ color: '#fff', pointerEvents: 'none', fontSize: 11, fontWeight: 600, paddingLeft: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>Voiceover {ti + 1}</span>
+                <span className="tl-short" style={{ color: '#fff', pointerEvents: 'none', fontSize: 11, fontWeight: 600, paddingLeft: 5, whiteSpace: 'nowrap' }}>VO {ti + 1}</span>
+                <button type="button" className="tl-x" aria-label={`Remove voiceover ${ti + 1}`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onRemoveTake(t.id) }}
-                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: '0 6px' }}><Icon n="close" /></button>
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: 14, lineHeight: 1, cursor: 'pointer', padding: '0 6px', flexShrink: 0 }}><Icon n="close" /></button>
               </div>
             ))}
             {recording && (
@@ -1548,9 +1627,15 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               </div>
             )
           })}
-          <div style={{ position: 'absolute', top: -3, bottom: -3, left: pct(globalTime), width: 2, marginLeft: -1, background: 'var(--ink)', borderRadius: 1, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: -3, bottom: -3, left: pct(globalTime), width: 2, marginLeft: -1, background: 'var(--ink)', borderRadius: 1, pointerEvents: 'none', zIndex: 4 }} />
+          {/* Grab the line anywhere under the clips to drag it (on the clips themselves a press trims or moves a clip) */}
+          {!recording && total > 0 && !trimView && (
+            <div aria-hidden="true" onPointerDown={startScrub} onPointerMove={moveScrub} onPointerUp={endScrub} onPointerCancel={() => endScrub()} onLostPointerCapture={() => endScrub()}
+              style={{ position: 'absolute', top: 26, bottom: -3, left: pct(globalTime), width: 18, marginLeft: -9, cursor: 'ew-resize', touchAction: 'none', zIndex: 5 }} />
+          )}
         </div>
         <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+          <span>Drag the line to move through the video</span>
           <span>Clips{onTrimClip ? ' (drag the white ends to trim)' : ''}</span>
           <span>Voiceover</span>
           {musicUrl && <span>Music</span>}
@@ -4228,10 +4313,13 @@ export default function DashboardPage() {
   }
 
   const addVoiceFile = (file: File, libPath?: string) => {
+    // An uploaded or library voiceover starts where the line is on the timeline, like a recorded one
+    const { t, total } = playheadRef.current
+    const at = total > 0 && t < total - 0.2 ? t : 0
     const probe = new Audio()
     probe.preload = 'metadata'
-    probe.onloadedmetadata = () => addVoiceTake(file, 0, Number.isFinite(probe.duration) ? probe.duration : 0, libPath)
-    probe.onerror = () => addVoiceTake(file, 0, 0, libPath)
+    probe.onloadedmetadata = () => addVoiceTake(file, at, Number.isFinite(probe.duration) ? probe.duration : 0, libPath)
+    probe.onerror = () => addVoiceTake(file, at, 0, libPath)
     probe.src = URL.createObjectURL(file)
   }
 
