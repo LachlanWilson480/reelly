@@ -114,6 +114,8 @@ type ClipCrop = { x: number; y: number; w: number; h: number }
 // Where the + on a timeline line can add from: the user's Reelezy library, their photo library or their files
 type AddSource = { library: () => void; photos: (files: File[]) => void; files: (files: File[]) => void; photoAccept: string; fileAccept: string; multiple?: boolean; photoLabel?: string; libraryLabel?: string }
 type AddSources = { video?: AddSource; audio?: AddSource }
+// What tapping the other things on the timeline can do: voiceovers, music, overlays and captions
+type TimelineOps = { onTakeVolume?: (id: string, v: number) => void; onMusicVol?: (v: number) => void; onRemoveMusic?: () => void; onRemoveOverlay?: (id: string) => void }
 // Small line icons for the clip pop-up and the phone tools
 const CLIP_ICONS: Record<string, React.ReactNode> = {
   speed: <><path d="M3.5 15.5a7.5 6.5 0 0 1 15 0z" /><path d="M8.5 9.6 11 15.5M13.5 9.6 11 15.5M3.5 13h15" /><path d="M18.5 13.5h1.8a1.8 1.8 0 0 0 0-3.6h-.6c-.6 0-1.2.6-1.2 1.2" /><path d="M6 15.5 5 18M16 15.5l1 2.5M3.5 15.5 2 16.5" /></>,
@@ -124,6 +126,31 @@ const CLIP_ICONS: Record<string, React.ReactNode> = {
   plus: <><path d="M12 5v14M5 12h14" /></>,
 }
 const PLUS_COL = 40
+// A full-width volume slider for the dark timeline pop-ups
+const PopVolume = ({ value, onChange, label = 'Volume' }: { value: number; onChange: (v: number) => void; label?: string }) => (
+  <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+    <span style={{ display: 'flex', justifyContent: 'space-between' }}><span>{label}</span><span style={{ fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{value <= 0 ? 'Off' : `${Math.round(value)}%`}</span></span>
+    <input type="range" min={0} max={100} step={1} value={value} aria-label={label} onChange={(e) => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--coral)', minHeight: 28, margin: 0 }} />
+  </label>
+)
+// Videos and sounds recorded in a browser (filmed clips, voice recordings) often say their length is unknown.
+// Jumping to the far end makes the browser work it out. Without this the timeline thought filmed clips were
+// 0 seconds long, so the line never moved and dragging it did nothing.
+const whenDurationKnown = (m: HTMLMediaElement, done: (d: number) => void, giveUpMs = 6000) => {
+  if (Number.isFinite(m.duration) && m.duration > 0) { done(m.duration); return }
+  let finished = false
+  const stop = () => { finished = true; m.removeEventListener('durationchange', check); m.removeEventListener('timeupdate', check); m.removeEventListener('seeked', check) }
+  function check() {
+    if (finished || !Number.isFinite(m.duration) || m.duration <= 0) return
+    stop()
+    done(m.duration)
+  }
+  m.addEventListener('durationchange', check)
+  m.addEventListener('timeupdate', check)
+  m.addEventListener('seeked', check)
+  try { m.currentTime = 1e101 } catch {}
+  window.setTimeout(() => { if (!finished) stop() }, giveUpMs)
+}
 const LineIcon = ({ n, size = 20 }: { n: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{CLIP_ICONS[n]}</svg>
 )
@@ -139,11 +166,12 @@ const primeVideo = (v: HTMLVideoElement | null, keepPlaying: () => boolean, soun
   const p = v.play()
   if (!p) return
   p.then(() => {
-    if (!keepPlaying()) {
-      v.pause()
-      // Go back to the frame it was on, unless something else has moved it since
-      try { if (v.currentTime - at > 0 && v.currentTime - at < 0.3) v.currentTime = at } catch {}
-    }
+    // Play was pressed meanwhile: the Play press already set the sound. Safari pauses a playing video whose
+    // sound is switched on by the page rather than by a tap, so leave it alone.
+    if (keepPlaying()) return
+    v.pause()
+    // Go back to the frame it was on, unless something else has moved it since
+    try { if (v.currentTime - at > 0 && v.currentTime - at < 0.3) v.currentTime = at } catch {}
     v.muted = !soundOn()
   }).catch(() => { v.removeAttribute('data-primed') })
 }
@@ -262,6 +290,8 @@ const takeColor = (i: number) => TAKE_COLORS[i % TAKE_COLORS.length]
 // How fast scripts scroll at 1x, in words a second. 1x is a slow, walking pace (people talking on camera usually
 // manage about 2.3 a second, which is the 2x setting's top end). Every teleprompter runs from 0.25x to 2x.
 const SCRIPT_WORDS_PER_SEC = 1.3
+// The voiceover teleprompter's 1x: what used to be 1.5x, a relaxed talking pace
+const VOICE_WORDS_PER_SEC = SCRIPT_WORDS_PER_SEC * 1.5
 const SCRIPT_SPEED_MIN = 0.25
 const SCRIPT_SPEED_MAX = 2
 const clampScriptSpeed = (v: number) => Math.min(SCRIPT_SPEED_MAX, Math.max(SCRIPT_SPEED_MIN, v))
@@ -427,7 +457,7 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
         {scriptLabel && (
           <label style={{ display: 'grid', gridTemplateColumns: 'auto minmax(100px, 220px) 44px', alignItems: 'center', gap: 12, marginTop: 14, fontSize: 12, color: 'var(--ink)' }}>
-            <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is walking pace)</span></span>
+            <span>Script speed <span style={{ color: 'var(--text-muted)' }}>(1x is a relaxed talking pace)</span></span>
             <input type="range" min={SCRIPT_SPEED_MIN} max={SCRIPT_SPEED_MAX} step={0.25} value={speedDraft} aria-label="Script scroll speed" style={{ width: '100%', minWidth: 0, accentColor: 'var(--coral)' }}
               onChange={(e) => slideSpeed(Number(e.target.value))}
               onPointerUp={() => commitSpeed(speedDraft)} onPointerCancel={() => commitSpeed(speedDraft)} onTouchEnd={() => commitSpeed(speedDraft)} onKeyUp={() => commitSpeed(speedDraft)} onBlur={() => commitSpeed(speedDraft)} />
@@ -518,7 +548,7 @@ type ScreenTextBox = { texts: string[]; x: number; y: number; onMove: (x: number
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
+function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, tlOps, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
   // Phone layout: the video fills the space it is given, and clip settings live in the Edit clip panel instead
   mobile?: boolean
   // A tool panel is open on the phone, so the timeline makes way for it
@@ -531,6 +561,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   // Asks the preview to start cropping a clip (from the phone's Edit clip panel); n changes on every ask
   cropRequest?: { clip: number; n: number } | null
   addSources?: AddSources
+  tlOps?: TimelineOps
   // The "Made with Reelezy" badge: shown in the corner while on, with an x to take it off
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -621,6 +652,9 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   const setSelCap = (id: string | null) => onSelCap?.(id)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [holdF, setHoldF] = useState<number | null>(null)
+  // After a recording the script stays up where it stopped, so it can be scrolled to where the next take starts.
+  // It goes away when the video is played.
+  const [holdScript, setHoldScript] = useState(false)
   const scriptFRef = useRef(0)
   // The teleprompter keeps its own steady clock while recording, so it glides through the whole script without
   // pausing when one clip hands over to the next or the video stops to load
@@ -640,6 +674,12 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   const addFileRef = useRef<HTMLInputElement | null>(null)
   // The clip being cropped on the crop page
   const [cropEdit, setCropEdit] = useState<{ clip: number } | null>(null)
+  // The pop-up for a voiceover, the music, an overlay or a caption tapped on the timeline
+  const [elPop, setElPop] = useState<{ kind: 'take' | 'music' | 'overlay' | 'caption'; id: string } | null>(null)
+  const [elPos, setElPos] = useState<{ left: number; top: number; arrow: number; below: boolean } | null>(null)
+  const [elConfirm, setElConfirm] = useState(false)
+  const elRef = useRef<HTMLDivElement | null>(null)
+  const elTapRef = useRef<{ x: number; y: number } | null>(null)
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
   const [textEdit, setTextEdit] = useState<{ clip: number; draft: string } | null>(null)
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
@@ -674,11 +714,12 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
       if (previewDurations.has(k) && previewDims.has(k)) return
       const probe = document.createElement('video')
       probe.preload = 'metadata'
+      probe.muted = true
       probe.onloadedmetadata = () => {
-        if (Number.isFinite(probe.duration)) {
-          previewDurations.set(k, probe.duration)
-          setDurations((prev) => ({ ...prev, [k]: probe.duration }))
-        }
+        whenDurationKnown(probe, (d) => {
+          previewDurations.set(k, d)
+          setDurations((prev) => ({ ...prev, [k]: d }))
+        })
         if (probe.videoWidth > 0 && probe.videoHeight > 0) {
           previewDims.set(k, { w: probe.videoWidth, h: probe.videoHeight })
           setDims((prev) => ({ ...prev, [k]: { w: probe.videoWidth, h: probe.videoHeight } }))
@@ -714,7 +755,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
       return
     }
     other.setAttribute('data-src', src)
-    other.onloadedmetadata = () => { other.onloadedmetadata = null; try { other.currentTime = Math.max(FIRST_FRAME, next.start) } catch {}; prime(other) }
+    other.onloadedmetadata = () => { other.onloadedmetadata = null; try { other.currentTime = Math.max(FIRST_FRAME, next.start) } catch {}; if (!latest.current.playing) prime(other) }
     other.src = src
     other.preload = 'auto'
   }
@@ -742,7 +783,8 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
       setLocalTime(offset)
       switchingRef.current = false
       advancingRef.current = false
-      if (autoplay) void cur.play().catch(() => {})
+      // Set the sound as part of the Play press itself
+      if (autoplay) { cur.muted = volRef.current <= 0; void cur.play().catch(() => {}) }
       preloadNext(i)
       return
     }
@@ -786,7 +828,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     if (nv.getAttribute('data-src') === src && nv.readyState >= 1) seekThenShow()
     else {
       nv.setAttribute('data-src', src)
-      nv.onloadedmetadata = () => { nv.onloadedmetadata = null; prime(nv); seekThenShow() }
+      nv.onloadedmetadata = () => { nv.onloadedmetadata = null; if (!autoplay) prime(nv); seekThenShow() }
       nv.src = src
     }
     // Never get stuck if the browser does not report the seek
@@ -833,6 +875,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     pauseTakes()
     setPlaying(false)
     setHoldF(scriptFRef.current)
+    setHoldScript(true)
     setPromptClock(null)
     setRecording(false)
   }
@@ -945,6 +988,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     // Always play from where the line is on the timeline
     seekGlobal(total > 0 && globalTime >= total - 0.1 ? 0 : globalTime, true)
     setPlaying(true)
+    setHoldScript(false)
   }
 
   const startRecording = async () => {
@@ -1081,6 +1125,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     setDelConfirm(false)
     setPopView('menu')
     setAddMenu(null)
+    setElPop(null)
     setActionClip((cur) => (cur === i ? null : i))
   }
   const closePop = () => { setActionClip(null); setDelConfirm(false); setPopView('menu') }
@@ -1121,18 +1166,47 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   }, [actionClip, popView, delConfirm, lengths.join(','), mobile])
   // Close pop-ups when tapping somewhere else, or with Escape
   useEffect(() => {
-    if (actionClip === null && !addMenu) return
+    if (actionClip === null && !addMenu && !elPop) return
     const down = (e: PointerEvent) => {
       const t = e.target as Node
-      if (popRef.current?.contains(t) || addMenuRef.current?.contains(t)) return
-      if ((t as HTMLElement).closest?.('[data-clip-block],[data-add-line]')) return
-      closePop(); setAddMenu(null)
+      if (popRef.current?.contains(t) || addMenuRef.current?.contains(t) || elRef.current?.contains(t)) return
+      if ((t as HTMLElement).closest?.('[data-clip-block],[data-add-line],[data-tl-el]')) return
+      closePop(); setAddMenu(null); setElPop(null)
     }
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { closePop(); setAddMenu(null) } }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { closePop(); setAddMenu(null); setElPop(null) } }
     document.addEventListener('pointerdown', down, true)
     window.addEventListener('keydown', key)
     return () => { document.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key) }
-  }, [actionClip, addMenu])
+  }, [actionClip, addMenu, elPop])
+  // Keep the timeline pop-up pointing at the thing it is about
+  useEffect(() => {
+    if (!elPop) { setElPos(null); return }
+    const place = () => {
+      const el = trackRef.current?.querySelector(`[data-tl-el="${elPop.kind}:${elPop.id}"]`) as HTMLElement | null
+      if (!el) { setElPop(null); return }
+      const r = el.getBoundingClientRect()
+      const vis = Math.max(r.left, 0), vis2 = Math.min(r.right, window.innerWidth)
+      setElPos(placeOver(r, elRef.current?.offsetWidth || 280, elRef.current?.offsetHeight || 110, (vis + vis2) / 2))
+    }
+    place()
+    const raf = requestAnimationFrame(place)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elPop, elConfirm, takes.length, (overlays || []).length, (captions || []).length])
+  // A press that does not move is a tap: it opens that thing's pop-up. A press that moves still drags it.
+  const tapEl = (kind: 'take' | 'music' | 'overlay' | 'caption', id: string) => ({
+    'data-tl-el': `${kind}:${id}`,
+    onPointerDownCapture: (e: React.PointerEvent) => { elTapRef.current = { x: e.clientX, y: e.clientY } },
+    onPointerUpCapture: (e: React.PointerEvent) => {
+      const t = elTapRef.current
+      elTapRef.current = null
+      if (!t || Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y) > 6 || recording) return
+      closePop(); setAddMenu(null); setElConfirm(false)
+      setElPop((cur) => (cur && cur.kind === kind && cur.id === id ? null : { kind, id }))
+    },
+  })
   // A clip that is removed takes its pop-up with it
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- closing a pop-up whose clip is gone
@@ -1361,12 +1435,12 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   // 1x moves at a slow walking pace (SCRIPT_WORDS_PER_SEC).
   const scriptStarts = (() => {
     let t = 0
-    return scriptLines.map((l) => { const st = t; t += Math.max(1.2, l.split(/\s+/).filter(Boolean).length / SCRIPT_WORDS_PER_SEC); return st })
+    return scriptLines.map((l) => { const st = t; t += Math.max(1.2, l.split(/\s+/).filter(Boolean).length / VOICE_WORDS_PER_SEC); return st })
   })()
   const spokenSecs = recording && promptClock ? Math.max(0, promptClock.now - promptClock.start) / 1000 * clampScriptSpeed(scriptSpeed) : 0
   let scriptIdx = 0
   scriptStarts.forEach((st, i) => { if (spokenSecs >= st) scriptIdx = i })
-  const scriptDur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, (scriptLines[i] || '').split(/\s+/).filter(Boolean).length / SCRIPT_WORDS_PER_SEC)) - scriptStarts[i]
+  const scriptDur = (i: number) => (scriptStarts[i + 1] ?? scriptStarts[i] + Math.max(1.2, (scriptLines[i] || '').split(/\s+/).filter(Boolean).length / VOICE_WORDS_PER_SEC)) - scriptStarts[i]
   // Where the script has got to. It carries on until the last line has scrolled right past the reading line,
   // then stays there after recording ends.
   const lineF = scriptLines.length === 0 ? 0 : Math.min(scriptLines.length, scriptIdx + Math.min(1, Math.max(0, (spokenSecs - scriptStarts[scriptIdx]) / scriptDur(scriptIdx))))
@@ -1376,8 +1450,11 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   const scriptSecs = scriptLines.length === 0 ? 0 : scriptStarts[scriptLines.length - 1] + scriptDur(scriptLines.length - 1)
   const promptLiveRef = useRef({ total: 0, secs: 0, speed: 1 })
   const lastYRef = useRef(0)
+  // Where the next recording's script starts: where the last one stopped, or where it was scrolled to
+  const promptStartRef = useRef(0)
+  const [promptStart, setPromptStart] = useState(0)
   useEffect(() => { promptLiveRef.current = { total: promptMetrics?.total ?? 0, secs: scriptSecs, speed: clampScriptSpeed(scriptSpeed) } })
-  const promptY = promptMetrics && scriptSecs > 0 ? Math.min(1, spokenSecs / scriptSecs) * promptMetrics.total : 0
+  const promptY = promptMetrics && scriptSecs > 0 ? Math.min(promptMetrics.total, promptStart + (spokenSecs / scriptSecs) * promptMetrics.total) : 0
   const liveF = (() => {
     if (!promptMetrics || promptMetrics.tops.length === 0) return lineF
     const { tops, total } = promptMetrics
@@ -1392,14 +1469,15 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     const start = promptClock.start
     const L = promptLiveRef.current
     const el = promptInnerRef.current
-    const yAt = (ts: number) => (L.secs > 0 ? Math.min(1, Math.max(0, (ts - start) / 1000) * L.speed / L.secs) * L.total : 0)
+    const from = promptStartRef.current
+    const yAt = (ts: number) => (L.secs > 0 ? Math.min(L.total, from + (Math.max(0, (ts - start) / 1000) * L.speed / L.secs) * L.total) : from)
     // The whole scroll is one steady animation run by the browser's graphics side, so it keeps gliding even while
     // the page is busy (like the moment one clip hands over to the next). React only follows along for the highlighting.
     if (el && L.secs > 0 && L.total > 0) {
       el.style.transition = 'none'
       el.style.transform = `translate3d(0, ${(-yAt(performance.now())).toFixed(2)}px, 0)`
       void el.offsetHeight
-      const left = Math.max(0, L.secs / L.speed - (performance.now() - start) / 1000)
+      const left = Math.max(0, ((L.total - yAt(performance.now())) / L.total) * (L.secs / L.speed))
       el.style.transition = `transform ${left.toFixed(3)}s linear`
       el.style.transform = `translate3d(0, ${(-L.total).toFixed(2)}px, 0)`
     }
@@ -1445,10 +1523,20 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   useEffect(() => {
     const box = prompterRef.current
     const inner = promptInnerRef.current
+    if (live) {
+      // Carry on from where it stopped (or was scrolled to). If it had reached the end, start again from the top.
+      const total = promptMetrics?.total ?? 0
+      const from = total > 0 && lastYRef.current < total - 30 ? lastYRef.current : 0
+      promptStartRef.current = from
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the start point is fixed when recording begins
+      setPromptStart(from)
+      if (box) box.scrollTop = 0
+      if (inner) { inner.style.transition = 'none'; inner.style.transform = `translate3d(0, ${(-from).toFixed(2)}px, 0)` }
+      return
+    }
     if (inner) { inner.style.transition = ''; inner.style.transform = '' }
-    if (!box) return
-    if (live) { box.scrollTop = 0; lastYRef.current = 0 }
-    else box.scrollTop = lastYRef.current
+    if (box) box.scrollTop = lastYRef.current
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live])
 
   return (
@@ -1788,7 +1876,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
             </div>
           )
         })()}
-        {scriptLines.length > 0 && (recording || countdown !== null || showScript) && (() => {
+        {scriptLines.length > 0 && (recording || countdown !== null || showScript || (holdScript && !playing)) && (() => {
           // A teleprompter: every line shows in full, the text glides up at reading pace and the line being read sits on a fixed reading line.
           // When you are not recording you can scroll the script yourself.
           const f = scriptF
@@ -1796,7 +1884,9 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
           return (
             <div aria-label="Your script" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '58%', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(rgba(8,6,24,0.88) 70%, rgba(8,6,24,0))', WebkitMaskImage: 'linear-gradient(#000 80%, transparent)', maskImage: 'linear-gradient(#000 80%, transparent)' }}>
               <span aria-hidden style={{ position: 'absolute', left: 8, top: 44 + 8, width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '9px solid var(--coral)' }} />
-              <div ref={prompterRef} style={{ position: 'absolute', inset: 0, overflowY: live ? 'hidden' : 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none', pointerEvents: live ? 'none' : 'auto', touchAction: 'pan-y' }}>
+              <div ref={(el) => { prompterRef.current = el; if (el && !live && Math.abs(el.scrollTop - lastYRef.current) > 2) el.scrollTop = lastYRef.current }}
+                onScroll={(e) => { if (!live) lastYRef.current = e.currentTarget.scrollTop }}
+                style={{ position: 'absolute', inset: 0, overflowY: live ? 'hidden' : 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none', pointerEvents: live ? 'none' : 'auto', touchAction: 'pan-y' }}>
                 <div ref={promptInnerRef} style={{ position: 'relative', padding: '44px 16px 400px 26px', willChange: live ? 'transform' : undefined }}>
                   {scriptLines.map((l, i) => {
                     const d = Math.abs(i - f)
@@ -1989,7 +2079,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
           </div>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 32, height: 26, borderRadius: 4, background: 'rgba(128,128,128,0.08)', overflow: 'hidden' }}>
             {takes.map((t, ti) => (
-              <div key={t.id} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}. Drag to move it, or drag it down to the bin to delete it.`}
+              <div key={t.id} {...tapEl('take', t.id)} title={`Voiceover ${ti + 1} from ${fmtClock(t.start)}. Tap for its volume, drag to move it, or drag it down to the bin to delete it.`}
                 onPointerDown={(e) => { if (recording || total <= 0) return; e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); dragTakeRef.current = { id: t.id, grab: timeAt(e.clientX) - t.start, sx: e.clientX, sy: e.clientY, moved: false } }}
                 onPointerMove={(e) => {
                   const d = dragTakeRef.current
@@ -2024,11 +2114,11 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
             )}
           </div>
           {musicUrl && (
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: '1px solid #3A9D6E', boxSizing: 'border-box', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>Music</div>
+            <div {...tapEl('music', 'm')} onPointerDown={(e) => e.stopPropagation()} role="button" aria-label="Music. Tap for its volume." style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 22, borderRadius: 4, background: 'rgba(58,157,110,0.55)', border: `1.5px solid ${elPop?.kind === 'music' ? '#fff' : '#3A9D6E'}`, boxSizing: 'border-box', color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'pointer' }}>Music</div>
           )}
           {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
           {total > 0 && (overlays || []).map((ov, oi) => (
-            <div key={ov.id} title="Overlay. Drag to move it, drag the white ends to change when it shows."
+            <div key={ov.id} {...tapEl('overlay', ov.id)} title="Overlay. Tap for options, drag to move it, drag the white ends to change when it shows."
               onPointerDown={(e) => startOvTime(e, 'move', ov)} onPointerMove={moveOvTime} onPointerUp={() => { ovDragTimeRef.current = null }} onPointerCancel={() => { ovDragTimeRef.current = null }}
               style={{ position: 'absolute', top: ovTop + oi * 28, height: 22, left: pct(Math.min(ov.start, total)), width: pct(Math.max(0, Math.min(total, ov.end ?? total) - Math.min(ov.start, total))), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: selOverlay === ov.id ? 'rgba(74,111,165,0.9)' : 'rgba(74,111,165,0.55)', border: `1.5px solid ${selOverlay === ov.id ? '#fff' : '#4a6fa5'}`, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
               <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ov.isLogo ? 'Logo' : ov.file.name}</span>
@@ -2048,7 +2138,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
                 style={{ position: 'absolute', top: 0, bottom: 0, [side === 'l' ? 'left' : 'right']: 0, width: 8, background: '#fff', cursor: 'ew-resize', touchAction: 'none', borderRadius: side === 'l' ? '4px 0 0 4px' : '0 4px 4px 0' }} />
             )
             return (
-              <div key={c.id} title={`Caption: ${c.text}. Drag to move it, drag the white ends to change how long it shows.`}
+              <div key={c.id} {...tapEl('caption', c.id)} title={`Caption: ${c.text}. Tap for options, drag to move it, drag the white ends to change how long it shows.`}
                 onPointerDown={(e) => startCapDrag(e, c, 'move')} onPointerMove={(e) => moveCap(e)} onPointerUp={() => { capDragRef.current = null }} onPointerCancel={() => { capDragRef.current = null }}
                 style={{ position: 'absolute', top: capTop + (capRows[c.id] ?? 0) * 26, height: 22, left: pct(c.start), width: pct(Math.max(0, c.end - c.start)), minWidth: 22, boxSizing: 'border-box', borderRadius: 4, background: sel ? 'var(--coral)' : 'rgba(255,106,77,0.55)', border: `1.5px solid ${sel ? '#fff' : 'var(--coral)'}`, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', padding: '0 12px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: recording ? 'default' : 'grab', touchAction: 'none' }}>
                 <span style={{ pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.text}</span>
@@ -2127,12 +2217,65 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
                   </div>
                   {popView === 'speed' && onSpeedClip && <SpeedSlider value={sp} onChange={(v) => onSpeedClip(i, v)} label="Speed" dark />}
                   {popView === 'audio' && (
-                    <div style={{ background: 'var(--card-bg)', color: 'var(--ink)', borderRadius: 4, padding: '8px 10px' }}>
-                      <VolumeRow label="Clip audio" value={lv.vol} onChange={(v) => clipOps.onVolume(i, v)} color="var(--coral)" muted={lv.muted} onMute={(m) => clipOps.onMute(i, m)} />
-                    </div>
+                    <>
+                      <PopVolume label="Clip audio" value={lv.muted ? 0 : lv.vol} onChange={(v) => { if (lv.muted && v > 0) clipOps.onMute(i, false); clipOps.onVolume(i, v) }} />
+                      <button type="button" onClick={() => clipOps.onMute(i, !lv.muted)} style={{ alignSelf: 'flex-start', padding: '7px 12px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: lv.muted ? 'var(--coral)' : 'transparent', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{lv.muted ? 'Unmute' : 'Mute'}</button>
+                    </>
                   )}
                 </div>
               )}
+            </div>
+          )
+        })(), document.body)}
+        {elPop && !recording && typeof document !== 'undefined' && createPortal((() => {
+          const dark = { padding: '8px 12px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' } as const
+          const red = { ...dark, border: 'none', background: '#D92D20', fontWeight: 700 } as const
+          const del = (label: string, run: () => void) => elConfirm
+            ? <><button type="button" onClick={() => setElConfirm(false)} style={dark}>Keep</button><button type="button" onClick={() => { run(); setElPop(null); setElConfirm(false) }} style={red}>{label}</button></>
+            : <button type="button" onClick={() => setElConfirm(true)} style={{ ...dark, color: '#ff6b5e', borderColor: 'rgba(255,107,94,0.6)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LineIcon n="bin" size={16} />{label}</button>
+          let title = '', body: React.ReactNode = null
+          if (elPop.kind === 'take') {
+            const ti = takes.findIndex((t) => t.id === elPop.id)
+            const t = takes[ti]
+            if (!t) return null
+            title = `Voiceover ${ti + 1}`
+            body = <>
+              {tlOps?.onTakeVolume && <PopVolume value={t.volume} onChange={(v) => tlOps.onTakeVolume!(t.id, v)} />}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>{del('Delete', () => onRemoveTake(t.id))}</div>
+            </>
+          } else if (elPop.kind === 'music') {
+            title = 'Music'
+            body = <>
+              {tlOps?.onMusicVol && <PopVolume value={musicVol} onChange={tlOps.onMusicVol} />}
+              {tlOps?.onRemoveMusic && <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>{del('Remove music', tlOps.onRemoveMusic)}</div>}
+            </>
+          } else if (elPop.kind === 'overlay') {
+            const ov = (overlays || []).find((o) => o.id === elPop.id)
+            if (!ov) return null
+            title = ov.isLogo ? 'Logo' : 'Overlay'
+            body = <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {onSelOverlay && !elConfirm && <button type="button" onClick={() => { onSelOverlay(ov.id); setElPop(null) }} style={dark}>Move and resize</button>}
+              {tlOps?.onRemoveOverlay && del('Delete', () => tlOps.onRemoveOverlay!(ov.id))}
+            </div>
+          } else {
+            const c = caps.find((x) => x.id === elPop.id)
+            if (!c) return null
+            title = 'Caption'
+            body = <>
+              <input value={c.text} aria-label="Caption text" onChange={(e) => onCaptions?.(caps.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))}
+                style={{ width: '100%', boxSizing: 'border-box', fontSize: 14, padding: '8px 10px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.08)', color: '#fff' }} />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {onSelCap && !elConfirm && <button type="button" onClick={() => { onSelCap(c.id); setElPop(null) }} style={dark}>Move on the video</button>}
+                {onCaptions && del('Delete', () => onCaptions(caps.filter((x) => x.id !== c.id)))}
+              </div>
+            </>
+          }
+          return (
+            <div ref={elRef} role="dialog" aria-label={title}
+              style={{ position: 'fixed', zIndex: 1100, left: elPos?.left ?? -9999, top: elPos?.top ?? -9999, width: 300, maxWidth: 'calc(100vw - 16px)', boxSizing: 'border-box', background: 'rgba(28,28,32,0.97)', color: '#fff', borderRadius: 6, padding: 10, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.28)', visibility: elPos ? 'visible' : 'hidden', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+              <span aria-hidden="true" style={{ position: 'absolute', left: (elPos?.arrow ?? 20) - 8, [elPos?.below ? 'top' : 'bottom']: -8, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', [elPos?.below ? 'borderBottom' : 'borderTop']: '8px solid rgba(28,28,32,0.97)' }} />
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{title}</span>
+              {body}
             </div>
           )
         })(), document.body)}
@@ -2180,7 +2323,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   )
 }
 
-function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
+function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, tlOps, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
   mobile?: boolean
   panelOpen?: boolean
   onClipIndex?: (i: number) => void
@@ -2188,6 +2331,7 @@ function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cr
   clipOps?: ClipOps
   cropRequest?: { clip: number; n: number } | null
   addSources?: AddSources
+  tlOps?: TimelineOps
   below?: React.ReactNode
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -2242,7 +2386,7 @@ function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cr
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} mobile={mobile} panelOpen={panelOpen} onClipIndex={onClipIndex} screenText={screenText} clipOps={clipOps} cropRequest={cropRequest} addSources={addSources} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} mobile={mobile} panelOpen={panelOpen} onClipIndex={onClipIndex} screenText={screenText} clipOps={clipOps} cropRequest={cropRequest} addSources={addSources} tlOps={tlOps} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -4958,25 +5102,22 @@ export default function DashboardPage() {
   }
 
   const getVideoDuration = (file: File): Promise<number> => {
+    // Uses the same length the preview shows, so trims and the timeline agree
+    const known = previewDurations.get(previewFileKey(file))
+    if (known && known > 0) return Promise.resolve(known)
     return new Promise((resolve) => {
       const video = document.createElement("video")
       video.preload = "metadata"
+      video.muted = true
+      const url = URL.createObjectURL(file)
+      let done = false
+      const finish = (d: number) => { if (done) return; done = true; URL.revokeObjectURL(url); resolve(d > 0 && Number.isFinite(d) ? d : 5) }
       video.onloadedmetadata = () => {
-        if (!isFinite(video.duration)) {
-          // Browser-recorded video reports no duration until seeked to the end
-          video.currentTime = 1e101
-          video.ontimeupdate = () => {
-            video.ontimeupdate = null
-            URL.revokeObjectURL(video.src)
-            resolve(isFinite(video.duration) && video.duration > 0 ? video.duration : 5)
-          }
-        } else {
-          URL.revokeObjectURL(video.src)
-          resolve(video.duration || 5)
-        }
+        whenDurationKnown(video, (d) => { previewDurations.set(previewFileKey(file), d); finish(d) }, 5000)
+        window.setTimeout(() => finish(5), 5200)
       }
-      video.onerror = () => resolve(5)
-      video.src = URL.createObjectURL(file)
+      video.onerror = () => finish(5)
+      video.src = url
     })
   }
 
@@ -5247,8 +5388,10 @@ export default function DashboardPage() {
     const at = total > 0 && t < total - 0.2 ? t : 0
     const probe = new Audio()
     probe.preload = 'metadata'
-    probe.onloadedmetadata = () => addVoiceTake(file, at, Number.isFinite(probe.duration) ? probe.duration : 0, libPath)
-    probe.onerror = () => addVoiceTake(file, at, 0, libPath)
+    let added = false
+    const add = (d: number) => { if (added) return; added = true; addVoiceTake(file, at, d, libPath) }
+    probe.onloadedmetadata = () => { whenDurationKnown(probe, add, 3000); window.setTimeout(() => add(0), 3200) }
+    probe.onerror = () => add(0)
     probe.src = URL.createObjectURL(file)
   }
 
@@ -7386,6 +7529,7 @@ export default function DashboardPage() {
                 clipOps={clipOpsFor('upload', phone)}
                 cropRequest={cropRequest}
                 addSources={addSourcesFor('upload')}
+                tlOps={{ onTakeVolume: setTakeVolume, onMusicVol: setMusicVol, onRemoveMusic: clearMusic, onRemoveOverlay: clearOverlay }}
                 onReorderClip={reorderUploadClip}
                 onDropFiles={addUploadFiles}
                 captionStyle={previewCaptionStyle}
@@ -8087,6 +8231,7 @@ export default function DashboardPage() {
                 clipOps={clipOpsFor('ai', phoneAi)}
                 cropRequest={cropRequest}
                 addSources={addSourcesFor('ai')}
+                tlOps={{ onTakeVolume: setTakeVolume, onMusicVol: setMusicVol, onRemoveMusic: clearMusic, onRemoveOverlay: clearOverlay }}
                 onDropFiles={addAiFiles}
                 captionStyle={previewCaptionStyle}
                 captions={aiCaps}
