@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import SpeedSlider from './SpeedSlider'
 import type { CSSProperties, ReactNode } from 'react'
 import type { CameraControlsApi, CamRes, CamFps } from '@/lib/useCameraControls'
 
@@ -25,7 +26,6 @@ type Props = {
   onSpeed?: (speed: number) => void
 }
 
-const SPEEDS: [number, string][] = [[0.25, '0.25x'], [0.5, '0.5x'], [1, 'Normal'], [2, '2x'], [4, '4x'], [8, '8x']]
 
 const shadow = 'drop-shadow(0 1px 3px rgba(0,0,0,0.65))'
 const iconBtn: CSSProperties = { width: 44, height: 44, border: 'none', background: 'transparent', color: '#fff', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', filter: shadow, fontSize: 18, fontWeight: 800 }
@@ -107,12 +107,10 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
       {speedOpen && onSpeed && !hidden && (
         <>
           <div aria-hidden="true" onClick={() => setSpeedOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 5 }} />
-          <div role="group" aria-label="Slow-mo and timelapse" style={{ ...panelBox, left: 58, top: 'calc(34% + 50px)' }}>
+          <div role="group" aria-label="Slow-mo and timelapse" style={{ ...panelBox, left: 58, top: 'calc(34% + 50px)', width: 'min(280px, calc(100vw - 80px))', boxSizing: 'border-box' }}>
             <p style={panelLabel}>Speed of this clip</p>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {SPEEDS.map(([v, name]) => (
-                <button key={v} type="button" onClick={() => { onSpeed(v); setSpeedOpen(false) }} style={{ ...chip(speed === v), flex: '1 1 30%' }}>{name}</button>
-              ))}
+            <div>
+              <SpeedSlider value={speed} onChange={onSpeed} label="Speed" dark note={false} />
             </div>
             <p style={panelNote}>Below Normal is slow-mo, above is timelapse. You film at normal speed and the video plays it at the speed you pick. You can change it later in the Edit tab.</p>
           </div>

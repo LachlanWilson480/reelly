@@ -20,6 +20,8 @@ import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
 import CameraControls from '@/components/CameraControls'
+import SpeedSlider from '@/components/SpeedSlider'
+import CropPage from '@/components/CropPage'
 import ClipLibrary, { LibraryPicker, SaveToLibraryButton } from '@/components/ClipLibrary'
 import { AudioLibrary, AudioPicker, announceAudioLibraryChanged } from '@/components/AudioLibrary'
 import { saveAudioToLibrary } from '@/lib/clipLibrary'
@@ -88,6 +90,7 @@ type Idea = {
 }
 
 type FilmingItem = Idea & { checklist: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }
+type ArchivedFilmingItem = FilmingItem & { createdAt?: string }
 
 
 const CAPTION_PRESETS = [
@@ -108,9 +111,46 @@ const fmtTrimTime = (s: number) => {
 
 // The part of a clip's picture to keep, as shares of its width and height (0 to 1)
 type ClipCrop = { x: number; y: number; w: number; h: number }
-// What tapping a clip on the timeline can do: its sound, crop, duplicate and delete. onTap is used on phones,
-// where the Edit clip panel opens instead of the menu under the preview.
+// Where the + on a timeline line can add from: the user's Reelezy library, their photo library or their files
+type AddSource = { library: () => void; photos: (files: File[]) => void; files: (files: File[]) => void; photoAccept: string; fileAccept: string; multiple?: boolean; photoLabel?: string; libraryLabel?: string }
+type AddSources = { video?: AddSource; audio?: AddSource }
+// Small line icons for the clip pop-up and the phone tools
+const CLIP_ICONS: Record<string, React.ReactNode> = {
+  speed: <><path d="M3.5 15.5a7.5 6.5 0 0 1 15 0z" /><path d="M8.5 9.6 11 15.5M13.5 9.6 11 15.5M3.5 13h15" /><path d="M18.5 13.5h1.8a1.8 1.8 0 0 0 0-3.6h-.6c-.6 0-1.2.6-1.2 1.2" /><path d="M6 15.5 5 18M16 15.5l1 2.5M3.5 15.5 2 16.5" /></>,
+  audio: <><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>,
+  crop: <><path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" /></>,
+  copy: <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+  bin: <><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></>,
+  plus: <><path d="M12 5v14M5 12h14" /></>,
+}
+const PLUS_COL = 40
+const LineIcon = ({ n, size = 20 }: { n: string; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{CLIP_ICONS[n]}</svg>
+)
+// iPhones draw nothing for a video that has never played, so a clip stayed black until Play was pressed and
+// moving the line did not change the picture. Playing it for a moment with the sound off makes it draw.
+const primeVideo = (v: HTMLVideoElement | null, keepPlaying: () => boolean, soundOn: () => boolean) => {
+  if (!v) return
+  const src = v.getAttribute('data-src') || v.currentSrc || ''
+  if (!src || v.getAttribute('data-primed') === src || !v.paused) return
+  v.setAttribute('data-primed', src)
+  const at = v.currentTime
+  v.muted = true
+  const p = v.play()
+  if (!p) return
+  p.then(() => {
+    if (!keepPlaying()) {
+      v.pause()
+      // Go back to the frame it was on, unless something else has moved it since
+      try { if (v.currentTime - at > 0 && v.currentTime - at < 0.3) v.currentTime = at } catch {}
+    }
+    v.muted = !soundOn()
+  }).catch(() => { v.removeAttribute('data-primed') })
+}
+// What tapping a clip on the timeline can do: its speed, sound, crop, duplicate and delete. On phones onOpen takes
+// Speed and Audio to their own panel; on a computer they open inside the little pop-up.
 type ClipOps = {
+  onOpen?: (kind: 'speed' | 'audio', i: number) => void
   level: (i: number) => { vol: number; muted: boolean }
   onVolume: (i: number, v: number) => void
   onMute: (i: number, m: boolean) => void
@@ -225,7 +265,6 @@ const SCRIPT_WORDS_PER_SEC = 1.3
 const SCRIPT_SPEED_MIN = 0.25
 const SCRIPT_SPEED_MAX = 2
 const clampScriptSpeed = (v: number) => Math.min(SCRIPT_SPEED_MAX, Math.max(SCRIPT_SPEED_MIN, v))
-const CLIP_SPEEDS: [number, string, string][] = [[0.25, '0.25x', 'Slow-mo: four times slower'], [0.5, '0.5x', 'Slow-mo: half speed'], [1, 'Normal', 'Normal speed'], [2, '2x', 'Twice as fast'], [4, '4x', 'Timelapse: four times faster'], [8, '8x', 'Fast timelapse: eight times faster']]
 const CLIP_SHADES = ['rgba(70,110,160,0.6)', 'rgba(70,140,140,0.6)', 'rgba(110,100,170,0.6)', 'rgba(150,120,80,0.6)']
 const clipShade = (i: number) => CLIP_SHADES[i % CLIP_SHADES.length]
 
@@ -479,7 +518,7 @@ type ScreenTextBox = { texts: string[]; x: number; y: number; onMove: (x: number
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
+function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
   // Phone layout: the video fills the space it is given, and clip settings live in the Edit clip panel instead
   mobile?: boolean
   // A tool panel is open on the phone, so the timeline makes way for it
@@ -491,6 +530,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   clipOps?: ClipOps
   // Asks the preview to start cropping a clip (from the phone's Edit clip panel); n changes on every ask
   cropRequest?: { clip: number; n: number } | null
+  addSources?: AddSources
   // The "Made with Reelezy" badge: shown in the corner while on, with an x to take it off
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -561,6 +601,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   const loadSeqRef = useRef(0)
   const volRef = useRef(1)
   const playerOf = (n: 0 | 1) => (n === 0 ? vidA.current : vidB.current)
+  const prime = (v: HTMLVideoElement | null) => primeVideo(v, () => !!latest.current.playing && videoRef.current === v, () => videoRef.current === v && volRef.current > 0 && !latest.current.recording)
   const audioEls = useRef<Record<string, HTMLAudioElement | null>>({})
   const trackRef = useRef<HTMLDivElement | null>(null)
   const scriptBoxRef = useRef<HTMLDivElement | null>(null)
@@ -586,12 +627,19 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   const [promptClock, setPromptClock] = useState<{ start: number; now: number } | null>(null)
   // The on-screen text box: a press that does not move opens it for typing, a press that moves drags it
   const textPressRef = useRef<{ sx: number; sy: number; dx: number; dy: number; moved: boolean } | null>(null)
-  // The menu for a clip tapped on the timeline (on a computer; phones open the Edit clip panel instead)
+  // The little pop-up over a clip tapped on the timeline, with an arrow pointing at the clip
   const [actionClip, setActionClip] = useState<number | null>(null)
   const [delConfirm, setDelConfirm] = useState(false)
-  // Drawing a crop: the box is in shares of the clip's full picture
-  const [cropEdit, setCropEdit] = useState<{ clip: number; rect: ClipCrop } | null>(null)
-  const cropDragRef = useRef<{ mode: 'move' | 'tl' | 'tr' | 'bl' | 'br'; sx: number; sy: number; r0: ClipCrop; fw: number; fh: number } | null>(null)
+  const [popView, setPopView] = useState<'menu' | 'speed' | 'audio'>('menu')
+  const [popPos, setPopPos] = useState<{ left: number; top: number; arrow: number; below: boolean } | null>(null)
+  const popRef = useRef<HTMLDivElement | null>(null)
+  // The + on the video or audio line, and where its choices pop up
+  const [addMenu, setAddMenu] = useState<{ kind: 'video' | 'audio'; left: number; top: number; arrow: number; below: boolean } | null>(null)
+  const addMenuRef = useRef<HTMLDivElement | null>(null)
+  const addPhotoRef = useRef<HTMLInputElement | null>(null)
+  const addFileRef = useRef<HTMLInputElement | null>(null)
+  // The clip being cropped on the crop page
+  const [cropEdit, setCropEdit] = useState<{ clip: number } | null>(null)
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
   const [textEdit, setTextEdit] = useState<{ clip: number; draft: string } | null>(null)
   const capDragRef = useRef<{ id: string; mode: 'move' | 'l' | 'r'; startX: number; start: number; end: number } | null>(null)
@@ -666,7 +714,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
       return
     }
     other.setAttribute('data-src', src)
-    other.onloadedmetadata = () => { other.onloadedmetadata = null; try { other.currentTime = Math.max(FIRST_FRAME, next.start) } catch {} }
+    other.onloadedmetadata = () => { other.onloadedmetadata = null; try { other.currentTime = Math.max(FIRST_FRAME, next.start) } catch {}; prime(other) }
     other.src = src
     other.preload = 'auto'
   }
@@ -690,6 +738,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
       if (under) { under.style.zIndex = '0'; if (!under.paused) under.pause(); under.muted = true }
       cur.playbackRate = sp
       try { if (Math.abs(cur.currentTime - target) > 0.04) cur.currentTime = target } catch {}
+      if (!autoplay) prime(cur)
       setLocalTime(offset)
       switchingRef.current = false
       advancingRef.current = false
@@ -737,7 +786,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     if (nv.getAttribute('data-src') === src && nv.readyState >= 1) seekThenShow()
     else {
       nv.setAttribute('data-src', src)
-      nv.onloadedmetadata = () => { nv.onloadedmetadata = null; seekThenShow() }
+      nv.onloadedmetadata = () => { nv.onloadedmetadata = null; prime(nv); seekThenShow() }
       nv.src = src
     }
     // Never get stuck if the browser does not report the seek
@@ -753,7 +802,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     const src = previewUrlFor(first.file)
     v.setAttribute('data-src', src)
     v.src = src
-    v.onloadedmetadata = () => { v.onloadedmetadata = null; v.currentTime = Math.max(FIRST_FRAME, first.start); preloadNext(0) }
+    v.onloadedmetadata = () => { v.onloadedmetadata = null; v.currentTime = Math.max(FIRST_FRAME, first.start); prime(v); preloadNext(0) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1029,17 +1078,73 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   }, [])
   const tapClip = (i: number) => {
     if (!clipOps) return
-    if (mobile) { clipOps.onTap?.(i); return }
     setDelConfirm(false)
-    setActionClip(i)
+    setPopView('menu')
+    setAddMenu(null)
+    setActionClip((cur) => (cur === i ? null : i))
   }
+  const closePop = () => { setActionClip(null); setDelConfirm(false); setPopView('menu') }
   const startCrop = (i: number) => {
     const seg = segments[i]
     if (!seg || !clipOps) return
     videoRef.current?.pause(); pauseTakes(); setPlaying(false)
-    load(i, 0, false)
-    setActionClip(null)
-    setCropEdit({ clip: i, rect: seg.crop ?? { x: 0, y: 0, w: 1, h: 1 } })
+    closePop()
+    setCropEdit({ clip: i })
+  }
+  // Pop-ups sit just above what they point at (or below, if there is no room), kept on the screen
+  const placeOver = (r: DOMRect, width: number, height: number, x?: number) => {
+    const vw = window.innerWidth
+    const cx = x ?? r.left + r.width / 2
+    const left = Math.min(vw - width - 8, Math.max(8, cx - width / 2))
+    const below = r.top - height - 12 < 8
+    return { left, top: below ? r.bottom + 12 : r.top - height - 12, arrow: Math.min(width - 16, Math.max(16, cx - left)), below }
+  }
+  // Keep the clip pop-up pointing at its clip while the page moves or the clip changes size
+  useEffect(() => {
+    if (actionClip === null) { setPopPos(null); return }
+    const place = () => {
+      const el = trackRef.current?.querySelector(`[data-clip-block="${actionClip}"]`) as HTMLElement | null
+      const pop = popRef.current
+      if (!el) { setPopPos(null); return }
+      const r = el.getBoundingClientRect()
+      const w = pop?.offsetWidth || 300, h = pop?.offsetHeight || 84
+      // Point at the middle of the part of the clip that is on screen
+      const vis = Math.max(r.left, 0), vis2 = Math.min(r.right, window.innerWidth)
+      setPopPos(placeOver(r, w, h, (vis + vis2) / 2))
+    }
+    place()
+    const raf = requestAnimationFrame(place)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionClip, popView, delConfirm, lengths.join(','), mobile])
+  // Close pop-ups when tapping somewhere else, or with Escape
+  useEffect(() => {
+    if (actionClip === null && !addMenu) return
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node
+      if (popRef.current?.contains(t) || addMenuRef.current?.contains(t)) return
+      if ((t as HTMLElement).closest?.('[data-clip-block],[data-add-line]')) return
+      closePop(); setAddMenu(null)
+    }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { closePop(); setAddMenu(null) } }
+    document.addEventListener('pointerdown', down, true)
+    window.addEventListener('keydown', key)
+    return () => { document.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key) }
+  }, [actionClip, addMenu])
+  // A clip that is removed takes its pop-up with it
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closing a pop-up whose clip is gone
+    if (actionClip !== null && !segments[actionClip]) closePop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segments.length])
+  const openAdd = (kind: 'video' | 'audio', e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation()
+    closePop()
+    if (addMenu?.kind === kind) { setAddMenu(null); return }
+    const r = e.currentTarget.getBoundingClientRect()
+    setAddMenu({ kind, ...placeOver(r, 240, 168) })
   }
   // The phone's Edit clip panel asks for a crop through cropRequest
   const [seenCropN, setSeenCropN] = useState(cropRequest?.n ?? 0)
@@ -1061,36 +1166,10 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
     const seg = segments[segIdx]
     const c = seg?.crop
     const d = seg ? dims[previewFileKey(seg.file)] : undefined
-    if (!c || !d || stageSize.w <= 0 || (cropEdit && cropEdit.clip === segIdx)) return null
+    if (!c || !d || stageSize.w <= 0) return null
     const cw = c.w * d.w, ch = c.h * d.h
     const sc = Math.min(stageSize.w / cw, stageSize.h / ch)
     return { inset: 'auto', left: stageSize.w / 2 - (c.x * d.w + cw / 2) * sc, top: stageSize.h / 2 - (c.y * d.h + ch / 2) * sc, width: d.w * sc, height: d.h * sc, objectFit: 'fill', maxWidth: 'none' }
-  }
-  const moveCrop = (e: React.PointerEvent) => {
-    const g = cropDragRef.current
-    if (!g || !cropEdit) return
-    if (e.pointerType === 'mouse' && e.buttons === 0) { cropDragRef.current = null; return }
-    const dx = (e.clientX - g.sx) / g.fw, dy = (e.clientY - g.sy) / g.fh
-    const r = g.r0, MIN = 0.1
-    let { x, y, w, h } = r
-    if (g.mode === 'move') { x = Math.min(1 - w, Math.max(0, r.x + dx)); y = Math.min(1 - h, Math.max(0, r.y + dy)) }
-    else {
-      const right = r.x + r.w, bottom = r.y + r.h
-      if (g.mode === 'tl' || g.mode === 'bl') { x = Math.min(right - MIN, Math.max(0, r.x + dx)); w = right - x }
-      else { w = Math.min(1 - r.x, Math.max(MIN, r.w + dx)) }
-      if (g.mode === 'tl' || g.mode === 'tr') { y = Math.min(bottom - MIN, Math.max(0, r.y + dy)); h = bottom - y }
-      else { h = Math.min(1 - r.y, Math.max(MIN, r.h + dy)) }
-    }
-    setCropEdit({ clip: cropEdit.clip, rect: { x, y, w, h } })
-  }
-  const finishCrop = (keep: boolean) => {
-    if (keep && cropEdit && clipOps) {
-      const r = cropEdit.rect
-      const full = r.x < 0.005 && r.y < 0.005 && r.w > 0.99 && r.h > 0.99
-      clipOps.onCrop(cropEdit.clip, full ? null : r)
-    }
-    cropDragRef.current = null
-    setCropEdit(null)
   }
   useEffect(() => { onClipIndex?.(index) }, [onClipIndex, index])
 
@@ -1446,37 +1525,19 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
             </div>
           )
         })}
-        {cropEdit && (() => {
-          // Crop: the whole picture shows, with the part being kept in a box. Drag the box to move it, drag a corner to resize.
-          const fr = frameOf(segments[cropEdit.clip])
-          if (!fr) return <div style={{ position: 'absolute', inset: 0, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>Loading the clip...</div>
-          const r = cropEdit.rect
-          const box = { left: fr.left + r.x * fr.w, top: fr.top + r.y * fr.h, width: r.w * fr.w, height: r.h * fr.h }
-          const grab = (mode: 'move' | 'tl' | 'tr' | 'bl' | 'br') => (e: React.PointerEvent) => {
-            e.stopPropagation(); e.preventDefault()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            cropDragRef.current = { mode, sx: e.clientX, sy: e.clientY, r0: r, fw: fr.w, fh: fr.h }
-          }
-          const corner = (mode: 'tl' | 'tr' | 'bl' | 'br') => (
-            <span key={mode} role="slider" aria-label={`Crop corner ${mode === 'tl' ? 'top left' : mode === 'tr' ? 'top right' : mode === 'bl' ? 'bottom left' : 'bottom right'}`}
-              onPointerDown={grab(mode)} onPointerMove={moveCrop} onPointerUp={() => { cropDragRef.current = null }} onPointerCancel={() => { cropDragRef.current = null }}
-              style={{ position: 'absolute', width: 26, height: 26, [mode[0] === 't' ? 'top' : 'bottom']: -2, [mode[1] === 'l' ? 'left' : 'right']: -2, background: '#fff', border: '3px solid var(--coral)', borderRadius: 4, touchAction: 'none', cursor: mode === 'tl' || mode === 'br' ? 'nwse-resize' : 'nesw-resize', boxSizing: 'border-box' }} />
-          )
-          return (
-            <div aria-label={`Crop clip ${cropEdit.clip + 1}`} style={{ position: 'absolute', inset: 0, zIndex: 6 }}>
-              <div onPointerDown={grab('move')} onPointerMove={moveCrop} onPointerUp={() => { cropDragRef.current = null }} onPointerCancel={() => { cropDragRef.current = null }}
-                style={{ position: 'absolute', ...box, border: '2px solid #fff', boxShadow: '0 0 0 9999px rgba(0,0,0,0.6)', cursor: 'move', touchAction: 'none', boxSizing: 'border-box' }}>
-                <span aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px)', backgroundSize: '33.33% 33.33%', backgroundPosition: '-1px -1px', pointerEvents: 'none' }} />
-                {(['tl', 'tr', 'bl', 'br'] as const).map(corner)}
-              </div>
-              <div style={{ position: 'absolute', left: 8, right: 8, bottom: 8, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setCropEdit({ clip: cropEdit.clip, rect: { x: 0, y: 0, w: 1, h: 1 } })} style={{ padding: '7px 12px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Reset</button>
-                <button type="button" onClick={() => finishCrop(false)} style={{ padding: '7px 12px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="button" onClick={() => finishCrop(true)} style={{ padding: '7px 16px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Done</button>
-              </div>
-            </div>
-          )
-        })()}
+        {cropEdit && segments[cropEdit.clip] && clipOps && (
+          <CropPage
+            key={cropEdit.clip}
+            src={previewUrlFor(segments[cropEdit.clip].file)}
+            start={segments[cropEdit.clip].start}
+            end={segments[cropEdit.clip].end}
+            aspect={stageSize.w > 0 && stageSize.h > 0 ? stageSize.w / stageSize.h : 9 / 16}
+            initial={segments[cropEdit.clip].crop ?? null}
+            title={`Crop clip ${cropEdit.clip + 1}`}
+            onCancel={() => setCropEdit(null)}
+            onSave={(crop) => { const i = cropEdit.clip; setCropEdit(null); clipOps.onCrop(i, crop); seekGlobal(lengths.slice(0, i).reduce((x, y) => x + y, 0) + 0.001, false) }}
+          />
+        )}
         {screenText && hasClips && !recording && !cropEdit && (() => {
           const text = screenText.texts[index] || ''
           const editing = textEdit && textEdit.clip === index
@@ -1814,7 +1875,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
 @container (max-width:58px){.tl-clip .tl-full{display:none}}`}</style>
         {/* The strip above the timeline: press or drag anywhere on it to move the line, which has a handle here */}
         <div aria-hidden="true" onPointerDown={startScrub} onPointerMove={moveScrub} onPointerUp={endScrub} onPointerCancel={() => endScrub()} onLostPointerCapture={() => endScrub()}
-          style={{ position: 'relative', height: 18, marginBottom: 4, cursor: recording || total <= 0 ? 'default' : 'ew-resize', touchAction: 'none', userSelect: 'none' }}>
+          style={{ position: 'relative', height: 18, marginBottom: 4, marginRight: addSources ? PLUS_COL : 0, cursor: recording || total <= 0 ? 'default' : 'ew-resize', touchAction: 'none', userSelect: 'none' }}>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 8, height: 2, borderRadius: 1, background: 'rgba(128,128,128,0.25)' }} />
           {hasClips && (
             <div style={{ position: 'absolute', top: 0, left: pct(globalTime), width: 14, height: 18, marginLeft: -7, pointerEvents: 'none' }}>
@@ -1831,6 +1892,14 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
           aria-valuemin={0}
           aria-valuemax={Math.round(total)}
           aria-valuenow={Math.round(globalTime)}
+          onKeyDown={(e) => {
+            if (recording || total <= 0) return
+            const step = e.shiftKey ? 5 : 1
+            const to = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? globalTime - step : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? globalTime + step : e.key === 'Home' ? 0 : e.key === 'End' ? total - 0.05 : null
+            if (to === null) return
+            e.preventDefault()
+            seekGlobal(Math.max(0, Math.min(total - 0.05, to)), playing)
+          }}
           onPointerDown={(e) => {
             if (recording || total <= 0) return
             const top = e.currentTarget.getBoundingClientRect().top
@@ -1873,13 +1942,16 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
           }}
           onPointerCancel={() => { endScrub(); clipPressRef.current = null; setClipDrag(null) }}
           onLostPointerCapture={() => { endScrub(); if (clipPressRef.current && !clipPressRef.current.dragging) clipPressRef.current = null }}
-          onKeyDown={(e) => {
-            if (recording || total <= 0) return
-            if (e.key === 'ArrowRight') { e.preventDefault(); seekGlobal(Math.min(total, globalTime + 1), playing) }
-            if (e.key === 'ArrowLeft') { e.preventDefault(); seekGlobal(Math.max(0, globalTime - 1), playing) }
-          }}
-          style={{ position: 'relative', height: trackHeight, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
+          style={{ position: 'relative', height: trackHeight, marginRight: addSources ? PLUS_COL : 0, touchAction: 'none', cursor: recording ? 'default' : 'pointer', userSelect: 'none', outlineOffset: 3 }}
         >
+          {/* A + at the end of the video line and the audio line, to add a clip or some sound */}
+          {addSources && !recording && (['video', 'audio'] as const).filter((k) => addSources[k]).map((k) => (
+            <button key={k} type="button" data-add-line={k} aria-label={k === 'video' ? 'Add a video' : 'Add audio'} aria-expanded={addMenu?.kind === k}
+              onPointerDown={(e) => e.stopPropagation()} onClick={(e) => openAdd(k, e)}
+              style={{ position: 'absolute', right: -PLUS_COL, top: k === 'video' ? 0 : 32, width: PLUS_COL - 6, height: k === 'video' ? 24 : 26, borderRadius: 4, border: '1.5px dashed var(--line)', background: addMenu?.kind === k ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--coral)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, touchAction: 'manipulation' }}>
+              <LineIcon n="plus" size={16} />
+            </button>
+          ))}
           <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 24, display: 'flex', borderRadius: 4, overflow: 'hidden', background: 'rgba(128,128,128,0.15)' }}>
             {/* eslint-disable-next-line react-hooks/refs -- the handlers only touch refs when the user drags */}
             {lengths.map((len, i) => {
@@ -1900,7 +1972,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
                 </span>
               )
               return (
-                <div key={i} className="tl-clip" style={{ position: 'relative', flex: shown > 0 ? '0 0 auto' : 1, width: shown > 0 ? `${scaleTotal > 0 ? (shown / scaleTotal) * 100 : 0}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: tv ? 'transparent' : clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box', fontSize: 11, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', whiteSpace: 'nowrap', opacity: moving ? 0.45 : 1, boxShadow: edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
+                <div key={i} className="tl-clip" data-clip-block={i} aria-label={`Clip ${i + 1}. Tap for speed, audio, crop and delete.`} style={{ position: 'relative', flex: shown > 0 ? '0 0 auto' : 1, width: shown > 0 ? `${scaleTotal > 0 ? (shown / scaleTotal) * 100 : 0}%` : undefined, minWidth: onTrimClip ? 28 : undefined, background: tv ? 'transparent' : clipShade(i), borderRight: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box', fontSize: 11, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', paddingLeft: onTrimClip ? 18 : 6, overflow: 'hidden', whiteSpace: 'nowrap', opacity: moving ? 0.45 : 1, boxShadow: actionClip === i ? 'inset 0 0 0 2px #fff' : edge, cursor: onReorderClip && segments.length > 1 && !recording ? 'grab' : 'pointer' }}>
                   {tv && (
                     <>
                       {/* The cut parts, faded, then the part that stays */}
@@ -2000,53 +2072,99 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
           {ovCount > 0 && <span>{ovCount === 1 ? 'Overlay' : 'Overlays'}</span>}
           {caps.length > 0 && <span>Your captions</span>}
         </div>}
-        {!mobile && clipOps && actionClip !== null && segments[actionClip] && !recording && !cropEdit && (() => {
-          const i = actionClip
-          const lv = clipOps.level(i)
-          const btn = { padding: '7px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' } as const
-          return (
-            <div role="region" aria-label={`Clip ${i + 1} menu`} style={{ marginTop: 12, padding: 14, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Clip {i + 1}</span>
-                <button type="button" aria-label="Close the clip menu" onClick={() => { setActionClip(null); setDelConfirm(false) }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 15, cursor: 'pointer', padding: 2 }}><Icon n="close" /></button>
-              </div>
-              <VolumeRow label="Clip audio" value={lv.vol} onChange={(v) => clipOps.onVolume(i, v)} color="var(--coral)" muted={lv.muted} onMute={(m) => clipOps.onMute(i, m)} />
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button type="button" onClick={() => startCrop(i)} style={btn}>{segments[i].crop ? 'Change crop' : 'Crop'}</button>
-                {segments[i].crop && <button type="button" onClick={() => clipOps.onCrop(i, null)} style={btn}>Remove crop</button>}
-                {clipOps.onDuplicate && <button type="button" onClick={() => { clipOps.onDuplicate!(i); setActionClip(i + 1) }} style={btn}>Duplicate</button>}
-                <span style={{ flex: 1 }} />
-                {delConfirm ? (
-                  <>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Delete clip {i + 1}?</span>
-                    <button type="button" onClick={() => setDelConfirm(false)} style={btn}>Keep</button>
-                    <button type="button" onClick={() => { clipOps.onDelete(i); setActionClip(null); setDelConfirm(false) }} style={{ ...btn, border: 'none', background: '#D92D20', color: '#fff' }}>Delete</button>
-                  </>
-                ) : (
-                  <button type="button" onClick={() => setDelConfirm(true)} style={{ ...btn, border: '1px solid #D92D20', color: '#D92D20' }}>Delete</button>
-                )}
-              </div>
-            </div>
-          )
-        })()}
-        {!mobile && onSpeedClip && hasClips && !recording && segments[index] && (
-          <div role="group" aria-label={`Speed of clip ${index + 1}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginRight: 4 }}>Clip {index + 1} speed</span>
-            {CLIP_SPEEDS.map(([v, name, tip]) => {
-              const on = (segments[index].speed || 1) === v
-              return <button key={v} type="button" aria-pressed={on} title={tip} onClick={() => onSpeedClip(index, v)} style={{ padding: '5px 10px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
-            })}
+        {!mobile && hasClips && !recording && segments[index] && (clipOps || clipMenu) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{clipOps ? 'Click a clip on the timeline for its speed, audio, crop and delete.' : `Clip ${index + 1}`}</span>
             {clipMenu && (
               <button type="button" aria-label={`More settings for clip ${index + 1}`} aria-expanded={clipMenuOpen} title="Appearance and more for this clip" onClick={() => setClipMenuOpen((o) => !o)}
-                style={{ marginLeft: 'auto', padding: '2px 10px', borderRadius: 4, border: clipMenuOpen ? '1px solid var(--coral)' : '1px solid var(--line)', background: clipMenuOpen ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 18, fontWeight: 700, lineHeight: 1.2, cursor: 'pointer' }}>⋯</button>
+                style={{ padding: '2px 10px', borderRadius: 4, border: clipMenuOpen ? '1px solid var(--coral)' : '1px solid var(--line)', background: clipMenuOpen ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 18, fontWeight: 700, lineHeight: 1.2, cursor: 'pointer' }}>⋯</button>
             )}
-            <span style={{ flexBasis: '100%', fontSize: 11, color: 'var(--text-muted)' }}>Slower than 0.5x or faster than 2x plays without sound. Click a clip on the timeline to pick it.</span>
           </div>
         )}
         {!mobile && clipMenu && clipMenuOpen && hasClips && !recording && segments[index] && (
           <div role="region" aria-label={`Settings for clip ${index + 1}`} style={{ marginTop: 10, background: 'var(--sand)', borderRadius: 4, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {clipMenu(index)}
           </div>
+        )}
+        {clipOps && actionClip !== null && segments[actionClip] && !recording && !cropEdit && typeof document !== 'undefined' && createPortal((() => {
+          const i = actionClip
+          const lv = clipOps.level(i)
+          const sp = segments[i].speed || 1
+          const item = (n: string, label: string, onClick: () => void, danger = false) => (
+            <button key={n} type="button" onClick={onClick}
+              style={{ flex: '1 1 0', minWidth: 52, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 4, border: 'none', background: 'transparent', color: danger ? '#ff6b5e' : '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              <LineIcon n={n} size={22} />
+              {label}
+            </button>
+          )
+          const wide = popView !== 'menu'
+          return (
+            <div ref={popRef} role="dialog" aria-label={`Clip ${i + 1}`}
+              style={{ position: 'fixed', zIndex: 1100, left: popPos?.left ?? -9999, top: popPos?.top ?? -9999, width: wide ? 300 : undefined, maxWidth: 'calc(100vw - 16px)', boxSizing: 'border-box', background: 'rgba(28,28,32,0.97)', color: '#fff', borderRadius: 6, padding: 6, boxShadow: '0 6px 24px rgba(0,0,0,0.28)', visibility: popPos ? 'visible' : 'hidden', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+              {/* The arrow pointing at the clip */}
+              <span aria-hidden="true" style={{ position: 'absolute', left: (popPos?.arrow ?? 20) - 8, [popPos?.below ? 'top' : 'bottom']: -8, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', [popPos?.below ? 'borderBottom' : 'borderTop']: '8px solid rgba(28,28,32,0.97)' }} />
+              {popView === 'menu' && !delConfirm && (
+                <div style={{ display: 'flex', gap: 2 }}>
+                  {onSpeedClip && item('speed', sp === 1 ? 'Speed' : `${Number(sp.toFixed(2))}x`, () => { if (clipOps.onOpen) { clipOps.onOpen('speed', i); closePop() } else setPopView('speed') })}
+                  {item('audio', lv.muted || lv.vol <= 0 ? 'Muted' : 'Audio', () => { if (clipOps.onOpen) { clipOps.onOpen('audio', i); closePop() } else setPopView('audio') })}
+                  {item('crop', segments[i].crop ? 'Cropped' : 'Crop', () => startCrop(i))}
+                  {clipOps.onDuplicate && item('copy', 'Copy', () => { clipOps.onDuplicate!(i); setActionClip(i + 1) })}
+                  {item('bin', 'Delete', () => setDelConfirm(true), true)}
+                </div>
+              )}
+              {popView === 'menu' && delConfirm && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>Delete clip {i + 1}?</span>
+                  <button type="button" onClick={() => setDelConfirm(false)} style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Keep</button>
+                  <button type="button" onClick={() => { clipOps.onDelete(i); closePop() }} style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: '#D92D20', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+                </div>
+              )}
+              {popView !== 'menu' && (
+                <div style={{ padding: '4px 8px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button type="button" aria-label="Back" onClick={() => setPopView('menu')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, display: 'flex' }}><Icon n="back" /></button>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Clip {i + 1} {popView === 'speed' ? 'speed' : 'audio'}</span>
+                  </div>
+                  {popView === 'speed' && onSpeedClip && <SpeedSlider value={sp} onChange={(v) => onSpeedClip(i, v)} label="Speed" dark />}
+                  {popView === 'audio' && (
+                    <div style={{ background: 'var(--card-bg)', color: 'var(--ink)', borderRadius: 4, padding: '8px 10px' }}>
+                      <VolumeRow label="Clip audio" value={lv.vol} onChange={(v) => clipOps.onVolume(i, v)} color="var(--coral)" muted={lv.muted} onMute={(m) => clipOps.onMute(i, m)} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })(), document.body)}
+        {addMenu && addSources?.[addMenu.kind] && typeof document !== 'undefined' && createPortal((() => {
+          const src = addSources[addMenu.kind]!
+          const row = (n: React.ReactNode, label: string, sub: string, onClick: () => void) => (
+            <button type="button" onClick={onClick}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 4, border: 'none', background: 'transparent', color: '#fff', cursor: 'pointer' }}>
+              <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+              <span style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>{sub}</span></span>
+            </button>
+          )
+          const box = <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></svg>
+          const folder = <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+          const lib = <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V5M9 19V5M14 19 18 5M3 19h18" /></svg>
+          return (
+            <div ref={addMenuRef} role="dialog" aria-label={addMenu.kind === 'video' ? 'Add a video from' : 'Add audio from'}
+              style={{ position: 'fixed', zIndex: 1100, left: addMenu.left, top: addMenu.top, width: 240, boxSizing: 'border-box', background: 'rgba(28,28,32,0.97)', borderRadius: 6, padding: 4, boxShadow: '0 6px 24px rgba(0,0,0,0.28)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+              <span aria-hidden="true" style={{ position: 'absolute', left: addMenu.arrow - 8, [addMenu.below ? 'top' : 'bottom']: -8, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', [addMenu.below ? 'borderBottom' : 'borderTop']: '8px solid rgba(28,28,32,0.97)' }} />
+              {row(lib, 'Library', src.libraryLabel || 'Saved in Reelezy', () => { setAddMenu(null); src.library() })}
+              {row(box, 'Photo library', src.photoLabel || 'Videos on this device', () => addPhotoRef.current?.click())}
+              {row(folder, 'Files', addMenu.kind === 'video' ? 'A video file' : 'An audio file', () => addFileRef.current?.click())}
+            </div>
+          )
+        })(), document.body)}
+        {addSources && (
+          <>
+            <input ref={addPhotoRef} type="file" hidden accept={addSources[addMenu?.kind ?? 'video']?.photoAccept ?? 'video/*'} multiple={!!addSources[addMenu?.kind ?? 'video']?.multiple}
+              onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; const src = addMenu && addSources[addMenu.kind]; setAddMenu(null); if (f.length && src) src.photos(f) }} />
+            <input ref={addFileRef} type="file" hidden accept={addSources[addMenu?.kind ?? 'video']?.fileAccept ?? 'video/*'} multiple={!!addSources[addMenu?.kind ?? 'video']?.multiple}
+              onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; const src = addMenu && addSources[addMenu.kind]; setAddMenu(null); if (f.length && src) src.files(f) }} />
+          </>
         )}
       {takeDrag && (
         <div ref={binRef} aria-label="Bin: drop a voiceover here to delete it"
@@ -2062,13 +2180,14 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
   )
 }
 
-function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
+function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cropRequest, addSources, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
   mobile?: boolean
   panelOpen?: boolean
   onClipIndex?: (i: number) => void
   screenText?: ScreenTextBox | null
   clipOps?: ClipOps
   cropRequest?: { clip: number; n: number } | null
+  addSources?: AddSources
   below?: React.ReactNode
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -2123,7 +2242,7 @@ function EditorPreview({ mobile, panelOpen, onClipIndex, screenText, clipOps, cr
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} mobile={mobile} panelOpen={panelOpen} onClipIndex={onClipIndex} screenText={screenText} clipOps={clipOps} cropRequest={cropRequest} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} mobile={mobile} panelOpen={panelOpen} onClipIndex={onClipIndex} screenText={screenText} clipOps={clipOps} cropRequest={cropRequest} addSources={addSources} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -2219,6 +2338,8 @@ type PhoneTool = { id: string; label: string }
 const PHONE_TOOL_ICONS: Record<string, React.ReactNode> = {
   idea: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" /></>,
   clips: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M8 5v14M16 5v14M3 10h5M3 14h5M16 10h5M16 14h5" /></>,
+  crop: <><path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" /></>,
+  speed: <><path d="M3.5 15.5a7.5 6.5 0 0 1 15 0z" /><path d="M8.5 9.6 11 15.5M13.5 9.6 11 15.5M3.5 13h15" /><path d="M18.5 13.5h1.8a1.8 1.8 0 0 0 0-3.6h-.6c-.6 0-1.2.6-1.2 1.2" /><path d="M6 15.5 5 18M16 15.5l1 2.5M3.5 15.5 2 16.5" /></>,
   clip: <><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M8.6 7.6 20 18M8.6 16.4 20 6" /></>,
   audio: <><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>,
   extract: <><path d="M2 12h2M6 8v8M10 5v14M14 9v6M18 7v10M22 12h-2" /></>,
@@ -2356,6 +2477,20 @@ export default function DashboardPage() {
   const [editingScriptItemId, setEditingScriptItemId] = useState<string | null>(null)
   const [editingScriptText, setEditingScriptText] = useState<string>('')
   const [filmingItems, setFilmingItems] = useState<FilmingItem[]>([])
+  // Ideas whose video was made or whose filming card was cleared. Kept so they can be filmed again.
+  const [archivedFilming, setArchivedFilming] = useState<ArchivedFilmingItem[]>([])
+  const [showArchive, setShowArchive] = useState(false)
+  const [archiveOpenId, setArchiveOpenId] = useState<string | null>(null)
+  const [archiveQuery, setArchiveQuery] = useState('')
+  const filmingItemsRef = useRef<FilmingItem[]>([])
+  useEffect(() => { filmingItemsRef.current = filmingItems }, [filmingItems])
+  const archiveFilming = (items: FilmingItem[]) => {
+    if (!items.length) return
+    setArchivedFilming((prev) => {
+      const ids = new Set(items.map((i) => i.id))
+      return [...items.map((i) => ({ ...i, createdAt: (i as ArchivedFilmingItem).createdAt || new Date().toISOString() })), ...prev.filter((a) => !ids.has(a.id))]
+    })
+  }
   const [selectedFilmingId, setSelectedFilmingId] = useState<string | null>(null)
   const [stepUploads, setStepUploads] = useState<Record<number, File>>({})
   const [aiUploading, setAiUploading] = useState(false)
@@ -2767,10 +2902,14 @@ export default function DashboardPage() {
         setDbSavedIdeas(savedRows.map(toIdea))
         setSavedIds(new Set(savedRows.map((r) => r.id as string)))
 
-        const filmingRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared !== true).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const toFilming = (r: Record<string, unknown>): ArchivedFilmingItem => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string; directions?: string[] }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "", directions: Array.isArray(c.directions) ? c.directions : [], createdAt: (r.created_at as string) || undefined } }
+        const byNewest = (a: Record<string, unknown>, b: Record<string, unknown>) => new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
+        const filmingRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared !== true).sort(byNewest)
         if (filmingRows.length > 0) {
-          setFilmingItems(filmingRows.map((r) => { const c = r.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string }; return { ...toIdea(r), checklist: c.steps || [], prep: c.prep || [], caption: c.caption || "", script: c.script || "", directions: (c as {directions?: string[]}).directions || [] } }))
+          setFilmingItems(filmingRows.map(toFilming))
         }
+        const archivedRows = (allIdeas || []).filter((r) => r.checklist && r.filming_cleared === true).sort(byNewest)
+        setArchivedFilming(archivedRows.map(toFilming))
       }
 
       const { data: carouselRows } = await supabase
@@ -2869,13 +3008,15 @@ export default function DashboardPage() {
   // A finished video means its idea and filming instructions are done with (the server has already updated the database)
   const applyFilmCleared = (data: { clearedIdeaId?: string | null; clearedScriptTitle?: string | null }) => {
     const id = data.clearedIdeaId
+    const topic = data.clearedScriptTitle
+    const done = filmingItemsRef.current.filter((f) => (id && f.id === id) || (topic && f.source === 'script' && f.title === topic))
+    if (done.length) archiveFilming(done)
     if (id) {
       setDbSavedIdeas((prev) => prev.filter((i) => i.id !== id))
       setSavedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
       setFilmingItems((prev) => prev.filter((f) => f.id !== id))
       setSelectedIdeaIdsForFilming((prev) => prev.filter((x) => x !== id))
     }
-    const topic = data.clearedScriptTitle
     if (topic) {
       setSavedScripts((prev) => prev.filter((sc) => sc.topic !== topic))
       setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === topic)))
@@ -2923,6 +3064,36 @@ export default function DashboardPage() {
 
     return () => clearInterval(interval)
   }, [aiRenderId, aiRenderStatus])
+
+  // A render that fails puts the editor back the way it was, so nothing has to be added again
+  useEffect(() => {
+    const keep = uploadFailRestoreRef.current
+    if (!keep || renderStatus === 'queued' || renderStatus === 'rendering' || renderStatus === null) return
+    if (keep.id !== renderId) return
+    uploadFailRestoreRef.current = null
+    if (renderStatus !== 'failed') return
+    // Only if they have not started on something new since
+    if (uploadSlots.some((id) => uploadSlotFiles[id] || uploadSlotPaths[id]) || voiceTakes.length > 0) return
+    const err = renderError
+    applyEditor({ ...keep.snap, renderId, renderStatus: 'failed', renderProgress: 0, outputUrl: null, overQuota: renderOverQuota, renderError: err, uploadError: '' })
+    if (keep.snap.ctx) filmRenderContextRef.current = keep.snap.ctx
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderStatus, renderId])
+  useEffect(() => {
+    const keep = aiFailRestoreRef.current
+    if (!keep || aiRenderStatus === 'queued' || aiRenderStatus === 'rendering' || aiRenderStatus === null) return
+    if (keep.id !== aiRenderId) return
+    aiFailRestoreRef.current = null
+    if (aiRenderStatus !== 'failed' || voiceTakes.length > 0) return
+    setVoiceTakes(keep.takes)
+    if (keep.musicFile) setMusicFile(keep.musicFile)
+    if (keep.extracted) setExtractedMusicPath(keep.extracted)
+    const st: Record<string, ClipUploadState> = {}
+    Object.entries(keep.assets).forEach(([k, path]) => { if (k === 'm' || k.startsWith('v:')) { clipUploadPromises.set(k, Promise.resolve(path)); st[k] = 'done' } })
+    setAssetPaths((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(keep.assets).filter(([k]) => k === 'm' || k.startsWith('v:'))) }))
+    setClipUploadStatus((prev) => ({ ...prev, ...st }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiRenderStatus, aiRenderId])
 
 
   const updateIdeaNotes = (id: string, notes: string) => {
@@ -4102,7 +4273,7 @@ export default function DashboardPage() {
   // Phone editor: each settings card sits in a tool wrapper that only shows while its tool is open.
   // 'always' shows all the time (progress and errors), 'never' only exists on a computer (the big Create button).
   const edT = (on: boolean, t: string, node: React.ReactNode) => (on ? (t === 'never' ? null : <div className={`ed-tool${t === 'always' || mTool === t ? ' on' : ''}`}>{node}</div>) : node)
-  const PHONE_TOOL_NAMES: Record<string, string> = { idea: 'Idea', clips: 'Clips', clip: 'Edit clip', audio: 'Audio', extract: 'Extract audio', voiceover: 'Voiceover', captions: 'Captions', overlay: 'Overlay', settings: 'Settings' }
+  const PHONE_TOOL_NAMES: Record<string, string> = { idea: 'Idea', clips: 'Clips', clip: 'Edit clip', crop: 'Crop', speed: 'Speed', audio: 'Audio', extract: 'Extract audio', voiceover: 'Voiceover', captions: 'Captions', overlay: 'Overlay', settings: 'Settings' }
   const phoneTools = (ids: string[]): PhoneTool[] => ids.map((id) => ({ id, label: PHONE_TOOL_NAMES[id] }))
   // On a phone the AI editor goes full screen once an idea is picked; picking the idea is a normal page
   const phoneAi = phone && !!selectedFilmingId
@@ -4208,10 +4379,87 @@ export default function DashboardPage() {
       onDelete: (i) => deleteClipAt(m, i),
       // AI editor clips belong to a step of the shot list, so they are not copied
       onDuplicate: m === 'upload' ? duplicateUploadClip : undefined,
-      onTap: onPhone ? (i) => { setMClip(i); setMTool('clip') } : undefined,
+      onOpen: onPhone ? (kind, i) => { setMClip(i); setMTool(kind) } : undefined,
     }
   }
   const [phoneDelConfirm, setPhoneDelConfirm] = useState(false)
+  // What the + on each timeline line adds
+  const addSourcesFor = (m: 'upload' | 'ai'): AddSources => ({
+    video: {
+      library: () => setLibraryPicker(m === 'upload' ? 'any' : 'ai'),
+      photos: (f) => (m === 'upload' ? addUploadFiles(f) : addAiFiles(f)),
+      files: (f) => (m === 'upload' ? addUploadFiles(f) : addAiFiles(f)),
+      photoAccept: 'video/*',
+      fileAccept: 'video/*,.mp4,.mov,.m4v,.webm',
+      multiple: true,
+      libraryLabel: 'Clips saved in Reelezy',
+    },
+    audio: {
+      library: () => setAudioPicker(true),
+      photos: (f) => { if (f[0]) void handleExtractAudio(f[0]) },
+      files: (f) => { if (f[0]) uploadVoiceFile(f[0]) },
+      photoAccept: 'video/*',
+      fileAccept: 'audio/*,.mp3,.m4a,.wav,.aac,.ogg,.webm',
+      photoLabel: "Use a video's sound as music",
+      libraryLabel: 'Sounds saved in Reelezy',
+    },
+  })
+  // Crop the clip under the line, from the phone's tool bar
+  const pickPhoneTool = (t: string | null) => {
+    if (t === 'crop') { setMTool(null); setCropRequest((r) => ({ clip: mClip, n: (r?.n ?? 0) + 1 })); return }
+    setMTool(t)
+  }
+  // The top of a phone panel about one clip: which clip, with arrows to pick another
+  const renderPhoneClipHeader = (i: number, count: number, note = 'The clip under the line. Use the arrows to pick another.') => {
+    const arrow = (dir: -1 | 1) => {
+      const off = dir === -1 ? i === 0 : i === count - 1
+      return (
+        <button type="button" aria-label={dir === -1 ? 'Previous clip' : 'Next clip'} disabled={off} onClick={() => setMClip(i + dir)}
+          style={{ width: 36, height: 36, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1 }}>
+          <Icon n={dir === -1 ? 'back' : 'forward'} />
+        </button>
+      )
+    }
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {arrow(-1)}
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Clip {i + 1} of {count}</p>
+          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{note}</p>
+        </div>
+        {arrow(1)}
+      </div>
+    )
+  }
+  const phoneClipIds = (m: 'upload' | 'ai') => (m === 'upload' ? uploadSlots.filter((id) => uploadSlotFiles[id]) : Object.keys(stepUploads).map(Number).sort((a, b) => a - b))
+  // Phone Speed page: one clip's speed on a slider
+  const renderPhoneSpeedPanel = (m: 'upload' | 'ai') => {
+    const ids = phoneClipIds(m)
+    if (ids.length === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', padding: 16, margin: 0 }}>Add a clip first.</p>
+    const i = Math.min(Math.max(0, mClip), ids.length - 1)
+    const speed = (m === 'upload' ? uploadSpeeds[ids[i]] : aiSpeeds[ids[i]]) || 1
+    return (
+      <div style={{ padding: '14px 16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {renderPhoneClipHeader(i, ids.length)}
+        <SpeedSlider value={speed} onChange={(v) => (m === 'upload' ? speedUploadClip(i, v) : speedAiClip(i, v))} label={`Clip ${i + 1} speed`} />
+      </div>
+    )
+  }
+  // On the phone Audio page, the clip's own sound comes first
+  const renderPhoneClipAudio = (m: 'upload' | 'ai') => {
+    const ids = phoneClipIds(m)
+    if (ids.length === 0) return null
+    const i = Math.min(Math.max(0, mClip), ids.length - 1)
+    const id = ids[i]
+    const vol = (m === 'upload' ? uploadVols[id] : aiVols[id]) ?? 100
+    return (
+      <div style={{ padding: '14px 16px 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {renderPhoneClipHeader(i, ids.length, "This clip's own sound. Music and master volume are below.")}
+        <VolumeRow label="Clip audio" value={vol} onChange={(v) => (m === 'upload' ? setUploadVols((prev) => ({ ...prev, [id]: v })) : setAiVols((prev) => ({ ...prev, [id]: v })))} color="var(--coral)"
+          muted={!!(m === 'upload' ? uploadMuted[id] : aiMuted[id])} onMute={(on) => (m === 'upload' ? muteUploadClip(id, on) : muteAiClip(id, on))} />
+      </div>
+    )
+  }
 
   // Phone editor: speed, volume and look for one clip. On a computer these sit under the preview.
   const renderPhoneClipPanel = (m: 'upload' | 'ai') => {
@@ -4240,16 +4488,7 @@ export default function DashboardPage() {
           </div>
           {arrow(1)}
         </div>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', margin: '0 0 8px' }}>Speed</p>
-          <div role="group" aria-label={`Speed of clip ${i + 1}`} style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {CLIP_SPEEDS.map(([v, name, tip]) => {
-              const on = speed === v
-              return <button key={v} type="button" aria-pressed={on} title={tip} onClick={() => (m === 'upload' ? speedUploadClip(i, v) : speedAiClip(i, v))} style={{ padding: '7px 12px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
-            })}
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>Slower than 0.5x or faster than 2x plays without sound.</p>
-        </div>
+        <SpeedSlider value={speed} onChange={(v) => (m === 'upload' ? speedUploadClip(i, v) : speedAiClip(i, v))} label="Speed" />
         <VolumeRow label="Clip audio" value={vol} onChange={(v) => (m === 'upload' ? setUploadVols((prev) => ({ ...prev, [id]: v })) : setAiVols((prev) => ({ ...prev, [id]: v })))} color="var(--coral)"
           muted={!!(m === 'upload' ? uploadMuted[id] : aiMuted[id])} onMute={(on) => (m === 'upload' ? muteUploadClip(id, on) : muteAiClip(id, on))} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -4382,7 +4621,7 @@ export default function DashboardPage() {
       setTab('uploads')
     } catch (err) {
       console.error('Film upload failed:', err)
-      alert('Upload failed. Your clips are kept, press Retry upload.')
+      alert('Saving your clips failed. They are kept here, so press Open in editor to try again.')
     }
     setFilmUploading(false)
   }
@@ -4420,8 +4659,11 @@ export default function DashboardPage() {
     if (filmLineIdx + 1 < filmClipCount) {
       setFilmLineIdx(filmLineIdx + 1)
     } else {
+      // Every clip is filmed: go straight into the same editor as everything else. The review screen only
+      // stays up if saving the clips fails, so they can try again from there.
       setFilmPlayIdx(0)
       setFilmReview(true)
+      void finishFilm(clips, false)
     }
   }
 
@@ -4461,8 +4703,24 @@ export default function DashboardPage() {
   const clearFilming = async () => {
     if (filmingItems.length === 0) return
     const ids = filmingItems.map((i) => i.id)
+    archiveFilming(filmingItems)
     setFilmingItems([])
     await supabase.from("generated_ideas").update({ filming_cleared: true }).in("id", ids)
+  }
+
+  const pickFilmingIdea = (item: FilmingItem) => {
+    setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiVols({}); setAiMuted({}); setAiScreenTexts({}); setAiCrops({}); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([])
+    const scriptLinesForIdea = getFilmLines(item)
+    if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null)
+  }
+
+  // Bring an archived idea back so it can be filmed again. Its instructions are unchanged.
+  const reuseArchived = (item: ArchivedFilmingItem) => {
+    setArchivedFilming((prev) => prev.filter((a) => a.id !== item.id))
+    setFilmingItems((prev) => [item, ...prev.filter((f) => f.id !== item.id)])
+    setShowArchive(false); setArchiveOpenId(null); setArchiveQuery('')
+    pickFilmingIdea(item)
+    supabase.from('generated_ideas').update({ filming_cleared: false }).eq('id', item.id).then(() => {})
   }
 
   const undoIdeas = () => {
@@ -5052,6 +5310,9 @@ export default function DashboardPage() {
   // Each Create video press gets a number; Cancel moves the number on, so the old attempt stops where it is
   const aiRunRef = useRef(0)
   const uploadRunRef = useRef(0)
+  // What was in each editor when a video was sent, so a failed render can put it all back
+  const uploadFailRestoreRef = useRef<{ id: string; snap: EditorSnap } | null>(null)
+  const aiFailRestoreRef = useRef<{ id: string; takes: VoiceTake[]; musicFile: File | null; extracted: string | null; assets: Record<string, string> } | null>(null)
   const cancelAiUpload = () => { aiRunRef.current += 1; setAiUploading(false); setAiEditorError('') }
   const cancelUpload = () => { uploadRunRef.current += 1; setUploading(false); setUploadError('') }
   // A request that never reached the server ("Load failed" on iPhone, "Failed to fetch" elsewhere) means the
@@ -5217,6 +5478,7 @@ export default function DashboardPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Render failed to start")
 
+      aiFailRestoreRef.current = { id: data.renderId, takes: voiceTakes, musicFile, extracted: extractedMusicPath, assets: { ...assetPaths } }
       setAiRenderId(data.renderId)
       setAiRenderStatus("queued")
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'ai', ts: Date.now() }))
@@ -5437,6 +5699,12 @@ export default function DashboardPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Render failed to start')
 
+      const sentPaths: Record<number, string> = { ...uploadSlotPaths }
+      uploadResults.forEach((r) => { if (r?.path) sentPaths[r.slotId] = r.path })
+      const sentAssets: Record<string, string> = { ...assetPaths }
+      voiceTakes.forEach((t, i) => { if (voiceovers[i]?.path) sentAssets[`v:${t.id}`] = voiceovers[i].path })
+      if (musicPath && musicFile) sentAssets.m = musicPath
+      uploadFailRestoreRef.current = { id: data.renderId, snap: { ...captureEditor(), paths: sentPaths, assets: sentAssets } }
       setRenderId(data.renderId)
       setRenderStatus('queued')
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
@@ -6514,7 +6782,7 @@ export default function DashboardPage() {
                                             })
                                             setFilmingItems((prev) => prev.map((f) => f.id === item.id ? { ...f, script: newScript, checklist: newChecklist } : f))
                                             setEditingScriptItemId(null)
-                                            await supabase.from('ideas').update({ checklist: { steps: newChecklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
+                                            await supabase.from('generated_ideas').update({ checklist: { steps: newChecklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
                                           }} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--coral)', border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>Save</button>
                                           <button onClick={() => setEditingScriptItemId(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '5px 12px', cursor: 'pointer' }}>Cancel</button>
                                         </div>
@@ -6911,6 +7179,7 @@ export default function DashboardPage() {
               <BoxOpenContext.Provider value={phone}>
               {phone && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
               {phone && mTool === 'clip' && renderPhoneClipPanel('upload')}
+              {phone && mTool === 'speed' && renderPhoneSpeedPanel('upload')}
               {phone && mTool === 'extract' && renderPhoneExtractPanel()}
 
               {/* ── CLIPS ── */}
@@ -7036,7 +7305,7 @@ export default function DashboardPage() {
               </div>)}
 
               {/* ── AUDIO ── */}
-              {edT(phone, 'audio', renderAudioSection('upload', voiceScript?.label))}
+              {edT(phone, 'audio', <>{phone && renderPhoneClipAudio('upload')}{renderAudioSection('upload', voiceScript?.label)}</>)}
               {edT(phone, 'voiceover', renderVoiceoverSection(voiceScript?.label))}
 
               {/* ── CAPTIONS ── */}
@@ -7084,7 +7353,7 @@ export default function DashboardPage() {
                   )}
                   {renderStatus === 'failed' && (
                     <p style={{ fontSize: 13, color: 'var(--coral)' }}>
-                      {renderError?.includes('No spoken audio') ? 'A clip was marked as speech but no audio was detected. Uncheck "Speech" for that clip and try again.' : renderError || 'Something went wrong. Please try again.'}
+                      {renderError?.includes('No spoken audio') ? 'A clip was marked as speech but no audio was detected. Uncheck "Speech" for that clip and try again.' : (renderError ? 'Something went wrong making your video. Your clips are still here, so press Create video to try again.' : 'Something went wrong. Please try again.')}
                     </p>
                   )}
                   {renderStatus === 'done' && outputUrl && (
@@ -7116,6 +7385,7 @@ export default function DashboardPage() {
                 screenText={screenTextBox('upload')}
                 clipOps={clipOpsFor('upload', phone)}
                 cropRequest={cropRequest}
+                addSources={addSourcesFor('upload')}
                 onReorderClip={reorderUploadClip}
                 onDropFiles={addUploadFiles}
                 captionStyle={previewCaptionStyle}
@@ -7152,7 +7422,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
-              {phone && <PhoneEditorNav tools={phoneTools(['clips', 'clip', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
+              {phone && <PhoneEditorNav tools={phoneTools(['clips', 'clip', 'crop', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={pickPhoneTool} />}
             </div>
           )}
 
@@ -7161,7 +7431,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 880 : 1180, margin: '32px auto', padding: '0 24px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then review your video and render it.'}</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then your video opens in the editor to finish and render.'}</p>
                   </div>
                   <div role="group" aria-label="How many videos" style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 4, background: 'var(--sand)' }}>
                     {([[false, 'One video'], [true, 'Several videos']] as const).map(([multi, name]) => {
@@ -7402,7 +7672,7 @@ export default function DashboardPage() {
                             <p style={{ flex: 1, fontSize: 13, fontWeight: 600, margin: 0 }}>{filmRedoIdx !== null ? `Re-recording clip ${filmRedoIdx + 1}` : `Clip ${filmLineIdx + 1} of ${filmClipCount}`}</p>
                             <SaveToLibraryButton dark key={filmPending.url} userId={userId} plan={isFreeTier ? 'free' : userPlan} getFile={() => new File([filmPending.blob], `film-clip.${filmPending.ext}`, { type: filmPending.type })} />
                             <button onClick={redoFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Redo</button>
-                            <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmRedoIdx !== null ? 'Save clip' : filmLineIdx + 1 >= filmClipCount ? 'Review video' : 'Save & next'}</button>
+                            <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmRedoIdx !== null ? 'Save clip' : filmLineIdx + 1 >= filmClipCount ? 'Edit video' : 'Save & next'}</button>
                           </>
                         ) : (
                           <>
@@ -7420,8 +7690,8 @@ export default function DashboardPage() {
                     <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                       <div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                       <div>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>Review your video</h3>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Watch it back in order. Redo any clip you don&apos;t like, then render.</p>
+                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 18, fontWeight: 700, margin: 0 }}>{filmUploading ? 'Opening the editor' : 'Review your video'}</h3>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>{filmUploading ? <><span className='rly-spinner rly-spinner-coral' />Saving your clips. The editor opens in a moment.</> : 'Watch it back in order. Redo any clip you don\'t like, then open it in the editor.'}</p>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {filmClips.map((cl, i) => (
@@ -7446,9 +7716,9 @@ export default function DashboardPage() {
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Render time used: {stats.find((s) => s.label === 'Render time used')?.value}</p>
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } gateRenderAction(() => { finishFilm(filmClips, true) }) }} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmUploading ? 'Saving…' : freeQuotaExceeded ? 'Upgrade to render' : 'Render video'}</button>
-                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>Open in full editor</button>
+                        <button onClick={() => finishFilm(filmClips, false)} disabled={filmUploading} style={{ flex: 1, minWidth: 140, padding: '13px 20px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: filmUploading ? 'not-allowed' : 'pointer', opacity: filmUploading ? 0.7 : 1, fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmUploading ? 'Saving…' : 'Open in editor'}</button>
                       </div>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Open in full editor also lets you change clip order, speed and trims before you render.</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>The editor lets you change clip order, speed, crop and trims before you render.</p>
                       </div>
                       <EditorPreview
                         onReorderClip={reorderFilmClip}
@@ -7509,19 +7779,104 @@ export default function DashboardPage() {
               <BoxOpenContext.Provider value={phoneAi}>
               {phoneAi && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
               {phoneAi && mTool === 'clip' && renderPhoneClipPanel('ai')}
+              {phoneAi && mTool === 'speed' && renderPhoneSpeedPanel('ai')}
               {phoneAi && mTool === 'extract' && renderPhoneExtractPanel()}
 
               {/* ── Select idea ── */}
               {edT(phoneAi, 'idea', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Select an idea to film</p>
-                {filmingItems.length === 0 ? (
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Generate filming instructions first in the Filming tab, then come back here to upload your clips.</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>{showArchive ? 'Archived videos' : 'Select an idea to film'}</p>
+                  {(archivedFilming.length > 0 || showArchive) && (
+                    <button
+                      type="button"
+                      aria-expanded={showArchive}
+                      onClick={() => { setShowArchive((v) => !v); setArchiveOpenId(null); setArchiveQuery('') }}
+                      style={{ fontSize: 12, fontWeight: 600, color: showArchive ? 'var(--ink)' : 'var(--coral)', background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      {showArchive ? 'Back to ideas' : `Archived videos (${archivedFilming.length})`}
+                    </button>
+                  )}
+                </div>
+                {showArchive ? (() => {
+                  const q = archiveQuery.trim().toLowerCase()
+                  const list = q ? archivedFilming.filter((a) => `${a.title} ${a.hook || ''} ${a.description || ''}`.toLowerCase().includes(q)) : archivedFilming
+                  const when = (iso?: string) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }) }
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>Every idea you have made a video from or cleared. Tap one to see its filming instructions, then film it again.</p>
+                      {archivedFilming.length > 5 && (
+                        <input
+                          value={archiveQuery}
+                          onChange={(e) => setArchiveQuery(e.target.value)}
+                          placeholder="Search archived videos"
+                          aria-label="Search archived videos"
+                          style={{ fontSize: 14, padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 4, background: 'var(--card-bg)', color: 'var(--ink)', boxSizing: 'border-box', width: '100%' }}
+                        />
+                      )}
+                      {archivedFilming.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Nothing archived yet.</p>}
+                      {archivedFilming.length > 0 && list.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>No archived videos match that search.</p>}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: phoneAi ? undefined : 420, overflowY: phoneAi ? undefined : 'auto' }}>
+                        {list.map((a) => {
+                          const open = archiveOpenId === a.id
+                          const steps = a.checklist || []
+                          return (
+                            <div key={a.id} data-archived={a.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                              <button
+                                type="button"
+                                aria-expanded={open}
+                                onClick={() => setArchiveOpenId(open ? null : a.id)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '10px 12px', cursor: 'pointer', color: 'var(--ink)' }}
+                              >
+                                <span style={{ flex: 1, minWidth: 0 }}>
+                                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>{a.title}</span>
+                                  <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{[when(a.createdAt), `${steps.length} ${steps.length === 1 ? 'shot' : 'shots'}`, a.source === 'script' ? 'From a script' : ''].filter(Boolean).join(' · ')}</span>
+                                </span>
+                                <span aria-hidden style={{ fontSize: 12, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
+                              </button>
+                              {open && (
+                                <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                  {a.hook && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}><strong style={{ color: 'var(--ink)' }}>Hook:</strong> {a.hook}</p>}
+                                  {(a.prep || []).length > 0 && (
+                                    <div>
+                                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', margin: '0 0 4px' }}>Before you film</p>
+                                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--ink)', lineHeight: 1.5 }}>{(a.prep || []).map((x, i) => <li key={i}>{x}</li>)}</ul>
+                                    </div>
+                                  )}
+                                  {steps.length > 0 && (
+                                    <div>
+                                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', margin: '0 0 4px' }}>Filming instructions</p>
+                                      <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--ink)', lineHeight: 1.5 }}>{steps.map((x, i) => <li key={i}>{x}</li>)}</ol>
+                                    </div>
+                                  )}
+                                  {a.script && (
+                                    <div>
+                                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', margin: '0 0 4px' }}>Script</p>
+                                      <p style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>{a.script}</p>
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => reuseArchived(a)}
+                                    style={{ alignSelf: 'flex-start', fontSize: 13, fontWeight: 600, color: '#fff', background: 'var(--coral)', border: 'none', borderRadius: 4, padding: '8px 16px', cursor: 'pointer' }}
+                                  >
+                                    Film this again
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })() : filmingItems.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{archivedFilming.length > 0 ? 'Generate filming instructions in the Filming tab, or open Archived videos to film an old idea again.' : 'Generate filming instructions first in the Filming tab, then come back here to upload your clips.'}</p>
                 ) : (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {filmingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => { setSelectedFilmingId(item.id); setStepUploads({}); resetAiClipUploads(); setAiVols({}); setAiMuted({}); setAiScreenTexts({}); setAiCrops({}); setAiSpeechSteps(new Set()); setAiOwnTexts({}); setAiCaps([]); const scriptLinesForIdea = getFilmLines(item); if (scriptLinesForIdea.length > 0) setVoiceScript({ id: `idea:${item.id}`, label: item.title || 'Idea', lines: scriptLinesForIdea }); else setVoiceScript(null) }}
+                        onClick={() => pickFilmingIdea(item)}
                         style={{ padding: '8px 14px', borderRadius: 4, border: selectedFilmingId === item.id ? '2px solid var(--coral)' : '1px solid var(--line)', background: selectedFilmingId === item.id ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 12, color: selectedFilmingId === item.id ? 'var(--coral)' : 'var(--ink)', fontWeight: selectedFilmingId === item.id ? 600 : 400, cursor: 'pointer' }}
                       >
                         {item.title}
@@ -7657,7 +8012,7 @@ export default function DashboardPage() {
                     </div>)}
 
                     {/* ── AUDIO ── */}
-                    {edT(phoneAi, 'audio', renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined))}
+                    {edT(phoneAi, 'audio', <>{phoneAi && renderPhoneClipAudio('ai')}{renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}</>)}
                     {edT(phoneAi, 'voiceover', renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined))}
 
                     {/* ── CAPTIONS ── */}
@@ -7699,7 +8054,7 @@ export default function DashboardPage() {
                             </div>
                           </>
                         )}
-                        {aiRenderStatus === 'failed' && <p style={{ fontSize: 13, color: 'var(--coral)' }}>Something went wrong rendering your video. Please try again.</p>}
+                        {aiRenderStatus === 'failed' && <p style={{ fontSize: 13, color: 'var(--coral)' }}>Something went wrong making your video. Your clips are still here, so press Create video to try again.</p>}
                         {aiRenderStatus === 'done' && aiOutputUrl && (
                           <>
                             <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} src={aiOutputUrl} style={{ width: '100%', maxWidth: 400, borderRadius: 4, marginTop: 12 }} />
@@ -7731,6 +8086,7 @@ export default function DashboardPage() {
                 screenText={screenTextBox('ai')}
                 clipOps={clipOpsFor('ai', phoneAi)}
                 cropRequest={cropRequest}
+                addSources={addSourcesFor('ai')}
                 onDropFiles={addAiFiles}
                 captionStyle={previewCaptionStyle}
                 captions={aiCaps}
@@ -7766,7 +8122,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
-              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
+              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'crop', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={pickPhoneTool} />}
             </div>
           )}
 

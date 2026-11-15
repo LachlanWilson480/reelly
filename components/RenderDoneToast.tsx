@@ -171,7 +171,7 @@ export default function RenderDoneToast() {
           <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{failed.length === 1 ? 'A video could not be rendered' : `${failed.length} videos could not be rendered`}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>Please try filming and rendering it again.</p>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>Open the editor and press Create video to try again.</p>
             </div>
             <button onClick={dismiss} style={{ background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Dismiss</button>
           </div>

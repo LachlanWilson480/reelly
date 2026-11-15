@@ -4,13 +4,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Tooltip from './Tooltip'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
 import Icon from '@/components/Icon'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Share the app's one Supabase client. A second client refreshes the same login token on its own and can sign people out.
+import { supabase } from '@/lib/supabase'
 
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: '▦' },
