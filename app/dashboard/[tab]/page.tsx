@@ -6,10 +6,10 @@ import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback, useSyncExternalStore } from 'react'
 import Dropdown from '@/components/Dropdown'
 import ColorSelect from '@/components/ColorSelect'
-import CollapsibleBox from '@/components/CollapsibleBox'
+import CollapsibleBox, { BoxOpenContext } from '@/components/CollapsibleBox'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -341,9 +341,9 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
           {scriptLabel
-            ? <>Show script puts your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview to read from. Hide it to see the whole video. To record, pause where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.</>
+            ? <>Show script puts your script, <strong style={{ color: 'var(--ink)' }}>{scriptLabel}</strong>, on the preview to read from. Hide it to see the whole video. To record, drag the line on the timeline to where you want to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.</>
             : noScriptFor
-              ? <>There is no script for <strong style={{ color: 'var(--ink)' }}>{noScriptFor}</strong>. Add one in the Film tab or the script writer to read it on the preview. To record, pause where you want to start, then press Record voiceover under the preview. Recordings you upload are saved to your library.</>
+              ? <>There is no script for <strong style={{ color: 'var(--ink)' }}>{noScriptFor}</strong>. Add one in the Film tab or the script writer to read it on the preview. To record, drag the line on the timeline to where you want to start, then press Record voiceover under the preview. Recordings you upload are saved to your library.</>
               : 'To record, drag the line on the timeline to where you want it to start, then press Record voiceover under the preview. You get a 2 second countdown. Recordings you upload are saved to your library.'}
         </p>
 
@@ -399,7 +399,13 @@ function AudioPanel({ takes, onAddFile, onRemoveTake, onTakeVolume, statuses, on
 
 // Plays the user's clips back to back (respecting trims), shows a timeline with the voiceover
 // parts, and records new voiceover starting wherever the preview was paused.
-function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
+function EditorPreviewInner({ mobile, panelOpen, onClipIndex, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, badge, onBadge }: {
+  // Phone layout: the video fills the space it is given, and clip settings live in the Edit clip panel instead
+  mobile?: boolean
+  // A tool panel is open on the phone, so the timeline makes way for it
+  panelOpen?: boolean
+  // Tells the editor which clip is under the line, for the Edit clip panel
+  onClipIndex?: (i: number) => void
   // The "Made with Reelezy" badge: shown in the corner while on, with an x to take it off
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -890,6 +896,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
 
   const hasClips = segments.length > 0
   useEffect(() => { onPlayhead?.(globalTime, total) }, [onPlayhead, globalTime, total])
+  useEffect(() => { onClipIndex?.(index) }, [onClipIndex, index])
 
   // ---- Captions: each one is a block on the timeline. Blocks that overlap in time sit on their own row (layer).
   const caps = captions || []
@@ -1104,7 +1111,8 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   })
 
   return (
-    <div>
+    <div className={mobile ? 'ed-pin' : undefined}>
+      <div className={mobile ? 'ed-stagebox' : undefined}>
       <div ref={stageRef} style={{ width: 'min(100%, calc((100vh - 330px) * 0.5625))', minWidth: 180, aspectRatio: '9 / 16', margin: '0 auto', background: '#000', borderRadius: 4, overflow: 'hidden', position: 'relative', containerType: 'inline-size' }}>
         {/* Both players are always drawn; the one in use sits on top, so the other has its first frame ready underneath */}
         {([0, 1] as const).map((n) => (
@@ -1413,7 +1421,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
           <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, background: 'rgba(217,45,32,0.9)', color: '#fff', fontSize: 11, fontWeight: 600, borderRadius: 4, padding: '3px 10px' }}>Recording</span>
         )}
         {!hasClips && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>
+          <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 1.5 }}>
             <p style={{ margin: 0 }}>Add a clip to see your video here.</p>
             {onDropFiles && (
               <>
@@ -1425,18 +1433,19 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
                   <button type="button" onClick={onPickLibrary}
                     style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.45)', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Pick from library</button>
                 )}
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>or drag and drop a video onto this phone</p>
+                <p className="dnd-hint" style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>or drag and drop a video onto this phone</p>
               </>
             )}
           </div>
         )}
+      </div>
       </div>
       {takes.map((t) => (
         <audio key={t.id} ref={(el) => { audioEls.current[t.id] = el }} src={t.url} preload="auto" />
       ))}
       {musicUrl && <audio ref={(el) => { audioEls.current['music'] = el }} src={musicUrl} preload="auto" />}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className={mobile ? 'ed-ctrl' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: mobile ? 8 : 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={toggle} disabled={!hasClips || recording || countdown !== null} aria-label={playing ? 'Pause' : 'Play'}
           style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 12, cursor: !hasClips || recording ? 'default' : 'pointer', opacity: !hasClips || recording ? 0.4 : 1, flexShrink: 0 }}>
           {playing ? <Icon n="pause" /> : <Icon n="play" />}
@@ -1458,7 +1467,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
         )}
       </div>
 
-      <div style={{ marginTop: 12 }}>
+      <div className={mobile ? 'ed-tl' : undefined} style={{ marginTop: mobile ? 6 : 12, display: mobile && panelOpen ? 'none' : undefined }}>
         <style>{`.tl-vo,.tl-clip{container-type:inline-size}.tl-short{display:none}
 @container (max-width:100px){.tl-vo .tl-x{display:none}}
 @container (max-width:74px){.tl-vo .tl-full{display:none}.tl-vo .tl-short{display:inline}}
@@ -1634,15 +1643,15 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
               style={{ position: 'absolute', top: 26, bottom: -3, left: pct(globalTime), width: 18, marginLeft: -9, cursor: 'ew-resize', touchAction: 'none', zIndex: 5 }} />
           )}
         </div>
-        <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+        {!mobile && <div style={{ display: 'flex', gap: 14, marginTop: 6, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
           <span>Drag the line to move through the video</span>
           <span>Clips{onTrimClip ? ' (drag the white ends to trim)' : ''}</span>
           <span>Voiceover</span>
           {musicUrl && <span>Music</span>}
           {ovCount > 0 && <span>{ovCount === 1 ? 'Overlay' : 'Overlays'}</span>}
           {caps.length > 0 && <span>Your captions</span>}
-        </div>
-        {onSpeedClip && hasClips && !recording && segments[index] && (
+        </div>}
+        {!mobile && onSpeedClip && hasClips && !recording && segments[index] && (
           <div role="group" aria-label={`Speed of clip ${index + 1}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginRight: 4 }}>Clip {index + 1} speed</span>
             {CLIP_SPEEDS.map(([v, name, tip]) => {
@@ -1656,7 +1665,7 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
             <span style={{ flexBasis: '100%', fontSize: 11, color: 'var(--text-muted)' }}>Slower than 0.5x or faster than 2x plays without sound. Click a clip on the timeline to pick it.</span>
           </div>
         )}
-        {clipMenu && clipMenuOpen && hasClips && !recording && segments[index] && (
+        {!mobile && clipMenu && clipMenuOpen && hasClips && !recording && segments[index] && (
           <div role="region" aria-label={`Settings for clip ${index + 1}`} style={{ marginTop: 10, background: 'var(--sand)', borderRadius: 4, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
             {clipMenu(index)}
           </div>
@@ -1675,7 +1684,10 @@ function EditorPreviewInner({ segments, takes, originalVol, musicUrl, musicVol, 
   )
 }
 
-function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
+function EditorPreview({ mobile, panelOpen, onClipIndex, segments, takes, originalVol, musicUrl, musicVol, scriptLines, captionStyle, onAddTake, onRemoveTake, onMoveTake, onReorderClip, onDropFiles, captions, onCaptions, onTrimClip, onSpeedClip, overlays, selOverlay, onSelOverlay, onOverlayPatch, appearance, showScript, scriptSpeed = 1, selCap, onSelCap, onPlayhead, autoCap, onAutoCapMove, onAutoCapRemove, onAutoCapSize, autoCapFont, clipMenu, onPickLibrary, below, badge, onBadge }: {
+  mobile?: boolean
+  panelOpen?: boolean
+  onClipIndex?: (i: number) => void
   below?: React.ReactNode
   badge?: boolean
   onBadge?: (on: boolean) => void
@@ -1720,17 +1732,17 @@ function EditorPreview({ segments, takes, originalVol, musicUrl, musicVol, scrip
   const key = segments.map((s) => previewFileKey(s.file)).join('|')
   return (
     <div
-      className="ed-preview"
+      className={mobile ? 'ed-preview ed-pm' : 'ed-preview'}
       onDragOver={onDropFiles ? (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!fileOver) setFileOver(true) } : undefined}
       onDragLeave={onDropFiles ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileOver(false) } : undefined}
       onDrop={onDropFiles ? (e) => { if (!hasFiles(e)) return; e.preventDefault(); setFileOver(false); onDropFiles(Array.from(e.dataTransfer.files)) } : undefined}
       style={{ background: 'var(--sand)', borderRadius: 4, padding: 20, position: 'relative', outline: fileOver ? '2px dashed var(--coral)' : 'none', outlineOffset: -2 }}
     >
-      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>
+      {!mobile && <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Preview</p>}
       {fileOver && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, borderRadius: 4, background: 'rgba(255,106,77,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: 'var(--coral)', fontSize: 16, fontWeight: 700 }}>Drop a video to add it as a clip</div>
       )}
-      <EditorPreviewInner key={key} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
+      <EditorPreviewInner key={key} mobile={mobile} panelOpen={panelOpen} onClipIndex={onClipIndex} onDropFiles={onDropFiles} captions={captions} onCaptions={onCaptions} onTrimClip={onTrimClip} onSpeedClip={onSpeedClip} showScript={showScript} scriptSpeed={scriptSpeed} selCap={selCap} onSelCap={onSelCap} onPlayhead={onPlayhead} autoCap={autoCap} onAutoCapMove={onAutoCapMove} onAutoCapRemove={onAutoCapRemove} onAutoCapSize={onAutoCapSize} autoCapFont={autoCapFont} badge={badge} onBadge={onBadge} clipMenu={clipMenu} onPickLibrary={onPickLibrary} overlays={overlays} selOverlay={selOverlay} onSelOverlay={onSelOverlay} onOverlayPatch={onOverlayPatch} appearance={appearance} captionStyle={captionStyle} segments={segments} takes={takes} originalVol={originalVol} musicUrl={musicUrl} musicVol={musicVol} scriptLines={scriptLines} onAddTake={onAddTake} onRemoveTake={onRemoveTake} onMoveTake={onMoveTake} onReorderClip={onReorderClip} />
       {below}
     </div>
   )
@@ -1810,6 +1822,68 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
 }
 
 // The tabs over the editor when several filmed videos are open, one per video
+// ---- Phone editor ----------------------------------------------------------------------------------------------
+// Under 1024px wide the editors open full screen like a phone video app: a top bar, the video, the timeline and a
+// row of tools along the bottom that scrolls sideways. Each tool opens its own panel. Desktop is not affected.
+const PHONE_EDITOR_QUERY = '(max-width: 1023px)'
+function usePhoneEditor() {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(PHONE_EDITOR_QUERY); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb) },
+    () => window.matchMedia(PHONE_EDITOR_QUERY).matches,
+    () => false,
+  )
+}
+
+type PhoneTool = { id: string; label: string }
+const PHONE_TOOL_ICONS: Record<string, React.ReactNode> = {
+  idea: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" /></>,
+  clips: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M8 5v14M16 5v14M3 10h5M3 14h5M16 10h5M16 14h5" /></>,
+  clip: <><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M8.6 7.6 20 18M8.6 16.4 20 6" /></>,
+  audio: <><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>,
+  voiceover: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,
+  captions: <><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M7 12h4M13 12h4M7 15.5h7" /></>,
+  overlay: <><path d="m12 3 9 5-9 5-9-5 9-5z" /><path d="m3 13 9 5 9-5" /></>,
+  settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
+}
+
+function PhoneEditorTop({ title, onBack, action, actionLabel, actionDisabled }: { title: string; onBack: () => void; action: () => void; actionLabel: string; actionDisabled: boolean }) {
+  return (
+    <div className="ed-mtop" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 'calc(8px + env(safe-area-inset-top)) 12px 8px', borderBottom: '1px solid var(--line)', background: 'var(--card-bg)' }}>
+      <button type="button" onClick={onBack} aria-label="Leave the editor" style={{ width: 38, height: 38, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 16 }}><Icon n="back" /></button>
+      <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
+      <button type="button" onClick={action} disabled={actionDisabled} data-tour="create-video"
+        style={{ flexShrink: 0, height: 38, padding: '0 16px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: actionDisabled ? 'default' : 'pointer', opacity: actionDisabled ? 0.5 : 1, whiteSpace: 'nowrap' }}>{actionLabel}</button>
+    </div>
+  )
+}
+
+function PhoneEditorNav({ tools, active, onPick }: { tools: PhoneTool[]; active: string | null; onPick: (id: string | null) => void }) {
+  return (
+    <nav className="ed-mnav" aria-label="Editing tools" style={{ display: 'flex', gap: 4, overflowX: 'auto', padding: '6px 8px calc(6px + env(safe-area-inset-bottom))', borderTop: '1px solid var(--line)', background: 'var(--card-bg)', scrollbarWidth: 'none' }}>
+      {tools.map((t) => {
+        const on = active === t.id
+        return (
+          <button key={t.id} type="button" aria-pressed={on} onClick={() => onPick(on ? null : t.id)}
+            style={{ flex: '0 0 auto', minWidth: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 8px', borderRadius: 4, border: 'none', background: on ? 'rgba(255,106,77,0.12)' : 'transparent', color: on ? 'var(--coral)' : 'var(--ink)', fontSize: 11, fontWeight: on ? 700 : 500, cursor: 'pointer' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PHONE_TOOL_ICONS[t.id]}</svg>
+            {t.label}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+// The title strip at the top of an open tool panel, with Done to close it
+function PhonePanelHead({ title, onDone }: { title: string; onDone: () => void }) {
+  return (
+    <div className="ed-mhead" style={{ position: 'sticky', top: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'var(--sand)', borderBottom: '1px solid var(--line)' }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{title}</span>
+      <button type="button" onClick={onDone} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: '4px 0' }}>Done</button>
+    </div>
+  )
+}
+
 function EditorTabsBar({ tabs, active, note, onSwitch, onClose }: { tabs: { key: string; title: string; status: string }[]; active: number; note: string; onSwitch: (i: number) => void; onClose: () => void }) {
   return (
     <div style={{ marginBottom: 20 }}>
@@ -2112,6 +2186,10 @@ export default function DashboardPage() {
   // One look for every caption the person types: picking a style or changing the font, size or colours changes all of them
   const [ownLook, setOwnLook] = useState<{ font: string; size: number; color: string; bg: string | null; bold?: boolean; italic: boolean; underline: boolean }>({ font: 'Sans Bold', size: 60, color: '#FFFFFF', bg: null, italic: false, underline: false })
   const playheadRef = useRef({ t: 0, total: 0 })
+  // Phone editor: which tool panel is open, and the clip the Edit clip panel is showing
+  const phone = usePhoneEditor()
+  const [mTool, setMTool] = useState<string | null>(null)
+  const [mClip, setMClip] = useState(0)
   const handlePlayhead = useCallback((t: number, total: number) => { playheadRef.current = { t, total } }, [])
   // Original sound stays full volume on its own and drops under a voiceover until the user picks a level
   const originalVol = originalVolPick ?? (voiceTakes.length > 0 ? 35 : 100)
@@ -3618,6 +3696,58 @@ export default function DashboardPage() {
     )
   }
 
+  // Phone editor: each settings card sits in a tool wrapper that only shows while its tool is open.
+  // 'always' shows all the time (progress and errors), 'never' only exists on a computer (the big Create button).
+  const edT = (on: boolean, t: string, node: React.ReactNode) => (on ? (t === 'never' ? null : <div className={`ed-tool${t === 'always' || mTool === t ? ' on' : ''}`}>{node}</div>) : node)
+  const PHONE_TOOL_NAMES: Record<string, string> = { idea: 'Idea', clips: 'Clips', clip: 'Edit clip', audio: 'Audio', voiceover: 'Voiceover', captions: 'Captions', overlay: 'Overlay', settings: 'Settings' }
+  const phoneTools = (ids: string[]): PhoneTool[] => ids.map((id) => ({ id, label: PHONE_TOOL_NAMES[id] }))
+  // On a phone the AI editor goes full screen once an idea is picked; picking the idea is a normal page
+  const phoneAi = phone && !!selectedFilmingId
+  const aiPhoneTitle = filmingItems.find((f) => f.id === selectedFilmingId)?.title || 'AI editor'
+
+  // Phone editor: speed, volume and look for one clip. On a computer these sit under the preview.
+  const renderPhoneClipPanel = (m: 'upload' | 'ai') => {
+    const ids = m === 'upload' ? uploadSlots.filter((id) => uploadSlotFiles[id]) : Object.keys(stepUploads).map(Number).sort((a, b) => a - b)
+    if (ids.length === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', padding: 16, margin: 0 }}>Add a clip first, then pick it here to change its speed, volume and look.</p>
+    const i = Math.min(Math.max(0, mClip), ids.length - 1)
+    const id = ids[i]
+    const speed = (m === 'upload' ? uploadSpeeds[id] : aiSpeeds[id]) || 1
+    const vol = (m === 'upload' ? uploadVols[id] : aiVols[id]) ?? 100
+    const arrow = (dir: -1 | 1) => {
+      const off = dir === -1 ? i === 0 : i === ids.length - 1
+      return (
+        <button type="button" aria-label={dir === -1 ? 'Previous clip' : 'Next clip'} disabled={off} onClick={() => setMClip(i + dir)}
+          style={{ width: 36, height: 36, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1 }}>
+          <Icon n={dir === -1 ? 'back' : 'forward'} />
+        </button>
+      )
+    }
+    return (
+      <div style={{ padding: '14px 16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {arrow(-1)}
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Clip {i + 1} of {ids.length}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>The clip under the line. Use the arrows to pick another.</p>
+          </div>
+          {arrow(1)}
+        </div>
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', margin: '0 0 8px' }}>Speed</p>
+          <div role="group" aria-label={`Speed of clip ${i + 1}`} style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {CLIP_SPEEDS.map(([v, name, tip]) => {
+              const on = speed === v
+              return <button key={v} type="button" aria-pressed={on} title={tip} onClick={() => (m === 'upload' ? speedUploadClip(i, v) : speedAiClip(i, v))} style={{ padding: '7px 12px', borderRadius: 4, border: on ? '1px solid var(--coral)' : '1px solid var(--line)', background: on ? 'rgba(255,106,77,0.12)' : 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{name}</button>
+            })}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>Slower than 0.5x or faster than 2x plays without sound.</p>
+        </div>
+        <VolumeRow label="Clip volume" value={vol} onChange={(v) => (m === 'upload' ? setUploadVols((prev) => ({ ...prev, [id]: v })) : setAiVols((prev) => ({ ...prev, [id]: v })))} color="var(--coral)" />
+        {renderClipAppearance(m, i)}
+      </div>
+    )
+  }
+
   const renderVideoSettings = (m: 'upload' | 'ai') => (
     <CollapsibleBox title="Video settings" summary={[(m === 'ai' ? aiResolution : uploadResolution) === '4k' ? '4K' : '1080p', cutDeadSpace ? 'Cuts silences' : ''].filter(Boolean).join(' · ')}>
       {renderVideoSettingsBody(m)}
@@ -4905,6 +5035,42 @@ export default function DashboardPage() {
           /* The preview stays on screen while the settings beside it scroll */
           .ed-split > .ed-preview { position: sticky !important; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
         }
+        /* Phone editor (only ever on screens under 1024px): one screen, nothing on the page scrolls */
+        body:has(.ed-app) { overflow: hidden; }
+        .ed-app { position: fixed !important; inset: 0; z-index: 300; height: 100vh; height: 100dvh; display: flex !important; flex-direction: column !important; gap: 0 !important; background: var(--background); overflow: hidden; }
+        .ed-app > .ed-mtop { order: 0; flex: none; }
+        .ed-app > .ed-mtabs { order: 1; flex: none; padding: 4px 12px 0; background: var(--card-bg); }
+        .ed-app > .ed-mtabs > div { margin-bottom: 0 !important; }
+        .ed-app > .ed-preview { order: 2; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding: 8px 12px 6px !important; border-radius: 0 !important; background: transparent !important; position: relative; }
+        .ed-app > .ed-preview > .ed-pin { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+        .ed-app .ed-stagebox { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+        .ed-app .ed-stagebox > div { height: 100% !important; width: auto !important; max-width: 100%; min-width: 0 !important; margin: 0 !important; }
+        .ed-app .ed-ctrl { flex-wrap: nowrap !important; }
+        .ed-app .ed-ctrl > button:last-child { padding: 8px 14px !important; }
+        .ed-app .ed-tl { flex: none; max-height: 34vh; overflow-y: auto; overscroll-behavior: contain; }
+        .ed-app > .ed-main { order: 3; flex: 0 1 auto; max-height: 50vh; max-height: 50dvh; overflow-y: auto; overscroll-behavior: contain; gap: 0 !important; background: var(--sand); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(0,0,0,0.06); }
+        @media (max-height: 720px) { .ed-app > .ed-main { max-height: 44vh; max-height: 44dvh; } }
+        .ed-app > .ed-main.ed-mhide { display: none !important; }
+        .ed-app.ed-done > .ed-main { flex: 1 1 0; max-height: none; }
+        .ed-app .ed-tool { display: none; }
+        .ed-app .ed-tool.on { display: block; }
+        .ed-app .ed-tool > div { border-radius: 0 !important; }
+        .ed-app > .ed-mnav { order: 4; flex: none; }
+        .ed-app > .ed-mnav::-webkit-scrollbar { display: none; }
+        /* A phone held sideways: the video on the left, the open tool on the right */
+        @media (orientation: landscape) and (max-height: 500px) {
+          .ed-app { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; }
+          .ed-app > .ed-mtop, .ed-app > .ed-mtabs, .ed-app > .ed-mnav { grid-column: 1 / -1; }
+          .ed-app > .ed-mtop { grid-row: 1; } .ed-app > .ed-mtabs { grid-row: 2; } .ed-app > .ed-mnav { grid-row: 4; }
+          .ed-app > .ed-preview { grid-column: 1; grid-row: 3; }
+          .ed-app > .ed-main { grid-column: 2; grid-row: 3; max-height: none !important; border-top: none; border-left: 1px solid var(--line); box-shadow: none; }
+          .ed-app:has(> .ed-main.ed-mhide) > .ed-preview, .ed-app.ed-done > .ed-main { grid-column: 1 / -1; }
+        }
+        .ed-app.ed-done > .ed-main video { display: block; width: auto !important; max-width: 100% !important; max-height: 52vh; max-height: 52dvh; margin: 12px auto 0 !important; }
+        /* The render pop-up sits above the tool bar instead of over it */
+        body:has(.ed-app) .rdt { bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+        body:has(.rdt) .ed-app.ed-done > .ed-main { padding-bottom: 190px; }
+        @media (max-height: 720px) { .ed-app.ed-done > .ed-main video { max-height: 42vh; max-height: 42dvh; } }
       `}</style>
       {showOverageModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -4937,8 +5103,8 @@ export default function DashboardPage() {
       <Sidebar />
       {(renderStatus === 'queued' || renderStatus === 'rendering' || renderStatus === 'processing' || aiRenderStatus === 'queued' || aiRenderStatus === 'rendering' || aiRenderStatus === 'processing') && (
         <div style={{ marginLeft: 'var(--sidebar-offset, 56px)', padding: '12px 36px 0', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '8px 18px', fontSize: 13, color: 'var(--coral)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            <span className="rly-spinner" />
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '8px 18px', fontSize: 13, color: 'var(--coral)', fontWeight: 600, maxWidth: '100%', boxSizing: 'border-box' }}>
+            <span className="rly-spinner" style={{ flexShrink: 0 }} />
             Rendering in the background - feel free to navigate away
           </div>
         </div>
@@ -6130,7 +6296,7 @@ export default function DashboardPage() {
             />
           )}
 
-          {tab === 'uploads' && editorTabs.length > 1 && (
+          {tab === 'uploads' && editorTabs.length > 1 && !phone && (
             <EditorTabsBar
               tabs={editorTabs.map((t, i) => {
                 const id = i === editorTab ? renderId : t.snap?.renderId ?? null
@@ -6144,11 +6310,43 @@ export default function DashboardPage() {
             />
           )}
           {tab === 'uploads' && (
-            <div className="ed-split" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-<div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+            <div className={phone ? `ed-split ed-app${renderId && renderStatus !== 'failed' ? ' ed-done' : ''}` : 'ed-split'} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {phone && (
+                <PhoneEditorTop
+                  title={editorTabs.length > 1 ? editorTabs[editorTab]?.title || 'Editor' : 'Editor'}
+                  onBack={() => { setMTool(null); setTab('overview') }}
+                  actionLabel={freeQuotaExceeded ? 'Upgrade' : uploading ? 'Uploading' : extractingAudio ? 'Preparing' : 'Create video'}
+                  actionDisabled={!freeQuotaExceeded && (uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]))}
+                  action={() => {
+                    if (freeQuotaExceeded) { window.location.href = '/plans'; return }
+                    if (uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id])) return
+                    setMTool(null)
+                    startUploadAndRender()
+                  }}
+                />
+              )}
+              {phone && editorTabs.length > 1 && (
+                <div className="ed-mtabs">
+                  <EditorTabsBar
+                    tabs={editorTabs.map((t, i) => {
+                      const id = i === editorTab ? renderId : t.snap?.renderId ?? null
+                      const st = i === editorTab ? renderStatus : t.snap?.renderStatus ?? null
+                      return { key: t.key, title: t.title, status: !id ? '' : st === 'done' ? 'Ready' : st === 'failed' ? 'Failed' : 'Rendering' }
+                    })}
+                    active={editorTab}
+                    note={editorTabNote}
+                    onSwitch={switchEditorTab}
+                    onClose={closeEditorTabs}
+                  />
+                </div>
+              )}
+<div className={phone && !mTool && !uploading && !uploadError && !renderId ? 'ed-main ed-mhide' : 'ed-main'} style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+              <BoxOpenContext.Provider value={phone}>
+              {phone && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
+              {phone && mTool === 'clip' && renderPhoneClipPanel('upload')}
 
               {/* ── CLIPS ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+              {edT(phone, 'clips', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>Your clips</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                   {uploadSlots.map((slotId, slotIndex) => (
@@ -6267,29 +6465,29 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>)}
 
               {/* ── AUDIO ── */}
-              {renderAudioSection('upload', voiceScript?.label)}
-              {renderVoiceoverSection(voiceScript?.label)}
+              {edT(phone, 'audio', renderAudioSection('upload', voiceScript?.label))}
+              {edT(phone, 'voiceover', renderVoiceoverSection(voiceScript?.label))}
 
               {/* ── CAPTIONS ── */}
-              {renderCaptionsCard('upload')}
-              {renderOverlayCard()}
+              {edT(phone, 'captions', renderCaptionsCard('upload'))}
+              {edT(phone, 'overlay', renderOverlayCard())}
 
               {/* ── VIDEO SETTINGS ── */}
-              {renderVideoSettings('upload')}
+              {edT(phone, 'settings', renderVideoSettings('upload'))}
 
               {/* ── Render ── */}
-              {uploading && (
+              {edT(phone, 'always', <>{uploading && (
                 <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
                   <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
                 </div>
               )}
-              {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)' }}>{uploadError}</p>}
+              {uploadError && <p style={{ fontSize: 13, color: 'var(--coral)', margin: phone ? 0 : undefined, padding: phone ? '10px 16px' : undefined }}>{uploadError}</p>}</>)}
 
-              <button
+              {edT(phone, 'never', <button
                 onClick={() => {
                   if (freeQuotaExceeded) { window.location.href = '/plans'; return }
                   const hasAnyFile = uploadSlots.some((id) => uploadSlotFiles[id])
@@ -6301,10 +6499,10 @@ export default function DashboardPage() {
                 style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: uploading || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: uploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]) ? 0.5 : 1, letterSpacing: 0.3 }}
               >
                 {freeQuotaExceeded ? 'Upgrade to render more videos' : uploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : editorTabs.length > 1 ? `Render video ${editorTab + 1}` : 'Create video'}
-              </button>
+              </button>)}
 
               {/* ── Result ── */}
-              {renderId && (
+              {edT(phone, 'always', renderId && (
                 <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
                   {renderStatus !== 'done' && renderStatus !== 'failed' && (
@@ -6332,12 +6530,20 @@ export default function DashboardPage() {
                       )}
                     </>
                   )}
+                  {phone && (renderStatus === 'done' || renderStatus === 'failed') && (
+                    <button type="button" onClick={() => { setRenderId(null); setRenderStatus(null); setMTool('clips') }}
+                      style={{ display: 'block', width: '100%', marginTop: 16, padding: '12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Start a new video</button>
+                  )}
                 </div>
-              )}
+              ))}
 
+              </BoxOpenContext.Provider>
               </div>
 
               {(!renderId || renderStatus === 'failed') && <EditorPreview
+                mobile={phone}
+                panelOpen={phone && !!mTool}
+                onClipIndex={setMClip}
                 onReorderClip={reorderUploadClip}
                 onDropFiles={addUploadFiles}
                 captionStyle={previewCaptionStyle}
@@ -6374,6 +6580,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
+              {phone && <PhoneEditorNav tools={phoneTools(['clips', 'clip', 'audio', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
             </div>
           )}
 
@@ -6710,11 +6917,28 @@ export default function DashboardPage() {
               )}
 
 {tab === 'aiuploads' && (
-            <div className={selectedFilmingId ? 'ed-split' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-<div className="ed-main" style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+            <div className={selectedFilmingId ? (phoneAi ? `ed-split ed-app${aiRenderId && aiRenderStatus !== 'failed' ? ' ed-done' : ''}` : 'ed-split') : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {phoneAi && (
+                <PhoneEditorTop
+                  title={aiPhoneTitle}
+                  onBack={() => { setMTool(null); setTab('overview') }}
+                  actionLabel={freeQuotaExceeded ? 'Upgrade' : aiUploading ? 'Uploading' : extractingAudio ? 'Preparing' : 'Create video'}
+                  actionDisabled={!freeQuotaExceeded && (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0)}
+                  action={() => {
+                    if (freeQuotaExceeded) { window.location.href = '/plans'; return }
+                    if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return
+                    setMTool(null)
+                    submitAiEditorUploads()
+                  }}
+                />
+              )}
+<div className={phoneAi && !mTool && !aiUploading && !aiEditorError && !aiRenderId ? 'ed-main ed-mhide' : 'ed-main'} style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+              <BoxOpenContext.Provider value={phoneAi}>
+              {phoneAi && mTool && <PhonePanelHead title={PHONE_TOOL_NAMES[mTool] || ''} onDone={() => setMTool(null)} />}
+              {phoneAi && mTool === 'clip' && renderPhoneClipPanel('ai')}
 
               {/* ── Select idea ── */}
-              <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+              {edT(phoneAi, 'idea', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Select an idea to film</p>
                 {filmingItems.length === 0 ? (
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Generate filming instructions first in the Filming tab, then come back here to upload your clips.</p>
@@ -6731,7 +6955,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 )}
-              </div>
+              </div>)}
 
               {selectedFilmingId && (() => {
                 const item = filmingItems.find((f) => f.id === selectedFilmingId)
@@ -6739,7 +6963,7 @@ export default function DashboardPage() {
                 return (
                   <>
                     {/* ── STEP 1: Clips per step ── */}
-                    <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+                    {edT(phoneAi, 'clips', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>1 · Upload your clips</p>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                         <button type="button" onClick={() => setAiSingleClipMode(false)} style={{ padding: '8px 16px', borderRadius: 4, border: !aiSingleClipMode ? '2px solid var(--coral)' : '1px solid var(--line)', background: !aiSingleClipMode ? 'rgba(255,106,77,0.08)' : 'var(--card-bg)', fontSize: 13, color: !aiSingleClipMode ? 'var(--coral)' : 'var(--ink)', fontWeight: !aiSingleClipMode ? 600 : 400, cursor: 'pointer' }}>
@@ -6856,21 +7080,21 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </div>)}
 
                     {/* ── AUDIO ── */}
-                    {renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}
-                    {renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined)}
+                    {edT(phoneAi, 'audio', renderAudioSection('ai', voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined))}
+                    {edT(phoneAi, 'voiceover', renderVoiceoverSection(voiceScript?.label ?? (aiIdeaLines.length > 0 ? aiIdeaItem?.title || 'your idea' : undefined), aiIdeaLines.length === 0 && !voiceScript?.label ? aiIdeaItem?.title : undefined))}
 
                     {/* ── CAPTIONS ── */}
-                    {renderCaptionsCard('ai')}
-                    {renderOverlayCard()}
+                    {edT(phoneAi, 'captions', renderCaptionsCard('ai'))}
+                    {edT(phoneAi, 'overlay', renderOverlayCard())}
 
                     {/* ── VIDEO SETTINGS ── */}
-                    {renderVideoSettings('ai')}
+                    {edT(phoneAi, 'settings', renderVideoSettings('ai'))}
 
                     {/* ── Render ── */}
-                    {aiUploading && (
+                    {edT(phoneAi, 'always', <>{aiUploading && (
                       <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
                         <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
@@ -6878,18 +7102,18 @@ export default function DashboardPage() {
                     )}
                     {aiEditorError && (
                       <p style={{ fontSize: 13, color: 'var(--coral)', padding: '12px 16px', background: 'rgba(255,106,77,0.08)', borderRadius: 4, border: '1px solid rgba(255,106,77,0.25)' }}>{aiEditorError}</p>
-                    )}
+                    )}</>)}
 
-                    <button
+                    {edT(phoneAi, 'never', <button
                       onClick={() => { if (freeQuotaExceeded) { window.location.href = '/plans'; return } if (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0) return; submitAiEditorUploads() }}
                       data-tour="create-video"
                       disabled={aiUploading || extractingAudio || Object.keys(stepUploads).length === 0}
                       style={{ width: '100%', backgroundColor: 'var(--coral)', color: '#fff', padding: '15px', borderRadius: 4, fontSize: 16, fontWeight: 700, border: 'none', boxShadow: aiUploading || Object.keys(stepUploads).length === 0 ? 'none' : '0 4px 18px rgba(255,106,77,0.4)', cursor: aiUploading || extractingAudio ? 'not-allowed' : 'pointer', opacity: aiUploading || extractingAudio || Object.keys(stepUploads).length === 0 ? 0.5 : 1, letterSpacing: 0.3 }}
                     >
                       {freeQuotaExceeded ? 'Upgrade to render more videos' : aiUploading ? 'Uploading...' : extractingAudio ? 'Extracting audio...' : 'Create video'}
-                    </button>
+                    </button>)}
 
-                    {aiRenderId && (
+                    {edT(phoneAi, 'always', aiRenderId && (
                       <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                         <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Your video</h3>
                         {aiRenderStatus !== 'done' && aiRenderStatus !== 'failed' && (
@@ -6913,14 +7137,22 @@ export default function DashboardPage() {
                             )}
                           </>
                         )}
+                        {phoneAi && (aiRenderStatus === 'done' || aiRenderStatus === 'failed') && (
+                          <button type="button" onClick={() => { setAiRenderId(null); setAiRenderStatus(null); setMTool('clips') }}
+                            style={{ display: 'block', width: '100%', marginTop: 16, padding: '12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Start a new video</button>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </>
                 )
               })()}
+              </BoxOpenContext.Provider>
               </div>
 
               {!!selectedFilmingId && (!aiRenderId || aiRenderStatus === 'failed') && <EditorPreview
+                mobile={phoneAi}
+                panelOpen={phoneAi && !!mTool}
+                onClipIndex={setMClip}
                 onDropFiles={addAiFiles}
                 captionStyle={previewCaptionStyle}
                 captions={aiCaps}
@@ -6956,6 +7188,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
+              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'audio', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={setMTool} />}
             </div>
           )}
 
@@ -6999,10 +7232,13 @@ export default function DashboardPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
         >
           <div
+            role="dialog" aria-label="Music library"
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "var(--card-bg)", borderRadius: 4, padding: "32px", maxWidth: 480, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
+            style={{ position: "relative", background: "var(--card-bg)", borderRadius: 4, padding: "32px", maxWidth: 480, width: "100%", maxHeight: "80vh", overflowY: "auto" }}
           >
-            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
+            <button type="button" aria-label="Close" onClick={() => { previewAudioRef.current?.pause(); setPreviewingTrackId(null); setShowMusicLibrary(null) }}
+              style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 4, border: "none", background: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon n="close" /></button>
+            <h2 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 20, fontWeight: 600, marginBottom: 4, paddingRight: 28 }}>
               Music library
             </h2>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>

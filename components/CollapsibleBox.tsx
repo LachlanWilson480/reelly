@@ -1,5 +1,8 @@
 'use client'
-import { useId, useState } from 'react'
+import { createContext, useContext, useId, useState } from 'react'
+
+// Inside a phone editor panel the panel already says what it is, so the box shows its settings straight away
+export const BoxOpenContext = createContext(false)
 
 // A settings box that starts closed and shows a one-line summary of what is set,
 // so people can render without opening every box.
@@ -11,6 +14,14 @@ export default function CollapsibleBox({ title, summary, defaultOpen = false, ch
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const id = useId()
+  const forced = useContext(BoxOpenContext)
+  if (forced) {
+    return (
+      <div style={{ background: 'var(--sand)' }}>
+        <div style={{ padding: '14px 16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>{children}</div>
+      </div>
+    )
+  }
   return (
     <div style={{ background: 'var(--sand)', borderRadius: 4 }}>
       <button
