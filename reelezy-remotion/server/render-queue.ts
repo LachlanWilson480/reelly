@@ -7,6 +7,7 @@ import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
 import { transcribeVideo } from "./transcribe";
 import { correctTranscript } from "./correct-transcript";
+import { alignToText } from "./align-script";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
 import { clipTextSegments } from "./clip-texts";
@@ -53,6 +54,8 @@ type JobData = {
   musicVolume?: number;
   // Seconds into the video where the music starts. Below 0 skips that much of the start of the song.
   musicStart?: number;
+  // The words the person was reading (their script), so captions can have every word, spelt right
+  captionScript?: string;
   outputWidth: number;
   outputHeight: number;
   cutDeadSpace?: boolean;
@@ -211,17 +214,7 @@ export const makeRenderQueue = ({
       if (captionStyle && ((process.env.OPENAI_API_KEY && speechOn) || textOn)) {
         setProgress(jobId, 55, job.data, cancel);
         console.info(`[${jobId}] Step 4: transcribing audio`);
-        let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
-        if (process.env.OPENAI_API_KEY && speechOn) {
-          try {
-            words = await transcribeVideo(stitchedLocalPath);
-          } catch (err) {
-            // A silent video has nothing to transcribe, but its on-screen text still becomes captions
-            if (!textOn) throw err;
-            console.warn(`[${jobId}] Transcription skipped:`, err instanceof Error ? err.message : err);
-          }
-        }
-        // Correct proper nouns using user profile
+        // Correct proper nouns using user profile (also given to the speech-to-text as a hint)
         let properNouns: string[] = [];
         if (userId && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
           try {
@@ -230,7 +223,20 @@ export const makeRenderQueue = ({
             if (profile) properNouns = [profile.business_name, profile.suburb].filter(Boolean);
           } catch {}
         }
-        const spokenWords = correctTranscript(words, properNouns);
+        const script = (job.data.captionScript || '').trim();
+        let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
+        if (process.env.OPENAI_API_KEY && speechOn) {
+          try {
+            words = await transcribeVideo(stitchedLocalPath, [properNouns.join(', '), script].filter(Boolean).join('. '));
+          } catch (err) {
+            // A silent video has nothing to transcribe, but its on-screen text still becomes captions
+            if (!textOn) throw err;
+            console.warn(`[${jobId}] Transcription skipped:`, err instanceof Error ? err.message : err);
+          }
+        }
+        // Use both what was heard (for timing) and the script (for every word, spelt right)
+        const scripted = script ? alignToText(words, script, 0.5) : words;
+        const spokenWords = correctTranscript(scripted, properNouns);
         const textSegments = textOn ? await clipTextSegments(readyClips) : [];
         if (cancelled) throw new Error('Cancelled');
 

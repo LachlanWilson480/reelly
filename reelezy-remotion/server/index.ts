@@ -63,7 +63,7 @@ function setupApp() {
 
   app.post("/renders", async (req, res) => {
     try {
-      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, musicStart, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, userId, renderId, watermark, callbackUrl } = req.body;
+      const { clips, musicSrc, voiceovers, originalVolume, musicVolume, musicStart, captionScript, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, overlay, overlays, userId, renderId, watermark, callbackUrl } = req.body;
 
       if (!Array.isArray(clips) || clips.length === 0) {
         res.status(400).json({ error: "clips array is required" });
@@ -148,6 +148,7 @@ function setupApp() {
         originalVolume: typeof originalVolume === 'number' && Number.isFinite(originalVolume) ? Math.min(1, Math.max(0, originalVolume)) : undefined,
         musicVolume: typeof musicVolume === 'number' && Number.isFinite(musicVolume) ? Math.min(1, Math.max(0, musicVolume)) : undefined,
         musicStart: typeof musicStart === 'number' && Number.isFinite(musicStart) ? Math.min(3600, Math.max(-3600, musicStart)) : undefined,
+        captionScript: typeof captionScript === 'string' && captionScript.trim() ? captionScript.slice(0, 8000) : undefined,
         outputWidth,
         outputHeight,
         cutDeadSpace: cutDeadSpace === true,

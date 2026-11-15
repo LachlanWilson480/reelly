@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, captionScript, musicUrl: directMusicUrl, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -303,6 +303,8 @@ export async function POST(req: NextRequest) {
         musicVolume: typeof musicVolume === 'number' && Number.isFinite(musicVolume) ? Math.min(100, Math.max(0, musicVolume)) / 100 : undefined,
         // Where the music starts in the video (seconds). Below 0 skips the start of the song.
         musicStart: typeof musicStart === 'number' && Number.isFinite(musicStart) && musicStart !== 0 ? Math.min(3600, Math.max(-3600, musicStart)) : undefined,
+        // The script that was read out, so captions can use it alongside what was heard
+        captionScript: typeof captionScript === 'string' && captionScript.trim() ? captionScript.slice(0, 8000) : undefined,
         outputOrientation,
         resolution,
         cutDeadSpace: cutDeadSpace === true,

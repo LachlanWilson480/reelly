@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 import { type ScheduledPost } from '@/components/PublisherPanel'
@@ -70,6 +71,10 @@ const PUBLISH_CSS = `
 .pub-copy:disabled { opacity: 0.4; cursor: default; }
 .pub-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
 .pub-dl { display: inline-flex; align-items: center; gap: 6px; background: var(--coral); color: #fff; border: none; border-radius: 4px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.pub-play { position: relative; display: block; flex-shrink: 0; align-self: start; }
+.pub-play-btn { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.pub-play-btn:hover { background: rgba(0,0,0,0.75); }
+.pub-play video:fullscreen { object-fit: contain; width: 100%; height: 100%; border-radius: 0; }
 .pub-field { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font: inherit; color: var(--ink); background: #fff; }
 .pub-field:focus { outline: none; border-color: var(--coral); }
 .pub-title-field { resize: none; overflow: hidden; white-space: nowrap; height: 38px; line-height: 20px; }
@@ -318,7 +323,7 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
                 <button type="button" aria-label="Close details" onClick={() => { setOpenPost(null); setConfirmDelete(null) }} style={{ ...buttonSecondary, padding: '6px 9px' }}><Icon n="close" /></button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: p.video_url ? '84px 1fr' : '1fr', gap: 14 }}>
-                {p.video_url && <video src={p.video_url} muted playsInline preload="metadata" style={{ width: 84, height: 120, objectFit: 'cover', background: '#000', borderRadius: 2 }} />}
+                {p.video_url && <PlayableVideo src={p.video_url} title={p.title || 'Scheduled video'} style={{ width: 84, height: 120, objectFit: 'cover', background: '#000', borderRadius: 2, display: 'block' }} />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
                   <div>
                     {p.platforms.map((x) => {
@@ -480,6 +485,57 @@ function PlanPanel({ plan, renders, connected, onClose, onDone }: { plan: { from
 
 // Splits saved hashtags ("#a #b, c") into a clean list with one # each
 const parseTags = (t: string | null | undefined) => Array.from(new Set((t || '').split(/[\s,]+/).map((x) => x.replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '')).filter(Boolean))).map((x) => `#${x}`)
+// A video thumbnail with a play button. Play opens it full screen, with sound and the normal controls.
+// iPhones use their own video player for that; anywhere full screen is not allowed, a full-window player opens.
+function PlayableVideo({ src, title, className, style }: { src: string; title: string; className?: string; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLVideoElement | null>(null)
+  const [big, setBig] = useState(false)
+  const reset = () => {
+    const v = ref.current
+    if (!v) return
+    v.pause(); v.controls = false; v.muted = true
+    try { v.currentTime = 0.1 } catch {}
+  }
+  const play = () => {
+    const v = ref.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
+    if (!v) return
+    v.muted = false; v.controls = true
+    try { v.currentTime = 0 } catch {}
+    if (typeof v.requestFullscreen === 'function' && document.fullscreenEnabled) {
+      const left = () => { if (!document.fullscreenElement) { reset(); document.removeEventListener('fullscreenchange', left) } }
+      document.addEventListener('fullscreenchange', left)
+      v.requestFullscreen().then(() => { void v.play().catch(() => {}) }).catch(() => { document.removeEventListener('fullscreenchange', left); reset(); setBig(true) })
+    } else if (typeof v.webkitEnterFullscreen === 'function') {
+      v.addEventListener('webkitendfullscreen', reset, { once: true })
+      void v.play().catch(() => {})
+      v.webkitEnterFullscreen()
+    } else {
+      reset(); setBig(true)
+    }
+  }
+  useEffect(() => {
+    if (!big) return
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setBig(false) }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [big])
+  return (
+    <span className="pub-play">
+      <video ref={ref} className={className} style={style} src={src} muted playsInline preload="metadata" />
+      <button type="button" className="pub-play-btn" aria-label={`Play ${title || 'video'} full screen`} onClick={play}>
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>
+      </button>
+      {big && typeof document !== 'undefined' && createPortal(
+        <div role="dialog" aria-modal="true" aria-label={title || 'Video'} onClick={() => setBig(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <video src={src} controls autoPlay playsInline onClick={(e) => e.stopPropagation()} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+          <button type="button" aria-label="Close" onClick={() => setBig(false)}
+            style={{ position: 'absolute', top: 'calc(12px + env(safe-area-inset-top))', right: 12, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.18)', color: '#fff', fontSize: 22, cursor: 'pointer' }}>×</button>
+        </div>, document.body)}
+    </span>
+  )
+}
+
 // Every video ends with #Reelezy. It is added when shown, copied or posted, so it is always the last one.
 const BRAND_TAG = '#Reelezy'
 const isBrandTag = (t: string) => t.toLowerCase() === BRAND_TAG.toLowerCase()
@@ -530,7 +586,7 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
 
   return (
     <div className="pub-card">
-      <video className="pub-thumb" src={r.output_url!} muted playsInline preload="metadata" />
+      <PlayableVideo className="pub-thumb" src={r.output_url!} title={title} />
       <div className="pub-info">
         <div>
           <p className="pub-label">Title</p>

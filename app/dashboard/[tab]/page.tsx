@@ -5748,6 +5748,8 @@ export default function DashboardPage() {
           musicPath,
           voiceovers,
           originalVolume: originalVol, musicVolume: musicVol, musicStart,
+          // The script that was read out, so captions can use it as well as what was heard
+          captionScript: (voiceScript?.lines?.length ? voiceScript.lines : aiIdeaLines).join('\n') || undefined,
           musicUrl: libraryMusicUrl,
           speechClipIndices: speechIndices,
           clipTrims,
@@ -5990,7 +5992,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, captionScript: voiceScript?.lines?.join('\n') || undefined, musicUrl: libraryMusicUrl, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
       })
 
       const data = await res.json()
@@ -6032,6 +6034,58 @@ export default function DashboardPage() {
 
   const submitAiEditorUploads = () => gateRenderAction(() => { runAiEditorUploads() })
   const startUploadAndRender = () => gateRenderAction(() => { runUploadAndRender() })
+
+  // "Want it done quickly?" When the first clip goes into an editor, offer the recommended settings and a
+  // one-tap render. Shown once per video, and never again if they tick "Don't ask me again".
+  const [quickOffer, setQuickOffer] = useState<'upload' | 'ai' | null>(null)
+  const [quickPending, setQuickPending] = useState<'upload' | 'ai' | null>(null)
+  const [quickNever, setQuickNever] = useState(false)
+  const quickShown = useRef({ upload: false, ai: false })
+  const uploadHasClips = uploadSlots.some((id) => uploadSlotFiles[id])
+  const aiHasClips = Object.keys(stepUploads).length > 0
+  const quickOff = () => { try { return localStorage.getItem('reelezy-quick-offer-off') === '1' } catch { return false } }
+  useEffect(() => {
+    if (!uploadHasClips) { quickShown.current.upload = false; return }
+    if (tab !== 'uploads' || quickShown.current.upload || quickOff() || renderStatus === 'queued' || renderStatus === 'rendering') return
+    quickShown.current.upload = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- shown once when the first clip arrives
+    setQuickOffer('upload')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadHasClips, tab])
+  useEffect(() => {
+    if (!aiHasClips) { quickShown.current.ai = false; return }
+    if (tab !== 'aiuploads' || quickShown.current.ai || quickOff() || aiRenderStatus === 'queued' || aiRenderStatus === 'rendering') return
+    quickShown.current.ai = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- shown once when the first clip arrives
+    setQuickOffer('ai')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiHasClips, tab])
+  const closeQuick = () => {
+    if (quickNever) { try { localStorage.setItem('reelezy-quick-offer-off', '1') } catch {} }
+    setQuickOffer(null)
+  }
+  // The recommended settings: captions of what is said, quiet gaps cut, their logo, Full HD
+  const applyRecommended = (m: 'upload' | 'ai') => {
+    if (m === 'upload') { setUploadAddCaptions(true); setUploadResolution('high') } else { setAiAddCaptions(true); setAiResolution('high') }
+    setCaptionPreset('word_by_word')
+    setCaptionLayers((l) => ({ ...l, speech: { ...l.speech, enabled: true } }))
+    setCutDeadSpace(voiceTakes.length === 0)
+    if (bizLogoUrl && !overlays.some((o) => o.isLogo)) void addLogoOverlay()
+    closeQuick()
+    // Rendered once the settings above (and the logo) are in place
+    setQuickPending(m)
+  }
+  useEffect(() => {
+    if (!quickPending || logoLoading) return
+    const m = quickPending
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-off render once the settings have landed
+    setQuickPending(null)
+    if (freeQuotaExceeded) { window.location.href = '/plans'; return }
+    setMTool(null)
+    if (m === 'upload') { if (!uploading && !extractingAudio && uploadHasClips) startUploadAndRender() }
+    else if (!aiUploading && !extractingAudio && aiHasClips) submitAiEditorUploads()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickPending, logoLoading, overlays.length])
 
   const handleExtractAudio = async (file: File) => {
     if (!userId) return
@@ -7387,6 +7441,30 @@ export default function DashboardPage() {
               <AudioLibrary userId={userId} plan={isFreeTier ? 'free' : userPlan} />
               <OverlayElements userId={userId} />
             </>
+          )}
+          {quickOffer && (
+            <div role="dialog" aria-modal="true" aria-labelledby="quick-title" className="quick-offer"
+              onClick={(e) => { if (e.target === e.currentTarget) closeQuick() }}
+              style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(20,20,24,0.45)', display: 'flex', alignItems: phone ? 'flex-end' : 'center', justifyContent: 'center', padding: phone ? 0 : 20 }}>
+              <div style={{ background: 'var(--card-bg)', color: 'var(--ink)', width: '100%', maxWidth: 440, borderRadius: phone ? '12px 12px 0 0' : 6, padding: phone ? '20px 18px calc(18px + env(safe-area-inset-bottom))' : '24px 24px 20px', boxShadow: '0 10px 40px rgba(0,0,0,0.25)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
+                <h2 id="quick-title" style={{ fontSize: 19, fontWeight: 700, margin: '0 0 6px' }}>Use recommended settings?</h2>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 14px' }}>Want your video done quickly? We will set it up like this and make it straight away. You can still change anything and make it again after.</p>
+                <ul style={{ margin: '0 0 16px', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: 'var(--ink)', listStyle: 'disc' }}>
+                  <li>Captions of what you say, in the word-by-word style</li>
+                  <li>{voiceTakes.length > 0 ? 'Quiet gaps left in, because you recorded a voiceover' : 'Quiet gaps cut out, so it moves faster'}</li>
+                  {bizLogoUrl ? <li>Your logo in the corner</li> : null}
+                  <li>Full HD (1080p)</li>
+                </ul>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 16px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={quickNever} onChange={(e) => setQuickNever(e.target.checked)} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+                  Don&apos;t ask me again
+                </label>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={closeQuick} style={{ padding: '10px 18px', fontSize: 14, fontWeight: 600, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', cursor: 'pointer' }}>Decline</button>
+                  <button type="button" onClick={() => applyRecommended(quickOffer)} style={{ padding: '10px 22px', fontSize: 14, fontWeight: 700, borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', cursor: 'pointer' }}>{freeQuotaExceeded ? 'Upgrade to render' : 'Render'}</button>
+                </div>
+              </div>
+            </div>
           )}
           {audioPicker && (
             <AudioPicker userId={userId} onClose={() => setAudioPicker(false)} onPick={(file, clip) => addVoiceFile(file, clip.path)} />
