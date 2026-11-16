@@ -7,6 +7,12 @@ export type CamFps = 24 | 30 | 60
 export type CamPanel = 'timer' | 'quality' | null
 export type CamLens = { id: string; name: string }
 
+// iPhone, iPad (which can say it is a Mac) and iPod. Every browser on these uses Safari's camera.
+function isAppleTouchDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+}
+
 // Everything the camera screens share besides the stream itself: grid, countdown timer, quality, torch, zoom and lens choice.
 // The film tab and the several videos recorder both use this, so the two always behave the same.
 export function useCameraControls(getStream: () => MediaStream | null) {
@@ -24,10 +30,13 @@ export function useCameraControls(getStream: () => MediaStream | null) {
   const [lensId, setLensId] = useState<string | null>(null)
   const [panel, setPanel] = useState<CamPanel>(null)
 
-  // The size and frame rate to ask the camera for
+  // The size and frame rate to ask the camera for.
+  // iPhones and iPads always get asked for the wide shape: their camera is wide, and asking for a tall picture
+  // makes Safari cut a narrow strip out of it (a big zoom). Asked for wide, Safari turns the picture upright by itself.
   const sizeConstraints = (landscape: boolean) => {
     const [longSide, shortSide] = resRef.current === '4k' ? [3840, 2160] : resRef.current === '720' ? [1280, 720] : [1920, 1080]
-    return { width: { ideal: landscape ? longSide : shortSide }, height: { ideal: landscape ? shortSide : longSide }, frameRate: { ideal: fpsRef.current } }
+    const wide = landscape || isAppleTouchDevice()
+    return { width: { ideal: wide ? longSide : shortSide }, height: { ideal: wide ? shortSide : longSide }, frameRate: { ideal: fpsRef.current } }
   }
   const frameRate = () => fpsRef.current
 

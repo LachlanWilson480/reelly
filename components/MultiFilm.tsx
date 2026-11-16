@@ -390,22 +390,23 @@ export default function MultiFilm(p: Props) {
   }
   useEffect(() => { stopRef.current = stopRecording })
 
-  // Teleprompter: the line scrolls across and recording stops shortly after it ends
+  // Teleprompter: the line scrolls up and recording stops shortly after it ends
   useEffect(() => {
     const el = teleRef.current
     if (!isRecording || !el) {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
-      if (el) el.style.transform = 'translateX(0)'
+      if (el) el.style.transform = 'translateY(0)'
       return
     }
     const words = line.split(/\s+/).filter(Boolean).length
     const secs = Math.max(2, words / (1.3 * Math.min(2, Math.max(0.25, scrollSpeed))))
-    const distance = el.scrollWidth
+    // Scrolls up until the last line sits at the top of the window, like a real teleprompter
+    const distance = Math.max(0, el.scrollHeight - 30)
     const startTime = performance.now()
     let stopTimer: ReturnType<typeof setTimeout> | null = null
     const tick = (now: number) => {
       const progress = Math.min((now - startTime) / (secs * 1000), 1)
-      el.style.transform = `translateX(-${distance * progress}px)`
+      el.style.transform = `translateY(-${distance * progress}px)`
       if (progress < 1) rafRef.current = requestAnimationFrame(tick)
       else stopTimer = setTimeout(() => stopRef.current(), 1500)
     }
@@ -658,8 +659,8 @@ export default function MultiFilm(p: Props) {
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(8,6,24,0.62)', padding: portrait ? '46px 60px 14px 18px' : '12px 60px 12px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {idea.lines[ci - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{idea.lines[ci - 1]}</p>}
                     {isRecording ? (
-                      <div style={{ overflow: 'hidden' }}>
-                        <p ref={teleRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{line}</p>
+                      <div style={{ height: 90, overflow: 'hidden', WebkitMaskImage: 'linear-gradient(to bottom, #000 72%, transparent)', maskImage: 'linear-gradient(to bottom, #000 72%, transparent)' }}>
+                        <p ref={teleRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, lineHeight: 1.35, margin: 0, textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform' }}>{line}</p>
                       </div>
                     ) : (
                       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{line}</p>

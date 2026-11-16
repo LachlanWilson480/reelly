@@ -33,9 +33,10 @@ export function beginRecorder(recorder: MediaRecorder, mime: string) {
   else recorder.start(1000)
 }
 
-// Ask for the last data before stopping so the final seconds are never lost
+// Ask for the last data before stopping so the final seconds are never lost.
+// Not on Safari: it hands over everything when it stops, and asking early can break the file.
 export function finishRecorder(recorder: MediaRecorder) {
-  if (recorder.state === 'recording') {
+  if (recorder.state === 'recording' && !isSafari()) {
     try { recorder.requestData() } catch {}
   }
   if (recorder.state !== 'inactive') recorder.stop()
@@ -43,7 +44,9 @@ export function finishRecorder(recorder: MediaRecorder) {
 
 // Gets the encoder running while the countdown shows, but paused, so nothing is recorded until resumeRecorder.
 // Returns false if this browser cannot pause a recording; then call beginRecorder when the countdown ends instead.
+// Safari (iPhone and Mac) is left out: a recording paused and resumed there comes back empty.
 export function beginRecorderPaused(recorder: MediaRecorder, mime: string): boolean {
+  if (isSafari()) return false
   try {
     beginRecorder(recorder, mime)
     recorder.pause()

@@ -3827,12 +3827,13 @@ export default function DashboardPage() {
     const el = filmTeleprompterInnerRef.current
     if (!filmIsRecording || !el) {
       if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
-      if (el) el.style.transform = 'translateX(0)'
+      if (el) el.style.transform = 'translateY(0)'
       return
     }
     if (!filmCurrentLine) return
     const words = filmCurrentLine.split(/\s+/).filter(Boolean).length
-    const distance = el.scrollWidth
+    // Scrolls up until the last line sits at the top of the window, like a real teleprompter
+    const distance = Math.max(0, el.scrollHeight - 30)
     let progress = 0
     let last = 0
     let stopTimer: ReturnType<typeof setTimeout> | null = null
@@ -3842,7 +3843,7 @@ export default function DashboardPage() {
       const secs = Math.max(2, words / (SCRIPT_WORDS_PER_SEC * clampScriptSpeed(filmScrollSpeedRef.current)))
       progress = Math.min(1, progress + (now - last) / (secs * 1000))
       last = now
-      el.style.transform = `translateX(-${distance * progress}px)`
+      el.style.transform = `translateY(-${distance * progress}px)`
       if (progress < 1) {
         filmRafRef.current = requestAnimationFrame(tick)
       } else {
@@ -7976,8 +7977,8 @@ export default function DashboardPage() {
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, pointerEvents: filmPending ? 'none' : 'auto', background: 'rgba(8,6,24,0.62)', padding: filmOrientation === 'landscape' ? '12px 60px 12px 18px' : '46px 60px 14px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {filmLines[filmLineIdx - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx - 1]}</p>}
                         {filmIsRecording ? (
-                          <div style={{ overflow: 'hidden' }}>
-                            <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0, whiteSpace: 'nowrap', textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform', display: 'inline-block', paddingLeft: '100%' }}>{filmCurrentLine}</p>
+                          <div style={{ height: 90, overflow: 'hidden', WebkitMaskImage: 'linear-gradient(to bottom, #000 72%, transparent)', maskImage: 'linear-gradient(to bottom, #000 72%, transparent)' }}>
+                            <p ref={filmTeleprompterInnerRef} style={{ color: '#fff', fontSize: 22, fontWeight: 700, lineHeight: 1.35, margin: 0, textShadow: '0 1px 8px rgba(0,0,0,0.7)', willChange: 'transform' }}>{filmCurrentLine}</p>
                           </div>
                         ) : (
                           <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{filmCurrentLine}</p>
