@@ -2425,7 +2425,7 @@ function EditorPreviewInner({ mobile, panelOpen, onClipIndex, screenText, clipOp
             <div ref={addMenuRef} role="dialog" aria-label={addMenu.kind === 'video' ? 'Add a video from' : 'Add audio from'}
               style={{ position: 'fixed', zIndex: 1100, left: addMenu.left, top: addMenu.top, width: 240, boxSizing: 'border-box', background: 'rgba(28,28,32,0.97)', borderRadius: 6, padding: 4, boxShadow: '0 6px 24px rgba(0,0,0,0.28)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
               <span aria-hidden="true" style={{ position: 'absolute', left: addMenu.arrow - 8, [addMenu.below ? 'top' : 'bottom']: -8, width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', [addMenu.below ? 'borderBottom' : 'borderTop']: '8px solid rgba(28,28,32,0.97)' }} />
-              {addMenu.kind === 'audio' && src.music && row(<LineIcon n="audio" size={20} />, 'Music library', 'Thousands of licensed songs', () => { setAddMenu(null); src.music!() })}
+              {addMenu.kind === 'audio' && src.music && row(<LineIcon n="audio" size={20} />, 'Music library', 'Songs you can use in your videos', () => { setAddMenu(null); src.music!() })}
               {addMenu.kind === 'audio' && row(<LineIcon n="mic" size={20} />, 'Record a voiceover', 'Starts where the line is', () => { setAddMenu(null); void startRecording() })}
               {row(lib, 'Library', src.libraryLabel || 'Saved in Reelezy', () => { setAddMenu(null); src.library() })}
               {row(box, 'Photo library', src.photoLabel || 'Videos on this device', () => addPhotoRef.current?.click())}
@@ -2589,7 +2589,7 @@ function MusicPicker({ libraryName, musicFile, extractedPath, extracting, extrac
         </div>
       ) : (
         <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0' }}>
-          Music library has thousands of licensed songs to search. Your sounds has your saved sounds, a file from your device, or the sound from a video. Skip this to keep your clips&apos; own sound.
+          Music library has songs you can use in your videos. Your sounds has your saved sounds, a file from your device, or the sound from a video. Skip this to keep your clips&apos; own sound.
         </p>
       )}
       {extractError && <p role="alert" style={{ fontSize: 11, color: 'var(--coral)', margin: '8px 0 0' }}>{extractError}</p>}

@@ -42,7 +42,7 @@ export default function TermsContent({ region }: { region: LegalRegion }) {
       </ul>
 
       <h2 style={H2}>Music from the music library</h2>
-      <p style={P}>Music in the Reelezy music library is supplied by Soundstripe. Before you use it you must agree to <a href="https://www.soundstripe.com/end-user-license-agreement" target="_blank" rel="noopener noreferrer">Soundstripe&apos;s Terms of Use</a>. You may only use these tracks inside videos you make with Reelezy, together with your own content. You must not download, share or sell the tracks on their own, use them to train AI, or share your Reelezy login with anyone else. We keep a record of when you agreed, as Soundstripe requires.</p>
+      <p style={P}>Some music in the Reelezy music library may be supplied by Soundstripe. When it is, you must agree to <a href="https://www.soundstripe.com/end-user-license-agreement" target="_blank" rel="noopener noreferrer">Soundstripe&apos;s Terms of Use</a>. You may only use these tracks inside videos you make with Reelezy, together with your own content. You must not download, share or sell the tracks on their own, use them to train AI, or share your Reelezy login with anyone else. We keep a record of when you agreed, as Soundstripe requires.</p>
 
       <h2 style={H2}>Connected social accounts</h2>
       <p style={P}>You can connect accounts such as YouTube, TikTok, Instagram and Facebook so Reelezy can post the videos you schedule. We only post content you have approved, to the accounts you connect. You must follow each platform&apos;s own rules, and you can disconnect an account at any time from the Publish page.</p>
