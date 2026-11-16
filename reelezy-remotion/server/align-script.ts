@@ -65,7 +65,7 @@ function lineUp(ref: string[], heard: string[]): Step[] {
 }
 
 // Spread words across a stretch of time, longer words getting a little longer
-function spread(words: string[], start: number, end: number): TimedWord[] {
+export function spread(words: string[], start: number, end: number): TimedWord[] {
   const total = words.reduce((n, w) => n + Math.max(2, norm(w).length), 0);
   let t = start;
   return words.map((w) => {
@@ -122,6 +122,40 @@ export function alignToText(heard: TimedWord[], reference: string, minShare = 0.
   }
   flush(null);
   // Keep times in order and never overlapping
+  for (let k = 1; k < out.length; k++) {
+    if (out[k].start < out[k - 1].end) out[k].start = out[k - 1].end;
+    if (out[k].end < out[k].start) out[k].end = out[k].start + 0.05;
+  }
+  return out;
+}
+
+// Captions clip by clip, for a filmed video where each clip has its own line of the script.
+// Each clip's heard words are matched to that clip's line, so one clip that was heard badly (or not at all)
+// cannot stop the others getting their captions. A clip with a line but nothing heard shows its line across the clip.
+export function alignByClip(heard: TimedWord[], lines: string[], spans: { start: number; end: number }[]): TimedWord[] {
+  const out: TimedWord[] = [];
+  spans.forEach((sp, i) => {
+    const from = i === 0 ? -Infinity : sp.start;
+    const to = i === spans.length - 1 ? Infinity : sp.end;
+    const inClip = heard.filter((w) => { const mid = (w.start + w.end) / 2; return mid >= from && mid < to; });
+    const words = scriptTokens(lines[i] || '');
+    if (words.length === 0) { out.push(...inClip); return; }
+    let mine: TimedWord[];
+    if (inClip.length > 0) {
+      mine = alignToText(inClip, lines[i], 0.3);
+    } else {
+      const pad = Math.min(0.3, (sp.end - sp.start) * 0.1);
+      mine = spread(words, sp.start + pad, Math.max(sp.start + pad + 0.1 * words.length, sp.end - pad));
+    }
+    // Words that ran past the end of the clip are squeezed back inside it
+    const k = mine.findIndex((w) => w.end > sp.end + 0.05);
+    if (k >= 0 && sp.end > sp.start) {
+      const a = k > 0 ? Math.min(mine[k - 1].end, sp.end - 0.05 * (mine.length - k)) : sp.start;
+      const tail = spread(mine.slice(k).map((w) => w.word), Math.max(sp.start, a), sp.end);
+      mine = [...mine.slice(0, k), ...tail];
+    }
+    out.push(...mine);
+  });
   for (let k = 1; k < out.length; k++) {
     if (out[k].start < out[k - 1].end) out[k].start = out[k - 1].end;
     if (out[k].end < out[k].start) out[k].end = out[k].start + 0.05;

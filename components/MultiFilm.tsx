@@ -47,6 +47,8 @@ type Clip = {
   duration: number
   path: string | null
   status: 'uploading' | 'done' | 'error'
+  // How far it was zoomed by pinching (iPhones), so the editor shows it zoomed
+  zoom?: number
 }
 
 type Video = { idea: MultiFilmIdea; clips: Clip[] }
@@ -54,10 +56,10 @@ type Video = { idea: MultiFilmIdea; clips: Clip[] }
 // What the editor needs to open every filmed video in its own tab
 export type MultiFilmHandoff = {
   landscape: boolean
-  videos: { key: string; title: string; ideaId: string | null; source: 'idea' | 'script'; caption: string | null; tags: unknown; lines: string[]; actions: string[]; texts: string[][]; clips: { file: File; path: string; duration: number }[] }[]
+  videos: { key: string; title: string; ideaId: string | null; source: 'idea' | 'script'; caption: string | null; tags: unknown; lines: string[]; actions: string[]; texts: string[][]; clips: { file: File; path: string; duration: number; zoom?: number }[] }[]
 }
 type RenderInfo = { id: string; status: 'queued' | 'done' | 'failed'; outputUrl?: string | null }
-type Pending = { blob: Blob; ext: string; type: string; url: string }
+type Pending = { blob: Blob; ext: string; type: string; url: string; zoom?: number }
 
 type Props = {
   userId: string
@@ -311,6 +313,7 @@ export default function MultiFilm(p: Props) {
     if (!streamRef.current || clipTotal === 0) return
     if (!streamIsLive(streamRef.current)) { setRecordError('The camera stopped. It is restarting, press record again in a moment.'); streamRef.current = null; setCameraActive(false); startCamera(); return }
     setRecordError('')
+    const recZoom = camx.digitalZoom
     try {
       const mimeType = pickRecorderMime(badMimeRef.current)
       // Record exactly 9:16 or 16:9. If the camera gives another shape, crop the centre of every frame.
@@ -366,7 +369,7 @@ export default function MultiFilm(p: Props) {
           return
         }
         setRecordError('')
-        setPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob) })
+        setPending({ blob, ext, type: baseType, url: URL.createObjectURL(blob), zoom: recZoom })
       }
       recorder.onerror = () => { setRecordError('Recording stopped unexpectedly. Please try again.'); setIsRecording(false) }
       // The encoder warms up during the countdown, so the camera does not freeze when recording starts
@@ -447,7 +450,7 @@ export default function MultiFilm(p: Props) {
   const saveClip = async () => {
     if (!pending || !idea) return
     const dur = await blobDuration(pending.blob)
-    const clip: Clip = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, blob: pending.blob, url: pending.url, ext: pending.ext, type: pending.type, duration: dur, path: null, status: 'uploading' }
+    const clip: Clip = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, blob: pending.blob, url: pending.url, ext: pending.ext, type: pending.type, duration: dur, path: null, status: 'uploading', zoom: pending.zoom }
     setPending(null)
     const key = idea.key
     setVideos((vs) => vs.map((v) => (v.idea.key === key ? { ...v, clips: [...v.clips, clip] } : v)))
@@ -531,7 +534,7 @@ export default function MultiFilm(p: Props) {
         lines: v.idea.lines,
         actions: v.idea.actions,
         texts: v.idea.texts,
-        clips: v.clips.map((c, i) => ({ file: new File([c.blob], `filmed-${i + 1}.${c.ext}`, { type: c.type }), path: c.path as string, duration: c.duration })),
+        clips: v.clips.map((c, i) => ({ file: new File([c.blob], `filmed-${i + 1}.${c.ext}`, { type: c.type }), path: c.path as string, duration: c.duration, zoom: c.zoom })),
       })),
     })
     // The editor has the clips now, so this screen starts fresh
@@ -638,7 +641,7 @@ export default function MultiFilm(p: Props) {
               <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: portrait ? '9 / 16' : '16 / 9', width: frameW }}>
                 <button type="button" onClick={closeFilming} disabled={isRecording || countdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: isRecording || countdown !== null ? 'not-allowed' : 'pointer', opacity: isRecording || countdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                 {isFreeTier && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: mirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                <video ref={(el) => { videoElRef.current = el; if (el && streamRef.current && el.srcObject !== streamRef.current) el.srcObject = streamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `${mirrored ? 'scaleX(-1) ' : ''}scale(${camx.digitalZoom})`, display: 'block' }} />
                 <CameraControls
                   cam={camx}
                   cameraActive={cameraActive}
@@ -706,7 +709,11 @@ export default function MultiFilm(p: Props) {
                 {recordError && (
                   <div role="alert" style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
                 )}
-                {pending && <video key={pending.url} src={pending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, zIndex: 3, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />}
+                {pending && (
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 3, overflow: 'hidden', background: '#000' }}>
+                    <video key={pending.url} src={pending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', transform: `scale(${pending.zoom || 1})` }} />
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ height: 84, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14, padding: '0 16px', background: '#0b0a10', color: '#fff' }}>

@@ -219,7 +219,7 @@ export async function stitchClips(
   port: number | string,
   crf: number = 28,
   voiceover?: { takes?: { url: string; start: number; duration: number; volume?: number }[]; originalVolume?: number; musicVolume?: number; musicStart?: number }
-): Promise<{ httpUrl: string; cleanup: () => void }> {
+): Promise<{ httpUrl: string; cleanup: () => void; clipSpans: { start: number; end: number }[] }> {
   // Where the music sits: pushed later into the video, or with the start of the song skipped
   const musicPlace = musicPlacement(voiceover?.musicStart);
   const cleanups: (() => void)[] = [];
@@ -238,10 +238,14 @@ export async function stitchClips(
     const speed = Math.min(8, Math.max(0.25, clip.speed ?? 1));
     const volume = clip.volume ?? 1;
 
+    // A clip with no sound (a photo, or a phone recording whose sound failed) gets silence, so joining the clips
+    // never drops the sound of the clips after it
+    const withSound = await hasAudio(clip.localPath);
     const args: string[] = ['-y'];
     if (trimStart > 0) args.push('-ss', String(trimStart));
     if (clip.trimLength) args.push('-t', String(clip.trimLength));
     args.push('-i', clip.localPath);
+    if (!withSound) args.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-map', '0:v:0', '-map', '1:a:0', '-shortest');
     args.push('-vf', speed !== 1 ? `${vf},setpts=PTS/${speed}` : vf);
 
     const audioFilters: string[] = [];
@@ -260,7 +264,7 @@ export async function stitchClips(
     const is4K = Math.max(outputWidth, outputHeight) >= 3840;
     args.push('-c:v', 'libx264', '-preset', is4K ? 'veryfast' : 'fast', '-crf', String(crf), '-pix_fmt', 'yuv420p');
     if (is4K) args.push('-maxrate', '16M', '-bufsize', '32M');
-    args.push('-c:a', 'aac');
+    args.push('-c:a', 'aac', '-ar', '48000', '-ac', '2');
     args.push('-pix_fmt', 'yuv420p');
     args.push('-movflags', '+faststart');
     args.push(outPath);
@@ -268,6 +272,17 @@ export async function stitchClips(
     console.info(`Processing clip ${i + 1}/${clips.length}`);
     await execFileAsync(FFMPEG_PATH, args);
     processedPaths.push(outPath);
+  }
+
+  // Where each clip sits in the joined video (captions use this to keep each clip's words with that clip)
+  const clipSpans: { start: number; end: number }[] = [];
+  {
+    let at = 0;
+    for (const pth of processedPaths) {
+      const d = await mediaDuration(pth);
+      clipSpans.push({ start: at, end: at + d });
+      at += d;
+    }
   }
 
   // Step 2: check if any transitions are needed
@@ -417,7 +432,30 @@ export async function stitchClips(
   const httpUrl = `${baseUrl}/renders/${outputFileName}`;
   const cleanup = () => { try { fs.unlinkSync(outputPath); } catch {} };
 
-  return { httpUrl, cleanup };
+  return { httpUrl, cleanup, clipSpans };
+}
+
+// Whether a file has a sound track
+async function hasAudio(filePath: string): Promise<boolean> {
+  try {
+    const FFPROBE = FFMPEG_PATH.replace('ffmpeg', 'ffprobe');
+    const { stdout } = await execFileAsync(FFPROBE, ['-v', 'quiet', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', filePath]);
+    return String(stdout).trim().length > 0;
+  } catch {
+    return true;
+  }
+}
+
+// How long a file plays, in seconds
+async function mediaDuration(filePath: string): Promise<number> {
+  try {
+    const FFPROBE = FFMPEG_PATH.replace('ffmpeg', 'ffprobe');
+    const { stdout } = await execFileAsync(FFPROBE, ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filePath]);
+    const d = parseFloat(String(stdout).trim());
+    return Number.isFinite(d) ? d : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function cleanOldRenders(rendersDir: string) {

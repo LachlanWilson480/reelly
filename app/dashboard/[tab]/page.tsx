@@ -2888,6 +2888,8 @@ export default function DashboardPage() {
   const muteAiClip = (id: number, on: boolean) => setAiMuted((prev) => { const n = { ...prev }; if (on) n[id] = true; else delete n[id]; return n })
   const filmSpeedRef = useRef(1)
   const filmClipSpeedsRef = useRef<Record<string, number>>({})
+  // How far each filmed clip was zoomed by pinching (iPhones), so the editor and the video show it zoomed
+  const filmClipZoomRef = useRef<Record<string, number>>({})
   const [filmSpeed, setFilmSpeed] = useState(1)
   const [uploadSlotPaths, setUploadSlotPaths] = useState<Record<number, string>>({})
   const [uploadSlotTexts, setUploadSlotTexts] = useState<Record<number, string[]>>({})
@@ -3967,6 +3969,7 @@ export default function DashboardPage() {
     if (!filmStreamRef.current || filmClipCount === 0) return
     if (!streamIsLive(filmStreamRef.current)) { setFilmRecordError('The camera stopped. It is restarting, press record again in a moment.'); filmStreamRef.current = null; setFilmCameraActive(false); startFilmCamera(); return }
     setFilmRecordError('')
+    const recZoom = cam.digitalZoom
     try {
       const mimeType = pickRecorderMime(filmBadMimeRef.current)
       // Record exactly 9:16 (portrait) or 16:9 (landscape). If the camera gives a different shape
@@ -4028,6 +4031,7 @@ export default function DashboardPage() {
         setFilmRecordError('')
         const pendingUrl = URL.createObjectURL(blob)
         filmClipSpeedsRef.current[pendingUrl] = filmSpeedRef.current
+        filmClipZoomRef.current[pendingUrl] = recZoom
         setFilmPending({ blob, ext, type: baseType, url: pendingUrl })
       }
       recorder.onerror = () => { setFilmRecordError('Recording stopped unexpectedly. Please try again.'); setFilmIsRecording(false) }
@@ -4865,11 +4869,11 @@ export default function DashboardPage() {
         : null
       filmOutputOrientationRef.current = filmOrientationRef.current
       const stamp = uploadStamp()
-      const results = await Promise.all(clips.map(async (cl, i) => {
-        const filePath = `${userId}/film/filmed-${stamp}-${i}.${cl.ext}`
-        const { data, error } = await supabase.storage.from('video-uploads').upload(filePath, cl.blob, { contentType: cl.type, upsert: true })
-        if (error || !data) throw new Error('upload failed')
-        return { path: data.path, file: new File([cl.blob], `filmed-${stamp}-${i}.${cl.ext}`, { type: cl.type }) }
+      // The editor opens straight away with the clips from the phone. They upload in the background, and
+      // "Create video" waits for any still uploading, so nothing has to wait here.
+      const results = clips.map((cl, i) => ({
+        path: `${userId}/film/filmed-${stamp}-${i}.${cl.ext}`,
+        file: new File([cl.blob], `filmed-${stamp}-${i}.${cl.ext}`, { type: cl.type }),
       }))
       // Cut the first and last 0.3 seconds of each filmed clip (screen taps). The trim tool can still change this.
       const filmDurs = await Promise.all(results.map((r) => getVideoDuration(r.file)))
@@ -4878,15 +4882,20 @@ export default function DashboardPage() {
       setUploadTrims(filmTrims)
       const slots = results.map((_, i) => i)
       const filesMap: Record<number, File> = {}
-      const pathsMap: Record<number, string> = {}
-      results.forEach((r, i) => { filesMap[i] = r.file; pathsMap[i] = r.path })
+      results.forEach((r, i) => { filesMap[i] = r.file })
       const filmSpeeds: Record<number, number> = {}
       clips.forEach((cl, i) => { const sp = filmClipSpeedsRef.current[cl.url]; if (sp && sp !== 1) filmSpeeds[i] = sp })
       filmClipSpeedsRef.current = {}
       setUploadSpeeds(filmSpeeds)
+      // A clip zoomed by pinching opens zoomed in, the same as moving and zooming it on the preview
+      const filmPlaces: Record<number, ClipPlace> = {}
+      clips.forEach((cl, i) => { const z = filmClipZoomRef.current[cl.url]; if (z && z > 1.01) filmPlaces[i] = { x: 0, y: 0, s: Math.min(5, z) } })
+      filmClipZoomRef.current = {}
+      setUploadPlaces(filmPlaces)
       setUploadSlots(slots)
       setUploadSlotFiles(filesMap)
-      setUploadSlotPaths(pathsMap)
+      setUploadSlotPaths({})
+      results.forEach((r, i) => startClipUpload('u', i, r.file, r.path))
       const filmActionLines = splitActionLines(filmActionsText)
       const filmScriptLines = splitScriptLines(filmScript)
       const lowComfort = parseComfort(profile?.filming_comfort).level === 'low'
@@ -4916,8 +4925,9 @@ export default function DashboardPage() {
       if (renderNow) setFilmAutoRender(true)
       setTab('uploads')
     } catch (err) {
-      console.error('Film upload failed:', err)
-      alert('Saving your clips failed. They are kept here, so press Open in editor to try again.')
+      console.error('Opening filmed clips failed:', err)
+      setFilmReview(true)
+      alert('Your clips could not be opened in the editor. They are kept here, so press Open in editor to try again.')
     }
     setFilmUploading(false)
   }
@@ -4955,10 +4965,8 @@ export default function DashboardPage() {
     if (filmLineIdx + 1 < filmClipCount) {
       setFilmLineIdx(filmLineIdx + 1)
     } else {
-      // Every clip is filmed: go straight into the same editor as everything else. The review screen only
-      // stays up if saving the clips fails, so they can try again from there.
+      // Every clip is filmed: go straight into the same editor as everything else. The clips upload in the background.
       setFilmPlayIdx(0)
-      setFilmReview(true)
       void finishFilm(clips, false)
     }
   }
@@ -5305,7 +5313,8 @@ export default function DashboardPage() {
   // whatever is still in flight instead of uploading everything from scratch.
   const [clipUploadStatus, setClipUploadStatus] = useState<Record<string, ClipUploadState>>({})
 
-  const startClipUpload = (kind: 'u' | 'a', idx: number, file: File) => {
+  // path: where to put it in storage. Filmed clips pass one under /film/ so the render knows they were filmed.
+  const startClipUpload = (kind: 'u' | 'a', idx: number, file: File, path0?: string) => {
     if (!userId) return
     const key = `${kind}${idx}`
     const setPaths = kind === 'u' ? setUploadSlotPaths : setStepUploadPaths
@@ -5318,7 +5327,7 @@ export default function DashboardPage() {
     }
     setClipUploadStatus((prev) => ({ ...prev, [key]: 'uploading' }))
     const safeName = file.name.replace(/[^\w.-]+/g, '_')
-    const path = `${userId}/drafts/${kind === 'u' ? 'upload' : 'ai'}-${idx}-${Date.now()}-${safeName}`
+    const path = path0 || `${userId}/drafts/${kind === 'u' ? 'upload' : 'ai'}-${idx}-${Date.now()}-${safeName}`
     const p: Promise<string | null> = supabase.storage.from('video-uploads').upload(path, file)
       .then(({ error }) => {
         const latest = clipUploadPromises.get(key) === p
@@ -5822,8 +5831,11 @@ export default function DashboardPage() {
       const paths: Record<number, string> = {}
       const trims: Record<number, ClipTrimRange> = {}
       const texts: Record<number, string[]> = {}
+      const places: Record<number, ClipPlace> = {}
       v.clips.forEach((c, i) => {
         files[i] = c.file
+        // Zoomed by pinching while filming: opens zoomed in
+        if (c.zoom && c.zoom > 1.01) places[i] = { x: 0, y: 0, s: Math.min(5, c.zoom) }
         paths[i] = c.path
         // Cut the screen taps at the start and end of each filmed clip, like a single filmed video
         if (c.duration > 1.5 && c.duration !== 5) trims[i] = { start: 0.3, end: c.duration - 0.3, total: c.duration, file: c.file }
@@ -5837,7 +5849,7 @@ export default function DashboardPage() {
       }
       const tags = typeof v.tags === 'string' ? v.tags : Array.isArray(v.tags) ? v.tags.filter((t) => typeof t === 'string').join(' ') : null
       return {
-        slots, files, paths, trims, speeds: {}, vols: {}, looks: {}, texts, ownTexts: {}, speech: new Set(slots), landscape,
+        slots, files, paths, trims, speeds: {}, vols: {}, looks: {}, texts, ownTexts: {}, speech: new Set(slots), landscape, places,
         caps: [], overlays: [], takes: [], assets: {}, musicFile: null, libMusicUrl: null, libMusicName: null, extracted: null,
         badge: true, autoCaptions: true, preset: captionPreset, script: v.lines.length > 0 ? { id: `multi-${v.key}`, label: v.title, lines: v.lines } : null,
         renderId: null, renderStatus: null, renderProgress: 0, outputUrl: null, overQuota: false, renderError: null, uploadError: '',
@@ -5874,7 +5886,7 @@ export default function DashboardPage() {
       const clipTexts: string[][] = []
       const speechIndices: number[] = []
       let anyLandscape = false
-      const isFilmRender = slotIds.every((id) => /\/film\/(filmed|multi)-/.test(uploadSlotPaths[id] || ''))
+      const isFilmRender = slotIds.every((id) => /\/film\/(filmed|multi)-/.test(uploadSlotPaths[id] || '') || /^filmed-/.test(uploadSlotFiles[id]?.name || ''))
       const filmCtx = isFilmRender ? filmRenderContextRef.current : null
       const filmLandscapeOut = isFilmRender && filmOutputOrientationRef.current === 'landscape'
 
@@ -7951,7 +7963,7 @@ export default function DashboardPage() {
                       <div style={{ position: 'relative', background: '#17151f', overflow: 'hidden', aspectRatio: filmOrientation === 'landscape' ? '16 / 9' : '9 / 16', width: filmOrientation === 'landscape' ? 'min(100vw, calc((100dvh - 84px) * 16 / 9))' : 'min(100vw, calc((100dvh - 84px) * 9 / 16))' }}>
                       <button type="button" onClick={closeFilmRecorder} disabled={filmIsRecording || filmCountdown !== null} aria-label="Close recorder" style={{ position: 'absolute', top: 10, right: 10, zIndex: 7, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 20, lineHeight: 1, cursor: filmIsRecording || filmCountdown !== null ? 'not-allowed' : 'pointer', opacity: filmIsRecording || filmCountdown !== null ? 0.4 : 1 }}><Icon n="close" /></button>
                     {showWatermark && <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><span style={{ transform: 'rotate(-28deg)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 44, fontWeight: 800, letterSpacing: 2, color: 'rgba(255,255,255,0.35)', textShadow: '0 2px 8px rgba(0,0,0,0.35)', userSelect: 'none' }}>reelezy</span></div>}
-                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: filmMirrored ? 'scaleX(-1)' : 'none', display: 'block' }} />
+                    <video ref={(el) => { filmVideoRef.current = el; if (el && filmStreamRef.current && el.srcObject !== filmStreamRef.current) el.srcObject = filmStreamRef.current }} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `${filmMirrored ? 'scaleX(-1) ' : ''}scale(${cam.digitalZoom})`, display: 'block' }} />
                     <CameraControls
                       cam={cam}
                       cameraActive={filmCameraActive}
@@ -8022,7 +8034,9 @@ export default function DashboardPage() {
                       <div role="alert" style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{filmRecordError}</div>
                     )}
                     {filmPending && (
-                      <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+                      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#000' }}>
+                        <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', transform: `scale(${filmClipZoomRef.current[filmPending.url] || 1})` }} />
+                      </div>
                     )}
                   </div>
                       </div>

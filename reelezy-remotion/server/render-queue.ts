@@ -7,7 +7,7 @@ import { uploadRenderToSupabase } from "./upload-to-supabase";
 import { getVideoDuration } from "./get-duration";
 import { transcribeVideo } from "./transcribe";
 import { correctTranscript } from "./correct-transcript";
-import { alignToText } from "./align-script";
+import { alignToText, alignByClip } from "./align-script";
 import { createClient } from "@supabase/supabase-js";
 import { burnCaptions } from "./burn-captions";
 import { clipTextSegments } from "./clip-texts";
@@ -186,7 +186,7 @@ export const makeRenderQueue = ({
       // Step 3: stitch clips + mix music
       setProgress(jobId, 40, job.data, cancel);
       console.info(`[${jobId}] Step 3: stitching clips`);
-      const { httpUrl, cleanup: stitchCleanup } = await stitchClips(
+      const { httpUrl, cleanup: stitchCleanup, clipSpans } = await stitchClips(
         readyClips,
         musicSrc, // mixed in here so the music is not lost when captions are on
         outputWidth,
@@ -224,18 +224,23 @@ export const makeRenderQueue = ({
           } catch {}
         }
         const script = (job.data.captionScript || '').trim();
+        // A filmed video has one script line per clip. Then each clip's words are matched to its own line.
+        const scriptLines = script.split('\n').map((l) => l.trim()).filter(Boolean);
+        const byClip = scriptLines.length > 0 && scriptLines.length === readyClips.length && clipSpans.length === readyClips.length && !(voiceovers && voiceovers.length > 0);
         let words: Awaited<ReturnType<typeof transcribeVideo>> = [];
         if (process.env.OPENAI_API_KEY && speechOn) {
           try {
-            words = await transcribeVideo(stitchedLocalPath, [properNouns.join(', '), script].filter(Boolean).join('. '));
+            // Only names as the hint: giving it the whole script can make it skip words it thinks it already has
+            words = await transcribeVideo(stitchedLocalPath, properNouns.join(', '));
           } catch (err) {
-            // A silent video has nothing to transcribe, but its on-screen text still becomes captions
-            if (!textOn) throw err;
+            // A silent video has nothing to transcribe, but its on-screen text (or script) still becomes captions
+            if (!textOn && !byClip) throw err;
             console.warn(`[${jobId}] Transcription skipped:`, err instanceof Error ? err.message : err);
           }
         }
         // Use both what was heard (for timing) and the script (for every word, spelt right)
-        const scripted = script ? alignToText(words, script, 0.5) : words;
+        const scripted = byClip ? alignByClip(words, scriptLines, clipSpans) : script ? alignToText(words, script, 0.5) : words;
+        console.info(`[${jobId}] Captions: ${words.length} words heard, ${scripted.length} shown${byClip ? `, matched clip by clip across ${clipSpans.length} clips` : ''}`);
         const spokenWords = correctTranscript(scripted, properNouns);
         const textSegments = textOn ? await clipTextSegments(readyClips) : [];
         if (cancelled) throw new Error('Cancelled');

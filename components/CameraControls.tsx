@@ -1,9 +1,9 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SpeedSlider from './SpeedSlider'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactNode, PointerEvent as RPointerEvent } from 'react'
 import type { CameraControlsApi, CamRes, CamFps } from '@/lib/useCameraControls'
 
 type Props = {
@@ -48,22 +48,48 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
   const lock = isRecording || counting
   const photoRef = useRef<HTMLInputElement>(null)
   const [speedOpen, setSpeedOpen] = useState(false)
-  const presets = cam.zoomCaps ? [0.5, 1, 2, 5].filter((z) => z >= cam.zoomCaps!.min - 0.01 && z <= cam.zoomCaps!.max + 0.01) : []
-  const showArc = !hidden && (cam.lenses.length > 0 || presets.length > 1)
+  // Pinch on the picture to zoom (or ctrl and scroll, or a trackpad pinch, on a computer)
+  const pinchLayer = useRef<HTMLDivElement>(null)
+  const fingers = useRef(new Map<number, { x: number; y: number }>())
+  const startGap = useRef(0)
+  const [pinching, setPinching] = useState(false)
+  const gap = () => { const [a, b] = [...fingers.current.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0 }
+  const onDown = (e: RPointerEvent) => {
+    if (lock) return
+    fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
+    if (fingers.current.size === 2) { startGap.current = gap(); cam.pinchStart(); setPinching(true) }
+  }
+  const onMove = (e: RPointerEvent) => {
+    if (!fingers.current.has(e.pointerId)) return
+    fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (fingers.current.size === 2 && startGap.current > 0) cam.pinchTo(gap() / startGap.current, onLens)
+  }
+  const onUp = (e: RPointerEvent) => {
+    fingers.current.delete(e.pointerId)
+    if (fingers.current.size < 2) { startGap.current = 0; setPinching(false) }
+  }
+  // Stop Safari zooming the whole page, and let a computer zoom with ctrl and scroll
+  useEffect(() => {
+    const el = pinchLayer.current
+    if (!el) return
+    const stop = (e: Event) => e.preventDefault()
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey || lock) return
+      e.preventDefault()
+      cam.pinchStart()
+      cam.pinchTo(Math.exp(-e.deltaY * 0.01), onLens)
+    }
+    el.addEventListener('gesturestart', stop)
+    el.addEventListener('gesturechange', stop)
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => { el.removeEventListener('gesturestart', stop); el.removeEventListener('gesturechange', stop); el.removeEventListener('wheel', wheel) }
+  })
+  const zoomText = `${cam.shownZoom < 1 ? '.5' : cam.shownZoom >= 1.95 || Math.abs(cam.shownZoom - Math.round(cam.shownZoom)) < 0.05 ? Math.round(cam.shownZoom * 10) / 10 : cam.shownZoom.toFixed(1)}x`.replace('.0x', 'x')
+  const zoomed = Math.abs(cam.shownZoom - 1) > 0.02
   const qualityTop = cam.res === '4k' ? '4K' : cam.res === '720' ? 'HD' : 'FHD'
   const setQuality = (r: CamRes, f: CamFps) => { cam.setQuality(r, f); onRestart() }
 
-  const lensButtons = (
-    <>
-      {cam.lenses.length > 0
-        ? cam.lenses.map((l) => (
-          <button key={l.id} type="button" disabled={lock} onClick={() => onLens(l.id)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: cam.lensId === l.id ? '#fff' : 'transparent', color: cam.lensId === l.id ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{l.name}</button>
-        ))
-        : presets.map((z) => (
-          <button key={z} type="button" onClick={() => cam.changeZoom(z)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: Math.abs(cam.zoom - z) < 0.05 ? '#fff' : 'transparent', color: Math.abs(cam.zoom - z) < 0.05 ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{z === 0.5 ? '.5x' : `${z}x`}</button>
-        ))}
-    </>
-  )
   const recordButton = (
     <button
       type="button"
@@ -190,10 +216,19 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
         </div>
       )}
 
-      {showArc && !bar && (
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 104, zIndex: 3, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.5)', borderRadius: 4, padding: 4 }}>
-          {lensButtons}
-        </div>
+      {/* Pinch anywhere on the picture to zoom */}
+      {!hidden && cameraActive && (
+        <div ref={pinchLayer} aria-hidden="true" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          style={{ position: 'absolute', inset: 0, zIndex: 1, touchAction: 'none' }} />
+      )}
+
+      {/* The zoom while pinching, in the middle of the picture */}
+      {pinching && (
+        <div aria-live="polite" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 6, pointerEvents: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 4, padding: '8px 16px', fontSize: 22, fontWeight: 800 }}>{zoomText}</div>
+      )}
+
+      {!bar && !hidden && cameraActive && zoomed && (
+        <button type="button" onClick={() => cam.resetZoom(onLens)} disabled={lock} aria-label={`Zoom ${zoomText}, tap for 1x`} style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 104, zIndex: 3, minWidth: 48, height: 34, borderRadius: 4, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#ffd166', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{zoomText}</button>
       )}
 
       {notice && !hidden && (
@@ -212,10 +247,9 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
       {bar && !hidden && createPortal(
         <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, minWidth: 0 }}>
-            {showArc && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 4, padding: 3 }}>
-                {lensButtons}
-              </div>
+            {cameraActive && (
+              <button type="button" onClick={() => cam.resetZoom(onLens)} disabled={lock || !zoomed} aria-label={zoomed ? `Zoom ${zoomText}, tap for 1x` : 'Zoom 1x. Pinch the picture to zoom'}
+                style={{ minWidth: 48, height: 34, borderRadius: 4, border: 'none', background: zoomed ? '#fff' : 'rgba(255,255,255,0.12)', color: zoomed ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: zoomed && !lock ? 'pointer' : 'default', padding: '0 10px' }}>{zoomText}</button>
             )}
             {status}
           </div>

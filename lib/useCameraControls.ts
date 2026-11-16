@@ -29,6 +29,18 @@ export function useCameraControls(getStream: () => MediaStream | null) {
   const [lenses, setLenses] = useState<CamLens[]>([])
   const [lensId, setLensId] = useState<string | null>(null)
   const [panel, setPanel] = useState<CamPanel>(null)
+  // Pinch to zoom. Phones that let a website zoom the camera (Android) zoom the real camera. iPhones do not, so the
+  // picture is enlarged instead (digitalZoom) and each clip keeps that zoom for the editor and the finished video.
+  const [digitalZoom, setDigitalZoom] = useState(1)
+  const zoomRef = useRef(1)
+  const digitalRef = useRef(1)
+  const capsRef = useRef<{ min: number; max: number } | null>(null)
+  const lensesRef = useRef<CamLens[]>([])
+  const lensIdRef = useRef<string | null>(null)
+  const pinchBase = useRef(1)
+  const lensSwitching = useRef(false)
+  const applying = useRef(false)
+  const nextNative = useRef<number | null>(null)
 
   // The size and frame rate to ask the camera for.
   // iPhones and iPads always get asked for the wide shape: their camera is wide, and asking for a tall picture
@@ -52,16 +64,26 @@ export function useCameraControls(getStream: () => MediaStream | null) {
     const vt = stream.getVideoTracks()[0]
     setTorch(false)
     setZoom(1)
+    zoomRef.current = 1
+    digitalRef.current = 1
+    setDigitalZoom(1)
+    lensSwitching.current = false
     try {
       const caps = (vt?.getCapabilities?.() || {}) as unknown as { torch?: boolean; zoom?: { min: number; max: number } }
       setTorchOk(!!caps.torch)
-      setZoomCaps(caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max } : null)
+      const zc = caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max } : null
+      capsRef.current = zc
+      setZoomCaps(zc)
+      // Start at 1x where the camera allows it
+      if (zc && zc.min <= 1 && zc.max >= 1) { zoomRef.current = 1 } else if (zc) { zoomRef.current = zc.min; setZoom(zc.min) }
     } catch {
       setTorchOk(false)
       setZoomCaps(null)
+      capsRef.current = null
     }
     const currentId = vt?.getSettings?.().deviceId || null
     setLensId(currentId)
+    lensIdRef.current = currentId
     navigator.mediaDevices.enumerateDevices().then((devs) => {
       const rear = devs.filter((d) => d.kind === 'videoinput' && /back|rear|environment/i.test(d.label))
       const isRear = !!currentId && rear.some((d) => d.deviceId === currentId)
@@ -70,7 +92,9 @@ export function useCameraControls(getStream: () => MediaStream | null) {
       const real = rear.filter((d) => !/dual|triple/i.test(d.label))
       const named = real.map((d) => ({ id: d.deviceId, name: /ultra/i.test(d.label) ? '.5x' : /tele/i.test(d.label) ? '2x' : '1x' }))
       const once = named.filter((l, i) => named.findIndex((o) => o.name === l.name) === i)
-      setLenses(isRear && once.length > 1 ? once.sort((a, b) => parseFloat(a.name) - parseFloat(b.name)) : [])
+      const list = isRear && once.length > 1 ? once.sort((a, b) => parseFloat(a.name) - parseFloat(b.name)) : []
+      lensesRef.current = list
+      setLenses(list)
     }).catch(() => setLenses([]))
   }
 
@@ -87,10 +111,72 @@ export function useCameraControls(getStream: () => MediaStream | null) {
 
   const changeZoom = async (z: number) => {
     setZoom(z)
+    zoomRef.current = z
     await applyTrack({ zoom: z })
   }
 
-  return { grid, setGrid, timer, setTimer, res, fps, frameRate, torchOk, torch, zoomCaps, zoom, lenses, lensId, panel, setPanel, sizeConstraints, setQuality, onStream, toggleTorch, changeZoom }
+  // Real camera zoom, sent one at a time so a fast pinch does not pile up requests
+  const applyNative = (z: number) => {
+    nextNative.current = z
+    if (applying.current) return
+    applying.current = true
+    const run = () => {
+      const v = nextNative.current
+      nextNative.current = null
+      if (v === null) { applying.current = false; return }
+      applyTrack({ zoom: v }).finally(run)
+    }
+    run()
+  }
+
+  const onUltraWide = () => lensesRef.current.some((l) => l.name === '.5x' && l.id === lensIdRef.current)
+
+  // The zoom shown to the person: .5x on the ultra wide lens, otherwise the camera or picture zoom
+  const shownZoom = zoomCaps ? zoom : lenses.some((l) => l.name === '.5x' && l.id === lensId) ? 0.5 : digitalZoom
+
+  const pinchStart = () => {
+    pinchBase.current = capsRef.current ? zoomRef.current : onUltraWide() ? 0.5 : digitalRef.current
+  }
+
+  // factor: how far the fingers have spread since the pinch started (2 = twice as far apart)
+  const pinchTo = (factor: number, onLens?: (id: string) => void) => {
+    if (lensSwitching.current) return
+    const target = pinchBase.current * factor
+    const caps = capsRef.current
+    if (caps) {
+      const z = Math.min(caps.max, Math.max(caps.min, target))
+      zoomRef.current = z
+      setZoom(z)
+      applyNative(z)
+      return
+    }
+    const ultra = lensesRef.current.find((l) => l.name === '.5x')
+    const main = lensesRef.current.find((l) => l.name === '1x')
+    if (onUltraWide()) {
+      // Pinching in from .5x moves back to the main lens
+      if (target >= 0.85 && main && onLens) { lensSwitching.current = true; onLens(main.id) }
+      return
+    }
+    if (target < 0.8 && ultra && onLens) {
+      // Pinching out past 1x moves to the ultra wide lens
+      lensSwitching.current = true
+      onLens(ultra.id)
+      return
+    }
+    const z = Math.min(5, Math.max(1, target))
+    digitalRef.current = z
+    setDigitalZoom(z)
+  }
+
+  // Back to 1x
+  const resetZoom = (onLens?: (id: string) => void) => {
+    if (capsRef.current) { const z = Math.min(capsRef.current.max, Math.max(capsRef.current.min, 1)); zoomRef.current = z; setZoom(z); applyNative(z); return }
+    if (onUltraWide()) { const main = lensesRef.current.find((l) => l.name === '1x'); if (main && onLens) { lensSwitching.current = true; onLens(main.id) } return }
+    digitalRef.current = 1
+    setDigitalZoom(1)
+  }
+
+  return { grid, setGrid, timer, setTimer, res, fps, frameRate, torchOk, torch, zoomCaps, zoom, lenses, lensId, panel, setPanel, sizeConstraints, setQuality, onStream, toggleTorch, changeZoom, digitalZoom, shownZoom, pinchStart, pinchTo, resetZoom }
 }
 
 export type CameraControlsApi = ReturnType<typeof useCameraControls>
