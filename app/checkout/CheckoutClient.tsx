@@ -25,7 +25,8 @@ const check = (
   </svg>
 )
 
-function PayForm({ dueLabel, returnUrl, onSuccess }: { dueLabel: string; returnUrl: string; onSuccess: () => void }) {
+// saveCardOnly: nothing is due today (a free month code), so Stripe asks to save the card for later instead of taking a payment
+function PayForm({ dueLabel, returnUrl, onSuccess, saveCardOnly }: { dueLabel: string; returnUrl: string; onSuccess: () => void; saveCardOnly?: boolean }) {
   const stripe = useStripe()
   const elements = useElements()
   const [submitting, setSubmitting] = useState(false)
@@ -36,31 +37,58 @@ function PayForm({ dueLabel, returnUrl, onSuccess }: { dueLabel: string; returnU
     if (!stripe || !elements || submitting) return
     setSubmitting(true)
     setError('')
-    const result = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnUrl }, redirect: 'if_required' })
-    if (result.error) {
-      setError(result.error.message || 'The payment did not go through. Please check your details and try again.')
+    try {
+      if (saveCardOnly) {
+        const result = await stripe.confirmSetup({ elements, confirmParams: { return_url: returnUrl }, redirect: 'if_required' })
+        if (result.error) {
+          setError(result.error.message || 'Your card could not be saved. Please check your details and try again.')
+          setSubmitting(false)
+          return
+        }
+        const status = result.setupIntent?.status
+        if (status && status !== 'succeeded' && status !== 'processing') {
+          setError('Your card could not be saved. Please try again.')
+          setSubmitting(false)
+          return
+        }
+        onSuccess()
+        return
+      }
+      const result = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnUrl }, redirect: 'if_required' })
+      if (result.error) {
+        setError(result.error.message || 'The payment did not go through. Please check your details and try again.')
+        setSubmitting(false)
+        return
+      }
+      const status = result.paymentIntent?.status
+      if (status && status !== 'succeeded' && status !== 'processing') {
+        setError('The payment did not go through. Please try again.')
+        setSubmitting(false)
+        return
+      }
+      onSuccess()
+    } catch {
+      // Never leave the button stuck on Processing
+      setError('Something went wrong. Please try again.')
       setSubmitting(false)
-      return
     }
-    const status = result.paymentIntent?.status
-    if (status && status !== 'succeeded' && status !== 'processing') {
-      setError('The payment did not go through. Please try again.')
-      setSubmitting(false)
-      return
-    }
-    onSuccess()
   }
 
   return (
     <form onSubmit={submit}>
       <PaymentElement options={{ layout: 'tabs' }} />
+      {saveCardOnly && (
+        <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '12px 0 0', lineHeight: 1.45 }}>
+          Nothing is charged today. Your card is saved for when the free time ends, and you can cancel before then.
+        </p>
+      )}
       {error && <p role="alert" style={{ fontSize: 13, color: 'var(--coral)', margin: '14px 0 0', lineHeight: 1.4 }}>{error}</p>}
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
         style={{ width: '100%', marginTop: 20, padding: '15px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'inherit', cursor: !stripe || submitting ? 'not-allowed' : 'pointer', opacity: !stripe || submitting ? 0.7 : 1 }}
       >
-        {submitting ? 'Processing…' : `Subscribe · ${dueLabel}`}
+        {submitting ? 'Processing…' : saveCardOnly ? 'Start free' : `Subscribe · ${dueLabel}`}
       </button>
     </form>
   )
@@ -291,7 +319,7 @@ export default function CheckoutClient() {
           <svg width="30" height="30" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.6 8.4l2.9 2.9 6-6.4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px' }}>You&apos;re on {planName}</h2>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>Payment received. Taking you to your dashboard…</p>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{clientSecret.startsWith('seti_') ? 'Your free time has started.' : 'Payment received.'} Taking you to your dashboard…</p>
       </div>
     )
   } else {
@@ -327,7 +355,7 @@ export default function CheckoutClient() {
           </div>
         )}
         <Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap' }] }}>
-          <PayForm dueLabel={dueLabel || 'Pay now'} returnUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/checkout?plan=${plan}&interval=${interval}`} onSuccess={finish} />
+          <PayForm dueLabel={dueLabel || 'Pay now'} returnUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/checkout?plan=${plan}&interval=${interval}`} onSuccess={finish} saveCardOnly={clientSecret.startsWith('seti_')} />
         </Elements>
         <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', margin: '18px 0 0' }}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.6" stroke="currentColor" strokeWidth="1.5" /><path d="M5.2 7V5.2a2.8 2.8 0 015.6 0V7" stroke="currentColor" strokeWidth="1.5" /></svg>
