@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { currencyForCountry, currencyForHost, REFERRAL_PERCENT_OFF } from '@/lib/pricing'
+import { codeMismatch, codeRules, coveredPayments } from '@/lib/discountCode'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,9 +55,14 @@ export async function POST(req: NextRequest) {
 
     const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_customer_id, stripe_subscription_id, status')
+      .select('*')
       .eq('user_id', userId)
       .maybeSingle()
+
+    // A plan given by hand is still running. Starting checkout now would replace it, so wait until it ends.
+    if (existingSub && !existingSub.stripe_subscription_id && existingSub.status === 'active' && existingSub.manual_until && new Date(existingSub.manual_until) > new Date()) {
+      return NextResponse.json({ error: 'You already have a free plan from Reelezy. You can subscribe once it ends.', alreadySubscribed: true }, { status: 409 })
+    }
 
     // Someone who already pays must change plan instead. Starting a second checkout would overwrite their paid
     // subscription here (cutting their access) while Stripe keeps billing it, and paying again would charge them twice.
@@ -102,17 +108,23 @@ export async function POST(req: NextRequest) {
       if (refRow && refRow.status === 'signed_up') referralPercent = REFERRAL_PERCENT_OFF
     } catch {}
 
-    const couponForPercent = async (percent: number) => {
-      const couponName = `${percent}OFF`
+    // A Stripe coupon for this percentage. months > 1 covers that many monthly payments, otherwise just the first payment.
+    const couponForPercent = async (percent: number, months = 1) => {
+      const repeating = months > 1
+      const couponName = repeating ? `${percent}OFF${months}M` : `${percent}OFF`
       // Only reuse a coupon that is still valid and has no limits, so an old dashboard coupon with the same name cannot break checkout
       const existingCoupons = await stripe.coupons.list({ limit: 100 })
-      const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === percent && c.valid && c.duration === 'once' && !c.redeem_by && !c.max_redemptions && !c.applies_to)
+      const existing = existingCoupons.data.find((c) => c.name === couponName && c.percent_off === percent && c.valid && !c.redeem_by && !c.max_redemptions && !c.applies_to
+        && (repeating ? c.duration === 'repeating' && c.duration_in_months === months : c.duration === 'once'))
       if (existing) return existing.id
-      const created = await stripe.coupons.create({ percent_off: percent, duration: 'once', name: couponName })
+      const created = repeating
+        ? await stripe.coupons.create({ percent_off: percent, duration: 'repeating', duration_in_months: months, name: couponName })
+        : await stripe.coupons.create({ percent_off: percent, duration: 'once', name: couponName })
       return created.id
     }
 
     let codePercent = 0
+    let codeMonths = 1
     let codeRow: { id: string; uses: number; percent_off: number } | null = null
     if (discountCode) {
       const { data: discountRow } = await supabaseAdmin
@@ -122,14 +134,22 @@ export async function POST(req: NextRequest) {
         .eq('active', true)
         .maybeSingle()
       if (discountRow && (discountRow.max_uses === null || discountRow.uses < discountRow.max_uses) && (!discountRow.expires_at || new Date(discountRow.expires_at) > new Date())) {
-        codePercent = Number(discountRow.percent_off)
+        const rules = codeRules(discountRow)
+        const mismatch = codeMismatch(rules, plan, interval)
+        if (mismatch) return NextResponse.json({ error: mismatch, codeProblem: true }, { status: 400 })
+        // New customers only: someone who has paid before cannot use it again by cancelling and coming back
+        if (rules.newCustomersOnly && existingSub?.paid_at) {
+          return NextResponse.json({ error: 'This code is for new customers only.', codeProblem: true }, { status: 400 })
+        }
+        codePercent = rules.percentOff
+        codeMonths = coveredPayments(rules, interval)
         codeRow = discountRow
       }
     }
     if (referralPercent > 0 && referralPercent >= codePercent) {
       couponId = await couponForPercent(referralPercent)
     } else if (codeRow) {
-      couponId = await couponForPercent(codePercent)
+      couponId = await couponForPercent(codePercent, codeMonths)
     }
 
     const subscription = await stripe.subscriptions.create({

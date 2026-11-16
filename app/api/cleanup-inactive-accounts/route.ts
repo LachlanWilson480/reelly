@@ -63,6 +63,23 @@ export async function GET(req: NextRequest) {
   const deleted: string[] = []
   const errors: { user_id: string; error: string }[] = []
 
+  // Plans given by hand that have run out go back to the Free plan. They are never scheduled for deletion.
+  let giftsEnded = 0
+  try {
+    const { data: ended, error: endErr } = await supabaseAdmin
+      .from('subscriptions')
+      .update({ status: 'canceled', paid: false })
+      .is('stripe_subscription_id', null)
+      .eq('status', 'active')
+      .not('manual_until', 'is', null)
+      .lte('manual_until', now.toISOString())
+      .select('user_id')
+    if (endErr && !/manual_until/.test(endErr.message)) console.error('ending given plans failed:', endErr.message)
+    giftsEnded = ended?.length || 0
+  } catch (e) {
+    console.error('ending given plans failed:', e)
+  }
+
   try {
     const { data: toWarn, error: warnFetchError } = await supabaseAdmin
       .from('subscriptions')
@@ -114,7 +131,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ warned: warned.length, deleted: deleted.length, errors })
+    return NextResponse.json({ warned: warned.length, deleted: deleted.length, giftsEnded, errors })
   } catch (error) {
     console.error('cleanup-inactive-accounts error:', error)
     return NextResponse.json({ error: 'Cleanup job failed' }, { status: 500 })

@@ -85,10 +85,15 @@ export default function CheckoutClient() {
   const [clientSecret, setClientSecret] = useState('')
   const [code, setCode] = useState(urlCode)
   const [percentOff, setPercentOff] = useState<number | null>(null)
+  // The offer in plain words ("1 month free") and how many monthly payments it covers
+  const [codeLabel, setCodeLabel] = useState('')
+  const [codeMonths, setCodeMonths] = useState(1)
   const [referred, setReferred] = useState(false)
   const [refInput, setRefInput] = useState('')
   const [refMsg, setRefMsg] = useState('')
   const [refBusy, setRefBusy] = useState(false)
+  // When Reelezy gave this account a plan by hand, the date it ends
+  const [giftUntil, setGiftUntil] = useState<string | null>(null)
   const started = useRef(false)
 
   const currency = domainCurrency ?? currencyForCountry(country) ?? detectedCurrency
@@ -110,6 +115,13 @@ export default function CheckoutClient() {
       body: JSON.stringify({ email: mail, plan, billingInterval: interval, discountCode: useCode || null }),
     })
     const data = await res.json().catch(() => ({}))
+    // The code does not fit this plan or account: say why and carry on without it
+    if (!res.ok && data.codeProblem && useCode) {
+      setPercentOff(null); setCodeLabel(''); setCodeMonths(1); setCode('')
+      try { sessionStorage.removeItem('reelezy-discount-code') } catch {}
+      setRefMsg(`Code ${useCode}: ${data.error}`)
+      return createSub(mail, '')
+    }
     if (!res.ok || !data.clientSecret) {
       setMessage(data.error || 'We could not start checkout. Please try again.')
       setPhase('error')
@@ -129,9 +141,9 @@ export default function CheckoutClient() {
       let goodCode = ''
       if (startCode) {
         try {
-          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode }) })
+          const r = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: startCode, plan, interval }) })
           const d = await r.json()
-          if (r.ok && Number.isFinite(Number(d.percentOff)) && Number(d.percentOff) > 0) { setPercentOff(Number(d.percentOff)); setCode(startCode); goodCode = startCode }
+          if (r.ok && Number.isFinite(Number(d.percentOff)) && Number(d.percentOff) > 0) { setPercentOff(Number(d.percentOff)); setCodeLabel(d.label || ''); setCodeMonths(interval === 'yearly' ? 1 : Number(d.months) || 1); setCode(startCode); goodCode = startCode }
           else setRefMsg(d?.error ? `Code ${startCode}: ${d.error}.` : 'That discount code could not be applied.')
         } catch { setRefMsg('That discount code could not be checked. Enter it again below.') }
       }
@@ -155,10 +167,13 @@ export default function CheckoutClient() {
 
       const [{ data: profile }, { data: sub }] = await Promise.all([
         supabase.from('business_profiles').select('country').eq('user_id', user.id).maybeSingle(),
-        supabase.from('subscriptions').select('status').eq('user_id', user.id).maybeSingle(),
+        supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
       ])
       setCountry(profile?.country || null)
-      if (sub?.status === 'active') { setPhase('already'); return }
+      if (sub?.status === 'active') {
+        if (!sub.stripe_subscription_id && sub.manual_until) setGiftUntil(sub.manual_until)
+        setPhase('already'); return
+      }
 
       try {
         const { data: ref } = await supabase.from('referrals').select('status').eq('referred_id', user.id).maybeSingle()
@@ -178,11 +193,13 @@ export default function CheckoutClient() {
     setRefMsg('')
     try {
       // A discount code first. If it is not one of those, try it as a friend's referral code.
-      const dr = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c }) })
+      const dr = await fetch('/api/validate-discount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: c, plan, interval }) })
       const dd = await dr.json().catch(() => ({}))
       if (dr.ok && Number.isFinite(Number(dd.percentOff)) && Number(dd.percentOff) > 0) {
         try { sessionStorage.setItem('reelezy-discount-code', c) } catch {}
         setPercentOff(Number(dd.percentOff))
+        setCodeLabel(dd.label || '')
+        setCodeMonths(interval === 'yearly' ? 1 : Number(dd.months) || 1)
         setCode(c)
         setRefInput('')
         setClientSecret('')
@@ -191,6 +208,7 @@ export default function CheckoutClient() {
         setRefBusy(false)
         return
       }
+      if (dr.status === 400 && dd?.error) { setRefMsg(dd.error); setRefBusy(false); return }
       const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
       const d = await res.json().catch(() => ({}))
       if (d.claimed) {
@@ -259,7 +277,9 @@ export default function CheckoutClient() {
       </div>
     ))
   } else if (phase === 'already') {
-    right = panel('You already have a plan', 'To change or cancel it, open Manage billing on the plans page.', backLink)
+    right = giftUntil
+      ? panel('You already have a plan', `Reelezy has given you a free plan until ${new Date(giftUntil).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}. You can subscribe once it ends.`, backLink)
+      : panel('You already have a plan', 'To change or cancel it, open Manage billing on the plans page.', backLink)
   } else if (phase === 'failed') {
     right = panel('That payment did not go through', 'Nothing was charged. You can go back and try again.', backLink)
   } else if (phase === 'error') {
@@ -281,7 +301,7 @@ export default function CheckoutClient() {
         {email && <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 22px' }}>Your receipt will go to {email}</p>}
         {percentOff !== null && !referred && (
           <p style={{ fontSize: 13, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '0 0 20px', lineHeight: 1.45 }}>
-            Code {code} applied: {percentOff}% off your first payment.
+            Code {code} applied: {codeLabel || `${percentOff}% off your first payment`}.
           </p>
         )}
         {referred && (
@@ -356,7 +376,7 @@ export default function CheckoutClient() {
                 {interval === 'yearly' && <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px' }}>That&apos;s {money(base / 12)} a month, with two months free.</p>}
                 {discount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8, color: '#d92d20' }}>
-                    <span>{usingReferral ? 'Referral discount' : `Discount ${code}`} ({effectivePct}% off)</span>
+                    <span>{usingReferral ? 'Referral discount' : `Discount ${code}`} ({!usingReferral && effectivePct >= 100 ? 'free' : `${effectivePct}% off`})</span>
                     <span>-{money(discount)}</span>
                   </div>
                 )}
@@ -365,7 +385,9 @@ export default function CheckoutClient() {
                   <span style={{ fontSize: 24 }}>{money(due)} <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' }}>{currency}</span></span>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '10px 0 0' }}>
-                  {interval === 'yearly' ? `Renews each year at ${money(base)}.` : `Renews each month at ${money(base)}.`} Cancel any time.
+                  {!usingReferral && percentOff !== null && codeMonths > 1
+                    ? `Your discount covers your first ${codeMonths} monthly payments, then it renews each month at ${money(base)}.`
+                    : interval === 'yearly' ? `Renews each year at ${money(base)}.` : `Renews each month at ${money(base)}.`} Cancel any time.
                 </p>
               </>
             ) : (

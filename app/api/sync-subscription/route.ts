@@ -30,9 +30,14 @@ export async function POST(req: NextRequest) {
 
     const { data: row } = await supabaseAdmin
       .from('subscriptions')
-      .select('stripe_subscription_id, stripe_customer_id')
+      .select('*')
       .eq('user_id', authed.userId)
       .maybeSingle()
+
+    // A plan given by hand (supabase/give_plan.sql) is not in Stripe, so leave it as it is until it ends
+    if (row && !row.stripe_subscription_id && row.manual_until && row.status === 'active' && new Date(row.manual_until) > new Date()) {
+      return NextResponse.json({ status: 'active', current_period_end: row.manual_until, cancel_at_period_end: true, gift: true })
+    }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 

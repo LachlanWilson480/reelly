@@ -48,6 +48,8 @@ export default function SettingsPage() {
   const [subPeriodEnd, setSubPeriodEnd] = useState<string | null>(null)
   const [subCancelling, setSubCancelling] = useState(false)
   const [subEnding, setSubEnding] = useState(false)
+  // A plan Reelezy gave by hand: nothing to bill or cancel
+  const [subGift, setSubGift] = useState(false)
   const [subChanging, setSubChanging] = useState<string | null>(null)
   const [subMessage, setSubMessage] = useState('')
   const [email, setEmail] = useState('')
@@ -185,7 +187,7 @@ export default function SettingsPage() {
 
       const { data: subRow } = await supabase
         .from('subscriptions')
-        .select('plan, status, current_period_end')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -205,6 +207,7 @@ export default function SettingsPage() {
         setSubPlan(subRow.plan)
         setSubStatus(status)
         setSubPeriodEnd(periodEnd)
+        setSubGift(!subRow.stripe_subscription_id && !!subRow.manual_until && status === 'active')
       }
 
       setLoading(false)
@@ -772,11 +775,11 @@ export default function SettingsPage() {
                     {subPlan === 'top' ? 'Pro' : subPlan === 'mid' ? 'Basic' : 'Basic'}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    Status: {subEnded ? 'Cancelled' : subEnding ? 'Cancelling' : subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
+                    Status: {subGift ? 'Active, free from Reelezy' : subEnded ? 'Cancelled' : subEnding ? 'Cancelling' : subStatus === 'active' ? 'Active' : subStatus || 'Unknown'}
                   </p>
                   {subPeriodEnd && (
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                      {subEnded ? 'Ended' : subEnding ? 'Your plan ends on' : 'Next billing date'}: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {subGift ? 'Free until' : subEnded ? 'Ended' : subEnding ? 'Your plan ends on' : 'Next billing date'}: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   )}
                   {subEnded && (
@@ -797,7 +800,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {subPlan && subStatus === 'active' && !subEnding && (
+            {subPlan && subStatus === 'active' && !subEnding && !subGift && (
               <>
                 <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
                   <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>

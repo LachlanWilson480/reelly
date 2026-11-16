@@ -1,5 +1,6 @@
 'use client'
 
+import { normPlan } from '@/lib/discountCode'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
@@ -42,11 +43,11 @@ export default function PlansPage() {
         const { data: profile } = await supabase.from('business_profiles').select('business_name, country').eq('user_id', user.id).maybeSingle()
         setProfileCountry(profile?.country || null)
         setBusinessName(profile?.business_name || user.email || null)
-        const { data: sub } = await supabase.from('subscriptions').select('plan, status, billing_interval, stripe_subscription_id').eq('user_id', user.id).maybeSingle()
+        const { data: sub } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle()
         const activePlan = sub?.status === 'active' ? sub.plan : 'free'
         setUserPlan(activePlan)
         if (activePlan !== 'free' && sub) {
-          setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null })
+          setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null, gift_until: !sub.stripe_subscription_id && sub.manual_until ? sub.manual_until : null })
           const { data: bp } = await supabase.from('business_profiles').select('ideas_generated_this_week, scripts_generated_this_week, filming_generated_this_week').eq('user_id', user.id).maybeSingle()
           const monthStart = getMonthStartISO()
           const { data: monthRenders } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).gte('created_at', monthStart)
@@ -69,11 +70,21 @@ export default function PlansPage() {
   const [discountError, setDiscountError] = useState('')
   const [discountLoading, setDiscountLoading] = useState(false)
   const [discountPercent, setDiscountPercent] = useState<number | null>(null)
-  const effectivePercent = Math.max(discountPercent ?? 0, referralPercent) || null
+  // What the code allows: monthly billing only, certain plans only, and the offer in plain words
+  const [discountRules, setDiscountRules] = useState<{ monthlyOnly: boolean; plans: string[] | null; labelMonthly: string; labelYearly: string } | null>(null)
+  // The bigger of the code and a friend's referral discount, for one plan on the billing chosen
+  const percentFor = (tierId: string) => {
+    if (tierId === 'free') return null
+    const p = normPlan(tierId)
+    const codeFits = !!discountPercent && !!discountRules
+      && !(discountRules.monthlyOnly && billingInterval === 'yearly')
+      && !(discountRules.plans && p && !discountRules.plans.includes(p))
+    return Math.max(codeFits ? discountPercent! : 0, referralPercent) || null
+  }
   const [refInput, setRefInput] = useState('')
   const [refMsg, setRefMsg] = useState('')
   const [refBusy, setRefBusy] = useState(false)
-  const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null } | null>(null)
+  const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null; gift_until?: string | null } | null>(null)
   const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number; renderMinutes: number } | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
@@ -112,6 +123,7 @@ export default function PlansPage() {
     setDiscountLoading(true)
     setDiscountError('')
     setDiscountPercent(null)
+    setDiscountRules(null)
     setDiscountCode('')
     const res = await fetch('/api/validate-discount', {
       method: 'POST',
@@ -126,6 +138,7 @@ export default function PlansPage() {
       setDiscountCode(data.code)
       try { sessionStorage.setItem('reelezy-discount-code', data.code) } catch {}
       setDiscountPercent(data.percentOff)
+      setDiscountRules({ monthlyOnly: !!data.monthlyOnly, plans: Array.isArray(data.plans) ? data.plans : null, labelMonthly: data.labelMonthly || `${data.percentOff}% off`, labelYearly: data.labelYearly || `${data.percentOff}% off` })
     }
   }
 
@@ -153,10 +166,10 @@ export default function PlansPage() {
     setRefBusy(false)
   }
 
-  const discountedPrice = (price: string) => {
-    if (!effectivePercent) return null
+  const discountedPrice = (price: string, pct: number | null) => {
+    if (!pct) return null
     const num = parseFloat(price.replace(/[^0-9.]/g, ''))
-    return `${p.symbol}${(num * (1 - effectivePercent / 100)).toFixed(2)}`
+    return `${p.symbol}${(num * (1 - pct / 100)).toFixed(2)}`
   }
 
   const openPortal = async () => {
@@ -190,7 +203,7 @@ export default function PlansPage() {
           <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
             <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32 }}>
-              {subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
+              {subDetails.gift_until ? 'A free plan from Reelezy' : subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
             </p>
 
             {/* Plan card */}
@@ -200,17 +213,23 @@ export default function PlansPage() {
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>Current plan</p>
                   <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--coral)' }}>{planLabel}</p>
                 </div>
-                <button
+                {!subDetails.gift_until && <button
                   onClick={openPortal}
                   disabled={portalLoading}
                   style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: portalLoading ? 0.6 : 1 }}
                 >
                   {portalLoading ? 'Opening…' : 'Manage billing'}
-                </button>
+                </button>}
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                To upgrade, downgrade, or cancel your plan, click <strong>Manage billing</strong> to open the Stripe customer portal.
-              </p>
+              {subDetails.gift_until ? (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  Reelezy has given you this plan for free until <strong>{new Date(subDetails.gift_until).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Nothing is charged. When it ends you go back to the Free plan, and you can subscribe any time after that.
+                </p>
+              ) : (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  To upgrade, downgrade, or cancel your plan, click <strong>Manage billing</strong> to open the Stripe customer portal.
+                </p>
+              )}
             </div>
 
             {/* Weekly usage */}
@@ -344,11 +363,11 @@ export default function PlansPage() {
                   {tier.name}
                 </h3>
                 <p style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", marginBottom: 4, color: tier.highlight ? 'var(--ink)' : 'var(--ink)' }}>
-                  {effectivePercent ? (
+                  {percentFor(tier.id) ? (
                     <>
                       <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 24 }}>{billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice}</span>
                       {' '}
-                      {discountedPrice(billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
+                      {discountedPrice(billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice, percentFor(tier.id))}
                     </>
                   ) : (billingInterval === 'yearly' ? tier.yearlyPerMonth : tier.monthlyPrice)}
                   <span style={{ fontSize: 16, fontWeight: 400 }}>/mo</span>
@@ -416,7 +435,16 @@ export default function PlansPage() {
               </button>
             </div>
             {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
-            {discountPercent && <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>{discountPercent}% off applied!</p>}
+            {discountPercent && (
+              <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>
+                Code applied: {discountRules ? (billingInterval === 'yearly' && !discountRules.monthlyOnly ? discountRules.labelYearly : discountRules.labelMonthly) : `${discountPercent}% off`}
+                {discountRules && (discountRules.monthlyOnly || discountRules.plans) && (
+                  <span style={{ display: 'block', fontWeight: 400, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    {[discountRules.monthlyOnly ? 'Monthly billing only' : '', discountRules.plans ? `${discountRules.plans.map((x) => (x === 'top' ? 'Pro' : 'Basic')).join(' or ')} plan only` : ''].filter(Boolean).join('. ')}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
 
           {userEmail && (

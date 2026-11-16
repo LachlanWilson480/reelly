@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createClient } from '@supabase/supabase-js'
+import { codeLabel, codeMismatch, codeRules } from '@/lib/discountCode'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`discount:${ip}`, 10, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
 
-    const { code } = await req.json()
+    const { code, plan, interval } = await req.json()
     if (!code?.trim()) {
       return NextResponse.json({ error: 'No code provided' }, { status: 400 })
     }
@@ -37,7 +38,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This discount code has reached its limit' }, { status: 400 })
     }
 
-    return NextResponse.json({ valid: true, percentOff: Number(data.percent_off), code: data.code })
+    const rules = codeRules(data)
+    // When the page says which plan and billing it is for, check the code fits them
+    const mismatch = codeMismatch(rules, typeof plan === 'string' ? plan : null, typeof interval === 'string' ? interval : null)
+    if (mismatch) return NextResponse.json({ error: mismatch }, { status: 400 })
+
+    return NextResponse.json({
+      valid: true,
+      percentOff: rules.percentOff,
+      code: data.code,
+      months: rules.months,
+      monthlyOnly: rules.monthlyOnly,
+      plans: rules.plans,
+      newCustomersOnly: rules.newCustomersOnly,
+      label: codeLabel(rules, interval === 'yearly' ? 'yearly' : 'monthly'),
+      labelMonthly: codeLabel(rules, 'monthly'),
+      labelYearly: codeLabel(rules, 'yearly'),
+    })
   } catch (error) {
     console.error('validate-discount error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to validate code' }, { status: 500 })
