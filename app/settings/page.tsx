@@ -782,6 +782,14 @@ export default function SettingsPage() {
                       {subGift ? 'Free until' : subEnded ? 'Ended' : subEnding ? 'Your plan ends on' : 'Next billing date'}: {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   )}
+                  {(subEnding || subGift) && !subEnded && subPeriodEnd && (
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.35)', borderRadius: 4, padding: '10px 12px', margin: '12px 0 0', lineHeight: 1.45 }}>
+                      {subPlan === 'top' ? 'Pro' : 'Basic'} plan until {new Date(subPeriodEnd).toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })}, then Free plan
+                      <span style={{ display: 'block', fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)', marginTop: 2 }}>
+                        You keep everything until then. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>{subGift ? 'View paid plans' : 'Changed your mind? Manage billing'}</a>
+                      </span>
+                    </p>
+                  )}
                   {subEnded && (
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
                       You&apos;re no longer subscribed. <a href="/plans" style={{ color: 'var(--coral)', fontWeight: 600 }}>View plans</a>
