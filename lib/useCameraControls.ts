@@ -65,9 +65,12 @@ export function useCameraControls(getStream: () => MediaStream | null) {
     navigator.mediaDevices.enumerateDevices().then((devs) => {
       const rear = devs.filter((d) => d.kind === 'videoinput' && /back|rear|environment/i.test(d.label))
       const isRear = !!currentId && rear.some((d) => d.deviceId === currentId)
-      setLenses(isRear && rear.length > 1
-        ? rear.map((d) => ({ id: d.deviceId, name: /ultra/i.test(d.label) ? '.5x' : /tele/i.test(d.label) ? '2x' : '1x' })).sort((a, b) => parseFloat(a.name) - parseFloat(b.name))
-        : [])
+      // iPhones also list combined cameras ("Back Dual Camera", "Back Triple Camera") that switch lenses by themselves.
+      // Leave those out, and show each lens once: .5x, 1x, then the zoom lens.
+      const real = rear.filter((d) => !/dual|triple/i.test(d.label))
+      const named = real.map((d) => ({ id: d.deviceId, name: /ultra/i.test(d.label) ? '.5x' : /tele/i.test(d.label) ? '2x' : '1x' }))
+      const once = named.filter((l, i) => named.findIndex((o) => o.name === l.name) === i)
+      setLenses(isRear && once.length > 1 ? once.sort((a, b) => parseFloat(a.name) - parseFloat(b.name)) : [])
     }).catch(() => setLenses([]))
   }
 

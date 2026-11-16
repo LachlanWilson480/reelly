@@ -131,6 +131,8 @@ export default function MultiFilm(p: Props) {
   const deviceIdRef = useRef<string | null>(null)
   const orientationRef = useRef<'portrait' | 'landscape'>('portrait')
   const teleRef = useRef<HTMLParagraphElement | null>(null)
+  // The bar under the picture, where the record button and lens buttons sit
+  const [barEl, setBarEl] = useState<HTMLDivElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const stopRef = useRef<() => void>(() => {})
   const seqRef = useRef(0)
@@ -651,10 +653,20 @@ export default function MultiFilm(p: Props) {
                   onRestart={restartCamera}
                   onLens={pickLens}
                   onLibrary={() => setShowLibrary(true)}
+                  bar={barEl}
+                  status={isRecording ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />REC
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600, lineHeight: 1.35 }}>
+                      Video {vi + 1} of {videos.length} · Clip {Math.min(ci + 1, clipTotal)} of {clipTotal}
+                      {(uploadingCount > 0 || videos.some((v) => v.clips.length > 0)) && (
+                        <span style={{ display: 'block', color: uploadingCount > 0 ? '#ffd166' : 'rgba(255,255,255,0.45)' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Saved'}</span>
+                      )}
+                    </span>
+                  )}
                 />
-                <div style={{ position: 'absolute', bottom: 108, right: 14, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700, zIndex: 3 }}>
-                  Video {vi + 1} of {videos.length} · Clip {Math.min(ci + 1, clipTotal)} of {clipTotal}
-                </div>
                 {line && !pending && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(8,6,24,0.62)', padding: portrait ? '46px 60px 14px 18px' : '12px 60px 12px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {idea.lines[ci - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{idea.lines[ci - 1]}</p>}
@@ -666,10 +678,16 @@ export default function MultiFilm(p: Props) {
                       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1.35, margin: 0 }}>{line}</p>
                     )}
                     {idea.lines[ci + 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{idea.lines[ci + 1]}</p>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Slower</span>
+                      <input type="range" min={0.25} max={2} step={0.25} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ flex: 1, minWidth: 0, accentColor: 'var(--coral)' }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Faster</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', minWidth: 34, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{scrollSpeed}x</span>
+                    </div>
                   </div>
                 )}
                 {action && !pending && (
-                  <div style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 4, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
+                  <div style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 4, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
                     <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>Action{idea.durations?.[ci] ? <span style={{ background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, borderRadius: 4, padding: '2px 10px' }}>about {idea.durations[ci]} seconds</span> : null}</p>
                     <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{action}</p>
                   </div>
@@ -686,13 +704,7 @@ export default function MultiFilm(p: Props) {
                   </div>
                 )}
                 {recordError && (
-                  <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 190, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
-                )}
-                {isRecording && (
-                  <div style={{ position: 'absolute', bottom: 108, left: 14, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px', zIndex: 3 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
-                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
-                  </div>
+                  <div role="alert" style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{recordError}</div>
                 )}
                 {pending && <video key={pending.url} src={pending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, zIndex: 3, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />}
               </div>
@@ -708,16 +720,7 @@ export default function MultiFilm(p: Props) {
                   </button>
                 </>
               ) : (
-                <>
-                
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scroll speed {scrollSpeed}x</span>
-                    <span style={{ fontSize: 11, color: uploadingCount > 0 ? '#ffd166' : 'rgba(255,255,255,0.45)' }}>{uploadingCount > 0 ? `Uploading ${uploadingCount}…` : videos.some((v) => v.clips.length > 0) ? 'Saved' : ''}</span>
-                  </div>
-                  <input type="range" min={0.25} max={2} step={0.25} value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} aria-label="Teleprompter scroll speed" style={{ width: '100%', accentColor: 'var(--coral)' }} />
-                </div>
-                </>
+                <div ref={setBarEl} style={{ flex: 1, height: '100%', minWidth: 0 }} />
               )}
             </div>
           </>

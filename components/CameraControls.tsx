@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import SpeedSlider from './SpeedSlider'
 import type { CSSProperties, ReactNode } from 'react'
 import type { CameraControlsApi, CamRes, CamFps } from '@/lib/useCameraControls'
@@ -24,6 +25,10 @@ type Props = {
   // Slow-mo (below 1) and timelapse (above 1). The clip is filmed normally and played at this speed in the video.
   speed?: number
   onSpeed?: (speed: number) => void
+  // The bar under the picture. When given, the lens buttons and the record row go there instead of on top of the video.
+  bar?: HTMLElement | null
+  // A short line shown in the bar under the lens buttons, like "Clip 1 of 4" or the REC light
+  status?: ReactNode
 }
 
 
@@ -39,7 +44,7 @@ function Svg({ children }: { children: ReactNode }) {
 }
 
 // The camera controls drawn on top of the picture: left tools, lens picker, and the record row. Shared by both recorders.
-export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary, onPhoto, speed = 1, onSpeed }: Props) {
+export default function CameraControls({ cam, cameraActive, isRecording, counting, recordDisabled, hidden, notice, onRecord, onStop, onFlip, onRestart, onLens, onLibrary, onPhoto, speed = 1, onSpeed, bar, status }: Props) {
   const lock = isRecording || counting
   const photoRef = useRef<HTMLInputElement>(null)
   const [speedOpen, setSpeedOpen] = useState(false)
@@ -47,6 +52,40 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
   const showArc = !hidden && (cam.lenses.length > 0 || presets.length > 1)
   const qualityTop = cam.res === '4k' ? '4K' : cam.res === '720' ? 'HD' : 'FHD'
   const setQuality = (r: CamRes, f: CamFps) => { cam.setQuality(r, f); onRestart() }
+
+  const lensButtons = (
+    <>
+      {cam.lenses.length > 0
+        ? cam.lenses.map((l) => (
+          <button key={l.id} type="button" disabled={lock} onClick={() => onLens(l.id)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: cam.lensId === l.id ? '#fff' : 'transparent', color: cam.lensId === l.id ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{l.name}</button>
+        ))
+        : presets.map((z) => (
+          <button key={z} type="button" onClick={() => cam.changeZoom(z)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: Math.abs(cam.zoom - z) < 0.05 ? '#fff' : 'transparent', color: Math.abs(cam.zoom - z) < 0.05 ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{z === 0.5 ? '.5x' : `${z}x`}</button>
+        ))}
+    </>
+  )
+  const recordButton = (
+    <button
+      type="button"
+      onClick={isRecording ? onStop : onRecord}
+      disabled={counting || !!recordDisabled}
+      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+      style={{ width: 74, height: 74, borderRadius: '50%', border: '4px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: counting || recordDisabled ? 'not-allowed' : 'pointer', opacity: counting || recordDisabled ? 0.5 : 1 }}
+    >
+      <span style={{ width: isRecording ? 28 : 56, height: isRecording ? 28 : 56, borderRadius: isRecording ? 8 : '50%', background: '#ff2d55', transition: 'all 0.15s ease' }} />
+    </button>
+  )
+  const rightButtons = (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
+      <button type="button" className="film-flip" aria-label="Flip camera" title="Switch between front and back camera" disabled={isRecording} onClick={onFlip} style={{ ...iconBtn, opacity: isRecording ? 0.4 : 1 }}>
+        <Svg><path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5" /></Svg>
+      </button>
+      <button type="button" aria-label="Video quality" title="Change video quality and frame rate" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 16 }}>
+        <span>{qualityTop}</span>
+        <span>{cam.fps}</span>
+      </button>
+    </div>
+  )
 
   return (
     <>
@@ -134,7 +173,7 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
       )}
 
       {cam.panel === 'quality' && !hidden && (
-        <div role="group" aria-label="Video quality" style={{ ...panelBox, right: 12, bottom: 96 }}>
+        <div role="group" aria-label="Video quality" style={{ ...panelBox, right: 12, bottom: bar ? 12 : 96 }}>
           <p style={panelLabel}>Resolution</p>
           <div style={{ display: 'flex', gap: 6 }}>
             {(['720', '1080', '4k'] as const).map((r) => (
@@ -151,15 +190,9 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
         </div>
       )}
 
-      {showArc && (
+      {showArc && !bar && (
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 104, zIndex: 3, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.5)', borderRadius: 4, padding: 4 }}>
-          {cam.lenses.length > 0
-            ? cam.lenses.map((l) => (
-              <button key={l.id} type="button" disabled={lock} onClick={() => onLens(l.id)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: cam.lensId === l.id ? '#fff' : 'transparent', color: cam.lensId === l.id ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{l.name}</button>
-            ))
-            : presets.map((z) => (
-              <button key={z} type="button" onClick={() => cam.changeZoom(z)} style={{ minWidth: 40, height: 34, borderRadius: 4, border: 'none', background: Math.abs(cam.zoom - z) < 0.05 ? '#fff' : 'transparent', color: Math.abs(cam.zoom - z) < 0.05 ? '#111' : '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{z === 0.5 ? '.5x' : `${z}x`}</button>
-            ))}
+          {lensButtons}
         </div>
       )}
 
@@ -167,28 +200,29 @@ export default function CameraControls({ cam, cameraActive, isRecording, countin
         <div role="status" style={{ position: 'absolute', left: 14, right: 14, top: '40%', zIndex: 6, background: 'rgba(8,6,24,0.85)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>{notice}</div>
       )}
 
-      {!hidden && (cameraActive || isRecording) && (
+      {!hidden && (cameraActive || isRecording) && !bar && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 14, zIndex: 3, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '0 14px' }}>
           <div />
-          <button
-            type="button"
-            onClick={isRecording ? onStop : onRecord}
-            disabled={counting || !!recordDisabled}
-            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-            style={{ width: 74, height: 74, borderRadius: '50%', border: '4px solid #fff', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: counting || recordDisabled ? 'not-allowed' : 'pointer', opacity: counting || recordDisabled ? 0.5 : 1 }}
-          >
-            <span style={{ width: isRecording ? 28 : 56, height: isRecording ? 28 : 56, borderRadius: isRecording ? 8 : '50%', background: '#ff2d55', transition: 'all 0.15s ease' }} />
-          </button>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
-            <button type="button" className="film-flip" aria-label="Flip camera" title="Switch between front and back camera" disabled={isRecording} onClick={onFlip} style={{ ...iconBtn, opacity: isRecording ? 0.4 : 1 }}>
-              <Svg><path d="M20 11a8 8 0 0 0-14-4.5L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4.5L20 15M20 20v-5h-5" /></Svg>
-            </button>
-            <button type="button" aria-label="Video quality" title="Change video quality and frame rate" aria-expanded={cam.panel === 'quality'} onClick={() => cam.setPanel(cam.panel === 'quality' ? null : 'quality')} style={{ ...iconBtn, width: 46, flexDirection: 'column', lineHeight: 1, fontSize: 16 }}>
-              <span>{qualityTop}</span>
-              <span>{cam.fps}</span>
-            </button>
-          </div>
+          {recordButton}
+          {rightButtons}
         </div>
+      )}
+
+      {/* Under the picture: lens buttons and status on the left, record in the middle, flip and quality on the right */}
+      {bar && !hidden && createPortal(
+        <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, minWidth: 0 }}>
+            {showArc && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 4, padding: 3 }}>
+                {lensButtons}
+              </div>
+            )}
+            {status}
+          </div>
+          {(cameraActive || isRecording) ? recordButton : <div />}
+          {(cameraActive || isRecording) ? rightButtons : <div />}
+        </div>,
+        bar
       )}
     </>
   )

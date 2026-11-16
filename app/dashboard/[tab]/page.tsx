@@ -2812,6 +2812,8 @@ export default function DashboardPage() {
   const filmMediaRecorderRef = useRef<MediaRecorder | null>(null)
   const [filmSelectedId, setFilmSelectedId] = useState<string | null>(null)
   const filmTeleprompterInnerRef = useRef<HTMLParagraphElement>(null)
+  // The bar under the recorder's picture, where the record button and lens buttons sit
+  const [filmBarEl, setFilmBarEl] = useState<HTMLDivElement | null>(null)
   const filmScrollPosRef = useRef(0)
   const filmRafRef = useRef<number | null>(null)
   const [filmCameraActive, setFilmCameraActive] = useState(false)
@@ -7967,12 +7969,17 @@ export default function DashboardPage() {
                       onPhoto={(f) => { void addFilmPhoto(f) }}
                       speed={filmSpeed}
                       onSpeed={changeFilmClipSpeed}
+                      bar={filmBarEl}
+                      status={filmIsRecording ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />REC
+                        </span>
+                      ) : filmRedoIdx !== null ? (
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Re-recording clip {filmRedoIdx + 1}</span>
+                      ) : filmClipCount > 0 ? (
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Clip {Math.min(filmLineIdx + 1, filmClipCount)} of {filmClipCount}</span>
+                      ) : null}
                     />
-                    {filmClipCount > 0 && (
-                      <div style={{ position: 'absolute', bottom: 108, right: 14, zIndex: 3, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px', color: '#fff', fontSize: 11, fontWeight: 700 }}>
-                        Clip {Math.min(filmLineIdx + 1, filmClipCount)} of {filmClipCount}
-                      </div>
-                    )}
                     {filmCurrentLine && (
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, pointerEvents: filmPending ? 'none' : 'auto', background: 'rgba(8,6,24,0.62)', padding: filmOrientation === 'landscape' ? '12px 60px 12px 18px' : '46px 60px 14px 18px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {filmLines[filmLineIdx - 1] && <p style={{ color: 'rgba(241,239,232,0.45)', fontSize: 14, lineHeight: 1.35, margin: 0 }}>{filmLines[filmLineIdx - 1]}</p>}
@@ -7995,7 +8002,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmCurrentAction && !filmPending && (
-                      <div style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 4, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
+                      <div style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 2, background: 'rgba(8,6,24,0.62)', borderRadius: 4, padding: '9px 14px', maxHeight: '38%', overflowY: 'auto' }}>
                         <p style={{ color: 'rgba(241,239,232,0.6)', fontSize: 11, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>Action{filmDurations[filmLineIdx] ? <span style={{ background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 800, borderRadius: 4, padding: '2px 10px' }}>about {filmDurations[filmLineIdx]} seconds</span> : null}</p>
                         <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, lineHeight: 1.3, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>{filmCurrentAction}</p>
                       </div>
@@ -8012,13 +8019,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {filmRecordError && (
-                      <div role="alert" style={{ position: 'absolute', left: 14, right: 14, bottom: 150, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{filmRecordError}</div>
-                    )}
-                    {filmIsRecording && (
-                      <div style={{ position: 'absolute', bottom: 108, left: 14, zIndex: 3, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.55)', borderRadius: 4, padding: '5px 11px' }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', display: 'inline-block' }} />
-                        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>REC</span>
-                      </div>
+                      <div role="alert" style={{ position: 'absolute', left: 62, right: 14, bottom: 14, zIndex: 6, background: 'rgba(217,45,32,0.92)', color: '#fff', borderRadius: 4, padding: '10px 14px', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{filmRecordError}</div>
                     )}
                     {filmPending && (
                       <video key={filmPending.url} src={filmPending.url} controls autoPlay playsInline controlsList="nodownload noremoteplayback" disablePictureInPicture onContextMenu={(e) => { if (isFreeTier) e.preventDefault() }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
@@ -8034,12 +8035,7 @@ export default function DashboardPage() {
                             <button onClick={saveFilmClip} style={{ padding: '13px 20px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-geist-sans), Inter, sans-serif' }}>{filmRedoIdx !== null ? 'Save clip' : filmLineIdx + 1 >= filmClipCount ? 'Edit video' : 'Save & next'}</button>
                           </>
                         ) : (
-                          <>
-                          
-                          <div style={{ flex: 1 }}>
-                            {filmRedoIdx !== null && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{`Re-recording clip ${filmRedoIdx + 1}`}</span>}
-                          </div>
-                          </>
+                          <div ref={setFilmBarEl} style={{ flex: 1, height: '100%', minWidth: 0 }} />
                         )}
                       </div>
                     </div>,
