@@ -48,6 +48,9 @@ export default function HistoryPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingBackId, setAddingBackId] = useState<string | null>(null)
   const [scripts, setScripts] = useState<ScriptRow[]>([])
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [clearError, setClearError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -57,6 +60,10 @@ export default function HistoryPage() {
         router.push('/login')
         return
       }
+      // Anything made before the last "Clear history" stays hidden here. It is not deleted, so saved ideas,
+      // videos in Publish and monthly usage are untouched.
+      const clearedAt = typeof user.user_metadata?.history_cleared_at === 'string' ? user.user_metadata.history_cleared_at : null
+      const after = <T extends { created_at: string }>(rows: T[] | null) => (rows || []).filter((r) => !clearedAt || r.created_at > clearedAt)
 
       const { data: ideaRows } = await supabase
         .from('generated_ideas')
@@ -71,7 +78,7 @@ export default function HistoryPage() {
         .neq('status', 'deleted')
         .order('created_at', { ascending: false })
 
-      const parsedIdeas: IdeaRow[] = (ideaRows || []).map((row) => {
+      const parsedIdeas: IdeaRow[] = after(ideaRows).map((row) => {
         const rawChecklist = row.checklist as { steps?: string[]; prep?: string[]; caption?: string; script?: string } | null
         return {
           ...row,
@@ -88,8 +95,8 @@ export default function HistoryPage() {
         .order('created_at', { ascending: false })
 
       setIdeas(parsedIdeas)
-      setRenders(renderRows || [])
-      setScripts(scriptRows || [])
+      setRenders(after(renderRows))
+      setScripts(after(scriptRows))
       setLoading(false)
     }
     load()
@@ -135,6 +142,16 @@ export default function HistoryPage() {
     </button>
   )
 
+  const clearHistory = async () => {
+    setClearing(true)
+    setClearError('')
+    const { error } = await supabase.auth.updateUser({ data: { history_cleared_at: new Date().toISOString() } })
+    setClearing(false)
+    if (error) { setClearError('Could not clear your history. Please try again.'); return }
+    setIdeas([]); setRenders([]); setScripts([]); setExpandedId(null); setConfirmClear(false)
+  }
+  const nothingToClear = ideas.length === 0 && renders.length === 0 && scripts.length === 0
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -142,12 +159,40 @@ export default function HistoryPage() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Sidebar />
       <div style={{ marginLeft: 'var(--sidebar-offset, 56px)' }}>
-        <nav style={{ padding: '24px 48px' }}>
-          <span style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 22, fontWeight: 600 }}>
-            History
-          </span>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Scripts generated are shown at the bottom of the page.</p>
+        <nav style={{ padding: '24px 48px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <span style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 22, fontWeight: 600 }}>
+              History
+            </span>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Scripts generated are shown at the bottom of the page.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setClearError(''); setConfirmClear(true) }}
+            disabled={nothingToClear}
+            style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, color: nothingToClear ? 'var(--text-muted)' : 'var(--ink)', cursor: nothingToClear ? 'not-allowed' : 'pointer', opacity: nothingToClear ? 0.6 : 1 }}
+          >
+            Clear history
+          </button>
         </nav>
+        {confirmClear && (
+          <div role="dialog" aria-modal="true" aria-label="Clear history?" onClick={() => !clearing && setConfirmClear(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg, #fff)', color: 'var(--ink)', borderRadius: 4, padding: 24, width: '100%', maxWidth: 400 }}>
+              <p style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Clear history?</p>
+              <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+                This wipes every idea, set of filming instructions, render and script from this page. It cannot be undone.
+              </p>
+              <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+                Ideas in My Ideas and videos in Publish stay where they are.
+              </p>
+              {clearError && <p role="alert" style={{ margin: '10px 0 0', fontSize: 12, color: '#d92d20' }}>{clearError}</p>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+                <button type="button" onClick={() => setConfirmClear(false)} disabled={clearing} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => void clearHistory()} disabled={clearing} style={{ background: '#d92d20', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: clearing ? 'wait' : 'pointer', opacity: clearing ? 0.7 : 1 }}>{clearing ? 'Clearing...' : 'Clear history'}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '0 48px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'flex-start' }}>
 

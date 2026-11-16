@@ -58,6 +58,7 @@ export default function SettingsPage() {
 
   const [logoUrl, setLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoNote, setLogoNote] = useState('')
 
   const [businessName, setBusinessName] = useState('')
   const [industry, setIndustry] = useState('')
@@ -270,6 +271,15 @@ export default function SettingsPage() {
       return
     }
     setUploadingLogo(true)
+    setLogoNote('')
+    // Look at the picture first so we can say if it will look small or show a box behind it
+    const notes: string[] = []
+    try {
+      const bmp = await createImageBitmap(file)
+      if (Math.max(bmp.width, bmp.height) < 300) notes.push(`This logo is only ${bmp.width} x ${bmp.height} pixels, so it may look blurry. A version at least 500 pixels wide will look sharper.`)
+      bmp.close()
+    } catch { /* some GIFs cannot be read here; upload anyway */ }
+    if (file.type === 'image/jpeg') notes.push('JPG files cannot have a see through background, so your logo will sit on a box of its background colour. A PNG with a see through background looks cleaner.')
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-').slice(-80)
     const path = `${userId}/logo-${Date.now()}-${safeName}`
 
@@ -287,6 +297,7 @@ export default function SettingsPage() {
     await supabase.from('business_profiles').update({ logo_url: publicUrl }).eq('user_id', userId)
 
     setLogoUrl(publicUrl)
+    setLogoNote(notes.join(' '))
     setUploadingLogo(false)
   }
 
@@ -469,10 +480,10 @@ export default function SettingsPage() {
           >
             <div style={card}>
             <p style={cardTitle}>Your business</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 4, background: 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 4, background: logoUrl ? 'repeating-conic-gradient(#e6e6e6 0% 25%, #fff 0% 50%) 50% / 12px 12px' : 'var(--sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Business logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={logoUrl} alt="Business logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No logo</span>
                 )}
@@ -484,8 +495,18 @@ export default function SettingsPage() {
                   disabled={uploadingLogo}
                   style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 14px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}
                 >
-                  {uploadingLogo ? 'Uploading...' : 'Upload logo'}
+                  {uploadingLogo ? 'Uploading...' : logoUrl ? 'Change logo' : 'Upload logo'}
                 </button>
+                <p style={{ margin: '10px 0 4px', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>Upload once and it goes on all your videos</p>
+                <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
+                  <li>Best: a PNG with a see through background</li>
+                  <li>At least 500 pixels wide. Square or wide logos both work</li>
+                  <li>Crop off any empty space around the logo so it shows as big as it can</li>
+                  <li>JPG, WebP and GIF also work. A JPG shows as a box with its background colour</li>
+                  <li>Up to 5 MB</li>
+                  <li>It sits in the top right corner at about a fifth of the video&apos;s width. You can move it or resize it in the editor</li>
+                </ul>
+                {logoNote && <p role="status" style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: '#b54708' }}>{logoNote}</p>}
               </div>
             </div>
 
