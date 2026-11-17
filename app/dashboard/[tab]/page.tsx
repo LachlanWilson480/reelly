@@ -3840,7 +3840,7 @@ export default function DashboardPage() {
     const distance = Math.max(0, el.scrollHeight - 30)
     let progress = 0
     let last = 0
-    let stopTimer: ReturnType<typeof setTimeout> | null = null
+    // Recording keeps going until the person presses stop. The script just stays at its end.
     const tick = (now: number) => {
       if (!last) last = now
       // Read the speed every frame so the slider works while the line is moving
@@ -3848,16 +3848,11 @@ export default function DashboardPage() {
       progress = Math.min(1, progress + (now - last) / (secs * 1000))
       last = now
       el.style.transform = `translateY(-${distance * progress}px)`
-      if (progress < 1) {
-        filmRafRef.current = requestAnimationFrame(tick)
-      } else {
-        stopTimer = setTimeout(() => stopFilmRecording(), 1500)
-      }
+      if (progress < 1) filmRafRef.current = requestAnimationFrame(tick)
     }
     filmRafRef.current = requestAnimationFrame(tick)
     return () => {
       if (filmRafRef.current) { cancelAnimationFrame(filmRafRef.current); filmRafRef.current = null }
-      if (stopTimer) clearTimeout(stopTimer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filmIsRecording])

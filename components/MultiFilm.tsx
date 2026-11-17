@@ -136,7 +136,6 @@ export default function MultiFilm(p: Props) {
   // The bar under the picture, where the record button and lens buttons sit
   const [barEl, setBarEl] = useState<HTMLDivElement | null>(null)
   const rafRef = useRef<number | null>(null)
-  const stopRef = useRef<() => void>(() => {})
   const seqRef = useRef(0)
   const stampRef = useRef(0)
   const [cameraActive, setCameraActive] = useState(false)
@@ -393,9 +392,8 @@ export default function MultiFilm(p: Props) {
     if (recorderRef.current) finishRecorder(recorderRef.current)
     setIsRecording(false)
   }
-  useEffect(() => { stopRef.current = stopRecording })
 
-  // Teleprompter: the line scrolls up and recording stops shortly after it ends
+  // Teleprompter: the line scrolls up and then stays at its end. Recording keeps going until stop is pressed.
   useEffect(() => {
     const el = teleRef.current
     if (!isRecording || !el) {
@@ -408,17 +406,14 @@ export default function MultiFilm(p: Props) {
     // Scrolls up until the last line sits at the top of the window, like a real teleprompter
     const distance = Math.max(0, el.scrollHeight - 30)
     const startTime = performance.now()
-    let stopTimer: ReturnType<typeof setTimeout> | null = null
     const tick = (now: number) => {
       const progress = Math.min((now - startTime) / (secs * 1000), 1)
       el.style.transform = `translateY(-${distance * progress}px)`
       if (progress < 1) rafRef.current = requestAnimationFrame(tick)
-      else stopTimer = setTimeout(() => stopRef.current(), 1500)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
-      if (stopTimer) clearTimeout(stopTimer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecording, scrollSpeed])
