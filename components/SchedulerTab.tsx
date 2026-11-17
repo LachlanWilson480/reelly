@@ -24,7 +24,7 @@ const SHOW_CALENDAR = false
 // The Schedule button on each finished video stays hidden until scheduling is switched on
 const SHOW_SCHEDULING = false
 
-type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null }
+type Render = { id: string; output_url: string | null; created_at: string; title?: string | null; caption?: string | null; tags?: string | null; idea_id?: string | null; source?: string | null; version_of?: string | null; editable?: number | null }
 type Carousel = { id: string; image_paths: string[]; caption: string | null; created_at: string }
 type Conn = { platform: PlatformId; account_name: string | null; status: string }
 
@@ -99,7 +99,7 @@ const PUBLISH_CSS = `
 }
 `
 
-export default function SchedulerTab({ userId, carousels, isFree = false, onDeleteCarousel }: { userId: string | null; carousels: Carousel[]; isFree?: boolean; onDeleteCarousel?: (id: string) => void }) {
+export default function SchedulerTab({ userId, carousels, isFree = false, onDeleteCarousel, onEdit, editError, onClearEditError }: { userId: string | null; carousels: Carousel[]; isFree?: boolean; onDeleteCarousel?: (id: string) => void; onEdit?: (renderId: string) => void; editError?: string; onClearEditError?: () => void }) {
   const [renders, setRenders] = useState<Render[]>([])
   const [loading, setLoading] = useState(true)
   const [queue, setQueue] = useState<ScheduledPost[]>([])
@@ -110,6 +110,8 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
   const [plan, setPlan] = useState<{ from: 'video' | 'calendar'; renderId: string; day: string } | null>(null)
   const [openPost, setOpenPost] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  // The video whose earlier versions are being shown
+  const [versionsOpen, setVersionsOpen] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
   const [notice, setNotice] = useState(() => {
     if (typeof window === 'undefined') return ''
@@ -129,15 +131,28 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
     fetchQueue().then(setQueue)
     fetchConnections().then((r) => { setConns(r.connections); setAvailable(r.available) })
     const q = (cols: string) => supabase.from('renders').select(cols).eq('user_id', userId).eq('status', 'done').order('created_at', { ascending: false })
-    q('id, output_url, created_at, title, caption, tags, idea_id, source').then(async (res) => {
-      // Older databases have no `source` column yet, so fall back to the original columns
-      const out = res.error ? await q('id, output_url, created_at, title, caption, tags, idea_id') : res
+    q('id, output_url, created_at, title, caption, tags, idea_id, source, version_of, editable:project->v').then(async (res) => {
+      // Older databases have no `version_of`, `project` or `source` columns yet, so fall back step by step
+      let out = res
+      if (out.error) out = await q('id, output_url, created_at, title, caption, tags, idea_id, source')
+      if (out.error) out = await q('id, output_url, created_at, title, caption, tags, idea_id')
       setRenders(((out.data as unknown as Render[]) || []).filter((r) => r.output_url))
       setLoading(false)
     })
   }, [userId])
 
   const connected = conns.filter((c) => c.status === 'connected').map((c) => c.platform)
+
+  // Edited videos: every version points at the first one. Publish shows only the newest of each,
+  // and the older ones are under Versions.
+  const chainOf = (r: Render) => r.version_of || r.id
+  const versionsByChain = new Map<string, Render[]>()
+  for (const r of renders) {
+    const k = chainOf(r)
+    versionsByChain.set(k, [...(versionsByChain.get(k) || []), r])
+  }
+  versionsByChain.forEach((list) => list.sort((a, b) => b.created_at.localeCompare(a.created_at)))
+  const shown = renders.filter((r) => versionsByChain.get(chainOf(r))?.[0]?.id === r.id)
 
   // Deletes a finished video. Returns a message to show if it could not be deleted.
   const deleteRender = async (id: string): Promise<string | null> => {
@@ -220,10 +235,10 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
     return r.title ? 'idea' : 'other'
   }
   const groups = [
-    { key: 'idea', title: 'Generated idea videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'idea') },
-    { key: 'script', title: 'Script generated videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'script') },
+    { key: 'idea', title: 'Generated idea videos', noun: 'video', items: shown.filter((r) => kindOf(r) === 'idea') },
+    { key: 'script', title: 'Script generated videos', noun: 'video', items: shown.filter((r) => kindOf(r) === 'script') },
     { key: 'reels', title: 'Carousel posts', noun: 'carousel', items: [] as Render[] },
-    { key: 'other', title: 'Other videos', noun: 'video', items: renders.filter((r) => kindOf(r) === 'other') },
+    { key: 'other', title: 'Other videos', noun: 'video', items: shown.filter((r) => kindOf(r) === 'other') },
   ].map((g) => ({ ...g, count: g.key === 'reels' ? carousels.length : g.items.length })).filter((g) => g.count > 0)
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center' }}><span className="rly-spinner rly-spinner-coral" /></div>
@@ -239,6 +254,12 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
       </div>
 
       {notice && <p role="status" style={{ fontSize: 13, background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '10px 14px', margin: 0 }}>{notice}</p>}
+      {editError && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', border: '1px solid rgba(217,45,32,0.35)', background: 'rgba(217,45,32,0.06)', borderRadius: 4 }}>
+          <p style={{ margin: 0, flex: 1, fontSize: 13, color: '#D92D20', lineHeight: 1.45 }}>{editError}</p>
+          {onClearEditError && <button type="button" aria-label="Dismiss" onClick={onClearEditError} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D92D20', padding: 0 }}><Icon n="close" /></button>}
+        </div>
+      )}
 
       {/* Accounts */}
       {SHOW_ACCOUNTS && <section aria-labelledby="pub-accounts" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -381,12 +402,64 @@ export default function SchedulerTab({ userId, carousels, isFree = false, onDele
                 onDownload={() => download(r.output_url!, r.id, r.title)}
                 onSaved={(patch) => setRenders((cur) => cur.map((x) => (x.id === r.id ? { ...x, ...patch } : x)))}
                 onDelete={() => deleteRender(r.id)}
+                versionCount={versionsByChain.get(chainOf(r))?.length || 1}
+                onVersions={() => setVersionsOpen(chainOf(r))}
+                onEdit={onEdit && r.editable ? () => onEdit(r.id) : undefined}
                 schedule={SHOW_SCHEDULING && connected.length > 0 ? { open: plan?.from === 'video' && plan.renderId === r.id, toggle: () => { setOpenPost(null); setPlan(plan?.renderId === r.id && plan.from === 'video' ? null : { from: 'video', renderId: r.id, day: dayValue(addDays(new Date(), 1)) }) }, panel: plan?.from === 'video' && plan.renderId === r.id ? <PlanPanel key={`v-${r.id}`} plan={plan} renders={renders} connected={connected} onClose={() => setPlan(null)} onDone={scheduled} /> : null } : null}
               />
             ))}
           </CollapsibleBox>
         ))}
       </section>
+      {versionsOpen && versionsByChain.get(versionsOpen) && (
+        <VersionsPicker
+          versions={versionsByChain.get(versionsOpen)!}
+          isFree={isFree}
+          downloading={downloading}
+          onDownload={(v) => download(v.output_url!, v.id, v.title)}
+          onClose={() => setVersionsOpen(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Every version of an edited video, newest first, to pick one to download
+function VersionsPicker({ versions, isFree, downloading, onDownload, onClose }: { versions: Render[]; isFree: boolean; downloading: string | null; onDownload: (v: Render) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const when = (iso: string) => new Date(iso).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Versions of this video" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card-bg)', color: 'var(--ink)', borderRadius: 4, width: '100%', maxWidth: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 18px', borderBottom: '1px solid var(--line)' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Versions</p>
+            <p style={{ ...small, marginTop: 2 }}>Every time you edited this video. Pick one to download.</p>
+          </div>
+          <button type="button" aria-label="Close versions" onClick={onClose} style={{ ...buttonSecondary, padding: '6px 9px' }}><Icon n="close" /></button>
+        </div>
+        <div style={{ overflowY: 'auto', padding: '10px 18px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {versions.map((v, i) => (
+            <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, border: `1px solid ${i === 0 ? 'var(--coral)' : 'var(--line)'}`, borderRadius: 4 }}>
+              {v.output_url && <PlayableVideo src={v.output_url} title={`Version ${versions.length - i}`} style={{ width: 54, height: 96, objectFit: 'cover', background: '#000', borderRadius: 2, display: 'block', flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Version {versions.length - i}{i === 0 ? ' (in Publish)' : i === versions.length - 1 ? ' (first)' : ''}</p>
+                <p style={{ ...small, marginTop: 2 }}>{when(v.created_at)}</p>
+              </div>
+              {!isFree && v.output_url && (
+                <button type="button" className="pub-dl" disabled={downloading === v.id} onClick={() => onDownload(v)} aria-label={`Download version ${versions.length - i}`}>
+                  <Icon n="download" />{downloading === v.id ? 'Downloading...' : 'Download'}
+                </button>
+              )}
+            </div>
+          ))}
+          {isFree && <p style={small}>Downloading is on paid plans.</p>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -543,11 +616,12 @@ const withBrandTag = (tags: string[]) => [...tags.filter((t) => !isBrandTag(t)),
 const tagLine = (t: string | null | undefined) => withBrandTag(parseTags(t)).join(' ')
 
 // One finished video in Publish: edit its title, description and hashtags, copy them, and download the video
-function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, onDelete, schedule }: {
+function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved, onDelete, versionCount = 1, onVersions, onEdit, schedule }: {
   r: Render; isFree: boolean; copied: string | null; downloading: boolean
   onCopy: (text: string, key: string) => void; onDownload: () => void
   onSaved: (patch: Partial<Render>) => void
   onDelete: () => Promise<string | null>
+  versionCount?: number; onVersions?: () => void; onEdit?: () => void
   schedule: { open: boolean; toggle: () => void; panel: React.ReactNode } | null
 }) {
   const [title, setTitle] = useState(() => (r.title ? cleanString(r.title) : ''))
@@ -632,10 +706,14 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
       <div className="pub-actions" style={{ alignItems: 'center' }}>
         {!isFree && <button type="button" className="pub-dl" disabled={downloading} onClick={onDownload}><Icon n="download" />{downloading ? 'Downloading...' : 'Download'}</button>}
         {!isFree && schedule && <button type="button" onClick={schedule.toggle} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
+        {onEdit && <button type="button" onClick={onEdit} aria-label={`Edit ${title.trim() || 'this video'}`} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Edit</button>}
         <span style={{ flex: 1 }} />
+        {versionCount > 1 && onVersions && !confirmDel && (
+          <button type="button" onClick={onVersions} aria-label={`Versions of ${title.trim() || 'this video'}`} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Versions ({versionCount})</button>
+        )}
         {confirmDel ? (
           <>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Delete this video? Posts waiting to go out with it are cancelled.</span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{versionCount > 1 ? 'Delete this version? The one before it takes its place.' : 'Delete this video? Posts waiting to go out with it are cancelled.'}</span>
             <button type="button" onClick={() => setConfirmDel(false)} disabled={deleting} style={carouselBtn.secondary}>Keep</button>
             <button type="button" onClick={doDelete} disabled={deleting} style={{ ...carouselBtn.danger, background: '#D92D20', color: '#fff' }}>{deleting ? 'Deleting...' : 'Delete'}</button>
           </>

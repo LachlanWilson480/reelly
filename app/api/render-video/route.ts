@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`render:${userId}`, 30, 60000)
     if (!rl.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
-    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, captionScript, musicUrl: directMusicUrl, musicTrackId, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags } = await req.json()
+    const { clipPaths, musicPath, voiceovers, originalVolume, musicVolume, musicStart, captionScript, musicUrl: directMusicUrl, musicTrackId, clipTrims, clipSettings, clipTexts, outputOrientation, resolution, cutDeadSpace, captionStyle, captionTextOnly, customCaptions, customCaptionStyle, overlay: rawOverlay, overlays: rawOverlays, madeWithBadge, appearance: rawAppearance, perClipTransitions, ideaSource, ideaId, ideaTitle, ideaCaption, ideaTags, editorState, replacesRenderId, speechClipIndices: rawSpeechIndices } = await req.json()
 
     if (!clipPaths || clipPaths.length === 0) {
       return NextResponse.json({ error: 'No clips provided' }, { status: 400 })
@@ -264,6 +264,35 @@ export async function POST(req: NextRequest) {
     // Best-effort: ignored if the `source` column has not been added yet.
     if (['idea', 'script', 'upload'].includes(ideaSource)) {
       await supabaseAdmin.from('renders').update({ source: ideaSource }).eq('id', renderRow.id)
+    }
+
+    // Keep everything needed to open this video in the editor again (the Edit button in Publish).
+    // Best-effort: ignored if the `project` column has not been added yet (supabase/render_versions.sql).
+    {
+      const editor = editorState && typeof editorState === 'object' && JSON.stringify(editorState).length < 60000 ? editorState : null
+      const project = {
+        v: 1, clipPaths, clipTrims, clipSettings, clipTexts, speechClipIndices: rawSpeechIndices, voiceovers, musicPath: musicPath || null,
+        musicUrl: typeof directMusicUrl === 'string' ? directMusicUrl : null, musicTrackId: typeof musicTrackId === 'string' ? musicTrackId : null,
+        musicStart, originalVolume, musicVolume, captionStyle: captionStyle || null, captionTextOnly: !!captionTextOnly,
+        captionScript: typeof captionScript === 'string' ? captionScript.slice(0, 8000) : null, customCaptions: Array.isArray(customCaptions) ? customCaptions : [],
+        customCaptionStyle: customCaptionStyle || null, overlays: Array.isArray(rawOverlays) ? rawOverlays : rawOverlay ? [rawOverlay] : [],
+        appearance: rawAppearance || null, madeWithBadge: madeWithBadge !== false, resolution, cutDeadSpace: !!cutDeadSpace,
+        outputOrientation: outputOrientation || null, ideaId: ideaId || null, ideaSource: ideaSource || null, editor,
+      }
+      const { error: projErr } = await supabaseAdmin.from('renders').update({ project }).eq('id', renderRow.id)
+      if (projErr && !/project/.test(projErr.message)) console.error('saving project failed:', projErr.message)
+    }
+
+    // Made by editing a video from Publish: it becomes the newest version of that video, keeping its title,
+    // description and hashtags (with any changes made to them in Publish)
+    if (typeof replacesRenderId === 'string' && /^[0-9a-f-]{36}$/i.test(replacesRenderId)) {
+      const { data: old } = await supabaseAdmin.from('renders').select('*').eq('id', replacesRenderId).eq('user_id', userId).maybeSingle()
+      if (old) {
+        await supabaseAdmin.from('renders').update({ title: old.title ?? null, caption: old.caption ?? null, tags: old.tags ?? null, idea_id: old.idea_id ?? null }).eq('id', renderRow.id)
+        if (old.source) await supabaseAdmin.from('renders').update({ source: old.source }).eq('id', renderRow.id)
+        const { error: verErr } = await supabaseAdmin.from('renders').update({ version_of: old.version_of || old.id }).eq('id', renderRow.id)
+        if (verErr && !/version_of/.test(verErr.message)) console.error('linking version failed:', verErr.message)
+      }
     }
 
     // Calculate free plan quota (across all accounts with same email)

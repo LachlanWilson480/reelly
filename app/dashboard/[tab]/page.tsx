@@ -5595,6 +5595,21 @@ export default function DashboardPage() {
   const uploadRunRef = useRef(0)
   // What was in each editor when a video was sent, so a failed render can put it all back
   const uploadFailRestoreRef = useRef<{ id: string; snap: EditorSnap } | null>(null)
+  // A video opened from Publish with Edit. Creating it again makes a new version that replaces it in Publish.
+  const [editingRender, setEditingRender] = useState<{ id: string; title: string | null; paths: string[] } | null>(null)
+  const [editOpening, setEditOpening] = useState<{ done: number; total: number } | null>(null)
+  const [editOpenError, setEditOpenError] = useState('')
+  // Editor settings the render request does not carry, saved with the video so Edit can put them back
+  const editorStateFor = (kind: 'upload' | 'ai') => ({
+    kind,
+    addCaptions: kind === 'upload' ? uploadAddCaptions : aiAddCaptions,
+    captionOwn: kind === 'upload' ? uploadCaptionOwn : aiCaptionOwn,
+    captionPreset, captionLayers, captionFontFamily, captionFontSize, captionColor, captionBold, captionItalic, captionUnderline,
+    captionPosition, captionBorderColor, captionBg, cutDeadSpace, originalVolPick,
+    musicName: libraryMusicName || musicFile?.name || null,
+    musicExtracted: !!extractedMusicPath,
+    logoOverlays: overlays.map((o) => !!o.isLogo),
+  })
   const aiFailRestoreRef = useRef<{ id: string; takes: VoiceTake[]; musicFile: File | null; extracted: string | null; assets: Record<string, string> } | null>(null)
   const cancelAiUpload = () => { aiRunRef.current += 1; setAiUploading(false); setAiEditorError('') }
   const cancelUpload = () => { uploadRunRef.current += 1; setUploading(false); setUploadError('') }
@@ -5751,7 +5766,7 @@ export default function DashboardPage() {
           overlays: overlayPayload,
           appearance: appearancePayload,
           madeWithBadge,
-          
+          editorState: editorStateFor('ai'),
           ideaId: selectedFilmingId || null,
           ideaSource: !selectedFilmingId ? 'upload' : selectedFilmingId.startsWith('script-') ? 'script' : 'idea',
           ideaTitle: filmingItems.find((f) => f.id === selectedFilmingId)?.title || null,
@@ -5983,7 +5998,7 @@ export default function DashboardPage() {
       const res = await authFetch('/api/render-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, captionScript: voiceScript?.lines?.join('\n') || undefined, musicUrl: libraryMusicUrl, musicTrackId: libraryMusicId || undefined, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge }),
+        body: JSON.stringify({ userId, clipPaths, captionStyle, captionTextOnly: uploadTextActive && !uploadSpeechActive, musicPath, voiceovers, originalVolume: originalVol, musicVolume: musicVol, musicStart, captionScript: voiceScript?.lines?.join('\n') || undefined, musicUrl: libraryMusicUrl, musicTrackId: libraryMusicId || undefined, speechClipIndices: speechIndices, clipSettings, clipTexts, outputOrientation, clipTrims, resolution: uploadResolution, ideaId: filmCtx?.ideaId ?? null, ideaSource: filmCtx?.source ?? 'upload', ideaTitle: filmCtx?.title ?? null, ideaCaption: filmCtx?.caption ?? null, ideaTags: filmCtx?.tags ?? null, cutDeadSpace: cutDeadSpace && uploadCaps.length === 0, customCaptions: uploadCaps, customCaptionStyle, overlays: overlayPayload, appearance: appearancePayload, madeWithBadge, editorState: editorStateFor('upload'), replacesRenderId: editingRender && clipPaths.some((cp) => editingRender.paths.includes(cp)) ? editingRender.id : undefined }),
       })
 
       const data = await res.json()
@@ -5995,6 +6010,7 @@ export default function DashboardPage() {
       voiceTakes.forEach((t, i) => { if (voiceovers[i]?.path) sentAssets[`v:${t.id}`] = voiceovers[i].path })
       if (musicPath && musicFile) sentAssets.m = musicPath
       uploadFailRestoreRef.current = { id: data.renderId, snap: { ...captureEditor(), paths: sentPaths, assets: sentAssets } }
+      setEditingRender(null)
       setRenderId(data.renderId)
       setRenderStatus('queued')
       localStorage.setItem('reelezy-render', JSON.stringify({ id: data.renderId, type: 'upload', ts: Date.now() }))
@@ -6025,6 +6041,181 @@ export default function DashboardPage() {
 
   const submitAiEditorUploads = () => gateRenderAction(() => { runAiEditorUploads() })
   const startUploadAndRender = () => gateRenderAction(() => { runUploadAndRender() })
+
+  // Edit in Publish: opens a finished video in the editor again, with its clips, sounds, captions and settings.
+  // The files are downloaded back from storage, so everything can be changed, removed or added to.
+  const openRenderForEdit = async (renderId: string) => {
+    if (!userId || editOpening) return
+    if (uploadSlots.some((id) => uploadSlotFiles[id]) && !window.confirm('The clips in your editor will be replaced by this video. Carry on?')) return
+    setEditOpenError('')
+    const { data: row, error } = await supabase.from('renders').select('*').eq('id', renderId).eq('user_id', userId).maybeSingle()
+    type SavedClipSetting = { letterbox?: boolean; speed?: number; volume?: number; muted?: boolean; crop?: ClipCrop; place?: ClipPlace; appearance?: AppearanceSettings }
+    type Saved = {
+      clipPaths: string[]; clipTrims?: { duration?: number; trimStart?: number; trimLength?: number }[]; clipSettings?: SavedClipSetting[]; clipTexts?: string[][]
+      speechClipIndices?: number[]; voiceovers?: { path: string; start: number; duration: number; volume?: number }[]; musicPath?: string | null; musicUrl?: string | null
+      musicTrackId?: string | null; musicStart?: number; originalVolume?: number; musicVolume?: number; captionScript?: string | null; customCaptions?: CustomCaption[]
+      overlays?: { path: string; kind: 'image' | 'video'; x: number; y: number; size: number; start: number; end: number | null; cl?: number; cr?: number; ct?: number; cb?: number }[]
+      appearance?: AppearanceSettings | null; madeWithBadge?: boolean; resolution?: 'high' | 'low' | '4k'; cutDeadSpace?: boolean; outputOrientation?: string | null
+      ideaId?: string | null; ideaSource?: string | null
+      editor?: { addCaptions?: boolean; captionOwn?: boolean; captionPreset?: string; captionLayers?: CaptionLayers; captionFontFamily?: string; captionFontSize?: number | string; captionColor?: string; captionBold?: boolean | null; captionItalic?: boolean; captionUnderline?: boolean; captionPosition?: 'bottom' | 'top' | 'center'; captionBorderColor?: string; captionBg?: string | null; cutDeadSpace?: boolean; originalVolPick?: number | null; musicName?: string | null; musicExtracted?: boolean; logoOverlays?: boolean[] } | null
+    }
+    const p = row?.project as Saved | null | undefined
+    if (error || !row || !p || !Array.isArray(p.clipPaths) || p.clipPaths.length === 0) {
+      setEditOpenError('This video was made before editing was added, so it cannot be opened in the editor. Videos you make from now on can be.')
+      return
+    }
+    const ed = p.editor || {}
+    const vos = Array.isArray(p.voiceovers) ? p.voiceovers : []
+    const ovs = Array.isArray(p.overlays) ? p.overlays : []
+    const musicIsFile = !!p.musicPath && ed.musicExtracted === false
+    const total = p.clipPaths.length + vos.length + ovs.length + (musicIsFile ? 1 : 0)
+    let done = 0
+    setEditOpening({ done: 0, total })
+    const fetchFile = async (path: string, fallbackType: string): Promise<File> => {
+      let last: unknown = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data, error: dlErr } = await supabase.storage.from('video-uploads').download(path)
+        if (!dlErr && data) {
+          done += 1
+          setEditOpening({ done, total })
+          const name = path.split('/').pop() || 'clip'
+          return new File([data], name, { type: data.type || fallbackType })
+        }
+        last = dlErr
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)))
+      }
+      throw last || new Error('download failed')
+    }
+    try {
+      const clipFiles = await Promise.all(p.clipPaths.map((path) => fetchFile(path, 'video/mp4')))
+      const takeBlobs = await Promise.all(vos.map((v) => fetchFile(v.path, 'audio/webm')))
+      const ovFiles = await Promise.all(ovs.map((o) => fetchFile(o.path, o.kind === 'video' ? 'video/mp4' : 'image/png')))
+      const musicFileBack = musicIsFile ? await fetchFile(p.musicPath as string, 'audio/mpeg') : null
+
+      const slots = clipFiles.map((_, i) => i)
+      const files: Record<number, File> = {}
+      const paths: Record<number, string> = {}
+      const trims: Record<number, ClipTrimRange> = {}
+      const speeds: Record<number, number> = {}
+      const vols: Record<number, number> = {}
+      const muted: Record<number, boolean> = {}
+      const crops: Record<number, ClipCrop> = {}
+      const places: Record<number, ClipPlace> = {}
+      const looks: Record<number, AppearanceSettings> = {}
+      const screen: Record<number, string> = {}
+      const own: Record<number, string> = {}
+      const wide = new Set<number>()
+      for (let i = 0; i < clipFiles.length; i++) {
+        const f = clipFiles[i]
+        files[i] = f
+        paths[i] = p.clipPaths[i]
+        const t = p.clipTrims?.[i]
+        if (t && (t.trimStart || t.trimLength)) {
+          const totalLen = t.duration && t.duration > 0 ? t.duration : await getVideoDuration(f)
+          const start = Math.max(0, t.trimStart || 0)
+          trims[i] = { file: f, start, end: t.trimLength ? Math.min(totalLen, start + t.trimLength) : totalLen, total: totalLen }
+        }
+        const cs = p.clipSettings?.[i] || {}
+        if (cs.speed && cs.speed !== 1) speeds[i] = cs.speed
+        if (typeof cs.volume === 'number') vols[i] = Math.round(cs.volume * 100)
+        if (cs.muted) muted[i] = true
+        if (cs.crop) crops[i] = cs.crop
+        if (cs.place) places[i] = cs.place
+        if (cs.appearance) looks[i] = cs.appearance
+        if (cs.letterbox) wide.add(i)
+        const tx = (p.clipTexts?.[i] || []).filter(Boolean)
+        if (ed.captionOwn) { if (tx.length) own[i] = tx.join(' ') } else screen[i] = tx.join(' ')
+      }
+      // No old upload may land on these clips: they already have their place in storage
+      slots.forEach((i) => clipUploadPromises.delete(`u${i}`))
+      setClipUploadStatus(Object.fromEntries(slots.map((i) => [`u${i}`, 'done' as ClipUploadState])))
+      closeEditorTabs()
+      setUploadSlots(slots)
+      setUploadSlotFiles(files)
+      setUploadSlotPaths(paths)
+      setUploadTrims(trims)
+      setUploadSpeeds(speeds)
+      setUploadVols(vols)
+      setUploadMuted(muted)
+      setUploadCrops(crops)
+      setUploadPlaces(places)
+      setUploadLooks(looks)
+      setUploadScreenTexts(ed.captionOwn ? {} : screen)
+      setUploadOwnTexts(own)
+      setUploadSlotTexts({})
+      setUploadLandscapeSlots(wide)
+      setUploadSpeechSlots(new Set((p.speechClipIndices || []).filter((i) => i >= 0 && i < slots.length)))
+
+      // Voiceovers, already in storage
+      voiceTakes.forEach((t) => { forgetAsset(`v:${t.id}`); URL.revokeObjectURL(t.url) })
+      const stamp = Date.now()
+      const takes: VoiceTake[] = vos.map((v, i) => ({ id: `vo-${stamp}-${i}`, blob: takeBlobs[i], url: URL.createObjectURL(takeBlobs[i]), start: v.start, duration: v.duration, volume: typeof v.volume === 'number' ? v.volume : 1 }))
+      setVoiceTakes(takes)
+      setAssetPaths(() => {
+        const next: Record<string, string> = {}
+        takes.forEach((t, i) => { next[`v:${t.id}`] = vos[i].path })
+        if (musicIsFile && p.musicPath) next.m = p.musicPath
+        return next
+      })
+
+      // Music: the sound from a video, a file of theirs, or a library track
+      setExtractedMusicPath(p.musicPath && !musicIsFile ? p.musicPath : null)
+      setMusicFile(musicFileBack)
+      setLibraryMusicUrl(p.musicUrl || null)
+      setLibraryMusicId(p.musicTrackId || null)
+      setLibraryMusicName(p.musicUrl ? ed.musicName || 'Music' : null)
+      setMusicStart(typeof p.musicStart === 'number' ? p.musicStart : 0)
+      setOriginalVolPick(typeof ed.originalVolPick === 'number' ? ed.originalVolPick : typeof p.originalVolume === 'number' ? p.originalVolume : null)
+      if (typeof p.musicVolume === 'number') setMusicVol(p.musicVolume)
+
+      // Overlays, with their places and sizes
+      overlays.forEach((o) => URL.revokeObjectURL(o.url))
+      const items: OverlayItem[] = ovs.map((o, i) => {
+        const f = ovFiles[i]
+        overlayUploadRef.current.set(f, o.path)
+        return { id: `ov-${(overlaySeq.current += 1)}`, file: f, kind: o.kind, isLogo: !!ed.logoOverlays?.[i], url: URL.createObjectURL(f), x: o.x, y: o.y, size: o.size, start: o.start, end: o.end, ar: 1, cl: o.cl || 0, cr: o.cr || 0, ct: o.ct || 0, cb: o.cb || 0 }
+      })
+      setOverlays(items)
+
+      // Captions and the rest of the settings
+      setUploadCaps(Array.isArray(p.customCaptions) ? p.customCaptions : [])
+      if (typeof ed.addCaptions === 'boolean') setUploadAddCaptions(ed.addCaptions)
+      setUploadCaptionOwn(!!ed.captionOwn)
+      if (ed.captionPreset) setCaptionPreset(ed.captionPreset)
+      if (ed.captionLayers) setCaptionLayers(ed.captionLayers)
+      if (ed.captionFontFamily) setCaptionFontFamily(ed.captionFontFamily)
+      if (ed.captionFontSize !== undefined) setCaptionFontSize(ed.captionFontSize)
+      if (ed.captionColor) setCaptionColor(ed.captionColor)
+      if (ed.captionBold !== undefined) setCaptionBold(ed.captionBold)
+      if (typeof ed.captionItalic === 'boolean') setCaptionItalic(ed.captionItalic)
+      if (typeof ed.captionUnderline === 'boolean') setCaptionUnderline(ed.captionUnderline)
+      if (ed.captionPosition) setCaptionPosition(ed.captionPosition)
+      if (ed.captionBorderColor) setCaptionBorderColor(ed.captionBorderColor)
+      if (ed.captionBg !== undefined) setCaptionBg(ed.captionBg)
+      setCutDeadSpace(typeof ed.cutDeadSpace === 'boolean' ? ed.cutDeadSpace : !!p.cutDeadSpace)
+      if (p.resolution) setUploadResolution(p.resolution)
+      setMadeWithBadge(p.madeWithBadge !== false)
+      setAppearance(p.appearance || { touchUp: 0, light: 0, look: 'none' })
+      const lines = (p.captionScript || '').split('\n').map((l) => l.trim()).filter(Boolean)
+      setVoiceScript(lines.length ? { id: `edit-${renderId}`, label: row.title || 'Your script', lines } : null)
+      filmRenderContextRef.current = { ideaId: p.ideaId || null, source: p.ideaSource || 'upload', title: row.title || null, caption: row.caption || null, tags: row.tags || null }
+      filmOutputOrientationRef.current = p.outputOrientation === 'landscape' ? 'landscape' : null
+
+      setUploadError('')
+      setRenderId(null)
+      setRenderStatus(null)
+      setOutputUrl(null)
+      setEditingRender({ id: renderId, title: row.title || null, paths: p.clipPaths })
+      // Its settings were already chosen, so the "recommended settings" offer is not shown for it
+      quickShown.current.upload = true
+      setTab('uploads')
+    } catch (err) {
+      console.error('Opening a video for editing failed:', err)
+      setEditOpenError('Some of the files for this video could not be downloaded, so it could not be opened. Check your connection and try again.')
+    } finally {
+      setEditOpening(null)
+    }
+  }
 
   // "Want it done quickly?" When the first clip goes into an editor, offer the recommended settings and a
   // one-tap render. Shown once per video, and never again if they tick "Don't ask me again".
@@ -6170,6 +6361,17 @@ export default function DashboardPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--background)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", color: 'var(--ink)' }}>
       <Tour userId={userId} runKey={tourRun} steps={tourSteps} onStatus={(how) => setTourDone(how === 'done')} />
+      {editOpening && (
+        <div role="dialog" aria-modal="true" aria-label="Opening your video" style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--card-bg)', color: 'var(--ink)', borderRadius: 4, padding: '22px 24px', width: '100%', maxWidth: 360 }}>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center' }}><span className="rly-spinner rly-spinner-coral" />Opening your video</p>
+            <p style={{ margin: '8px 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>Getting your clips and sounds ready to edit ({editOpening.done} of {editOpening.total})</p>
+            <div style={{ height: 6, background: 'var(--sand)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${editOpening.total ? Math.round((editOpening.done / editOpening.total) * 100) : 0}%`, background: 'var(--coral)', transition: 'width 0.3s' }} />
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .vs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
@@ -7683,7 +7885,15 @@ export default function DashboardPage() {
               {edT(phone, 'settings', <>{renderVideoSettings('upload')}{phone && renderPhoneBadgeToggle()}</>)}
 
               {/* ── Render ── */}
-              {edT(phone, 'always', <>{uploading && (
+              {edT(phone, 'always', <>{editingRender && !uploading && (
+                <div role="status" style={{ padding: '10px 14px', background: 'rgba(255,106,77,0.08)', borderRadius: 4, border: '1px solid rgba(255,106,77,0.35)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: phone ? '8px 12px 0' : undefined }}>
+                  <p style={{ fontSize: 12.5, margin: 0, flex: 1, minWidth: 0, lineHeight: 1.45, color: 'var(--ink)' }}>
+                    Editing <strong>{editingRender.title || 'your video'}</strong> from Publish. Creating it again replaces it there, and the old one is kept under Versions.
+                  </p>
+                  <button type="button" onClick={() => setEditingRender(null)} style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}>Make it a new video instead</button>
+                </div>
+              )}
+              {uploading && (
                 <div style={{ padding: '12px 16px', background: 'rgba(217,45,32,0.06)', borderRadius: 4, border: '1px solid rgba(217,45,32,0.3)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'rgb(217,45,32)', marginBottom: 2 }}>Uploading your clips...</p>
                   <p style={{ fontSize: 12, color: 'rgba(217,45,32,0.7)' }}>Don't navigate away or close this tab until the render starts.</p>
@@ -8492,7 +8702,7 @@ export default function DashboardPage() {
           )}
 
         {tab === 'scheduler' && (
-          <SchedulerTab userId={userId} carousels={savedCarousels} isFree={isFreeTier} onDeleteCarousel={deleteCarousel} />
+          <SchedulerTab userId={userId} carousels={savedCarousels} isFree={isFreeTier} onDeleteCarousel={deleteCarousel} onEdit={(id) => void openRenderForEdit(id)} editError={editOpenError} onClearEditError={() => setEditOpenError('')} />
           )}
         </div>
       </div>
