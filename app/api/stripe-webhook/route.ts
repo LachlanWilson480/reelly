@@ -3,6 +3,7 @@ import { updateSubscription } from '@/lib/subscriptionWrite'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { rewardReferrerForInvoice } from '@/lib/referralReward'
+import { recordCreatorCommission } from '@/lib/creatorCommission'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,6 +103,10 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (e) { console.error('discount use count failed:', e) }
+      // A creator earns commission on each payment from someone who joined with their code
+      try {
+        if (subscriptionId) await recordCreatorCommission(invoice, await stripe.subscriptions.retrieve(subscriptionId))
+      } catch (e) { console.error('creator commission failed:', e) }
       // A friend's first real payment earns their referrer 30% off their next month
       await rewardReferrerForInvoice(stripe, invoice)
     }
