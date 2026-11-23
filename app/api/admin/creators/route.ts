@@ -9,6 +9,7 @@ export const maxDuration = 300
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 const cleanCode = (s: unknown) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 const str = (s: unknown) => { const v = String(s ?? '').trim(); return v ? v : null }
+const MAX_CREATORS = 200
 const digits = (s: unknown) => { const v = String(s ?? '').replace(/\D/g, ''); return v ? v : null }
 
 // Everything the creator page shows
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
   const checks = (rows || []).filter(r => r.status === 'check').map(r => ({
     ...r, name: ((creators || []).find((x: Creator) => x.id === r.creator_id) as Creator | undefined)?.name || '',
   }))
-  return NextResponse.json({ creators: byCreator, owed, checks, period: statementPeriod().label })
+  return NextResponse.json({ creators: byCreator, owed, checks, period: statementPeriod().label, max: MAX_CREATORS })
 }
 
 export async function POST(req: NextRequest) {
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
     const name = str(body.name), email = str(body.email)?.toLowerCase() || null, code = cleanCode(body.code)
     if (!name || !email || !email.includes('@')) return NextResponse.json({ error: 'Add the creator\'s name and email.' }, { status: 400 })
     if (code.length < 3) return NextResponse.json({ error: 'The code needs at least 3 letters or numbers.' }, { status: 400 })
+    const { count } = await admin.from('creators').select('id', { count: 'exact', head: true })
+    if ((count ?? 0) >= MAX_CREATORS) return NextResponse.json({ error: `You already have ${MAX_CREATORS} creators, the most allowed. Remove or reuse one first.` }, { status: 400 })
     const { data: taken } = await admin.from('creators').select('id').eq('code', code).maybeSingle()
     if (taken) return NextResponse.json({ error: `${code} already belongs to another creator.` }, { status: 400 })
 
@@ -113,12 +116,34 @@ export async function POST(req: NextRequest) {
     if ('note' in f) update.note = str(f.note)
     if ('active' in f) update.active = !!f.active
     if (update.name === null || update.email === null) return NextResponse.json({ error: 'Name and email cannot be empty.' }, { status: 400 })
+
+    // A new code: the creator and the discount code are renamed together, so people who already joined
+    // keep earning the creator commission. The old code stops working for new sign ups.
+    const { data: current } = await admin.from('creators').select('code').eq('id', id).maybeSingle()
+    if (!current) return NextResponse.json({ error: 'Creator not found.' }, { status: 404 })
+    const newCode = 'code' in f ? cleanCode(f.code) : current.code
+    if (newCode !== current.code) {
+      if (newCode.length < 3) return NextResponse.json({ error: 'The code needs at least 3 letters or numbers.' }, { status: 400 })
+      const [{ data: c1 }, { data: c2 }] = await Promise.all([
+        admin.from('creators').select('id').eq('code', newCode).maybeSingle(),
+        admin.from('discount_codes').select('code').eq('code', newCode).maybeSingle(),
+      ])
+      if (c1 || c2) return NextResponse.json({ error: `${newCode} is already used by another code. Pick a different one.` }, { status: 400 })
+      update.code = newCode
+    }
+
     const { error } = await admin.from('creators').update(update).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (update.code) {
+      const { error: codeErr } = await admin.from('discount_codes').update({ code: newCode }).eq('code', current.code)
+      if (codeErr) {
+        await admin.from('creators').update({ code: current.code }).eq('id', id)
+        return NextResponse.json({ error: `Could not change the code: ${codeErr.message}` }, { status: 500 })
+      }
+    }
     // Turning a creator off also stops their code working
     if ('active' in f) {
-      const { data: c } = await admin.from('creators').select('code').eq('id', id).maybeSingle()
-      if (c) await admin.from('discount_codes').update({ active: !!f.active }).eq('code', c.code)
+      await admin.from('discount_codes').update({ active: !!f.active }).eq('code', newCode)
     }
     return NextResponse.json({ ok: true })
   }

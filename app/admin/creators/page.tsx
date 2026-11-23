@@ -37,6 +37,7 @@ export default function CreatorsAdmin() {
   const [owed, setOwed] = useState<Owed[]>([])
   const [checks, setChecks] = useState<Check[]>([])
   const [period, setPeriod] = useState('')
+  const [max, setMax] = useState(200)
   const [form, setForm] = useState(blankForm)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -48,7 +49,7 @@ export default function CreatorsAdmin() {
     const res = await authFetch('/api/admin/creators')
     if (res.status === 403) { setState('denied'); return }
     const data = await res.json()
-    setCreators(data.creators || []); setOwed(data.owed || []); setChecks(data.checks || []); setPeriod(data.period || '')
+    setCreators(data.creators || []); setOwed(data.owed || []); setChecks(data.checks || []); setPeriod(data.period || ''); if (data.max) setMax(data.max)
     setState('ready')
   }, [])
 
@@ -100,7 +101,7 @@ export default function CreatorsAdmin() {
   function startEdit(c: CreatorView) {
     setEditing(c.id)
     setEdit({
-      name: c.name, email: c.email, commission_percent: String(c.commission_percent), commission_months: c.commission_months ? String(c.commission_months) : '',
+      name: c.name, email: c.email, code: c.code, commission_percent: String(c.commission_percent), commission_months: c.commission_months ? String(c.commission_months) : '',
       abn: c.abn || '', supplier_statement: c.supplier_statement, agreement_signed: c.agreement_signed,
       bsb: c.bsb || '', account_number: c.account_number || '', account_name: c.account_name || '', note: c.note || '',
     })
@@ -142,7 +143,9 @@ export default function CreatorsAdmin() {
         <h1 style={pageTitle}>Creators</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button style={buttonSecondary} disabled={busy} onClick={runNow}>Run statements now</button>
-          <button style={buttonPrimary} disabled={busy} onClick={() => { setAdding(!adding); setMessage(null) }}>{adding ? 'Close' : 'Add a creator'}</button>
+          <button style={{ ...buttonPrimary, opacity: !adding && creators.length >= max ? 0.5 : 1 }} disabled={busy || (!adding && creators.length >= max)}
+            title={creators.length >= max ? `You have reached the limit of ${max} creators` : undefined}
+            onClick={() => { setAdding(!adding); setMessage(null) }}>{adding ? 'Close' : 'Add a creator'}</button>
         </div>
       </div>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 24px' }}>
@@ -224,7 +227,7 @@ export default function CreatorsAdmin() {
         </div>
       )}
 
-      <h2 style={{ ...sectionTitle, marginBottom: 12 }}>All creators ({creators.length})</h2>
+      <h2 style={{ ...sectionTitle, marginBottom: 12 }}>All creators ({creators.length} of {max})</h2>
       {creators.length === 0 && <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>No creators yet. Add your first one above.</p>}
       <div style={{ display: 'grid', gap: 12 }}>
         {creators.map(c => {
@@ -268,12 +271,13 @@ export default function CreatorsAdmin() {
               )}
               {e && (
                 <div style={{ display: 'grid', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-                  <div style={row}>{ef('Name', 'name')}{ef('Email', 'email', 220)}{ef('Earns (%)', 'commission_percent', 100)}{ef('For months (blank = for life)', 'commission_months', 180)}</div>
+                  <div style={row}>{ef('Name', 'name')}{ef('Email', 'email', 220)}{ef('Code', 'code', 140)}</div>
+                  <div style={row}>{ef('Earns (%)', 'commission_percent', 100)}{ef('For months (blank = for life)', 'commission_months', 180)}</div>
                   <div style={row}>{ef('ABN', 'abn')}{ef('BSB', 'bsb', 100)}{ef('Account number', 'account_number', 140)}{ef('Account name', 'account_name', 200)}</div>
                   {ef('Note', 'note', 300)}
                   {tick('No ABN, but they gave me a signed ATO Statement by a supplier', !!edit.supplier_statement, v => setEdit({ ...edit, supplier_statement: v }))}
                   {tick('They signed the creator agreement', !!edit.agreement_signed, v => setEdit({ ...edit, agreement_signed: v }))}
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Changing the % or months only affects payments from now on.</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Changing the % or months only affects payments from now on. A new code works straight away and the old one stops working. People who already joined with the old code still count for this creator.</p>
                   <div><button style={buttonPrimary} disabled={busy} onClick={() => saveEdit(c.id)}>Save</button></div>
                 </div>
               )}
