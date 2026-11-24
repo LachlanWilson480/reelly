@@ -19,6 +19,8 @@ import JSZip from 'jszip'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import SchedulerTab from '@/components/SchedulerTab'
 import Tooltip from '@/components/Tooltip'
+import StudioBar, { type StudioStep } from '@/components/StudioBar'
+import VideoBoard, { type BoardVideo, type VideoStage } from '@/components/VideoBoard'
 import CameraControls from '@/components/CameraControls'
 import SpeedSlider from '@/components/SpeedSlider'
 import CropPage from '@/components/CropPage'
@@ -78,7 +80,7 @@ type Profile = {
 // Notifications and post stats are hidden for launch until posting accounts are approved. Set to true to bring them back.
 const SHOW_OVERVIEW_PANELS = false
 
-type Tab = 'overview' | 'ideas' | 'myideas' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler' | 'library' | 'library'
+type Tab = 'overview' | 'ideas' | 'myideas' | 'studio' | 'filming' | 'film' | 'script' | 'uploads' | 'aiuploads' | 'carousel' | 'scheduler' | 'library'
 
 type Idea = {
   id: string
@@ -3279,7 +3281,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const urlTab = params.tab as Tab | undefined
-    const validTabs: Tab[] = ["overview", "ideas", "myideas", "filming", "film", "script", "uploads", "aiuploads", "carousel", "scheduler", "library"]
+    const validTabs: Tab[] = ["overview", "ideas", "myideas", "studio", "filming", "film", "script", "uploads", "aiuploads", "carousel", "scheduler", "library"]
     if (urlTab && validTabs.includes(urlTab)) {
       setTabState(urlTab)
     }
@@ -5029,6 +5031,124 @@ export default function DashboardPage() {
     setCurrentBatch(weeklyBatches[newIndex].batchNumber)
   }
 
+  // ── Studio: make one video at a time, from plan to publish ──
+  // The video being worked on. Kept for the browser session so a refresh lands back on it.
+  const [studioId, setStudioIdState] = useState<string | null>(null)
+  const setStudioId = (id: string | null) => {
+    setStudioIdState(id)
+    try { if (id) sessionStorage.setItem('reelezy-studio', id); else sessionStorage.removeItem('reelezy-studio') } catch { /* no storage */ }
+  }
+  useEffect(() => { try { const saved = sessionStorage.getItem('reelezy-studio'); if (saved) setStudioIdState(saved) } catch { /* no storage */ } }, [])
+  // A Studio tool that is not about one video: editing your own clips, planning or filming several at once
+  const [studioTool, setStudioTool] = useState<string | null>(null)
+  const lastStudioTab = useRef<Tab | null>(null)
+  // Ideas that already have a finished video, newest render time for each
+  const [madeIdeaIds, setMadeIdeaIds] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    if (!userId || !['myideas', 'overview', 'studio'].includes(tab)) return
+    let cancelled = false
+    supabase.from('renders').select('idea_id, created_at').eq('user_id', userId).not('idea_id', 'is', null).then(({ data }) => {
+      if (cancelled || !Array.isArray(data)) return
+      const m = new Map<string, string>()
+      for (const r of data as { idea_id: string | null; created_at: string }[]) {
+        if (!r.idea_id) continue
+        const prev = m.get(r.idea_id)
+        if (!prev || r.created_at > prev) m.set(r.idea_id, r.created_at)
+      }
+      setMadeIdeaIds(m)
+    })
+    return () => { cancelled = true }
+  }, [userId, tab])
+
+  const studioStepOf = (t: Tab): StudioStep | null => (t === 'filming' ? 'plan' : t === 'film' ? 'film' : t === 'aiuploads' || t === 'uploads' ? 'edit' : null)
+  const studioScriptFor = (id: string) => savedScripts.find((sc) => `script-${sc.id}` === id) || null
+  const studioPlanFor = (id: string | null): FilmingItem | null => (id ? filmingItems.find((f) => f.id === id) || archivedFilming.find((a) => a.id === id) || null : null)
+  const studioPlan = studioPlanFor(studioId)
+  const studioIdea: Idea | null = studioId
+    ? dbSavedIdeas.find((i) => i.id === studioId) || studioPlan || (() => {
+        const sc = studioScriptFor(studioId)
+        return sc ? ({ id: `script-${sc.id}`, title: sc.topic, hook: sc.script.split(/[.!?]/)[0] || sc.topic, description: sc.topic, tags: '', script: sc.script } as Idea) : null
+      })()
+    : null
+  const inStudio = !!studioIdea && !studioTool && studioStepOf(tab) !== null
+  useEffect(() => { if (inStudio) lastStudioTab.current = tab }, [inStudio, tab])
+
+  // Go to one step of the Studio for the video being made
+  const goStudioStep = (step: StudioStep, id: string | null = studioId, planArg?: FilmingItem | null) => {
+    const plan = planArg !== undefined ? planArg : studioPlanFor(id)
+    setOpenDropdown(null)
+    setStudioTool(null)
+    if (step === 'plan') {
+      if (id) setSelectedIdeaIdsForFilming([id])
+      setTab('filming')
+    } else if (step === 'film') {
+      if (!filmMultiBusy) setFilmMulti(false)
+      if (plan && filmClips.length === 0 && !filmRecorderOpen && filmSelectedId !== `idea:${plan.id}`) {
+        const fp = getFilmPlan(plan)
+        selectFilmSource(`idea:${plan.id}`, fp.lines, fp.actions, fp.durations)
+      }
+      setTab('film')
+    } else if (step === 'edit') {
+      // Clips filmed in Reelezy are already in the editor. Otherwise upload one clip for each shot in the plan.
+      if (Object.keys(uploadSlotFiles).length > 0 || !plan) setTab('uploads')
+      else {
+        if (selectedFilmingId !== plan.id) pickFilmingIdea(plan)
+        setTab('aiuploads')
+      }
+    } else {
+      setTab('scheduler')
+    }
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Open the Studio on a video, at the step it needs next (or the one asked for)
+  const openStudio = (id: string, step?: StudioStep) => {
+    setStudioId(id)
+    lastStudioTab.current = null
+    let plan = filmingItems.find((f) => f.id === id) || null
+    if (!plan) {
+      const archived = archivedFilming.find((a) => a.id === id)
+      if (archived) {
+        plan = archived
+        setArchivedFilming((prev) => prev.filter((a) => a.id !== id))
+        setFilmingItems((prev) => [archived, ...prev.filter((f) => f.id !== id)])
+        supabase.from('generated_ideas').update({ filming_cleared: false }).eq('id', id).then(() => {})
+      }
+    }
+    goStudioStep(step || (plan ? 'film' : 'plan'), id, plan)
+  }
+
+  // The Studio tab: carry on with the video in progress, or pick one
+  const openStudioTab = () => {
+    setOpenDropdown(null)
+    if (studioIdea && studioId) {
+      setStudioTool(null)
+      const last = lastStudioTab.current
+      if (last) { setTab(last); return }
+      openStudio(studioId)
+      return
+    }
+    setTab('studio')
+  }
+  const openStudioTool = (name: string, t: Tab) => {
+    setStudioTool(name)
+    setOpenDropdown(null)
+    if (t === 'film' && !filmMultiBusy && name.includes('several')) setFilmMulti(true)
+    setTab(t)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Keep the Film and Edit steps on the Studio's video, also after a refresh
+  useEffect(() => {
+    if (!inStudio || !studioPlan) return
+    if (tab === 'film' && !filmMulti && filmClips.length === 0 && !filmRecorderOpen && filmSelectedId !== `idea:${studioPlan.id}`) {
+      const fp = getFilmPlan(studioPlan)
+      selectFilmSource(`idea:${studioPlan.id}`, fp.lines, fp.actions, fp.durations)
+    }
+    if (tab === 'aiuploads' && selectedFilmingId !== studioPlan.id) pickFilmingIdea(studioPlan)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inStudio, tab, studioPlan?.id])
+
   const proceedToFilming = async (ideasToGenerate: Idea[]) => {
     if (!profile) return
     setGeneratingFilming(true)
@@ -5128,6 +5248,8 @@ export default function DashboardPage() {
         const kept = prev.filter((i) => !mergedIds.has(i.id))
         return [...merged, ...kept]
       })
+      // A script gets a real id once its plan is saved: keep the Studio on it
+      if (ideasToGenerate.length === 1 && merged.length === 1 && merged[0].id !== ideasToGenerate[0].id && studioId === ideasToGenerate[0].id) setStudioId(merged[0].id)
       if (failCount > 0) {
         setFilmingError(`${failCount} of ${ideasToGenerate.length} idea${failCount > 1 ? "s" : ""} failed to generate. You can try again for those.`)
       }
@@ -6334,7 +6456,7 @@ export default function DashboardPage() {
 
   const stats = [
     { label: 'Ideas this week', value: isFreeTier ? `${ideasThisWeek} / 24` : `${ideasThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.ideasPerWeek : PLAN_LIMITS.basic.ideasPerWeek}` },
-    { label: 'Filming instructions', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}`, tab: 'film' as Tab },
+    { label: 'Filming plans', value: isFreeTier ? `${filmingThisWeek} / 7` : `${filmingThisWeek} / ${userPlan === 'top' ? PLAN_LIMITS.top.filmingPerWeek : PLAN_LIMITS.basic.filmingPerWeek}`, tab: 'myideas' as Tab },
     { label: 'Reels made', value: String(totalRenders) },
     { label: 'Posts this week', value: String(postsThisWeek) },
     { label: 'Render time used', value: isFreeTier ? (() => {
@@ -6349,6 +6471,33 @@ export default function DashboardPage() {
 
   const savedIdeas = dbSavedIdeas
 
+  // Every video on the go, for the Videos board, the Studio and Home
+  const stageOf = (id: string): VideoStage => (madeIdeaIds.has(id) ? 'made' : filmingItems.some((f) => f.id === id) || archivedFilming.some((a) => a.id === id) ? 'planned' : 'idea')
+  const boardVideos: BoardVideo[] = [
+    ...savedIdeas.map((i): BoardVideo => ({ id: i.id, title: i.title, hook: i.hook, description: i.description, notes: i.notes, kind: i.source === 'script' ? 'script' : 'idea', stage: stageOf(i.id), madeAt: madeIdeaIds.get(i.id) || null })),
+    ...savedScripts
+      .filter((sc) => !dismissedScriptIds.has(sc.id) && !savedIdeas.some((i) => i.source === 'script' && i.title === sc.topic))
+      .map((sc): BoardVideo => ({ id: `script-${sc.id}`, title: sc.topic, hook: sc.script.split(/(?<=[.!?])\s+/)[0], kind: 'script', stage: 'idea' })),
+  ]
+  const stageRank: Record<VideoStage, number> = { planned: 0, idea: 1, made: 2 }
+  const boardSorted = [...boardVideos].sort((a, b) => stageRank[a.stage] - stageRank[b.stage])
+  const upNext = boardSorted.find((v) => v.id === studioId && v.stage !== 'made') || boardSorted.find((v) => v.stage !== 'made') || null
+  const videoNext = (v: BoardVideo) => {
+    if (v.stage === 'made') { setTab('scheduler'); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    openStudio(v.id, v.stage === 'planned' ? 'film' : 'plan')
+  }
+  const removeVideo = async (v: BoardVideo) => {
+    if (v.id.startsWith('script-')) {
+      const sid = v.id.slice(7)
+      setDismissedScriptIds((prev) => new Set([...prev, sid]))
+      setSavedScripts((prev) => prev.filter((sc) => sc.id !== sid))
+      await supabase.from('generated_scripts').update({ dismissed: true }).eq('id', sid)
+    } else {
+      toggleSave(v.id)
+    }
+    if (studioId === v.id) setStudioId(null)
+  }
+
 
 
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const, color: 'var(--ink)' }
@@ -6357,12 +6506,11 @@ export default function DashboardPage() {
   const tourSteps: TourStep[] = [
     { id: 'create', target: 'menu-item-ideas', title: 'Start with an idea', body: 'Open the Create menu and press Content Ideas. This is where every video begins.', enter: () => { setTab('overview'); setOpenDropdown('create') }, advanceOnClick: true },
     { id: 'generate', target: 'ideas-generate', title: 'Get video ideas', body: 'Press Generate and we write ideas that fit your business. Save the ones you like.', enter: () => { setOpenDropdown(null); setTab('ideas') }, advanceOnClick: true },
-    { id: 'instructions', target: 'tab-filming', title: 'Your shot list', body: 'Instructions turns a saved idea into a script and a list of shots, so you know exactly what to film.', enter: () => { setOpenDropdown(null) } },
-    { id: 'film', target: 'tab-film', title: 'Film it', body: 'Film opens your camera with the script scrolling on screen. Or film on your phone as normal and upload it in the next step.', enter: () => { setOpenDropdown(null) } },
-    { id: 'edit', target: 'tab-edit', title: 'Choose how to edit', body: 'AI Editor For Generated Idea follows the shot list you made. For Any Video lets you edit clips you already have.', enter: () => { setOpenDropdown('edit') } },
-    { id: 'clips', target: 'choose-clip', title: 'Add your clips', body: 'Pick clips from your device or from your library. Add as many as you need.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
+    { id: 'videos', target: 'tab-videos', title: 'Your videos', body: 'Every idea you save shows up in Videos, with a button for its next step.', enter: () => { setOpenDropdown(null) } },
+    { id: 'studio', target: 'tab-studio', title: 'Make it in the Studio', body: 'The Studio takes one video at a time through four steps: plan the shots, film with the teleprompter, edit, then publish.', enter: () => { setOpenDropdown(null) } },
+    { id: 'clips', target: 'choose-clip', title: 'Got clips already?', body: 'You can also edit clips you have filmed. Pick them from your device or your library.', enter: () => { setOpenDropdown(null); setStudioTool('Edit your own clips'); setTab('uploads') } },
     { id: 'create-video', target: 'create-video', title: 'Make the video', body: 'When your clips are in, press Create video. We add captions and music and send you the finished video.', enter: () => { setOpenDropdown(null); setTab('uploads') } },
-    { id: 'publish', target: 'tab-publish', title: 'Publish it', body: 'Publish keeps your finished videos in one place so you can download them and post.', enter: () => { setOpenDropdown(null); setTab('scheduler') } },
+    { id: 'publish', target: 'tab-publish', title: 'Publish it', body: 'Publish keeps your finished videos in one place so you can download, share and post them.', enter: () => { setOpenDropdown(null); setTab('scheduler') } },
   ]
 
   return (
@@ -6544,9 +6692,9 @@ export default function DashboardPage() {
           <div style={{ position: 'relative', marginBottom: 22 }}>
             <div ref={(el) => { navScrollRef.current = el; if (el) setTimeout(checkNavEnd, 0) }} onScroll={checkNavEnd} className="dashboard-tabs-scroll" style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--line)', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }} onClick={() => setOpenDropdown(null)}>
 
-            {/* Overview */}
+            {/* Home */}
             <button onClick={(e) => { e.stopPropagation(); setTab('overview'); setOpenDropdown(null) }} style={{ background: 'none', border: 'none', borderBottom: tab === 'overview' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'overview' ? 600 : 500, color: tab === 'overview' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              Overview
+              Home
             </button>
 
             {/* Create dropdown */}
@@ -6566,37 +6714,15 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* My Ideas tab */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('myideas') }} style={{ background: 'none', border: 'none', borderBottom: tab === 'myideas' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'myideas' ? 600 : 500, color: tab === 'myideas' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              My Ideas{savedIdeas.length > 0 ? ` (${savedIdeas.length})` : ''}
+            {/* Videos: every video on the go */}
+            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('myideas') }} data-tour="tab-videos" style={{ background: 'none', border: 'none', borderBottom: tab === 'myideas' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'myideas' ? 600 : 500, color: tab === 'myideas' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Videos{boardVideos.filter((v) => v.stage !== 'made').length > 0 ? ` (${boardVideos.filter((v) => v.stage !== 'made').length})` : ''}
             </button>
 
-            {/* Instructions tab */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('filming') }} data-tour="tab-filming" style={{ background: 'none', border: 'none', borderBottom: tab === 'filming' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'filming' ? 600 : 500, color: tab === 'filming' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              Instructions
+            {/* Studio: plan, film and edit one video */}
+            <button onClick={(e) => { e.stopPropagation(); openStudioTab() }} data-tour="tab-studio" style={{ background: 'none', border: 'none', borderBottom: (tab === 'studio' || studioStepOf(tab) !== null) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: (tab === 'studio' || studioStepOf(tab) !== null) ? 600 : 500, color: (tab === 'studio' || studioStepOf(tab) !== null) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+              Studio
             </button>
-
-            {/* Film tab */}
-            <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); setTab('film') }} data-tour="tab-film" style={{ background: 'none', border: 'none', borderBottom: tab === 'film' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'film' ? 600 : 500, color: tab === 'film' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
-              Film
-            </button>
-
-            {/* Edit dropdown */}
-            <div ref={editBtnRef} style={{ position: 'relative' }}>
-              <button onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'edit' ? null : 'edit') }} data-tour="tab-edit" data-dropdown style={{ background: 'none', border: 'none', borderBottom: ['aiuploads','uploads'].includes(tab) ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: ['aiuploads','uploads'].includes(tab) ? 600 : 500, color: ['aiuploads','uploads'].includes(tab) ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Edit <span style={{ fontSize: 11, opacity: 0.6 }}><Icon n="down" /></span>
-              </button>
-              {openDropdown === 'edit' && typeof document !== 'undefined' && createPortal(
-                <div data-dropdown data-tour="edit-menu" onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: (editBtnRef.current?.getBoundingClientRect().bottom ?? 48) + 4, left: Math.max(8, Math.min(editBtnRef.current?.getBoundingClientRect().left ?? 0, (typeof window !== 'undefined' ? window.innerWidth : 360) - 268)), background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '6px', zIndex: 1000, minWidth: 180, width: 'max-content', maxWidth: 'calc(100vw - 16px)', boxShadow: 'none' }}>
-                  {[{ id: 'aiuploads', label: 'AI Editor For Generated Idea' }, { id: 'uploads', label: 'AI Editor For Any Video' }].map((item) => (
-                    <button key={item.id} data-tour={`menu-item-${item.id}`} onClick={() => { setTab(item.id as Tab); setOpenDropdown(null) }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: tab === item.id ? 'rgba(255,106,77,0.08)' : 'none', border: 'none', borderRadius: 4, padding: '9px 12px', fontSize: 13, fontWeight: tab === item.id ? 600 : 400, color: tab === item.id ? 'var(--coral)' : 'var(--ink)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )}
-            </div>
 
             {/* Publish button */}
             <button onClick={(e) => { e.stopPropagation(); setTab('scheduler'); setOpenDropdown(null) }} data-tour="tab-publish" style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduler' ? '2px solid var(--coral)' : '2px solid transparent', padding: '10px 36px', fontSize: 14, fontWeight: tab === 'scheduler' ? 600 : 500, color: tab === 'scheduler' ? 'var(--ink)' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", whiteSpace: 'nowrap' }}>
@@ -6617,11 +6743,49 @@ export default function DashboardPage() {
 
 
 
+          {studioStepOf(tab) !== null && (
+            <StudioBar
+              title={studioIdea?.title || 'Your video'}
+              step={inStudio ? studioStepOf(tab) : null}
+              done={{ plan: !!studioPlan, film: !!studioId && madeIdeaIds.has(studioId), edit: !!studioId && madeIdeaIds.has(studioId) }}
+              onStep={(st) => goStudioStep(st)}
+              onBack={() => { setStudioTool(null); setTab('myideas'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              tool={inStudio ? undefined : studioTool || ({ filming: 'Plan several videos', film: 'Film', aiuploads: 'Upload clips and edit', uploads: 'Edit your own clips' } as Record<string, string>)[tab]}
+            />
+          )}
           {SHOW_OVERVIEW_PANELS && tab === 'overview' && (
             <OverviewPanel isFree={isFreeTier} ideasReady={ideas.length} onGo={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
           )}
           {tab === 'overview' && (
-            <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gap: 20 }}>
+              {/* Pick up where you left off */}
+              {upNext ? (
+                <div className="home-next" style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderLeft: '4px solid var(--coral)', borderRadius: 4, padding: '22px 24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px 24px' }}>
+                  <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--coral)', margin: '0 0 6px' }}>Pick up where you left off</p>
+                    <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0, lineHeight: 1.3 }}>{upNext.title}</h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+                      {upNext.stage === 'planned' ? 'Your plan is ready. Next, film it with the teleprompter or upload clips you have filmed.' : 'Next, make the plan: a script and a list of shots so you know exactly what to film.'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button type="button" onClick={() => videoNext(upNext)} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '12px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{upNext.stage === 'planned' ? 'Film it' : 'Plan it'}</button>
+                    <button type="button" onClick={() => setTab('myideas')} style={{ background: 'none', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 4, padding: '11px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>All videos</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderLeft: '4px solid var(--coral)', borderRadius: 4, padding: '22px 24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px 24px' }}>
+                  <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--coral)', margin: '0 0 6px' }}>Start your next video</p>
+                    <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>{ideas.length > 0 ? `You have ${ideas.length} ${ideas.length === 1 ? 'idea' : 'ideas'} waiting` : 'Get ideas made for ' + (profile?.business_name || 'your business')}</h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Save the ones you like and the Studio walks you through planning, filming and editing each one.</p>
+                  </div>
+                  <button type="button" onClick={() => setTab('ideas')} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '12px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Get video ideas</button>
+                </div>
+              )}
+
+              {/* This week in numbers */}
+              <div className="dash-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 14, marginBottom: 0 }}>
               {stats.map((s) => (
                 s.tab ? (
                   <button
@@ -6642,54 +6806,28 @@ export default function DashboardPage() {
                 )
               ))}
             </div>
-          )}
-          {tab === 'overview' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-              <button
-                onClick={() => setTab('ideas')}
-                style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
-                  Content ideas
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {ideas.length > 0 ? `You have ${ideas.length} ${ideas.length === 1 ? 'idea' : 'ideas'} ready to review.` : profile?.suburb ? `Generate ideas tailored for ${profile.suburb}.` : 'Generate ideas tailored for your business.'}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Content Ideas</p>
-              </button>
-              <button
-                onClick={() => setTab('aiuploads')}
-                style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
-                  Upload & edit
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Upload clips and get them stitched with captions and sound automatically.
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to AI Editor For Generated Idea</p>
-              </button>
-              <button
-                onClick={() => setTab('scheduler')}
-                style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'opacity 0.15s' }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--ink)' }}>
-                  Publish
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  See your finished videos and download them, ready to post.
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--coral)', marginTop: 12, fontWeight: 600 }}>Go to Publish</p>
-              </button>
+
+              {/* How a video gets made */}
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>How a video gets made</p>
+                <div className="home-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+                  {[
+                    { n: 1, t: 'Pick an idea', d: 'Get ideas made for your business, or write your own script.', go: () => setTab('ideas'), cta: 'Content ideas' },
+                    { n: 2, t: 'Plan and film', d: 'The Studio gives you a shot list and a teleprompter to film with.', go: openStudioTab, cta: 'Open the Studio' },
+                    { n: 3, t: 'Edit', d: 'Captions, music and your logo go on, then the video is made for you.', go: () => openStudioTool('Edit your own clips', 'uploads'), cta: 'Edit your own clips' },
+                    { n: 4, t: 'Post it', d: 'Download, share or schedule your finished videos.', go: () => setTab('scheduler'), cta: 'Go to Publish' },
+                  ].map((st) => (
+                    <button key={st.n} type="button" onClick={() => { st.go(); window.scrollTo({ top: 0, behavior: 'smooth' }) }} style={{ background: 'var(--sand)', borderRadius: 4, padding: '18px', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{st.n}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{st.t}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{st.d}</span>
+                      <span style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 600, marginTop: 'auto' }}>{st.cta}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
-
           {tab === 'ideas' && (
             <div>
 
@@ -6886,10 +7024,10 @@ export default function DashboardPage() {
                     {savedIds.has(idea.id) && (
                       <div style={{ borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 12 }}>
                         <button
-                          onClick={() => setTab('myideas')}
+                          onClick={() => openStudio(idea.id, 'plan')}
                           style={{ background: 'rgba(255,106,77,0.1)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '5px 12px', fontSize: 12, color: 'var(--coral)', cursor: 'pointer', fontWeight: 600 }}
                         >
-                          View in My Ideas
+                          Make this video
                         </button>
                       </div>
                     )}
@@ -6935,163 +7073,72 @@ export default function DashboardPage() {
 
           {tab === 'myideas' && (
             <div>
-              {savedIdeas.length === 0 ? (
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '48px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                    No ideas saved yet. Star an idea in Content Ideas to see it here.
-                  </p>
-                  <button
-                    onClick={() => router.push('/history')}
-                    style={{ marginTop: 14, background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  >
-                    View old ideas
-                  </button>
-                </div>
-              ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Saved ideas</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 24 }}>
-                    <div>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
-                        Review your selected ideas, then film them.
-                      </p>
-                      <button
-                        onClick={() => router.push('/history')}
-                        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                      >
-                        View old ideas
-                      </button>
+                  <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Your videos</h2>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Every idea you save becomes a video here. Press the button on a card to do its next step.</p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => setTab('ideas')} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>New video</button>
+                  <button type="button" onClick={() => openStudioTool('Edit your own clips', 'uploads')} style={{ background: 'none', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit your own clips</button>
+                  <button type="button" onClick={() => router.push('/history')} style={{ background: 'none', border: '1px solid var(--line)', color: 'var(--text-secondary)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Old ideas</button>
+                </div>
+              </div>
+              {(['planned', 'idea', 'made'] as VideoStage[]).map((stg) => {
+                const list = boardSorted.filter((v) => v.stage === stg)
+                if (list.length === 0) return null
+                const head = { planned: ['Ready to film', 'The plan is made. Film it next.'], idea: ['To plan', 'Get a script and a shot list for these.'], made: ['Made', 'Finished videos. Find them in Publish.'] }[stg]
+                return (
+                  <section key={stg} style={{ marginBottom: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+                      <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--ink)', margin: 0 }}>{head[0]} <span style={{ color: 'var(--text-muted)' }}>({list.length})</span></h3>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{head[1]}</span>
                     </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-                    {savedIdeas.map((idea) => (
-                      <div key={idea.id} style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', position: 'relative' }}>
-                        <button
-                          onClick={() => toggleSave(idea.id)}
-                          style={{
-                            position: 'absolute',
-                            top: 16,
-                            right: 16,
-                            background: 'none',
-                            border: '1px solid #D92D20',
-                            borderRadius: 4,
-                            padding: '3px 10px',
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: '#D92D20',
-                          }}
-                        >
-                          Remove
-                        </button>
-                        <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 10, paddingRight: 90 }}>
-                          {idea.title}
-                        </h3>
-                        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
-                          {idea.hook}
-                        </p>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
-                          {idea.description}
-                        </p>
-                        <p style={{ fontSize: 12, color: 'var(--coral)' }}>{(() => { try { const t = JSON.parse(idea.tags); return Array.isArray(t) ? t.join(" ") : idea.tags } catch { return idea.tags } })()}</p>
-                        {editingNotesId === idea.id ? (
-                          <textarea
-                            value={idea.notes || ''}
-                            onChange={(e) => updateIdeaNotes(idea.id, e.target.value)}
-                            onBlur={() => setEditingNotesId(null)}
-                            autoFocus
-                            placeholder="Add your own notes or tweaks for this idea..."
-                            style={{ width: '100%', marginTop: 12, padding: '10px 12px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", minHeight: 70, resize: 'vertical', boxSizing: 'border-box' }}
-                          />
-                        ) : idea.notes ? (
-                          <div onClick={() => setEditingNotesId(idea.id)} style={{ marginTop: 12, padding: '10px 12px', borderRadius: 4, background: 'var(--card-bg)', cursor: 'pointer' }}>
-                            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Your notes (click to edit)</p>
-                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{idea.notes}</p>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setEditingNotesId(idea.id)}
-                            style={{ marginTop: 12, background: 'none', border: '1px dashed rgba(128,128,128,0.35)', borderRadius: 4, padding: '8px 14px', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                          >
-                            + Add notes
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedIdeaIdsForFilming([idea.id])
-                            setTab('filming')
-                          }}
-                          style={{ marginTop: 12, background: 'none', border: '1px solid var(--coral)', borderRadius: 4, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: 'var(--coral)', cursor: 'pointer', display: 'block' }}
-                        >
-                          Film this
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Scripts subsection */}
-              {savedScripts.length > 0 && (
-                <div style={{ marginTop: 40 }}>
-                  <div style={{ borderTop: '1px solid var(--line)', marginBottom: 24 }} />
-                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Scripts generated</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Scripts you've created in the Script Generator.</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {savedScripts.filter((s) => !dismissedScriptIds.has(s.id)).map((s) => (
-                      <div key={s.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{s.topic}</p>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-                              {(s.length || s.style) && (
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{[s.length, s.style].filter(Boolean).join(' · ')}</span>
-                              )}
-                              <button
-                                onClick={async () => {
-                                  setDismissedScriptIds((prev) => new Set([...prev, s.id]))
-                                  setSavedScripts((prev) => prev.filter((sc) => sc.id !== s.id))
-                                  // Mark script as dismissed in DB
-                                  await supabase.from('generated_scripts').update({ dismissed: true }).eq('id', s.id)
-                                  // Also unsave any generated_ideas row created from this script
-                                  await supabase
-                                    .from('generated_ideas')
-                                    .update({ saved: false })
-                                    .eq('user_id', userId)
-                                    .eq('source', 'script')
-                                    .eq('title', s.topic)
-                                  setDbSavedIdeas((prev) => prev.filter((i) => !(i.source === 'script' && i.title === s.topic)))
-                                }}
-                                style={{ background: 'none', border: '1px solid #D92D20', borderRadius: 4, padding: '3px 10px', fontSize: 12, fontWeight: 600, color: '#D92D20', cursor: 'pointer' }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                            {s.script.split(/(?<=[.!?])\s+/).map((sentence: string, i: number, arr: string[]) => (
-                              <div key={i} style={{ paddingTop: i === 0 ? 0 : 8, paddingBottom: 8, borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{sentence}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                    <VideoBoard videos={list} onNext={videoNext} onOpen={(v) => (v.stage === 'made' ? openStudio(v.id, 'film') : videoNext(v))} onRemove={removeVideo} onNotes={(v, n) => { if (!v.id.startsWith('script-')) updateIdeaNotes(v.id, n) }} />
+                  </section>
+                )
+              })}
+              {boardSorted.length === 0 && (
+                <VideoBoard videos={[]} onNext={videoNext} onOpen={videoNext} emptyAction={<button type="button" onClick={() => setTab('ideas')} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Get video ideas</button>} />
               )}
             </div>
           )}
 
-          {tab === 'filming' && (
+          {tab === 'studio' && (
             <div>
-              {savedIdeas.length > 0 && (
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 24 }}>
-                  <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-                    Select ideas to film
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Studio</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 18px' }}>Pick a video to work on. The Studio takes you through it one step at a time: plan, film, edit, publish.</p>
+              <VideoBoard compact videos={boardSorted.filter((v) => v.stage !== 'made')} onNext={videoNext} onOpen={(v) => openStudio(v.id)}
+                emptyAction={<button type="button" onClick={() => setTab('ideas')} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Get video ideas</button>} />
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '28px 0 10px' }}>Other ways to make a video</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                {[
+                  { t: 'Edit your own clips', d: 'Already have clips on your phone? Add captions, music and your logo.', go: () => openStudioTool('Edit your own clips', 'uploads') },
+                  { t: 'Film several in a row', d: 'Film a few videos back to back with the teleprompter, then make them all at once.', go: () => openStudioTool('Film several videos in a row', 'film') },
+                  { t: 'Plan several at once', d: 'Make the filming plans for a batch of ideas in one go.', go: () => { setSelectedIdeaIdsForFilming([]); openStudioTool('Plan several videos at once', 'filming') } },
+                ].map((o) => (
+                  <button key={o.t} type="button" onClick={o.go} style={{ background: 'var(--sand)', border: 'none', borderRadius: 4, padding: 18, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{o.t}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{o.d}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'filming' && (
+            <div style={inStudio ? { display: 'flex', flexDirection: 'column' } : undefined}>
+              {(inStudio || savedIdeas.length > 0) && (
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', marginBottom: 24, order: inStudio && studioPlan ? 5 : 0, marginTop: inStudio && studioPlan ? 24 : 0 }}>
+                  <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: inStudio ? 4 : 12 }}>
+                    {inStudio ? (studioPlan ? 'Want a different plan?' : 'How should this video be filmed?') : 'Select ideas to film'}
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {inStudio && (
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+                      {studioPlan ? 'Change the length or style and make a new plan. It replaces the one above.' : `Choose a length and style, then we write the script and a shot by shot plan for "${studioIdea?.title}".`}
+                    </p>
+                  )}
+                  <div style={{ display: inStudio ? 'none' : 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                     {savedIdeas.map((idea) => (
                       <label
                         key={idea.id}
@@ -7177,23 +7224,24 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => {
+                      if (inStudio && studioIdea) { proceedToFilming([studioIdea]); return }
                       const ideaItems = savedIdeas.filter((idea) => selectedIdeaIdsForFilming.includes(idea.id))
                       const scriptItems = savedScripts
                         .filter((s) => selectedIdeaIdsForFilming.includes(`script-${s.id}`))
                         .map((s) => ({ id: `script-${s.id}`, title: s.topic, hook: s.script.split(/[.!?]/)[0] || s.topic, description: s.topic, tags: '', script: s.script }))
                       proceedToFilming([...ideaItems, ...scriptItems])
                     }}
-                    disabled={selectedIdeaIdsForFilming.length === 0 || generatingFilming}
-                    style={{ marginTop: 4, backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 'not-allowed' : 'pointer', opacity: selectedIdeaIdsForFilming.length === 0 || generatingFilming ? 0.6 : 1 }}
+                    disabled={(!inStudio && selectedIdeaIdsForFilming.length === 0) || generatingFilming}
+                    style={{ marginTop: 4, backgroundColor: inStudio && studioPlan ? 'var(--ink)' : 'var(--coral)', color: '#fff', padding: inStudio && !studioPlan ? '12px 24px' : '10px 20px', borderRadius: 4, fontSize: inStudio && !studioPlan ? 15 : 13, fontWeight: 600, border: 'none', cursor: (!inStudio && selectedIdeaIdsForFilming.length === 0) || generatingFilming ? 'not-allowed' : 'pointer', opacity: (!inStudio && selectedIdeaIdsForFilming.length === 0) || generatingFilming ? 0.6 : 1 }}
                   >
-                    {generatingFilming ? <><span className='rly-spinner' />Generating...</> : 'Get filming instructions'}
+                    {generatingFilming ? <><span className='rly-spinner' />Writing your plan...</> : inStudio ? (studioPlan ? 'Make a new plan' : 'Make the filming plan') : 'Get filming instructions'}
                   </button>
                 </div>
               )}
 
               {filmingError && (
                 <p style={{ fontSize: 13, color: "var(--coral)", marginBottom: 16 }}>{filmingError}</p>
-              )}              {filmingItems.length > 0 && (
+              )}              {filmingItems.length > 0 && !inStudio && (
                 <div style={{ paddingTop: 4, marginBottom: 16 }}>
                   <button
                     onClick={clearFilming}
@@ -7204,9 +7252,9 @@ export default function DashboardPage() {
                 </div>
               )}
               {generatingFilming && (
-                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, marginTop: 16 }}>
+                <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, marginTop: 16, order: 1 }}>
                   <span className='rly-spinner rly-spinner-coral' />
-                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Generating filming instructions. Your existing cards are still below...</p>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{inStudio ? 'Writing your script and shot list. This takes about 20 seconds...' : 'Generating filming instructions. Your existing cards are still below...'}</p>
                 </div>
               )}
               {!generatingFilming && filmingItems.length === 0 && savedIdeas.length === 0 && (
@@ -7217,8 +7265,8 @@ export default function DashboardPage() {
                 </div>
               )}
               {filmingItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  {filmingItems.map((item) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, order: 2 }}>
+                  {filmingItems.filter((item) => !inStudio || item.id === studioId).map((item) => (
                     <div key={item.id} style={{ background: 'var(--sand)', borderRadius: 4, overflow: 'hidden' }}>
                       {/* Header */}
                       <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid var(--line)' }}>
@@ -7355,10 +7403,10 @@ export default function DashboardPage() {
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => { { const plan = getFilmPlan(item); selectFilmSource(`idea:${item.id}`, plan.lines, plan.actions, plan.durations) }; setTab('film'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                          style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '10px 20px', borderRadius: 4, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                          onClick={() => { if (inStudio) { goStudioStep('film', item.id, item); return } openStudio(item.id, 'film') }}
+                          style={{ backgroundColor: 'var(--coral)', color: '#fff', padding: '12px 22px', borderRadius: 4, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}
                         >
-                          Film & edit this
+                          {inStudio ? 'Next: film it' : 'Film this'}
                         </button>
                       </div>
                     </div>
@@ -7725,7 +7773,7 @@ export default function DashboardPage() {
               {phone && (
                 <PhoneEditorTop
                   title={editorTabs.length > 1 ? editorTabs[editorTab]?.title || 'Editor' : 'Editor'}
-                  onBack={() => { setMTool(null); setTab('overview') }}
+                  onBack={() => { setMTool(null); if (inStudio) goStudioStep('film'); else setTab('overview') }}
                   actionLabel={freeQuotaExceeded ? 'Upgrade' : uploading ? 'Uploading' : extractingAudio ? 'Preparing' : 'Create video'}
                   actionDisabled={!freeQuotaExceeded && (uploading || extractingAudio || !uploadSlots.some((id) => uploadSlotFiles[id]))}
                   action={() => {
@@ -8016,9 +8064,21 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: filmMulti ? 880 : 1180, margin: '32px auto', padding: '0 24px' }}>
                   <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Film with Teleprompter</h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then your video opens in the editor to finish and render.'}</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>{filmMulti ? 'Film several videos back to back, then choose the settings for each one and render them all together. You can close the app while they render.' : (inStudio ? 'Check the script and the action for each shot. Press Start filming to open the full-screen recorder and film one clip per line. Your video then opens in the editor to finish.' : 'Pick an idea and check its script and actions. Press Start filming to open the full-screen recorder, film one clip per line, then your video opens in the editor to finish and render.')}</p>
                   </div>
-                  <div role="group" aria-label="How many videos" style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 4, background: 'var(--sand)' }}>
+                  {inStudio && studioPlan && !filmReview && (
+                    <div className="film-choice" style={{ display: 'flex', alignItems: 'center', gap: '10px 16px', flexWrap: 'wrap', background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '12px 16px' }}>
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', flex: '1 1 260px' }}><strong style={{ color: 'var(--ink)' }}>Already filmed it on your camera?</strong> Skip the teleprompter and upload one clip for each shot in your plan.</p>
+                      <button type="button" onClick={() => goStudioStep('edit')} style={{ background: 'none', border: '1px solid var(--ink)', color: 'var(--ink)', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Upload my clips instead</button>
+                    </div>
+                  )}
+                  {inStudio && !studioPlan && !filmReview && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px 16px', flexWrap: 'wrap', background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.3)', borderRadius: 4, padding: '12px 16px' }}>
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink)', flex: '1 1 260px' }}>This video has no plan yet. A plan gives you the script and each shot to film.</p>
+                      <button type="button" onClick={() => goStudioStep('plan')} style={{ background: 'var(--coral)', border: 'none', color: '#fff', borderRadius: 4, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Make the plan first</button>
+                    </div>
+                  )}
+                  <div role="group" aria-label="How many videos" style={{ display: inStudio ? 'none' : 'flex', gap: 4, padding: 4, borderRadius: 4, background: 'var(--sand)' }}>
                     {([[false, 'One video'], [true, 'Several videos']] as const).map(([multi, name]) => {
                       const locked = filmMultiBusy || filmIsRecording || filmRecorderOpen || filmClips.length > 0 || !!filmPending
                       const active = filmMulti === multi
@@ -8044,8 +8104,8 @@ export default function DashboardPage() {
                     />
                   ) : (
                   <>
-                  <div className="film-split" style={filmReview ? { display: 'none' } : undefined}>
-                  <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16 }}>
+                  <div className="film-split" style={filmReview ? { display: 'none' } : inStudio ? { gridTemplateColumns: '1fr' } : undefined}>
+                  <div style={{ background: 'var(--sand)', borderRadius: 4, padding: 16, display: inStudio ? 'none' : undefined }}>
                     <h3 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 12, marginTop: 0 }}>Select idea to film</h3>
                     <div className="film-ideas" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {filmingItems.filter((i) => !i.id.startsWith('script-') && i.source !== 'script').map((idea) => (
@@ -8345,7 +8405,7 @@ export default function DashboardPage() {
               {phoneAi && (
                 <PhoneEditorTop
                   title={aiPhoneTitle}
-                  onBack={() => { setMTool(null); setTab('overview') }}
+                  onBack={() => { setMTool(null); if (inStudio) goStudioStep('film'); else setTab('overview') }}
                   actionLabel={freeQuotaExceeded ? 'Upgrade' : aiUploading ? 'Uploading' : extractingAudio ? 'Preparing' : 'Create video'}
                   actionDisabled={!freeQuotaExceeded && (aiUploading || extractingAudio || Object.keys(stepUploads).length === 0)}
                   action={() => {
@@ -8364,7 +8424,7 @@ export default function DashboardPage() {
               {phoneAi && mTool === 'extract' && renderPhoneExtractPanel()}
 
               {/* ── Select idea ── */}
-              {edT(phoneAi, 'idea', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px' }}>
+              {edT(phoneAi, inStudio ? 'never' : 'idea', <div style={{ background: 'var(--sand)', borderRadius: 4, padding: '24px', display: inStudio ? 'none' : undefined }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
                   <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>{showArchive ? 'Archived videos' : 'Select an idea to film'}</p>
                   {(archivedFilming.length > 0 || showArchive) && (
@@ -8704,7 +8764,7 @@ export default function DashboardPage() {
                 onRemoveTake={removeVoiceTake}
                 onMoveTake={moveVoiceTake}
               />}
-              {phoneAi && <PhoneEditorNav tools={phoneTools(['idea', 'clips', 'clip', 'crop', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={pickPhoneTool} />}
+              {phoneAi && <PhoneEditorNav tools={phoneTools([...(inStudio ? [] : ['idea']), 'clips', 'clip', 'crop', 'audio', 'extract', 'voiceover', 'captions', 'overlay', 'settings'])} active={mTool} onPick={pickPhoneTool} />}
             </div>
           )}
 

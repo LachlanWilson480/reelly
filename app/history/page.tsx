@@ -130,7 +130,7 @@ export default function HistoryPage() {
   const renderAddBack = (idea: IdeaRow) => isInMyIdeas(idea) ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>In My Ideas</span>
-      <button onClick={() => router.push('/dashboard/myideas')} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600, color: 'var(--coral)', cursor: 'pointer' }}>View My Ideas</button>
+      <button onClick={() => router.push('/dashboard/myideas')} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600, color: 'var(--coral)', cursor: 'pointer' }}>View my videos</button>
     </div>
   ) : (
     <button

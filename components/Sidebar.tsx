@@ -10,12 +10,12 @@ import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
 
 const DASHBOARD_TABS = [
-  { id: 'overview', label: 'Overview', icon: '▦' },
+  { id: 'overview', label: 'Home', icon: '▦' },
   { id: 'ideas', label: 'Content Ideas', icon: '◈' },
-  { id: 'myideas', label: 'My Ideas', icon: <Icon n="star" /> },
-  { id: 'filming', label: 'Filming', icon: '◉' },
-  { id: 'uploads', label: 'AI Editor For Any Video', icon: <Icon n="up" /> },
-  { id: 'aiuploads', label: 'AI Editor For Generated Idea', icon: '◆' },
+  { id: 'myideas', label: 'Videos', icon: <Icon n="star" /> },
+  { id: 'studio', label: 'Studio', icon: '◉' },
+  { id: 'uploads', label: 'Edit your own clips', icon: <Icon n="up" /> },
+  { id: 'scheduler', label: 'Publish', icon: '◆' },
   { id: 'library', label: 'Clip Library', icon: '▤' },
 ]
 
