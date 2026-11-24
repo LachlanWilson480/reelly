@@ -9,6 +9,7 @@ import { PLATFORMS, type PlatformId } from '@/lib/socialProfiles'
 import { cleanString } from '@/lib/cleanText'
 import { buttonPrimary, buttonSecondary, inputCompact } from '@/lib/ui'
 import Icon from '@/components/Icon'
+import { FaWhatsapp, FaFacebook, FaLinkedin, FaXTwitter, FaEnvelope, FaLink, FaRegCopy } from 'react-icons/fa6'
 import CollapsibleBox from '@/components/CollapsibleBox'
 import CarouselCard, { carouselBtn } from '@/components/CarouselCard'
 import Dropdown from '@/components/Dropdown'
@@ -775,12 +776,13 @@ function SharePanel({ id, url, title, caption, copied, onCopy, onClose }: {
   }
 
   const msg = encodeURIComponent(`${title}\n${url}`)
+  // Each app's own icon in its own colour, so people can spot the one they want
   const links = [
-    { label: 'WhatsApp', href: `https://wa.me/?text=${msg}` },
-    { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
-    { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
-    { label: 'X', href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}` },
-    { label: 'Email', href: `mailto:?subject=${encodeURIComponent(title)}&body=${msg}` },
+    { label: 'WhatsApp', icon: <FaWhatsapp color="#25D366" />, href: `https://wa.me/?text=${msg}` },
+    { label: 'Facebook', icon: <FaFacebook color="#0866FF" />, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+    { label: 'LinkedIn', icon: <FaLinkedin color="#0A66C2" />, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+    { label: 'X', icon: <FaXTwitter />, href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}` },
+    { label: 'Email', icon: <FaEnvelope color="var(--text-secondary)" />, href: `mailto:?subject=${encodeURIComponent(title)}&body=${msg}` },
   ]
   const chip: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none', padding: '8px 14px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
 
@@ -796,16 +798,16 @@ function SharePanel({ id, url, title, caption, copied, onCopy, onClose }: {
           <button type="button" className="pub-dl" disabled={prep !== 'ready'} onClick={sendFile} style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14 }}>
             <Icon n="share" />{prep === 'loading' ? 'Getting the video ready...' : sent ? 'Send it somewhere else' : 'Send the video'}
           </button>
-          <p style={{ ...small, margin: 0 }}>Opens your phone&apos;s share menu with the video, ready for Instagram, TikTok, Facebook, Messages and more.</p>
+          <p style={{ ...small, margin: 0 }}>Opens your device&apos;s share menu with the video. On a phone that includes Instagram, TikTok, Facebook and Messages.</p>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" style={chip} onClick={() => onCopy(url, `${id}-link`)}>{copied === `${id}-link` ? <TickIcon /> : null}{copied === `${id}-link` ? 'Link copied' : 'Copy link'}</button>
-        {caption && <button type="button" style={chip} onClick={() => onCopy(caption, `${id}-cap`)}>{copied === `${id}-cap` ? <TickIcon /> : null}{copied === `${id}-cap` ? 'Caption copied' : 'Copy caption'}</button>}
+        <button type="button" style={chip} onClick={() => onCopy(url, `${id}-link`)}>{copied === `${id}-link` ? <TickIcon /> : <span aria-hidden style={{ display: 'inline-flex', fontSize: 14 }}><FaLink /></span>}{copied === `${id}-link` ? 'Link copied' : 'Copy link'}</button>
+        {caption && <button type="button" style={chip} onClick={() => onCopy(caption, `${id}-cap`)}>{copied === `${id}-cap` ? <TickIcon /> : <span aria-hidden style={{ display: 'inline-flex', fontSize: 14 }}><FaRegCopy /></span>}{copied === `${id}-cap` ? 'Caption copied' : 'Copy caption'}</button>}
         {prep === 'none' && canSendFile && <button type="button" style={chip} onClick={shareLink}>More options</button>}
         {links.map((l) => (
-          <a key={l.label} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" style={chip}>{l.label}</a>
+          <a key={l.label} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" style={chip}><span aria-hidden style={{ display: 'inline-flex', fontSize: 16 }}>{l.icon}</span>{l.label}</a>
         ))}
       </div>
       {prep === 'none' && (
