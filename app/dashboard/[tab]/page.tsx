@@ -4,6 +4,7 @@ import React from 'react'
 import { ReelezyLogo } from '@/components/ReelezyLogo'
 import { authFetch } from '@/lib/authFetch'
 import { parseComfort } from '@/lib/filmingComfort'
+import ShotList, { type Shot } from '@/components/ShotList'
 import { PLAN_LIMITS } from '@/lib/planLimits'
 import { type CaptionLayers, DEFAULT_CAPTION_LAYERS, resolveCaptionLayers, layerPoint } from '@/lib/captionLayers'
 import { useEffect, useState, useRef, useMemo, useCallback, useSyncExternalStore } from 'react'
@@ -3932,6 +3933,41 @@ export default function DashboardPage() {
     return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, ' '), durations: Array.from({ length: n }, (_, i) => actions.length === n ? (durations[i] ?? null) : sumGroup(i)) }
   }
 
+  // The plan as separate shots: what to film, what to say and what text goes on screen, one shot per filming step
+  const toSec = (t: string) => { const [m, sec] = t.split(':').map(Number); return m * 60 + sec }
+  const shotsFor = (item: FilmingItem): Shot[] => {
+    const steps = item.checklist || []
+    const silent = silentCaptions(item)
+    const dirs = (item.directions || []).map((d: string) => d.trim()).filter(Boolean)
+    const lines = silent ? [] : getFilmLines(item)
+    const stripText = (t: string) => t.replace(/[,;.]?\s*(?:and\s+)?(?:show\s+)?on-?screen\s+(?:text|captions?|titles?)\s*:?.*$/i, '').trim()
+    return steps.map((st: string, i: number): Shot => {
+      const tm = st.match(/^\s*(\d+:\d+)\s*(?:to|-|–)\s*(\d+:\d+)/i)
+      const body = st.replace(/^\s*\d+:\d+\s*(?:to|-|–)\s*\d+:\d+\s*[-–:]?\s*/i, '')
+      const sayMatch = body.match(/say:\s*([\s\S]*)$/i)
+      const action = stripText(dirs.length === steps.length ? dirs[i] : body.replace(/[,;.]?\s*(?:and\s+)?say:[\s\S]*$/i, '')).replace(/[,;:\s]+$/, '')
+      const say = silent ? '' : lines.length === steps.length ? lines[i] : sayMatch ? cleanFilmLine(stripText(sayMatch[1])) : ''
+      const screen = silent ? [silent[i]] : Array.from(new Set([...extractOnScreenText(st), ...(dirs.length === steps.length ? extractOnScreenText(dirs[i]) : [])]))
+      return {
+        time: tm ? `${tm[1]} to ${tm[2]}` : null,
+        seconds: tm ? Math.max(1, toSec(tm[2]) - toSec(tm[1])) : null,
+        film: action ? action.charAt(0).toUpperCase() + action.slice(1) + (/[.!?]$/.test(action) ? '' : '.') : '',
+        say,
+        screen,
+      }
+    })
+  }
+  // Saves a new spoken line for one shot, in the script and in that filming step
+  const saveShotLine = async (item: FilmingItem, i: number, text: string) => {
+    const lines = getFilmLines(item)
+    if (lines.length !== (item.checklist || []).length) return
+    lines[i] = text
+    const newScript = lines.join('\n')
+    const newChecklist = item.checklist.map((st: string, si: number) => (si === i && /say:/i.test(st) ? st.replace(/(say:\s*)[\s\S]*$/i, (_m: string, p1: string) => `${p1}${text}`) : st))
+    setFilmingItems((prev) => prev.map((f) => (f.id === item.id ? { ...f, script: newScript, checklist: newChecklist } : f)))
+    await supabase.from('generated_ideas').update({ checklist: { steps: newChecklist, prep: item.prep, caption: item.caption, script: newScript, directions: item.directions } }).eq('id', item.id)
+  }
+
   // The on-screen text of each filming step, lined up with n clips
   const getFilmTexts = (item: FilmingItem, n: number): string[][] => {
     const per = (item.checklist || []).map((st: string) => extractOnScreenText(st))
@@ -7106,23 +7142,38 @@ export default function DashboardPage() {
 
           {tab === 'studio' && (
             <div>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Studio</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 18px' }}>Pick a video to work on. The Studio takes you through it one step at a time: plan, film, edit, publish.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 18 }}>
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>Studio</h2>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Pick a video to work on. The Studio takes you through it one step at a time: plan, film, edit, publish.</p>
+                </div>
+                {/* More ways to make a video, tucked behind a + so the videos stay the focus */}
+                <div data-dropdown style={{ position: 'relative', flexShrink: 0 }}>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === 'studio-more' ? null : 'studio-more') }} aria-haspopup="menu" aria-expanded={openDropdown === 'studio-more'} aria-label="More ways to make a video" title="More ways to make a video"
+                    style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 26, lineHeight: 1, fontWeight: 400, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px rgba(255,106,77,0.35)', transform: openDropdown === 'studio-more' ? 'rotate(45deg)' : 'none', transition: 'transform 150ms ease' }}>
+                    <span aria-hidden style={{ marginTop: -2 }}>+</span>
+                  </button>
+                  {openDropdown === 'studio-more' && (
+                    <div role="menu" aria-label="More ways to make a video" onClick={(e) => e.stopPropagation()}
+                      style={{ position: 'absolute', right: 0, top: 52, zIndex: 50, width: 'min(320px, calc(100vw - 32px))', background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.12)' }}>
+                      {[
+                        { t: 'Edit your own clips', d: 'Already have clips on your phone? Add captions, music and your logo.', go: () => openStudioTool('Edit your own clips', 'uploads') },
+                        { t: 'Film several in a row', d: 'Film a few videos back to back, then make them all at once.', go: () => openStudioTool('Film several videos in a row', 'film') },
+                        { t: 'Plan several at once', d: 'Make the filming plans for a batch of ideas in one go.', go: () => { setSelectedIdeaIdsForFilming([]); openStudioTool('Plan several videos at once', 'filming') } },
+                      ].map((o) => (
+                        <button key={o.t} type="button" role="menuitem" onClick={() => { setOpenDropdown(null); o.go() }}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 4, padding: '10px 12px', cursor: 'pointer' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--sand)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}>
+                          <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{o.t}</span>
+                          <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45, marginTop: 2 }}>{o.d}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
               <VideoBoard compact videos={boardSorted.filter((v) => v.stage !== 'made')} onNext={videoNext} onOpen={(v) => openStudio(v.id)}
                 emptyAction={<button type="button" onClick={() => setTab('ideas')} style={{ background: 'var(--coral)', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Get video ideas</button>} />
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '28px 0 10px' }}>Other ways to make a video</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                {[
-                  { t: 'Edit your own clips', d: 'Already have clips on your phone? Add captions, music and your logo.', go: () => openStudioTool('Edit your own clips', 'uploads') },
-                  { t: 'Film several in a row', d: 'Film a few videos back to back with the teleprompter, then make them all at once.', go: () => openStudioTool('Film several videos in a row', 'film') },
-                  { t: 'Plan several at once', d: 'Make the filming plans for a batch of ideas in one go.', go: () => { setSelectedIdeaIdsForFilming([]); openStudioTool('Plan several videos at once', 'filming') } },
-                ].map((o) => (
-                  <button key={o.t} type="button" onClick={o.go} style={{ background: 'var(--sand)', border: 'none', borderRadius: 4, padding: 18, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{o.t}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{o.d}</span>
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -7290,31 +7341,17 @@ export default function DashboardPage() {
                         </div>
                       )}
 
-                      {/* Filming steps */}
+                      {/* Shot list: what to film, say and show, one shot at a time */}
                       <div style={{ padding: '16px 24px', borderBottom: item.caption || item.script ? '1px solid var(--line)' : 'none' }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>Filming steps</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {item.checklist.map((step, i) => {
-                            const dashIdx = step.indexOf(' - ')
-                            const timeRange = dashIdx !== -1 ? step.slice(0, dashIdx).trim() : null
-                            const instruction = dashIdx !== -1 ? step.slice(dashIdx + 3).trim() : step
-                            return (
-                              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--coral)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                                  {i + 1}
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                  {timeRange && (
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--coral)', background: 'rgba(255,106,77,0.1)', borderRadius: 4, padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>
-                                      {timeRange}
-                                    </span>
-                                  )}
-                                  <p style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.6, fontWeight: 500 }}>{silentCaptions(item) ? simplifyFilmAction(instruction) : instruction}</p>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Shot list</p>
+                        {(() => {
+                          const shots = shotsFor(item)
+                          const oneLineEach = !silentCaptions(item) && getFilmLines(item).length === item.checklist.length
+                          return (
+                            <ShotList shots={shots} comfort={parseComfort(profile?.filming_comfort).level} onCamera={profile?.on_camera_people || null} peopleCount={profile?.video_people_count ?? null}
+                              onEditLine={oneLineEach ? (i, text) => saveShotLine(item, i, text) : undefined} />
+                          )
+                        })()}
                       </div>
 
                       {/* Caption */}
@@ -7327,8 +7364,8 @@ export default function DashboardPage() {
 
                       {/* Script */}
                       {item.script && (
-                        <div style={{ padding: '16px 24px' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>{silentCaptions(item) ? 'On-screen text' : 'Full script'}</p>
+                        <details className="plan-script" style={{ padding: '16px 24px' }}>
+                          <summary style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14, cursor: 'pointer' }}>{silentCaptions(item) ? 'All the on-screen text' : 'Read the whole script'}</summary>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                             {(() => {
                               // Silent films show one caption per step. Otherwise split the script into sentences
@@ -7398,7 +7435,7 @@ export default function DashboardPage() {
                               })
                             })()}
                           </div>
-                        </div>
+                        </details>
                       )}
                       {/* Film & edit CTA */}
                       <div style={{ padding: '16px 24px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>

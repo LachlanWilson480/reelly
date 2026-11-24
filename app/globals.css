@@ -423,3 +423,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   .dashboard-content [style*="padding: 0px 24px"]:not([style*="24px 24px"]) { padding-left: 0 !important; padding-right: 0 !important; margin-top: 16px !important; }
   nav[style*="padding: 24px 48px"], nav[style*="padding: 20px 48px"], nav[style*="padding: 16px 48px"] { padding: 14px 16px 14px 64px !important; min-height: 64px; box-sizing: border-box; }
 }
+
+/* Shot list in a filming plan: on phones the labels sit above their text */
+@media (max-width: 640px) {
+  .shot-rows { grid-template-columns: 1fr !important; padding-left: 0 !important; row-gap: 4px !important; }
+  .shot-rows > span { margin-top: 8px; }
+}
