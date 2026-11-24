@@ -242,7 +242,7 @@ export async function runCreatorStatements(stripe: Stripe, opts: { now?: Date } 
         html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#2C2C2A">
           <h2 style="margin:0 0 12px">${result.payouts.length} creator payout${result.payouts.length === 1 ? '' : 's'} for ${period.label}</h2>
           <table style="font-size:14px;border-collapse:collapse">${lines}</table>
-          <p style="margin-top:20px"><a href="${site()}/admin/creators" style="color:#FF6A4D">Open the creator page</a> to download the bank file and mark each one paid.</p>
+          <p style="margin-top:20px"><a href="${site()}/admin?tab=creators" style="color:#FF6A4D">Open the creator page</a> to download the bank file and mark each one paid.</p>
         </div>`,
       })
     } catch (e) {

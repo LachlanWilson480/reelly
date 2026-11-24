@@ -287,7 +287,7 @@ input:-webkit-autofill:focus {
 }
 
 @media (max-width: 640px) {
-  .plans-nav { padding: 12px 20px 12px 64px !important; }
+  .plans-nav, .admin-nav { padding: 12px 20px 12px 64px !important; }
   .plans-nav-badge { display: none !important; }
 }
 

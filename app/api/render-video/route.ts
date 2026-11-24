@@ -1,6 +1,7 @@
 import { rateLimit } from '@/lib/rateLimit'
 import { isOwnPath } from '@/lib/ownPath'
 import { BADGE_SPOT, BADGE_SRC } from '@/lib/madeWithBadge'
+import { creatorActive } from '@/lib/creatorAccount'
 import { userIdsForEmail } from '@/lib/userIdsForEmail'
 import { getMonthStartISO } from '@/lib/billingMonth'
 import { getAuthedUser } from '@/lib/getAuthedUser'
@@ -175,8 +176,11 @@ export async function POST(req: NextRequest) {
       })
     }
     // The "Made with Reelezy" badge goes in the bottom right corner on every plan, unless the person removed it in the preview.
-    // It is added last so it sits on top of everything else.
-    if (madeWithBadge !== false) {
+    // A creator account cannot remove it. It is added last so it sits on top of everything else.
+    const { data: creatorRow } = await supabaseAdmin.from('subscriptions').select('status, creator_until').eq('user_id', userId).maybeSingle()
+    const badgeLocked = creatorActive(creatorRow)
+    const badgeOn = badgeLocked || madeWithBadge !== false
+    if (badgeOn) {
       const site = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, '')
       if (/^https:\/\//i.test(site)) {
         const spot = BADGE_SPOT[outputOrientation === 'landscape' ? 'landscape' : 'portrait']
@@ -276,7 +280,7 @@ export async function POST(req: NextRequest) {
         musicStart, originalVolume, musicVolume, captionStyle: captionStyle || null, captionTextOnly: !!captionTextOnly,
         captionScript: typeof captionScript === 'string' ? captionScript.slice(0, 8000) : null, customCaptions: Array.isArray(customCaptions) ? customCaptions : [],
         customCaptionStyle: customCaptionStyle || null, overlays: Array.isArray(rawOverlays) ? rawOverlays : rawOverlay ? [rawOverlay] : [],
-        appearance: rawAppearance || null, madeWithBadge: madeWithBadge !== false, resolution, cutDeadSpace: !!cutDeadSpace,
+        appearance: rawAppearance || null, madeWithBadge: badgeOn, resolution, cutDeadSpace: !!cutDeadSpace,
         outputOrientation: outputOrientation || null, ideaId: ideaId || null, ideaSource: ideaSource || null, editor,
       }
       const { error: projErr } = await supabaseAdmin.from('renders').update({ project }).eq('id', renderRow.id)

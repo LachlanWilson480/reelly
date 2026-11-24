@@ -6,6 +6,6 @@ export const BADGE_RATIO = 483 / 96
 
 // x and y are the centre of the badge as a share of the frame, size is its width as a share of the frame
 export const BADGE_SPOT = {
-  portrait: { x: 0.82, y: 0.948, size: 0.3 },
-  landscape: { x: 0.88, y: 0.918, size: 0.18 },
+  portrait: { x: 0.77, y: 0.94, size: 0.4 },
+  landscape: { x: 0.85, y: 0.91, size: 0.24 },
 } as const

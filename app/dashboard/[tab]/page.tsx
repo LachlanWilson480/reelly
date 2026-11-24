@@ -38,6 +38,7 @@ import MusicLibrary, { type PickedTrack } from '@/components/MusicLibrary'
 import OverviewPanel from '@/components/OverviewPanel'
 import CarouselCard, { carouselBtn } from '@/components/CarouselCard'
 import { BADGE_SPOT, BADGE_SRC, BADGE_RATIO } from '@/lib/madeWithBadge'
+import { creatorActive } from '@/lib/creatorAccount'
 type Profile = {
   business_name: string
   industry: string
@@ -2699,6 +2700,10 @@ export default function DashboardPage() {
   const [musicPicker, setMusicPicker] = useState(false)
   // The "Made with Reelezy" badge in the corner of the video. On unless the person removes it in the preview.
   const [madeWithBadge, setMadeWithBadge] = useState(true)
+  // A creator account keeps the badge on every video. The server adds it either way, so the preview matches.
+  const [creatorLocked, setCreatorLocked] = useState(false)
+  useEffect(() => { if (creatorLocked && !madeWithBadge) setMadeWithBadge(true) }, [creatorLocked, madeWithBadge])
+  const badgeToggle = creatorLocked ? undefined : setMadeWithBadge
   // Which clip spot the library picker is filling (an upload slot id, or an AI step number)
   const [libraryTarget, setLibraryTarget] = useState<number>(0)
   const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(null)
@@ -3052,10 +3057,11 @@ export default function DashboardPage() {
 
       const { data: subRow } = await supabase
         .from('subscriptions')
-        .select('deletion_scheduled_at, plan, status')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle()
       if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
+      setCreatorLocked(creatorActive(subRow))
       if (subRow && (subRow.status === 'active' || subRow.status === 'trialing') && subRow.plan) {
         setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
       } else {
@@ -4581,8 +4587,8 @@ export default function DashboardPage() {
   // Phone editor: the Made with Reelezy badge switch sits in Settings (on a computer it is a link under the preview)
   const renderPhoneBadgeToggle = () => (
     <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 20px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
-      <input type="checkbox" checked={madeWithBadge} onChange={(e) => setMadeWithBadge(e.target.checked)} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
-      Show the Made with Reelezy badge
+      <input type="checkbox" checked={madeWithBadge} disabled={creatorLocked} onChange={(e) => setMadeWithBadge(e.target.checked)} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
+      {creatorLocked ? 'Made with Reelezy badge (always on with a creator account)' : 'Show the Made with Reelezy badge'}
     </label>
   )
 
@@ -7981,7 +7987,7 @@ export default function DashboardPage() {
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
                 autoCapFont={toCaptionFont(captionFontFamily)}
                 badge={madeWithBadge}
-                onBadge={setMadeWithBadge}
+                onBadge={badgeToggle}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}
@@ -8307,7 +8313,7 @@ export default function DashboardPage() {
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
                 autoCapFont={toCaptionFont(captionFontFamily)}
                 badge={madeWithBadge}
-                onBadge={setMadeWithBadge}
+                onBadge={badgeToggle}
                         selCap={selCap}
                         onSelCap={setSelCap}
                         onPlayhead={handlePlayhead}
@@ -8678,7 +8684,7 @@ export default function DashboardPage() {
                 onAutoCapSize={(n) => setCaptionFontSize(n)}
                 autoCapFont={toCaptionFont(captionFontFamily)}
                 badge={madeWithBadge}
-                onBadge={setMadeWithBadge}
+                onBadge={badgeToggle}
                 selCap={selCap}
                 onSelCap={setSelCap}
                 onPlayhead={handlePlayhead}

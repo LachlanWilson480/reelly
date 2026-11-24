@@ -15,7 +15,7 @@ import { CURRENCY_PRICES, PLAN_COPY, REFERRAL_PERCENT_OFF, currencyForCountry } 
 import { useCurrency, useDomainCurrency } from '@/lib/useCurrency'
 import { trackEvent } from '@/lib/track'
 import { PLAN_LIMITS } from '@/lib/planLimits'
-import { cleanReferralInput } from '@/lib/referralInput'
+import { cleanCodeInput, cleanReferralInput } from '@/lib/referralInput'
 
 export default function PlansPage() {
   const router = useRouter()
@@ -47,7 +47,7 @@ export default function PlansPage() {
         const activePlan = sub?.status === 'active' ? sub.plan : 'free'
         setUserPlan(activePlan)
         if (activePlan !== 'free' && sub) {
-          setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null, gift_until: !sub.stripe_subscription_id && sub.manual_until ? sub.manual_until : null })
+          setSubDetails({ plan: sub.plan, billing_interval: sub.billing_interval, stripe_subscription_id: sub.stripe_subscription_id || null, gift_until: !sub.stripe_subscription_id && sub.manual_until ? sub.manual_until : null, creator_until: sub.creator_until && new Date(sub.creator_until) > new Date() ? sub.creator_until : null })
           const { data: bp } = await supabase.from('business_profiles').select('ideas_generated_this_week, scripts_generated_this_week, filming_generated_this_week').eq('user_id', user.id).maybeSingle()
           const monthStart = getMonthStartISO()
           const { data: monthRenders } = await supabase.from('renders').select('duration_seconds').eq('user_id', user.id).gte('created_at', monthStart)
@@ -81,10 +81,12 @@ export default function PlansPage() {
       && !(discountRules.plans && p && !discountRules.plans.includes(p))
     return Math.max(codeFits ? discountPercent! : 0, referralPercent) || null
   }
-  const [refInput, setRefInput] = useState('')
-  const [refMsg, setRefMsg] = useState('')
-  const [refBusy, setRefBusy] = useState(false)
-  const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null; gift_until?: string | null } | null>(null)
+  const [subDetails, setSubDetails] = useState<{ plan: string; billing_interval: string; stripe_subscription_id: string | null; gift_until?: string | null; creator_until?: string | null } | null>(null)
+  // Shown once, after a creator code unlocks the account
+  const [creatorWelcome, setCreatorWelcome] = useState(false)
+  useEffect(() => {
+    try { if (sessionStorage.getItem('reelezy-creator-welcome')) { setCreatorWelcome(true); sessionStorage.removeItem('reelezy-creator-welcome') } } catch {}
+  }, [])
   const [usage, setUsage] = useState<{ ideas: number; scripts: number; filming: number; renderMinutes: number } | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
@@ -118,52 +120,68 @@ export default function PlansPage() {
       highlight: true,
     },
   ]
-  const applyDiscount = async () => {
-    if (!discountInput.trim()) return
+  const longDate = (iso: string) => new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  // One Code box for everything: a creator code, a discount code, or a friend's referral code, checked in that order
+  const applyCode = async () => {
+    const raw = discountInput.trim()
+    if (!raw || discountLoading) return
     setDiscountLoading(true)
     setDiscountError('')
-    setDiscountPercent(null)
-    setDiscountRules(null)
-    setDiscountCode('')
-    const res = await fetch('/api/validate-discount', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: discountInput.trim() }),
-    })
-    const data = await res.json()
-    setDiscountLoading(false)
-    if (!res.ok) {
-      setDiscountError(data.error || 'Invalid code')
-    } else {
-      setDiscountCode(data.code)
-      try { sessionStorage.setItem('reelezy-discount-code', data.code) } catch {}
-      setDiscountPercent(data.percentOff)
-      setDiscountRules({ monthlyOnly: !!data.monthlyOnly, plans: Array.isArray(data.plans) ? data.plans : null, labelMonthly: data.labelMonthly || `${data.percentOff}% off`, labelYearly: data.labelYearly || `${data.percentOff}% off` })
-    }
-  }
-
-  const applyReferral = async () => {
-    const c = refInput.trim().toUpperCase()
-    if (!c || refBusy) return
-    setRefBusy(true)
-    setRefMsg('')
     try {
-      const res = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: c }) })
-      const d = await res.json().catch(() => ({}))
-      if (d.claimed) { setReferralPercent(REFERRAL_PERCENT_OFF); setRefInput('') }
-      else {
+      // 1. A creator code unlocks a free plan for this account
+      if (userEmail) {
+        const r = await authFetch('/api/redeem-code', { method: 'POST', body: JSON.stringify({ code: raw }) })
+        const d = await r.json().catch(() => ({}))
+        if (d.kind === 'creator') {
+          try { sessionStorage.setItem('reelezy-creator-welcome', '1') } catch {}
+          window.location.reload()
+          return
+        }
+        if (!r.ok && d.error) { setDiscountError(d.error); return }
+      }
+
+      // 2. A discount code
+      const code = cleanCodeInput(raw)
+      const res = await fetch('/api/validate-discount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setDiscountCode(data.code)
+        try { sessionStorage.setItem('reelezy-discount-code', data.code) } catch {}
+        setDiscountPercent(data.percentOff)
+        setDiscountRules({ monthlyOnly: !!data.monthlyOnly, plans: Array.isArray(data.plans) ? data.plans : null, labelMonthly: data.labelMonthly || `${data.percentOff}% off`, labelYearly: data.labelYearly || `${data.percentOff}% off` })
+        setDiscountInput('')
+        return
+      }
+      // A real discount code that cannot be used right now (expired, used up): say why
+      if (res.status !== 404) { setDiscountError(data.error || 'That code could not be used.'); return }
+
+      // 3. A friend's referral code
+      const refCode = cleanReferralInput(raw)
+      if (userEmail && referralPercent === 0 && refCode.length >= 4) {
+        const rr = await authFetch('/api/referral/claim', { method: 'POST', body: JSON.stringify({ code: refCode }) })
+        const rd = await rr.json().catch(() => ({}))
+        if (rd.claimed) { setReferralPercent(REFERRAL_PERCENT_OFF); setDiscountInput(''); return }
         const reasons: Record<string, string> = {
-          unknown_code: 'That code is not right. Check it and try again.',
-          own_code: 'You cannot use your own code.',
+          own_code: 'You cannot use your own referral code.',
           already_referred: 'A referral code is already on your account.',
           has_subscription: 'Referral codes are for accounts that have not subscribed before.',
         }
-        setRefMsg(reasons[d.reason] || 'That code could not be used.')
+        if (reasons[rd.reason]) { setDiscountError(reasons[rd.reason]); return }
       }
+
+      setDiscountError(userEmail
+        ? 'That code is not right. Check it and try again.'
+        : 'That code is not right. If someone gave you a creator code, make a free account first, then enter it here.')
     } catch {
-      setRefMsg('That code could not be checked. Try again.')
+      setDiscountError('That code could not be checked. Try again.')
+    } finally {
+      setDiscountLoading(false)
     }
-    setRefBusy(false)
   }
 
   const discountedPrice = (price: string, pct: number | null) => {
@@ -203,8 +221,14 @@ export default function PlansPage() {
           <div style={{ padding: '32px 48px 64px', maxWidth: 640, margin: '0 auto' }}>
             <h1 style={{ fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Manage subscription</h1>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32 }}>
-              {subDetails.gift_until ? 'A free plan from Reelezy' : subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
+              {subDetails.creator_until ? 'Creator account' : subDetails.gift_until ? 'A free plan from Reelezy' : subDetails.billing_interval === 'yearly' ? 'Billed annually' : 'Billed monthly'}
             </p>
+
+            {creatorWelcome && (
+              <div role="status" style={{ background: 'var(--coral)', color: '#fff', borderRadius: 4, padding: '16px 20px', marginBottom: 20, fontSize: 14, lineHeight: 1.5 }}>
+                <strong>Your creator account is unlocked.</strong> Everything in your plan is ready to use. Make something great and tag @reelezy when you post.
+              </div>
+            )}
 
             {/* Plan card */}
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 4, padding: '24px 28px', marginBottom: 20 }}>
@@ -221,7 +245,11 @@ export default function PlansPage() {
                   {portalLoading ? 'Opening…' : 'Manage billing'}
                 </button>}
               </div>
-              {subDetails.gift_until ? (
+              {subDetails.creator_until ? (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  You have a <strong>creator account</strong> until <strong>{longDate(subDetails.creator_until)}</strong>. Nothing is charged. While it runs, the Made with Reelezy badge stays on your videos. When it ends you go back to the Free plan, and you can subscribe any time after that.
+                </p>
+              ) : subDetails.gift_until ? (
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   Reelezy has given you this plan for free until <strong>{new Date(subDetails.gift_until).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Nothing is charged. When it ends you go back to the Free plan, and you can subscribe any time after that.
                 </p>
@@ -414,30 +442,32 @@ export default function PlansPage() {
             ))}
           </div>
 
-          {/* Discount code */}
+          {/* One Code box: creator codes, discount codes and friends' referral codes */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
-            <label htmlFor="plans-code" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Have a code?</label>
+            <label htmlFor="plans-code" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Code</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 id="plans-code"
                 value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
-                placeholder="Enter your code"
-                style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 180, outline: 'none', textTransform: 'uppercase' }}
+                onChange={(e) => setDiscountInput(cleanCodeInput(e.target.value))}
+                onKeyDown={(e) => e.key === 'Enter' && applyCode()}
+                placeholder="Enter a code"
+                autoComplete="off"
+                style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 200, outline: 'none', textTransform: 'uppercase' }}
               />
               <button
-                onClick={applyDiscount}
+                onClick={applyCode}
                 disabled={discountLoading || !discountInput.trim()}
                 style={{ padding: '10px 16px', borderRadius: 4, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: discountLoading || !discountInput.trim() ? 'not-allowed' : 'pointer', opacity: discountLoading || !discountInput.trim() ? 0.6 : 1 }}
               >
                 {discountLoading ? 'Checking...' : 'Apply'}
               </button>
             </div>
-            {discountError && <p style={{ fontSize: 12, color: 'var(--coral)' }}>{discountError}</p>}
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, textAlign: 'center', maxWidth: 420 }}>A discount code, a friend&apos;s referral code or a creator code.</p>
+            {discountError && <p style={{ fontSize: 12, color: 'var(--coral)', margin: 0, textAlign: 'center', maxWidth: 420 }}>{discountError}</p>}
             {discountPercent && (
-              <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600 }}>
-                Code applied: {discountRules ? (billingInterval === 'yearly' && !discountRules.monthlyOnly ? discountRules.labelYearly : discountRules.labelMonthly) : `${discountPercent}% off`}
+              <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, margin: 0, textAlign: 'center' }}>
+                Code {discountCode} applied: {discountRules ? (billingInterval === 'yearly' && !discountRules.monthlyOnly ? discountRules.labelYearly : discountRules.labelMonthly) : `${discountPercent}% off`}
                 {discountRules && (discountRules.monthlyOnly || discountRules.plans) && (
                   <span style={{ display: 'block', fontWeight: 400, color: 'var(--text-secondary)', marginTop: 2 }}>
                     {[discountRules.monthlyOnly ? 'Monthly billing only' : '', discountRules.plans ? `${discountRules.plans.map((x) => (x === 'top' ? 'Pro' : 'Basic')).join(' or ')} plan only` : ''].filter(Boolean).join('. ')}
@@ -445,38 +475,11 @@ export default function PlansPage() {
                 )}
               </p>
             )}
+            {referralPercent > 0 && (
+              <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textAlign: 'center', margin: 0 }}>Friend&apos;s referral applied: {referralPercent}% off your first month.</p>
+            )}
           </div>
 
-          {userEmail && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 32 }}>
-              {referralPercent > 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--coral)', fontWeight: 600, textAlign: 'center', margin: 0 }}>Friend&apos;s referral applied: {referralPercent}% off your first month.</p>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      value={refInput}
-                      onChange={(e) => setRefInput(cleanReferralInput(e.target.value))}
-                      onKeyDown={(e) => e.key === 'Enter' && applyReferral()}
-                      placeholder="Friend's referral code"
-                      autoComplete="off"
-                      aria-label="Referral code"
-                      style={{ padding: '10px 14px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 16, fontFamily: "var(--font-geist-sans), 'Inter', sans-serif", width: 200, outline: 'none' }}
-                    />
-                    <button
-                      onClick={applyReferral}
-                      disabled={refBusy || !refInput.trim()}
-                      style={{ padding: '10px 16px', borderRadius: 4, background: 'var(--coral)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: refBusy || !refInput.trim() ? 'not-allowed' : 'pointer', opacity: refBusy || !refInput.trim() ? 0.6 : 1 }}
-                    >
-                      {refBusy ? 'Checking...' : 'Apply'}
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>New here? A friend&apos;s code takes {REFERRAL_PERCENT_OFF}% off your first month, and gives them {REFERRAL_PERCENT_OFF}% off their next month.</p>
-                  {refMsg && <p style={{ fontSize: 12, color: 'var(--coral)', margin: 0 }}>{refMsg}</p>}
-                </>
-              )}
-            </div>
-          )}
           {userEmail && <div style={{ maxWidth: 640, margin: '0 auto' }}><ReferralCard /></div>}
 
           

@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { authFetch } from '@/lib/authFetch'
+import { REFERRAL_PERCENT_OFF } from '@/lib/pricing'
 
 type Info = { code: string; joined: number; subscribed: number; monthsEarned: number; limit: number }
 
+const FONT = "var(--font-geist-sans), 'Inter', sans-serif"
+
+// Your referral code as a ticket, with quick ways to send it and how many friends have joined
 export default function ReferralCard() {
   const [info, setInfo] = useState<Info | null>(null)
   const [failed, setFailed] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [shareCopied, setShareCopied] = useState(false)
+  const [copied, setCopied] = useState<'' | 'code' | 'link' | 'message'>('')
 
   useEffect(() => {
     let cancelled = false
@@ -19,62 +22,94 @@ export default function ReferralCard() {
     return () => { cancelled = true }
   }, [])
 
-  const link = info ? `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.reelezy.com')}/signup?ref=${info.code}` : ''
-
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(info?.code || ''); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
-  }
+  const site = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.reelezy.com')
+  const link = info ? `${site}/signup?ref=${info.code}` : ''
   // What a friend receives: the offer, the code and the sign up link
-  const shareText = `I use Reelezy to plan, film and edit my social videos. Use my referral code ${info?.code} to get 30% off your first month.`
+  const shareText = info ? `I use Reelezy to plan, film and edit my social videos. Use my code ${info.code} and get ${REFERRAL_PERCENT_OFF}% off your first month:` : ''
+
+  const copy = async (what: 'code' | 'link' | 'message', text: string) => {
+    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(''), 2000) } catch {}
+  }
   const share = async () => {
     try {
       if (navigator.share) await navigator.share({ title: 'Reelezy', text: shareText, url: link })
-      else {
-        await navigator.clipboard.writeText(`${shareText} ${link}`)
-        setShareCopied(true)
-        setTimeout(() => setShareCopied(false), 2500)
-      }
+      else await copy('message', `${shareText} ${link}`)
     } catch {}
   }
 
-  const stat = (n: number, label: string) => (
-    <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
-      <p style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>{n}</p>
-      <p style={{ fontSize: 11, margin: '2px 0 0', color: 'var(--text-secondary)' }}>{label}</p>
-    </div>
-  )
+  const message = encodeURIComponent(`${shareText} ${link}`)
+  const quick = [
+    { label: 'WhatsApp', href: `https://wa.me/?text=${message}` },
+    { label: 'Text', href: `sms:?&body=${message}` },
+    { label: 'Email', href: `mailto:?subject=${encodeURIComponent(`${REFERRAL_PERCENT_OFF}% off Reelezy`)}&body=${message}` },
+    { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}` },
+  ]
+
+  const btn: React.CSSProperties = { padding: '12px 18px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: FONT, whiteSpace: 'nowrap' }
+  const used = info ? Math.min(info.monthsEarned, info.limit) : 0
 
   return (
-    <div id="refer" style={{ background: 'var(--sand)', border: '1px solid var(--line)', borderRadius: 4, padding: '28px 28px 24px', color: 'var(--ink)', fontFamily: "var(--font-geist-sans), 'Inter', sans-serif" }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 6px' }}>Refer a friend, you both get 30% off</h2>
-      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.5 }}>
-        Your friend gets 30% off their first month when they join with your code, and you get 30% off your next month once they subscribe. If you already pay, it comes off your next bill. If you are on the Free plan, it is saved and comes off your first month when you subscribe.
-      </p>
+    <div id="refer" style={{ background: 'var(--card-bg)', border: '1px solid var(--line)', borderRadius: 16, padding: 'clamp(20px, 4vw, 32px)', color: 'var(--ink)', fontFamily: FONT, boxShadow: '0 12px 40px rgba(0,0,0,0.06)' }}>
       {failed ? (
-        <p style={{ fontSize: 13, color: '#d92d20', margin: 0 }}>Your referral link could not load. Refresh the page to try again.</p>
+        <p style={{ fontSize: 14, color: 'var(--coral)', margin: 0 }}>Your referral code could not load. Refresh the page to try again.</p>
       ) : !info ? (
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Loading your link…</p>
+        <div aria-busy="true" style={{ height: 180, borderRadius: 12, background: 'linear-gradient(90deg, var(--sand) 0%, var(--line) 50%, var(--sand) 100%)', backgroundSize: '200% 100%', animation: 'refer-shimmer 1.4s ease-in-out infinite' }} />
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
-            <div style={{ flex: '1 1 200px', minWidth: 0, padding: '10px 14px', borderRadius: 4, border: '1px dashed var(--text-muted)', background: 'var(--sand)', textAlign: 'center' }}>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>Your referral code</p>
-              <p style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, margin: 0, color: 'var(--ink)', userSelect: 'all' }}>{info.code}</p>
+          {/* The ticket */}
+          <div style={{ position: 'relative', borderRadius: 14, padding: 'clamp(20px, 4vw, 28px)', background: 'linear-gradient(135deg, var(--coral) 0%, #ff8f6b 100%)', color: '#fff', overflow: 'hidden' }}>
+            <div aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+            <div aria-hidden style={{ position: 'absolute', right: 60, bottom: -60, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', margin: 0, opacity: 0.9 }}>Your code</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 8, position: 'relative' }}>
+              <p style={{ fontSize: 'clamp(30px, 7vw, 44px)', fontWeight: 800, letterSpacing: 6, margin: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', userSelect: 'all' }}>{info.code}</p>
+              <button type="button" onClick={() => copy('code', info.code)} style={{ ...btn, padding: '8px 16px', fontSize: 13, background: '#fff', color: 'var(--coral)', border: 'none' }}>{copied === 'code' ? 'Copied' : 'Copy'}</button>
             </div>
-            <button type="button" onClick={copy} style={{ padding: '11px 18px', borderRadius: 4, border: 'none', background: 'var(--coral)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{copied ? 'Copied' : 'Copy code'}</button>
-            <button type="button" onClick={share} style={{ padding: '11px 18px', borderRadius: 4, border: '1px solid var(--ink)', background: 'transparent', color: 'var(--ink)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{shareCopied ? 'Message copied' : 'Share'}</button>
+            <div style={{ borderTop: '2px dashed rgba(255,255,255,0.45)', margin: '18px 0 14px' }} />
+            <p style={{ fontSize: 14, margin: 0, lineHeight: 1.5, position: 'relative' }}>
+              Friends get <strong>{REFERRAL_PERCENT_OFF}% off</strong> their first month. You get <strong>{REFERRAL_PERCENT_OFF}% off</strong> your next month for each one who subscribes.
+            </p>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '10px 0 0', lineHeight: 1.5 }}>Your friend types this code in when they sign up or choose a plan.</p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 20, padding: '14px 8px', borderRadius: 4, background: 'var(--sand)' }}>
-            {stat(info.joined, 'Friends joined')}
-            {stat(info.subscribed, 'Subscribed')}
-            {stat(info.monthsEarned, '30% off months')}
+
+          {/* Ways to send it */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+            <button type="button" onClick={share} style={{ ...btn, flex: '1 1 160px', background: 'var(--ink)', color: 'var(--background)', border: 'none' }}>{copied === 'message' ? 'Message copied' : 'Share with a friend'}</button>
+            <button type="button" onClick={() => copy('link', link)} style={{ ...btn, flex: '1 1 160px', background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line)' }}>{copied === 'link' ? 'Link copied' : 'Copy sign up link'}</button>
           </div>
-          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '14px 0 0', lineHeight: 1.5 }}>
-            Your friend needs to be on the Free plan and make their first paid payment. You can earn up to {info.limit} months of 30% off.
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            {quick.map(q => (
+              <a key={q.label} href={q.href} target={q.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer"
+                style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none', padding: '7px 14px', borderRadius: 999, background: 'var(--sand)' }}>{q.label}</a>
+            ))}
+          </div>
+
+          {/* How it is going */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 22 }}>
+            {[
+              [info.joined, 'Friends joined'],
+              [info.subscribed, 'Subscribed'],
+              [info.monthsEarned, `${REFERRAL_PERCENT_OFF}% off months`],
+            ].map(([n, label]) => (
+              <div key={String(label)} style={{ background: 'var(--sand)', borderRadius: 12, padding: '14px 8px', textAlign: 'center' }}>
+                <p style={{ fontSize: 26, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>{n}</p>
+                <p style={{ fontSize: 11, margin: '2px 0 0', color: 'var(--text-secondary)' }}>{label}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              <span>Discount months earned</span><span>{used} of {info.limit}</span>
+            </div>
+            <div role="progressbar" aria-valuemin={0} aria-valuemax={info.limit} aria-valuenow={used} aria-label="Discount months earned" style={{ height: 8, borderRadius: 999, background: 'var(--sand)', overflow: 'hidden' }}>
+              <div style={{ width: `${info.limit ? (used / info.limit) * 100 : 0}%`, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, var(--coral), #ff8f6b)', transition: 'width 600ms ease' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '14px 0 0', lineHeight: 1.5 }}>
+            Your friend types the code when they sign up or in the Code box on Plans. They need to be new to Reelezy and make their first payment. If you are on the Free plan, your discount is saved for your first month.
           </p>
         </>
       )}
+      <style>{'@keyframes refer-shimmer { 0% { background-position: 100% 0 } 100% { background-position: -100% 0 } }'}</style>
     </div>
   )
 }

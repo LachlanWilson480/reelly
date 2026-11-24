@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import Icon from '@/components/Icon'
 // Share the app's one Supabase client. A second client refreshes the same login token on its own and can sign people out.
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: '▦' },
@@ -23,6 +24,19 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileShowFullMenu, setMobileShowFullMenu] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+  // The Admin link only shows for the Reelezy team (the server decides, from ADMIN_EMAILS)
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => {
+    if (!isLoggedIn) return
+    let cancelled = false
+    try { if (sessionStorage.getItem('reelezy-admin') === '1') { setIsAdmin(true); return } } catch {}
+    authFetch('/api/admin/me').then(r => r.json()).then(d => {
+      if (cancelled || !d?.admin) return
+      setIsAdmin(true)
+      try { sessionStorage.setItem('reelezy-admin', '1') } catch {}
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [isLoggedIn])
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -37,6 +51,8 @@ export default function Sidebar() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setIsLoggedIn(false)
+        setIsAdmin(false)
+        try { sessionStorage.removeItem('reelezy-admin') } catch {}
       } else {
         setIsLoggedIn(!!session)
       }
@@ -51,6 +67,7 @@ export default function Sidebar() {
     { href: "/plans", label: "Plans", icon: <Icon n="dollar" /> },
     { href: "/refer", label: "Refer a friend", icon: <Icon n="megaphone" /> },
     { href: "/history", label: "History", icon: <Icon n="clock" /> },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: <Icon n="key" /> }] : []),
   ]
 
   const bottomNavItems = [

@@ -10,6 +10,8 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SU
 const cleanCode = (s: unknown) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 const str = (s: unknown) => { const v = String(s ?? '').trim(); return v ? v : null }
 const MAX_CREATORS = 200
+// A percentage from 0 to 100. A blank box uses the fallback, but 0 stays 0 (0% commission = a tracking code)
+const pct = (v: unknown, fallback: number) => { const t = String(v ?? '').trim(); const n = Number(t); return t === '' || !Number.isFinite(n) ? fallback : Math.max(0, Math.min(100, n)) }
 const digits = (s: unknown) => { const v = String(s ?? '').replace(/\D/g, ''); return v ? v : null }
 
 // Everything the creator page shows
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
     const commissionMonths = body.lifetime ? null : Math.max(1, Math.min(120, Math.round(Number(body.commission_months) || 12)))
     const { data: created, error } = await admin.from('creators').insert({
       name, email, code,
-      commission_percent: Math.max(0, Math.min(100, Number(body.commission_percent) || 20)),
+      commission_percent: pct(body.commission_percent, 20),
       commission_months: commissionMonths,
       abn: digits(body.abn), supplier_statement: !!body.supplier_statement, agreement_signed: !!body.agreement_signed,
       bsb: digits(body.bsb), account_number: digits(body.account_number), account_name: str(body.account_name), note: str(body.note),
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
     const update: Record<string, unknown> = {}
     if ('name' in f) update.name = str(f.name)
     if ('email' in f) update.email = str(f.email)?.toLowerCase()
-    if ('commission_percent' in f) update.commission_percent = Math.max(0, Math.min(100, Number(f.commission_percent) || 0))
+    if ('commission_percent' in f) update.commission_percent = pct(f.commission_percent, 0)
     if ('commission_months' in f) update.commission_months = f.commission_months == null || f.commission_months === '' ? null : Math.max(1, Math.min(120, Math.round(Number(f.commission_months))))
     if ('abn' in f) update.abn = digits(f.abn)
     if ('supplier_statement' in f) update.supplier_statement = !!f.supplier_statement
