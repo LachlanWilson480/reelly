@@ -278,3 +278,65 @@
 .hp-plat { display: grid; grid-template-columns: 1fr 40px auto; align-items: center; gap: 10px; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px; font-size: 13px; font-weight: 500; color: #111111; animation: hpUp 0.45s ease both; }
 .hp-plat i { display: block; height: 3px; background: #ff6a4d; transform-origin: left; transform: scaleX(0); animation: hpBar 0.8s ease forwards; }
 .hp-plat b { font-size: 12px; font-weight: 600; color: #1a7f37; opacity: 0; animation: hpIn 0.3s ease forwards; }
+
+/* Public pages people find on Google: reel ideas by business and the free tools */
+.pg { padding: 64px 0 0; }
+.pg-crumbs { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--lp-muted); margin: 0 0 28px; }
+.pg-crumbs a { color: var(--lp-muted); text-decoration: none; }
+.pg-crumbs a:hover { color: var(--lp-ink); text-decoration: underline; }
+.pg-head { max-width: 760px; display: flex; flex-direction: column; gap: 20px; margin-bottom: 56px; }
+.pg-head .lp-h1 { font-size: clamp(34px, 4vw, 54px); }
+.pg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pg-card { border: 1px solid var(--lp-line); border-radius: 4px; padding: 22px 22px 20px; background: #fff; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--lp-ink); }
+a.pg-card:hover { border-color: #111; }
+.pg-card h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.pg-card p { margin: 0; font-size: 14.5px; line-height: 1.6; font-weight: 300; color: var(--lp-muted); }
+.pg-card .pg-n { font-size: 13px; font-weight: 600; color: var(--lp-coral); }
+.pg-card .pg-hook { font-size: 15.5px; font-weight: 500; color: var(--lp-ink); }
+.pg-card .pg-label, .pg-result .pg-label { font-size: 12px; font-weight: 600; color: var(--lp-coral); margin: 6px 0 -4px; text-transform: none; }
+.pg-two { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; margin-top: 88px; }
+.pg-two .lp-h3 { margin-bottom: 20px; }
+.pg-cta { margin-top: 88px; border: 1px solid var(--lp-line); background: var(--lp-off); border-radius: 4px; padding: 40px; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+.pg-cta .lp-h3 { margin-bottom: 8px; }
+.pg-cta p { margin: 0; font-size: 16px; font-weight: 300; color: var(--lp-muted); max-width: 34em; line-height: 1.7; }
+.pg-more { margin-top: 72px; }
+.pg-more h2 { font-size: 15px; font-weight: 600; margin: 0 0 14px; }
+.pg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pg-chips a { font-size: 14px; color: var(--lp-ink); border: 1px solid var(--lp-line); border-radius: 999px; padding: 7px 14px; text-decoration: none; }
+.pg-chips a:hover { border-color: #111; }
+
+/* Free tool form */
+.pg-tool { border: 1px solid var(--lp-line); border-radius: 4px; padding: 28px; display: flex; flex-direction: column; gap: 18px; max-width: 760px; background: #fff; }
+.pg-field { display: flex; flex-direction: column; gap: 7px; }
+.pg-field label { font-size: 14px; font-weight: 600; }
+.pg-field small { font-size: 13px; color: var(--lp-muted); font-weight: 300; }
+.pg-field input, .pg-field select, .pg-field textarea { font: inherit; font-size: 16px; padding: 12px 14px; border: 1px solid #d0d0d0; border-radius: 4px; background: #fff; color: var(--lp-ink); width: 100%; box-sizing: border-box; }
+.pg-field textarea { min-height: 96px; resize: vertical; }
+.pg-field input:focus, .pg-field select:focus, .pg-field textarea:focus { outline: 2px solid var(--lp-coral); outline-offset: 1px; border-color: transparent; }
+.pg-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pg-tool .lp-btn { align-self: flex-start; cursor: pointer; }
+.pg-tool .lp-btn:disabled { opacity: 0.5; cursor: default; }
+.pg-err { color: #B42318; font-size: 14px; margin: 0; }
+.pg-results { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin-top: 32px; }
+.pg-result { border: 1px solid var(--lp-line); border-radius: 4px; padding: 22px; display: flex; flex-direction: column; gap: 10px; }
+.pg-result h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.pg-result p { margin: 0; font-size: 15px; line-height: 1.65; font-weight: 300; color: #333; white-space: pre-wrap; }
+.pg-copy { align-self: flex-start; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--lp-line); background: #fff; cursor: pointer; color: var(--lp-ink); }
+.pg-copy:hover { border-color: #111; }
+.pg-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pg-tags span { font-size: 13px; color: var(--lp-ink); background: var(--lp-off); border: 1px solid var(--lp-line); border-radius: 999px; padding: 4px 10px; }
+.pg-note { font-size: 13px; color: var(--lp-muted); font-weight: 300; margin: 0; }
+
+@media (max-width: 1000px) {
+  .pg-grid { grid-template-columns: 1fr 1fr; }
+  .pg-two { grid-template-columns: 1fr; gap: 48px; margin-top: 64px; }
+}
+@media (max-width: 640px) {
+  .pg { padding-top: 32px; }
+  .pg-grid, .pg-row2 { grid-template-columns: 1fr; }
+  .pg-tool { padding: 18px; }
+  .pg-cta { padding: 24px; margin-top: 56px; }
+  .pg-cta .lp-btn { flex: 1 1 100%; }
+  .lp-nav-actions .lp-btn-sm { padding: 9px 14px; }
+  .lp-foot-cols { flex-wrap: wrap; gap: 36px 48px; }
+}

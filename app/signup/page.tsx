@@ -9,6 +9,7 @@ import Sidebar from '@/components/Sidebar'
 import { googleSignInOn, mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
 import { takeAfterLogin } from '@/lib/afterLogin'
+import { HEARD_OPTIONS, readSource, saveSource, cleanHeard } from '@/lib/signupSource'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -27,6 +28,14 @@ export default function SignUpPage() {
     const t = setTimeout(() => { try { const r = (localStorage.getItem('reelezy-ref') || '').toUpperCase(); if (r) setRefCode(r) } catch {} }, 0)
     return () => clearTimeout(t)
   }, [])
+
+  // How did you hear about Reelezy (optional). Saved in the browser too, so Google sign-in keeps the answer.
+  const [heard, setHeard] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => { const s = readSource(); if (s.heard) setHeard(s.heard) }, 0)
+    return () => clearTimeout(t)
+  }, [])
+  const pickHeard = (v: string) => { const c = cleanHeard(v); setHeard(c); saveSource({ heard: c || undefined }) }
 
   // Sent here from the login page when there was no account for that email
   const [noAccountEmail, setNoAccountEmail] = useState('')
@@ -61,7 +70,12 @@ export default function SignUpPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { email_confirm: true, ...(/^[A-Z0-9]{4,12}$/.test(refCode.trim().toUpperCase()) ? { referral_code: refCode.trim().toUpperCase() } : {}) },
+        data: {
+          email_confirm: true,
+          ...(/^[A-Z0-9]{4,12}$/.test(refCode.trim().toUpperCase()) ? { referral_code: refCode.trim().toUpperCase() } : {}),
+          ...(cleanHeard(heard) ? { heard_about: cleanHeard(heard) } : {}),
+          ...(readSource().from ? { signup_from: readSource().from } : {}),
+        },
       },
     })
 
@@ -228,6 +242,24 @@ export default function SignUpPage() {
               <p role="status" style={{ margin: '0 0 20px', padding: '12px 14px', borderRadius: 4, background: 'rgba(255,106,77,0.08)', border: '1px solid rgba(255,106,77,0.35)', fontSize: 13, lineHeight: 1.5, color: 'var(--ink)' }}>
                 We could not find an account for <strong>{noAccountEmail}</strong>. Create one below, it takes about a minute.
               </p>
+            )}
+
+            {message !== 'check-email' && (
+              <div style={{ marginBottom: 22 }}>
+                <label htmlFor="heard-about" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+                  How did you hear about Reelezy? <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(optional)</span>
+                </label>
+                <select
+                  id="heard-about"
+                  value={heard}
+                  onChange={(e) => pickHeard(e.target.value)}
+                  disabled={isSigningUp}
+                  style={{ ...inputStyle, appearance: 'auto', cursor: 'pointer', color: heard ? 'var(--ink)' : 'var(--text-secondary)' }}
+                >
+                  <option value="">Choose one</option>
+                  {HEARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             )}
 
             {message !== 'check-email' && googleSignInOn && <>

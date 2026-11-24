@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { headers } from 'next/headers'
 import { HREFLANG, SITE_ORIGINS, originForHost } from '@/lib/siteDomains'
+import { BUSINESS_TYPES } from '@/lib/reelIdeasContent'
 
 // The public pages, how important each one is, and how often it changes
 const PAGES: { path: string; priority: number; changeFrequency: 'weekly' | 'monthly' | 'yearly' }[] = [
@@ -12,6 +13,10 @@ const PAGES: { path: string; priority: number; changeFrequency: 'weekly' | 'mont
   { path: '/login', priority: 0.4, changeFrequency: 'yearly' },
   { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
+  { path: '/free/reel-ideas', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/free/caption-generator', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/reel-ideas', priority: 0.8, changeFrequency: 'monthly' },
+  ...BUSINESS_TYPES.map((b) => ({ path: `/reel-ideas/${b.slug}`, priority: 0.7, changeFrequency: 'monthly' as const })),
 ]
 
 // One sitemap per domain: reelezy.com.au/sitemap.xml lists .com.au pages, reelezy.co.uk/sitemap.xml lists .co.uk pages.

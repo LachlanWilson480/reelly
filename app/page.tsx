@@ -355,6 +355,14 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
+                <h4>Free tools</h4>
+                <div className="lp-foot-col">
+                  <Link href="/free/reel-ideas">Reel idea generator</Link>
+                  <Link href="/free/caption-generator">Caption and hashtag generator</Link>
+                  <Link href="/reel-ideas">Reel ideas by business</Link>
+                </div>
+              </div>
+              <div>
                 <h4>Company</h4>
                 <div className="lp-foot-col">
                   <Link href="/privacy">Privacy Policy</Link>

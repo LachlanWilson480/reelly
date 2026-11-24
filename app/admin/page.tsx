@@ -12,12 +12,14 @@ import CreatorAccountsPanel from '@/components/admin/CreatorAccountsPanel'
 import CreatorsPanel from '@/components/admin/CreatorsPanel'
 import CodesPanel from '@/components/admin/CodesPanel'
 import GivenPlansPanel from '@/components/admin/GivenPlansPanel'
+import SignupsPanel from '@/components/admin/SignupsPanel'
 
 const TABS = [
   { id: 'accounts', label: 'Creator accounts' },
   { id: 'creators', label: 'Creators and payouts' },
   { id: 'codes', label: 'Discount codes' },
   { id: 'plans', label: 'Given plans' },
+  { id: 'signups', label: 'Sign-ups' },
 ] as const
 type Tab = typeof TABS[number]['id']
 
@@ -72,6 +74,7 @@ export default function AdminPage() {
               {tab === 'creators' && <CreatorsPanel />}
               {tab === 'codes' && <CodesPanel />}
               {tab === 'plans' && <GivenPlansPanel />}
+              {tab === 'signups' && <SignupsPanel />}
             </>
           )}
         </div>

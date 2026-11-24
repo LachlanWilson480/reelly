@@ -1,0 +1,298 @@
+// Reel ideas for each type of business, for the public /reel-ideas pages that people find on Google.
+// Each idea has a title, the first line to say or show (the hook) and what to film.
+
+export type ReelIdea = { title: string; hook: string; film: string }
+export type BusinessType = {
+  slug: string
+  name: string        // "Cafes"
+  one: string         // "cafe", used in sentences
+  intro: string
+  ideas: ReelIdea[]
+  hooks: string[]
+  tips: string[]
+}
+
+export const BUSINESS_TYPES: BusinessType[] = [
+  {
+    slug: 'cafes', name: 'Cafes', one: 'cafe',
+    intro: 'People choose a cafe with their eyes first. Reels that show the coffee being made, the food coming out and the faces behind the counter turn scrollers into regulars.',
+    ideas: [
+      { title: 'The first coffee of the day', hook: 'This is what 6am looks like behind our counter.', film: 'Lights going on, the machine warming up, the first shot pouring, the first cup handed over.' },
+      { title: 'Latte art in slow motion', hook: 'Watch this heart appear.', film: 'One close shot of milk pouring into a flat white, filmed in slow motion from just above the cup.' },
+      { title: 'Order like a regular', hook: 'Our regulars all order this. Here is why.', film: 'The most popular order being made start to finish, then a regular taking the first sip.' },
+      { title: 'Meet the barista', hook: 'Say hi to the person who makes your coffee.', film: 'Barista introduces themselves to camera, then their favourite drink, then them making it.' },
+      { title: 'From oven to counter', hook: 'These come out of the oven every morning at 7.', film: 'Tray coming out of the oven, close up of the pastry, it going into the cabinet, someone buying one.' },
+      { title: 'What 5 dollars gets you here', hook: 'What does 5 dollars get you at our cafe?', film: 'Hands placing a note on the counter, then each thing you can get for it, one quick shot each.' },
+    ],
+    hooks: ['You have walked past us a hundred times.', 'The secret to our coffee is not the beans.', 'If you only order one thing here, make it this.'],
+    tips: ['Film the coffee from just above the cup, where the pour looks best.', 'Post before the morning rush, when people are deciding where to get coffee.', 'Use your suburb name in the caption so locals find you.'],
+  },
+  {
+    slug: 'restaurants', name: 'Restaurants', one: 'restaurant',
+    intro: 'Diners book with their phones. A short reel of a dish being plated or the room filling up on a Friday does more than any menu photo.',
+    ideas: [
+      { title: 'Plating the signature dish', hook: 'This is the dish people come back for.', film: 'Top down shots of the plate being built, sauce last, then the plate leaving the pass.' },
+      { title: 'The kitchen before service', hook: 'Two hours before we open.', film: 'Prep in fast cuts: chopping, stock on the stove, chef tasting, the team at the pass.' },
+      { title: 'Chef picks the menu', hook: 'If our chef could only eat one thing on the menu.', film: 'Chef names the dish to camera, then makes it, then takes a bite.' },
+      { title: 'Table for two', hook: 'Date night sorted.', film: 'Candle being lit, two glasses poured, two dishes arriving, a quick shot of the room.' },
+      { title: 'Where our produce comes from', hook: 'This came out of the ground yesterday.', film: 'Delivery arriving, close up of the produce, the chef checking it, the finished dish.' },
+      { title: 'Friday night in 15 seconds', hook: 'This is a Friday night here.', film: 'Fast cuts of a busy service: tickets, flames, plates, full tables, glasses clinking.' },
+    ],
+    hooks: ['You need to try this before it comes off the menu.', 'We make this from scratch every single day.', 'The best seat in the house is this one.'],
+    tips: ['Film plates from the top or at a low 45 degree angle, never straight on.', 'Post on Thursday afternoons, when people plan their weekend.', 'Pin a reel that shows your menu prices so people do not have to ask.'],
+  },
+  {
+    slug: 'bakeries', name: 'Bakeries', one: 'bakery',
+    intro: 'Bread and pastry are made for video: dough stretching, crusts crackling, layers pulling apart. Show the process and people will be at the door when you open.',
+    ideas: [
+      { title: 'The crackle test', hook: 'Turn your sound on for this.', film: 'Fresh loaf cooling on a rack, close to the microphone so you hear the crust crackle.' },
+      { title: 'Laminating croissant dough', hook: 'This is why our croissants have 27 layers.', film: 'Butter going into the dough, folding, rolling, the cut croissant showing its layers.' },
+      { title: 'What sells out first', hook: 'Get here before 9 if you want one of these.', film: 'The item coming out, the full tray in the cabinet, then the empty tray at 9am.' },
+      { title: 'A day in the life of a baker', hook: 'My alarm goes off at 3am.', film: 'Alarm, dark street, lights on in the bakery, dough, oven, doors opening at 7.' },
+      { title: 'Pull apart', hook: 'Just watch this.', film: 'Hands tearing a warm loaf or scroll apart in slow motion.' },
+      { title: 'Custom cake build', hook: 'Someone asked for this. Here is how we made it.', film: 'Time lapse of a cake being decorated, ending with the reveal.' },
+    ],
+    hooks: ['This is what 3am smells like.', 'We sell out of these every Saturday.', 'Real sourdough takes three days. Here is why.'],
+    tips: ['Film in natural window light so the crust colour looks right.', 'Sound sells bread: record crackles and crunches up close.', 'Post the night before your busiest day so people plan the trip.'],
+  },
+  {
+    slug: 'barbers', name: 'Barbers', one: 'barbershop',
+    intro: 'A great fade is the best advert a barber has. Before and afters, quick transformations and the banter in the chair are what people share.',
+    ideas: [
+      { title: 'Before and after', hook: 'He walked in looking like this.', film: 'Client from the front before, a few fast shots of the cut, then the reveal from the same angle.' },
+      { title: 'Skin fade in 30 seconds', hook: 'A full skin fade, sped up.', film: 'One angle from the side for the whole cut, sped up, ending on the finished fade.' },
+      { title: 'What to ask your barber for', hook: 'Stop saying just a trim.', film: 'Barber to camera naming 3 cuts, with a quick photo of each.' },
+      { title: 'The hot towel shave', hook: 'Ten minutes of the best part of the week.', film: 'Towel steaming, lather, razor, client relaxed, splash of aftershave.' },
+      { title: 'Tool of the week', hook: 'This is the clipper I use on every fade.', film: 'Close up of the tool, what it does, it in action on a client.' },
+      { title: 'Chair talk', hook: 'What we talk about in the chair.', film: 'Short clip of a client answering a fun question while getting their cut.' },
+    ],
+    hooks: ['Your barber will not tell you this.', 'This cut is everywhere right now.', 'Three things that ruin a fresh cut.'],
+    tips: ['Ask clients before filming and tag them if they are happy to be tagged.', 'Keep before and after shots at the same angle and light.', 'Put your booking link in your bio and say so at the end of every reel.'],
+  },
+  {
+    slug: 'hair-salons', name: 'Hair salons', one: 'salon',
+    intro: 'Colour changes and blow-dry reveals are some of the most watched reels on any platform. Show the transformation and the skill behind it.',
+    ideas: [
+      { title: 'The colour reveal', hook: 'She asked for this. Here is what we did.', film: 'Inspo photo, foils going in, rinse, blow dry, the reveal with a hair flip.' },
+      { title: 'Bond treatment, explained', hook: 'Why your blonde feels like straw.', film: 'Stylist to camera explaining in one line, then the treatment going on, then soft shiny hair.' },
+      { title: 'Blow-dry in 20 seconds', hook: 'How to get this at home.', film: 'Round brush blow-dry, sped up, with the 3 key steps on screen.' },
+      { title: 'Client chair confessions', hook: 'The worst thing a client has asked us.', film: 'Stylist answering to camera while working, then a laugh.' },
+      { title: 'Cut of the week', hook: 'The cut everyone is asking for.', film: 'Before, a few cutting shots, the styled finish from three angles.' },
+      { title: 'What to bring to your appointment', hook: 'Do this before your next colour.', film: 'Stylist listing 3 things to camera, quick shot for each.' },
+    ],
+    hooks: ['Stop doing this to your hair.', 'This is the colour of the season.', 'Your hair is not damaged. It is dehydrated.'],
+    tips: ['Film reveals near a window or ring light so colour looks true.', 'Always get written OK from clients before posting them.', 'Add the colour or cut name on screen so people can ask for it.'],
+  },
+  {
+    slug: 'nail-salons', name: 'Nail salons', one: 'nail salon',
+    intro: 'Nails are made for close up video. Sets, designs and satisfying shaping clips get saved and sent to friends with the words "book me in".',
+    ideas: [
+      { title: 'Set of the week', hook: 'This set took 90 minutes.', film: 'Bare nails, shaping, colour going on, design details, the finished set turning in the light.' },
+      { title: 'Satisfying shaping', hook: 'The most satisfying part of my job.', film: 'Close up of filing and shaping, sound on, one long smooth shot.' },
+      { title: 'Choosing your colour', hook: 'Pick the colour for this set.', film: 'Hand moving along the colour wall, landing on one, then the finished nails.' },
+      { title: 'Gel versus acrylic', hook: 'Gel or acrylic? Here is the difference.', film: 'Tech to camera, side by side hands, one line for each.' },
+      { title: 'Nail art step by step', hook: 'How this design is done.', film: 'Each layer of the design, one shot each, ending on the close up.' },
+      { title: 'Aftercare in 3 steps', hook: 'Make your set last 3 weeks.', film: '3 quick tips with a shot each: cuticle oil, gloves, no picking.' },
+    ],
+    hooks: ['Your sign to book a fresh set.', 'This colour is going to be everywhere.', 'I cannot stop looking at this set.'],
+    tips: ['Film with a ring light and the camera close for crisp detail.', 'Show the price or the service name on screen.', 'Post finished sets on Thursday and Friday before weekend bookings.'],
+  },
+  {
+    slug: 'lash-and-brow', name: 'Lash and brow studios', one: 'lash and brow studio',
+    intro: 'Lash lifts, brow laminations and tints are small changes that make a big difference on camera. Before and afters do the selling for you.',
+    ideas: [
+      { title: 'Brow lamination before and after', hook: 'Same brows. Forty minutes apart.', film: 'Close up before, the process in three quick shots, the after from the same angle.' },
+      { title: 'Lash lift reveal', hook: 'No extensions. These are her real lashes.', film: 'Eyes closed with the shield on, then eyes opening to camera.' },
+      { title: 'Which lash style suits you', hook: 'Classic, hybrid or volume?', film: 'Three close ups side by side with the name on screen.' },
+      { title: 'Myth buster', hook: 'Do lash extensions ruin your lashes?', film: 'Tech answering to camera with one clear point.' },
+      { title: 'What happens at your first visit', hook: 'Nervous about your first appointment?', film: 'Walk through: consult, patch test, the treatment bed, the result.' },
+      { title: 'Aftercare do and do not', hook: 'Do not do this for 24 hours.', film: 'Three rules on screen with a quick shot each.' },
+    ],
+    hooks: ['Wake up with your makeup half done.', 'The brow trend that is not going away.', 'This is a 45 minute appointment.'],
+    tips: ['Use the same light and angle for every before and after.', 'Film eyes slightly from above for the best lash shape.', 'Explain the price and time on screen to cut down on questions.'],
+  },
+  {
+    slug: 'personal-trainers', name: 'Personal trainers', one: 'personal trainer',
+    intro: 'People buy a trainer they trust. Quick tips, form fixes and real client wins show you know your stuff and that you are someone they would enjoy training with.',
+    ideas: [
+      { title: 'Fix this form mistake', hook: 'You are doing this squat wrong.', film: 'The wrong way, a cross on screen, the right way, a tick, one cue to remember.' },
+      { title: 'Three moves, no equipment', hook: 'No gym? Do these three.', film: 'Each move for 3 seconds with the name and reps on screen.' },
+      { title: 'Client win', hook: 'Six months ago she could not do one push up.', film: 'Client doing push ups, a quick word from them, a high five.' },
+      { title: 'What I eat as a trainer', hook: 'What a trainer eats on a busy day.', film: 'Three meals, a shot each, one line on why.' },
+      { title: 'Myth buster', hook: 'Cardio is not the best way to lose fat.', film: 'Trainer to camera with one simple explanation.' },
+      { title: 'A session in 20 seconds', hook: 'This is what a session with me looks like.', film: 'Warm up, two key exercises, a laugh, the finisher, stretching.' },
+    ],
+    hooks: ['Stop wasting your time at the gym.', 'The one exercise I give every client.', 'If your back hurts after deadlifts, watch this.'],
+    tips: ['Film side on for form clips so people see your back and knees.', 'Put the cue on screen in big words, many watch without sound.', 'Always get permission before showing a client.'],
+  },
+  {
+    slug: 'gyms', name: 'Gyms', one: 'gym',
+    intro: 'A new member wants to know two things: what is it like inside, and will I fit in. Reels that show the space, the classes and the community answer both.',
+    ideas: [
+      { title: 'Gym tour in 15 seconds', hook: 'Come for a quick look around.', film: 'Walk through from the door: weights, cardio, class room, change rooms, smiling staff.' },
+      { title: 'Class of the week', hook: 'The class with a waitlist.', film: 'Fast cuts of the class at its best moments, the instructor, the finish.' },
+      { title: 'Member spotlight', hook: 'Meet one of our members.', film: 'Member says their name and goal to camera, then training.' },
+      { title: 'First day nerves', hook: 'Nervous about your first visit?', film: 'Staff welcoming someone, the induction, them getting started.' },
+      { title: 'Equipment explained', hook: 'Never know what this machine does?', film: 'Trainer showing one machine with the right setup and one cue.' },
+      { title: '6am crew', hook: 'The 6am crew does not miss.', film: 'Dark outside, lights on, people arriving, training, coffee after.' },
+    ],
+    hooks: ['This is not a scary gym.', 'Our busiest class is this one.', 'What 30 days here looks like.'],
+    tips: ['Show real members, not just the empty space.', 'Post class reels the night before the class.', 'End with your free trial or first visit offer.'],
+  },
+  {
+    slug: 'pilates-studios', name: 'Pilates and yoga studios', one: 'studio',
+    intro: 'Calm, strong and beautiful movement is easy to watch. Show the space, the classes and the progress, and people will want to feel that way too.',
+    ideas: [
+      { title: 'Reformer flow', hook: 'Ten seconds of a reformer class.', film: 'One smooth sequence on the reformer filmed side on, slow and steady.' },
+      { title: 'Beginner question', hook: 'Never done Pilates? Start here.', film: 'Instructor to camera answering one common worry, then a beginner move.' },
+      { title: 'The studio at sunrise', hook: 'This is where your morning could start.', film: 'Light through the windows, mats rolled out, the first class settling in.' },
+      { title: 'Move of the week', hook: 'Try this at home tonight.', film: 'One move from start to finish with the cue on screen.' },
+      { title: 'Progress, three months apart', hook: 'Same move. Three months apart.', film: 'Two clips of the same client move side by side.' },
+      { title: 'Meet your instructor', hook: 'Meet the person teaching your 7am.', film: 'Instructor intro to camera, then teaching.' },
+    ],
+    hooks: ['Your back will thank you for this.', 'This class is harder than it looks.', 'The move that fixed my posture.'],
+    tips: ['Film in natural light and keep the space tidy in shot.', 'Use slow, smooth shots that match the feel of the class.', 'Mention your intro offer for first timers at the end.'],
+  },
+  {
+    slug: 'florists', name: 'Florists', one: 'florist',
+    intro: 'Flowers are the most shareable product there is. Bouquet builds, flower market runs and seasonal colours fill a feed and the order book.',
+    ideas: [
+      { title: 'Bouquet build', hook: 'Watch this bouquet come together.', film: 'Top down, each stem being added, the wrap, the ribbon, the finished bouquet.' },
+      { title: 'Market run at dawn', hook: 'This is where your flowers come from.', film: 'Early morning market, choosing stems, loading the van, back in the shop.' },
+      { title: 'Flower of the week', hook: 'In season right now.', film: 'Close up of the flower, its name on screen, it in a bouquet.' },
+      { title: 'Make them last longer', hook: 'Your flowers are dying early because of this.', film: 'Three quick tips: cut the stem, change the water, keep from fruit.' },
+      { title: 'Delivery day', hook: 'Someone is about to have a very good day.', film: 'Bouquet in the van, at the door, handed over, a happy face.' },
+      { title: 'Budget versus luxe', hook: 'What 50 dollars gets you versus 150.', film: 'Two bouquets side by side with prices on screen.' },
+    ],
+    hooks: ['Your sign to buy yourself flowers.', 'This colour combination is my favourite this season.', 'How to order flowers they will remember.'],
+    tips: ['Film top down on a clean bench for bouquet builds.', 'Post a week before Valentine’s Day and Mother’s Day with an order link.', 'Show prices so people know what to order.'],
+  },
+  {
+    slug: 'real-estate-agents', name: 'Real estate agents', one: 'real estate agent',
+    intro: 'Sellers choose the agent they see everywhere. Property walkthroughs, local market updates and suburb guides make you the name people know.',
+    ideas: [
+      { title: '20 second walkthrough', hook: 'Just listed. Come inside.', film: 'Walk in the front door, living, kitchen, best bedroom, backyard, all in smooth single shots.' },
+      { title: 'Suburb in 3 spots', hook: 'Thinking of moving here?', film: 'Agent to camera, then three local favourites: a cafe, a park, the beach or main street.' },
+      { title: 'Market update', hook: 'What sold on our street this month.', film: 'Agent to camera with 3 numbers on screen.' },
+      { title: 'Sold story', hook: 'This one sold in 9 days. Here is how.', film: 'Sold sign, quick shots of the home, the key reason on screen.' },
+      { title: 'Seller tip', hook: 'Do this before your open home.', film: 'One tip with a before and after shot of a room.' },
+      { title: 'Best feature', hook: 'The best room in this house is not the kitchen.', film: 'Build up to the surprise room or view.' },
+    ],
+    hooks: ['Guess the price of this home.', 'Buyers are paying more for this right now.', 'The question every seller asks me.'],
+    tips: ['Film walkthroughs slowly with the phone held steady at chest height.', 'Put the suburb and price guide on screen.', 'Post new listings within a day of going live.'],
+  },
+  {
+    slug: 'tradies', name: 'Tradies', one: 'trade business',
+    intro: 'Homeowners hire the tradie they trust. Before and afters, quick fixes and showing up on time on camera build that trust before the first call.',
+    ideas: [
+      { title: 'Before and after', hook: 'This is what we found. This is what we left.', film: 'The problem, a few shots of the work, the finished job from the same angle.' },
+      { title: 'Quick fix you can do', hook: 'Fix this yourself before you call anyone.', film: 'One simple fix shown step by step.' },
+      { title: 'Never do this', hook: 'Please never do this at home.', film: 'Show a dangerous or costly mistake you found on a job.' },
+      { title: 'Day on the tools', hook: 'A day in the van.', film: 'Morning coffee, loading the van, two jobs, the clean up.' },
+      { title: 'What it costs', hook: 'How much does this job really cost?', film: 'Tradie to camera with a price range on screen and what changes it.' },
+      { title: 'Clean up', hook: 'We leave it cleaner than we found it.', film: 'The mess after the job, the clean up, the spotless finish.' },
+    ],
+    hooks: ['I see this on almost every job.', 'This little leak cost them thousands.', 'What a good job looks like behind the wall.'],
+    tips: ['Film with the phone sideways for wide jobs, upright for close ups.', 'Keep it safe: wear your gear on camera.', 'Put your service area in every caption.'],
+  },
+  {
+    slug: 'cleaners', name: 'Cleaning businesses', one: 'cleaning business',
+    intro: 'Cleaning videos are some of the most satisfying on the internet. Turn that into bookings by showing the transformation and the care you take.',
+    ideas: [
+      { title: 'Oven before and after', hook: 'This oven had not been cleaned in 3 years.', film: 'The dirty oven, the product going on, the scrub, the sparkling finish.' },
+      { title: 'Satisfying swipe', hook: 'Just one swipe.', film: 'One long close up shot of a single swipe through grime.' },
+      { title: 'Product I swear by', hook: 'The only spray I carry.', film: 'The product, what it is for, it working.' },
+      { title: 'End of lease clean', hook: 'Get your bond back with this checklist.', film: 'Five places people forget, a quick shot of each.' },
+      { title: 'Room reset in 30 seconds', hook: 'Watch this bedroom reset.', film: 'Wide shot from the doorway, sped up clean, the finished room.' },
+      { title: 'Meet the team', hook: 'These are the people who clean your home.', film: 'Each team member waves to camera, then working.' },
+    ],
+    hooks: ['You are cleaning this the wrong way.', 'The dirtiest thing in your kitchen is not the sink.', 'This took us 4 hours.'],
+    tips: ['Always ask the homeowner before filming and keep personal items out of shot.', 'Use the same angle for before and after.', 'Show your service area and booking link at the end.'],
+  },
+  {
+    slug: 'dog-groomers', name: 'Dog groomers', one: 'dog grooming business',
+    intro: 'Fluffy dogs get watched, saved and sent to friends. Groom transformations and happy pups are the easiest reels you will ever make.',
+    ideas: [
+      { title: 'Shaggy to show dog', hook: 'He came in looking like this.', film: 'Shaggy dog on arrival, the bath, the dry, the trim, the strut out.' },
+      { title: 'Bath time', hook: 'Bath time with Milo.', film: 'Bubbles, a shake, the towel, a happy face.' },
+      { title: 'Breed guide', hook: 'How often should a cavoodle be groomed?', film: 'Groomer to camera with the answer, then a cavoodle being groomed.' },
+      { title: 'Nail trim, calm and easy', hook: 'Nail trims do not have to be scary.', film: 'Calm dog, gentle trim, a treat.' },
+      { title: 'The pick up', hook: 'This is the best part of the day.', film: 'Owner arriving, the dog running to them.' },
+      { title: 'Brush at home', hook: 'Brush like this between grooms.', film: 'Groomer showing the right brush and the right way.' },
+    ],
+    hooks: ['Is this the same dog?', 'Your dog does not need a bath every week.', 'He was nervous. Look at him now.'],
+    tips: ['Film at dog eye level for the cutest shots.', 'Tag the owner if they are happy to be tagged.', 'Show the dog breed on screen so owners of the same breed find you.'],
+  },
+  {
+    slug: 'mechanics', name: 'Mechanics', one: 'mechanic',
+    intro: 'Most people do not know what goes on under the bonnet. Showing it plainly, with honest advice, makes your workshop the one they trust.',
+    ideas: [
+      { title: 'What we found', hook: 'This is why the car was making that noise.', film: 'The car coming in, the worn part, the new part, the car leaving.' },
+      { title: 'Warning light explained', hook: 'This light on your dash means stop driving.', film: 'Close up of the warning light, mechanic explaining in one line.' },
+      { title: 'Check this at home', hook: 'Check your tyres like this.', film: 'Coin or gauge test on a tyre, what good and bad looks like.' },
+      { title: 'Service in 20 seconds', hook: 'What a logbook service actually includes.', film: 'Each step of a service, a quick shot each.' },
+      { title: 'Cost saving tip', hook: 'This could save you 500 dollars.', film: 'One maintenance tip and what happens if you skip it.' },
+      { title: 'Workshop tour', hook: 'Come into the workshop.', film: 'Walk through the hoists, tools and team.' },
+    ],
+    hooks: ['Do not ignore this noise.', 'The cheapest part that breaks the most cars.', 'Your mechanic should always show you this.'],
+    tips: ['Keep shots short and close, workshops can look busy on camera.', 'Explain things plainly, most viewers are not car people.', 'Put your suburb and booking number in the caption.'],
+  },
+  {
+    slug: 'photographers', name: 'Photographers', one: 'photographer',
+    intro: 'Behind the scenes is what sells a photographer. Show how you make people comfortable and how a plain spot becomes a beautiful photo.',
+    ideas: [
+      { title: 'Behind the shot', hook: 'The location versus the photo.', film: 'Wide shot of the ordinary spot, then the finished photo.' },
+      { title: 'Posing tip', hook: 'Do this if you hate having your photo taken.', film: 'One posing tip with before and after photos.' },
+      { title: 'Edit in 10 seconds', hook: 'Raw versus edited.', film: 'Screen recording sliding from raw to the edit.' },
+      { title: 'A shoot day', hook: 'Come to a family shoot with me.', film: 'Gear packed, arriving, kids laughing, the best shots.' },
+      { title: 'What to wear', hook: 'What to wear to your photoshoot.', film: 'Three outfit tips with an example photo each.' },
+      { title: 'Gear I use', hook: 'Everything I bring to a wedding.', film: 'Bag unpacked one item at a time.' },
+    ],
+    hooks: ['You do not need a fancy location.', 'The one thing that makes every photo better.', 'They said they were awkward. Look at this.'],
+    tips: ['Use your own photos as the last frame so people see your style.', 'Get permission to share client photos.', 'Post shoots within a week while clients are still excited to share.'],
+  },
+  {
+    slug: 'tattoo-studios', name: 'Tattoo studios', one: 'tattoo studio',
+    intro: 'A tattoo is a big decision. Reels showing the art, the process and the care you take help people trust you with their skin.',
+    ideas: [
+      { title: 'Stencil to finished', hook: 'From paper to skin.', film: 'The drawing, the stencil going on, the linework, the healed or fresh result.' },
+      { title: 'Linework in slow motion', hook: 'The steadiest hands in the studio.', film: 'Close up of a clean line being pulled.' },
+      { title: 'Flash day designs', hook: 'Pick one for Saturday.', film: 'The flash sheet, then close ups of each design with prices.' },
+      { title: 'Aftercare 101', hook: 'Do this for the first two weeks.', film: 'Three steps on screen with a shot each.' },
+      { title: 'Meet the artist', hook: 'Meet the artist and their style.', film: 'Artist to camera, then 3 of their best pieces.' },
+      { title: 'First tattoo nerves', hook: 'First tattoo? This is what to expect.', film: 'Walk through: consult, stencil, the first line, the reaction.' },
+    ],
+    hooks: ['This took 6 hours.', 'Healed versus fresh.', 'The most requested design this month.'],
+    tips: ['Film with a clean, well lit station and gloves on.', 'Show healed work, not just fresh, to show quality.', 'Get client permission and keep faces out if they prefer.'],
+  },
+  {
+    slug: 'clothing-boutiques', name: 'Clothing boutiques', one: 'boutique',
+    intro: 'Shoppers want to see how clothes move and fit. Try-ons, new arrivals and styling ideas bring people into the shop and onto your website.',
+    ideas: [
+      { title: 'New arrivals', hook: 'Just landed in store.', film: 'Each new piece on the rack, a quick shot each, then one styled on a person.' },
+      { title: 'One piece, three ways', hook: 'One dress, three looks.', film: 'The same piece styled for day, work and night.' },
+      { title: 'Try-on haul', hook: 'Trying on everything new this week.', film: 'Quick cuts of each outfit in the fitting room mirror.' },
+      { title: 'Outfit under 100 dollars', hook: 'A full outfit under 100 dollars.', film: 'Each piece with its price on screen, then the full look.' },
+      { title: 'Size and fit honest review', hook: 'How this actually fits.', film: 'Staff member in the piece, turning, with their usual size on screen.' },
+      { title: 'Packing an order', hook: 'Packing your order.', film: 'Folding, tissue, a note, the box closed.' },
+    ],
+    hooks: ['This sold out last time. It is back.', 'The piece everyone asks about.', 'Style it like this for summer.'],
+    tips: ['Film in natural light or by a big window for true colours.', 'Show prices and sizes on screen.', 'Post new arrivals the day they land and again on the weekend.'],
+  },
+  {
+    slug: 'makers-and-market-stalls', name: 'Makers and market stalls', one: 'small maker',
+    intro: 'Handmade things have a story. Showing how you make them, and the stall on market day, gives people a reason to find you and buy.',
+    ideas: [
+      { title: 'How it is made', hook: 'Every one of these is made by hand.', film: 'Raw materials, each step of making, the finished product in someone’s hands.' },
+      { title: 'Market day set up', hook: 'Setting up for Saturday.', film: 'Empty spot at dawn, the stall going up, the first customer.' },
+      { title: 'Packing orders', hook: 'Packing orders with me.', film: 'Each order wrapped, a handwritten note, the pile of parcels.' },
+      { title: 'Behind the price', hook: 'Why this costs 45 dollars.', film: 'Materials, hours of work, the finished piece, with numbers on screen.' },
+      { title: 'Restock reveal', hook: 'The restock you asked for.', film: 'Boxes opened, the new stock lined up.' },
+      { title: 'Customer favourite', hook: 'The one people come back for.', film: 'The product close up, being used, a quick customer quote on screen.' },
+    ],
+    hooks: ['Find me at the market this Saturday.', 'This is my best seller and here is why.', 'I almost did not make these.'],
+    tips: ['Say which market and stall number in the caption.', 'Film close ups of texture and detail.', 'Post the night before market day.'],
+  },
+]
+
+export const findBusinessType = (slug: string) => BUSINESS_TYPES.find((b) => b.slug === slug) || null
