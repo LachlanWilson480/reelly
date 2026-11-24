@@ -3,6 +3,8 @@ import ReferralTracker from "@/components/ReferralTracker"
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister"
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
+import { originForHost } from "@/lib/siteDomains";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -20,8 +22,7 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://www.reelezy.com"),
+const baseMetadata: Metadata = {
   applicationName: "Reelezy",
   icons: {
     icon: [
@@ -55,6 +56,13 @@ export const metadata: Metadata = {
     canonical: "./",
   },
 };
+
+// Each domain (reelezy.com, .com.au, .co.uk) names itself as the real address of its pages.
+// With one fixed address, Google would treat the .com.au and .co.uk pages as copies and leave them out.
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  return { ...baseMetadata, metadataBase: new URL(originForHost(h.get("x-forwarded-host") || h.get("host"))) };
+}
 
 const themeScript = `
 (function () {
