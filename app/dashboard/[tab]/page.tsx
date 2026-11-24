@@ -2700,7 +2700,7 @@ export default function DashboardPage() {
   const [musicPicker, setMusicPicker] = useState(false)
   // The "Made with Reelezy" badge in the corner of the video. On unless the person removes it in the preview.
   const [madeWithBadge, setMadeWithBadge] = useState(true)
-  // A creator account keeps the badge on every video. The server adds it either way, so the preview matches.
+  // The Free plan and creator accounts keep the badge on every video. The server adds it either way, so the preview matches.
   const [creatorLocked, setCreatorLocked] = useState(false)
   useEffect(() => { if (creatorLocked && !madeWithBadge) setMadeWithBadge(true) }, [creatorLocked, madeWithBadge])
   const badgeToggle = creatorLocked ? undefined : setMadeWithBadge
@@ -3061,7 +3061,8 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .maybeSingle()
       if (subRow?.deletion_scheduled_at) setDeletionScheduledAt(subRow.deletion_scheduled_at)
-      setCreatorLocked(creatorActive(subRow))
+      // Only paying Basic and Pro accounts can take the badge off. The Free plan and creator accounts keep it.
+      setCreatorLocked(creatorActive(subRow) || !(subRow && (subRow.status === 'active' || subRow.status === 'trialing')))
       if (subRow && (subRow.status === 'active' || subRow.status === 'trialing') && subRow.plan) {
         setUserPlan(subRow.plan as 'basic' | 'mid' | 'top')
       } else {
@@ -4588,7 +4589,7 @@ export default function DashboardPage() {
   const renderPhoneBadgeToggle = () => (
     <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 20px', fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
       <input type="checkbox" checked={madeWithBadge} disabled={creatorLocked} onChange={(e) => setMadeWithBadge(e.target.checked)} style={{ accentColor: 'var(--coral)', width: 16, height: 16 }} />
-      {creatorLocked ? 'Made with Reelezy badge (always on with a creator account)' : 'Show the Made with Reelezy badge'}
+      {creatorLocked ? 'Made with Reelezy badge (always on with your plan)' : 'Show the Made with Reelezy badge'}
     </label>
   )
 

@@ -175,10 +175,10 @@ export async function POST(req: NextRequest) {
         cb: num(ov.cb, 0, 0.45, 0),
       })
     }
-    // The "Made with Reelezy" badge goes in the bottom right corner on every plan, unless the person removed it in the preview.
-    // A creator account cannot remove it. It is added last so it sits on top of everything else.
+    // The "Made with Reelezy" badge goes in the bottom right corner on every plan. Paying Basic and Pro accounts can remove it in the preview.
+    // The Free plan and creator accounts cannot remove it. It is added last so it sits on top of everything else.
     const { data: creatorRow } = await supabaseAdmin.from('subscriptions').select('status, creator_until').eq('user_id', userId).maybeSingle()
-    const badgeLocked = creatorActive(creatorRow)
+    const badgeLocked = plan === 'free' || creatorActive(creatorRow)
     const badgeOn = badgeLocked || madeWithBadge !== false
     if (badgeOn) {
       const site = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/$/, '')
