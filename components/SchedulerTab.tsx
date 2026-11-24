@@ -631,6 +631,7 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
   // Delete asks once before it goes
   const [confirmDel, setConfirmDel] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [delError, setDelError] = useState('')
   const doDelete = async () => {
@@ -705,6 +706,7 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
       </div>
       <div className="pub-actions" style={{ alignItems: 'center' }}>
         {!isFree && <button type="button" className="pub-dl" disabled={downloading} onClick={onDownload}><Icon n="download" />{downloading ? 'Downloading...' : 'Download'}</button>}
+        {!isFree && <button type="button" onClick={() => setShareOpen((o) => !o)} aria-expanded={shareOpen} aria-label={`Share ${title.trim() || 'this video'}`} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon n="share" />Share</button>}
         {!isFree && schedule && <button type="button" onClick={schedule.toggle} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Schedule</button>}
         {onEdit && <button type="button" onClick={onEdit} aria-label={`Edit ${title.trim() || 'this video'}`} style={{ ...buttonSecondary, padding: '8px 14px', fontSize: 13 }}>Edit</button>}
         <span style={{ flex: 1 }} />
@@ -722,7 +724,93 @@ function VideoCard({ r, isFree, copied, downloading, onCopy, onDownload, onSaved
         )}
         {delError && <p role="alert" style={{ flexBasis: '100%', margin: 0, fontSize: 12, color: '#D92D20' }}>{delError}</p>}
       </div>
+      {shareOpen && !isFree && r.output_url && (
+        <div style={{ gridColumn: '1 / -1' }}>
+          <SharePanel id={r.id} url={r.output_url} title={title.trim() || 'My new video'} caption={fullDesc} copied={copied} onCopy={onCopy} onClose={() => setShareOpen(false)} />
+        </div>
+      )}
       {schedule?.panel && <div style={{ gridColumn: '1 / -1' }}>{schedule.panel}</div>}
+    </div>
+  )
+}
+
+// Share this video: on a phone, the video itself goes straight to Instagram, TikTok, Messages and so on.
+// On a computer (or a browser that cannot send files), share a link to it instead.
+function SharePanel({ id, url, title, caption, copied, onCopy, onClose }: {
+  id: string; url: string; title: string; caption: string; copied: string | null
+  onCopy: (text: string, key: string) => void; onClose: () => void
+}) {
+  const canSendFile = typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function'
+  const [file, setFile] = useState<File | null>(null)
+  const [prep, setPrep] = useState<'loading' | 'ready' | 'none'>(canSendFile ? 'loading' : 'none')
+  const [sent, setSent] = useState(false)
+
+  // The video is fetched as soon as the panel opens, so tapping Send can open the share sheet straight away
+  // (phones only allow it right after a tap, not after a long wait)
+  useEffect(() => {
+    if (!canSendFile || !/^https:\/\//i.test(url)) { setPrep('none'); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error('fetch failed')
+        const blob = await res.blob()
+        const name = (cleanString(title).replace(/[^\w\s-]/g, '').trim().slice(0, 60) || 'reelezy-video').replace(/\s+/g, '-')
+        const f = new File([blob], `${name}.mp4`, { type: 'video/mp4' })
+        if (cancelled) return
+        if (navigator.canShare({ files: [f] })) { setFile(f); setPrep('ready') } else setPrep('none')
+      } catch {
+        if (!cancelled) setPrep('none')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [url, title, canSendFile])
+
+  const sendFile = async () => {
+    if (!file) return
+    try { await navigator.share({ files: [file], title, text: caption || title }); setSent(true) } catch { /* closed the share sheet */ }
+  }
+  const shareLink = async () => {
+    try { await navigator.share({ title, text: title, url }) } catch { /* closed the share sheet */ }
+  }
+
+  const msg = encodeURIComponent(`${title}\n${url}`)
+  const links = [
+    { label: 'WhatsApp', href: `https://wa.me/?text=${msg}` },
+    { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+    { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+    { label: 'X', href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}` },
+    { label: 'Email', href: `mailto:?subject=${encodeURIComponent(title)}&body=${msg}` },
+  ]
+  const chip: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: 'none', padding: '8px 14px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
+
+  return (
+    <div role="region" aria-label="Share this video" style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 14, background: 'var(--sand)', display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Share this video</p>
+        <button type="button" onClick={onClose} aria-label="Close share" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4, display: 'inline-flex' }}><Icon n="close" /></button>
+      </div>
+
+      {prep !== 'none' && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <button type="button" className="pub-dl" disabled={prep !== 'ready'} onClick={sendFile} style={{ justifyContent: 'center', padding: '11px 16px', fontSize: 14 }}>
+            <Icon n="share" />{prep === 'loading' ? 'Getting the video ready...' : sent ? 'Send it somewhere else' : 'Send the video'}
+          </button>
+          <p style={{ ...small, margin: 0 }}>Opens your phone&apos;s share menu with the video, ready for Instagram, TikTok, Facebook, Messages and more.</p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" style={chip} onClick={() => onCopy(url, `${id}-link`)}>{copied === `${id}-link` ? <TickIcon /> : null}{copied === `${id}-link` ? 'Link copied' : 'Copy link'}</button>
+        {caption && <button type="button" style={chip} onClick={() => onCopy(caption, `${id}-cap`)}>{copied === `${id}-cap` ? <TickIcon /> : null}{copied === `${id}-cap` ? 'Caption copied' : 'Copy caption'}</button>}
+        {prep === 'none' && canSendFile && <button type="button" style={chip} onClick={shareLink}>More options</button>}
+        {links.map((l) => (
+          <a key={l.label} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" style={chip}>{l.label}</a>
+        ))}
+      </div>
+      {prep === 'none' && (
+        <p style={{ ...small, margin: 0 }}>To post it on Instagram or TikTok, open Reelezy on your phone and tap Share there, or download the video and upload it.</p>
+      )}
     </div>
   )
 }
