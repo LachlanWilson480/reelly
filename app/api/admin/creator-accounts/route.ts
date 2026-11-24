@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getAdmin } from '@/lib/adminAuth'
-import { cleanCreatorCode } from '@/lib/creatorAccount'
+import { cleanCreatorCode, randomCodeEnding } from '@/lib/creatorAccount'
 import { codeTaken } from '@/lib/adminCodes'
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -43,8 +43,16 @@ export async function POST(req: NextRequest) {
   const action = body?.action
 
   if (action === 'create') {
-    const code = cleanCreatorCode(body.code)
-    if (code.length < 3) return NextResponse.json({ error: 'The code needs at least 3 letters or numbers. Their handle works well.' }, { status: 400 })
+    const base = cleanCreatorCode(body.code)
+    if (base.replace(/-/g, '').length < 3) return NextResponse.json({ error: 'The code needs at least 3 letters or numbers. Their handle works well.' }, { status: 400 })
+    // A random ending stops anyone guessing the code from the creator's handle. On unless you untick it.
+    let code = base
+    if (body.randomEnding !== false) {
+      for (let i = 0; i < 5; i++) {
+        code = `${base.slice(0, 34)}-${randomCodeEnding()}`
+        if (!(await codeTaken(admin, code))) break
+      }
+    }
     const clash = await codeTaken(admin, code)
     if (clash) return NextResponse.json({ error: `${code} is already ${clash}. Pick a different one.` }, { status: 400 })
     const { error } = await admin.from('creator_access_codes').insert({

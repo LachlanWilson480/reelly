@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const rl = await rateLimit(`referral-claim:${authed.userId}`, 10, 60000)
-    if (!rl.allowed) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 })
+    const ip = (req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
+    const [rl, rlIp] = await Promise.all([rateLimit(`referral-claim:${authed.userId}`, 10, 60000), rateLimit(`referral-claim-ip:${ip}`, 20, 10 * 60 * 1000)])
+    if (!rl.allowed || !rlIp.allowed) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 })
 
     const body = await req.json().catch(() => ({}))
     const { data: userRes } = await admin.auth.admin.getUserById(authed.userId)

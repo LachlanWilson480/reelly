@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { buttonPrimary, buttonSecondary, card, sectionTitle } from '@/lib/ui'
-import { useAdminApi, Notice, Field, Pick, Stat, row, small, pill, shortDate } from './shared'
+import { useAdminApi, Notice, Field, Pick, Stat, Tick, row, small, pill, shortDate } from './shared'
 
 type Account = {
   id: string; code: string; name: string | null; note: string | null; plan: 'basic' | 'top'; months: number; active: boolean
@@ -16,7 +16,7 @@ const STATE: Record<Account['state'], [string, string, string]> = {
   ended: ['Ended', 'var(--line)', 'var(--text-secondary)'],
   off: ['Turned off', 'var(--line)', 'var(--text-secondary)'],
 }
-const blank = { code: '', name: '', note: '', plan: 'top', months: '3' }
+const blank = { code: '', name: '', note: '', plan: 'top', months: '3', randomEnding: true }
 
 export default function CreatorAccountsPanel() {
   const api = useAdminApi<{ accounts: Account[] }>('/api/admin/creator-accounts')
@@ -61,6 +61,7 @@ export default function CreatorAccountsPanel() {
             <Field label="Months free" type="number" value={form.months} onChange={v => setForm({ ...form, months: v })} width={120} />
             <Field label="Note" value={form.note} onChange={v => setForm({ ...form, note: v })} placeholder="@daveysbarber, 2 reels a month" width={260} />
           </div>
+          <Tick label="Add a random ending, like DAVEYSBARBER-K7Q2, so nobody can guess it from their handle (recommended)" checked={form.randomEnding} onChange={v => setForm({ ...form, randomEnding: v })} />
           <div><button style={buttonPrimary} disabled={api.busy || !form.code.trim()} onClick={create}>Make code</button></div>
         </div>
       )}

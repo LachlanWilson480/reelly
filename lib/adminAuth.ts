@@ -9,7 +9,8 @@ export async function getAdmin(req: NextRequest): Promise<{ userId: string; emai
   if (!authHeader?.startsWith('Bearer ')) return null
   const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice(7))
   const email = user?.email?.trim().toLowerCase()
-  if (!user || !email) return null
+  // Only a confirmed email counts, so nobody can sign up with an admin address they do not own
+  if (!user || !email || !user.email_confirmed_at) return null
   const allowed = (process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
   return allowed.includes(email) ? { userId: user.id, email } : null
 }

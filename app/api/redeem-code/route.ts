@@ -12,12 +12,14 @@ export async function POST(req: NextRequest) {
   try {
     const authed = await getAuthedUser(req)
     if (!authed) return NextResponse.json({ error: 'Log in first' }, { status: 401 })
-    const rl = await rateLimit(`redeem-code:${authed.userId}`, 10, 60000)
-    if (!rl.allowed) return NextResponse.json({ error: 'Too many tries. Please wait a minute.' }, { status: 429 })
+    // Limited per account and per device, so codes cannot be guessed by making lots of free accounts
+    const ip = (req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
+    const [rl, rlIp] = await Promise.all([rateLimit(`redeem-code:${authed.userId}`, 10, 60000), rateLimit(`redeem-code-ip:${ip}`, 20, 10 * 60 * 1000)])
+    if (!rl.allowed || !rlIp.allowed) return NextResponse.json({ error: 'Too many tries. Please wait a few minutes.' }, { status: 429 })
 
     const body = await req.json().catch(() => ({}))
     const code = cleanCreatorCode(body?.code)
-    if (code.length < 3) return NextResponse.json({ kind: 'none' })
+    if (code.replace(/-/g, '').length < 3) return NextResponse.json({ kind: 'none' })
 
     const { data: row } = await admin.from('creator_access_codes').select('*').eq('code', code).eq('active', true).maybeSingle()
     if (!row) return NextResponse.json({ kind: 'none' })

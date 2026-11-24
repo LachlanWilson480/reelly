@@ -82,7 +82,8 @@ export default function CreatorsPanel() {
   }
 
   function downloadCsv() {
-    const q = (s: string | number) => `"${String(s).replace(/"/g, '""')}"`
+    // A value starting with = + - or @ would run as a formula in Excel, so it gets a ' in front
+    const q = (s: string | number) => { const v = String(s); return `"${(/^[=+\-@]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"` }
     const lines = [['Name', 'Account name', 'BSB', 'Account number', 'Amount', 'Reference'].map(q).join(',')]
     for (const o of owed) lines.push([o.name, o.account_name, o.bsb, o.account_number, (o.net_cents / 100).toFixed(2), `Reelezy ${monthLabel(o.period)}`].map(q).join(','))
     const url = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }))
