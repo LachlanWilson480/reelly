@@ -3811,12 +3811,15 @@ export default function DashboardPage() {
     setFilmClipDraft(null)
     const asked = Math.round(Number(raw))
     if (!Number.isFinite(asked) || asked < 1 || asked > 15 || asked === filmClipCount) return
-    // Every script line is its own scene, so the number cannot go below the script's lines
-    const n = Math.max(asked, filmLines.length)
-    setFilmSceneNote(n > asked ? `Your script has ${filmLines.length} lines, so that is the fewest scenes. Delete script lines to go lower.` : '')
-    setFilmSceneCount(n)
-    // The script and actions stay exactly as typed. Scenes past the end of either one show "No script" or "No action".
-    setFilmDurations([])
+    // Fewer scenes than script lines or actions joins neighbouring ones together, so nothing is lost.
+    // More scenes adds empty ones that show "No script" or "No action".
+    const joinLines = filmLines.length > asked
+    const joinActions = filmActions.length > asked
+    if (joinLines) setFilmScript(groupFilmList(filmLines, asked, ' ').join('\n'))
+    if (joinActions) setFilmActionsText(groupFilmActions(filmActions, asked).join('\n'))
+    setFilmSceneNote(joinLines || joinActions ? `Joined into ${asked} scenes.${filmOriginal ? ' Use Reset to original to undo.' : ''}` : '')
+    setFilmSceneCount(asked)
+    setFilmDurations(joinActions && filmDurations.length === filmActions.length ? groupFilmSeconds(filmDurations, asked) : [])
     setFilmLineIdx(0)
     setFilmClips([])
     setFilmReview(false)
@@ -3872,7 +3875,8 @@ export default function DashboardPage() {
   const splitFilmText = (text: string): string[] => {
     const byLine = text.split(/\n+/).map(cleanFilmLine).filter(Boolean)
     if (byLine.length > 1) return byLine
-    const sentences = (text.match(/[^.!?]+[.!?]*/g) || []).map(cleanFilmLine).filter(Boolean)
+    // Splits only where a full stop, ! or ? is followed by a space, so christelcove.com.au or 2.5 stay in one piece
+    const sentences = text.split(/(?<=[.!?])\s+/).map(cleanFilmLine).filter(Boolean)
     return sentences.length > 1 ? sentences : byLine
   }
 
@@ -3911,6 +3915,14 @@ export default function DashboardPage() {
   // Joins a list down to n entries by merging neighbours, so nothing is repeated or dropped
   const groupFilmList = (list: string[], n: number, glue: string): string[] =>
     Array.from({ length: n }, (_, i) => list.slice(Math.floor((i * list.length) / n), Math.floor(((i + 1) * list.length) / n)).join(glue))
+  // Joins actions into one, as "Hold the phone up, then pan across the bench." so the Film tab still reads it as one scene
+  const joinFilmActions = (list: string[]): string =>
+    list.map((a, i) => { const t = a.trim().replace(/[.!?]+$/, ''); return i === 0 || /^[A-Z]{2}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1) }).filter(Boolean).join(', then ') + (list.length ? '.' : '')
+  const groupFilmActions = (list: string[], n: number): string[] =>
+    Array.from({ length: n }, (_, i) => joinFilmActions(list.slice(Math.floor((i * list.length) / n), Math.floor(((i + 1) * list.length) / n))))
+  // Adds up the seconds of merged scenes. Unknown if any part is unknown.
+  const groupFilmSeconds = (list: (number | null)[], n: number): (number | null)[] =>
+    Array.from({ length: n }, (_, i) => { const part = list.slice(Math.floor((i * list.length) / n), Math.floor(((i + 1) * list.length) / n)); return part.length && part.every((d) => d !== null) ? part.reduce((t: number, d) => t + (d as number), 0) : null })
 
   // The script and actions for one idea, lined up so each clip has its own words and its own action
   const getFilmPlan = (item: FilmingItem): { lines: string[]; actions: string[]; durations: (number | null)[] } => {
@@ -3922,15 +3934,19 @@ export default function DashboardPage() {
       const m = st.match(/(\d+):(\d+)\s*(?:to|-|–)\s*(\d+):(\d+)/i)
       return m ? Math.max(1, (Number(m[3]) * 60 + Number(m[4])) - (Number(m[1]) * 60 + Number(m[2]))) : null
     })
-    const durations: (number | null)[] = steps.length === actions.length ? steps : []
-    if (lines.length === 0 || actions.length === 0 || lines.length === actions.length) return { lines, actions, durations }
-    const n = Math.min(lines.length, actions.length)
-    const sumGroup = (i: number): number | null => {
-      if (durations.length === 0) return null
-      const part = durations.slice(Math.floor((i * durations.length) / n), Math.floor(((i + 1) * durations.length) / n))
-      return part.every((d) => d !== null) ? part.reduce((t: number, d) => t + (d as number), 0) : null
+    const stepSecs: (number | null)[] = steps.length === actions.length ? steps : []
+    const counts = [lines.length, actions.length].filter((c) => c > 0)
+    if (counts.length === 0) return { lines, actions, durations: stepSecs }
+    // About one scene for every 5 seconds of video (15 seconds is 3 scenes), or 4 when the length is not known.
+    // The number can be changed on the Film tab.
+    const total = steps.length > 0 && steps.every((d) => d !== null) ? steps.reduce((t: number, d) => t + (d as number), 0) : null
+    const cap = total ? Math.min(15, Math.max(3, Math.round(total / 5))) : 4
+    const n = Math.min(cap, ...counts)
+    return {
+      lines: lines.length > n ? groupFilmList(lines, n, ' ') : lines,
+      actions: actions.length > n ? groupFilmActions(actions, n) : actions,
+      durations: stepSecs.length > n ? groupFilmSeconds(stepSecs, n) : stepSecs,
     }
-    return { lines: groupFilmList(lines, n, ' '), actions: groupFilmList(actions, n, ' '), durations: Array.from({ length: n }, (_, i) => actions.length === n ? (durations[i] ?? null) : sumGroup(i)) }
   }
 
   // The plan as separate shots: what to film, what to say and what text goes on screen, one shot per filming step
@@ -8198,7 +8214,7 @@ export default function DashboardPage() {
                         min={1}
                         max={15}
                         inputMode="numeric"
-                        title="Type how many clips you want to film. Your script is joined up or split into that many clips."
+                        title="Type how many clips you want to film. Lowering it joins script lines together."
                         disabled={filmClips.length > 0 || !!filmPending || filmClipCount === 0}
                         value={filmClipDraft ?? String(filmClipCount)}
                         onChange={(e) => setFilmClipDraft(e.target.value)}
@@ -8206,7 +8222,7 @@ export default function DashboardPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') applyFilmClipCount((e.target as HTMLInputElement).value) }}
                         style={{ width: 64, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}
                       />
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One scene per script line: press Enter in your script to add a scene. Changing the number never rewrites your script or actions. Extra scenes show No script or No action (1 to 15).</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>One scene per script line. Lower the number to join lines together, or raise it to add empty scenes (1 to 15).</span>
                     </div>
                     {filmSelectedId && (
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
@@ -8214,7 +8230,7 @@ export default function DashboardPage() {
                         {filmEdited && <button type="button" onClick={resetFilmEdits} disabled={filmClips.length > 0 || !!filmPending} title="Go back to the original script and actions" style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: 'var(--coral)', cursor: 'pointer', textDecoration: 'underline' }}>Reset to original</button>}
                       </p>
                     )}
-                    {filmSceneNote && <p style={{ fontSize: 11, color: 'var(--coral)', margin: '6px 0 0' }}>{filmSceneNote}</p>}
+                    {filmSceneNote && <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '6px 0 0' }}>{filmSceneNote}</p>}
                     {filmSelectedId && filmClipCount === 0 && (
                       <p style={{ fontSize: 12, color: 'var(--coral)', margin: '8px 0 0' }}>This idea has no script or actions yet. Generate its filming instructions, or type your own script or actions. You only need one of them.</p>
                     )}
