@@ -9,6 +9,7 @@ import Sidebar from '@/components/Sidebar'
 import { googleSignInOn, mountGoogleButton } from '@/lib/googleSignIn'
 import { trackEvent } from '@/lib/track'
 import { takeAfterLogin } from '@/lib/afterLogin'
+import Dropdown from '@/components/Dropdown'
 import { HEARD_OPTIONS, readSource, saveSource, cleanHeard } from '@/lib/signupSource'
 
 export default function SignUpPage() {
@@ -249,16 +250,19 @@ export default function SignUpPage() {
                 <label htmlFor="heard-about" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
                   How did you hear about Reelezy? <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(optional)</span>
                 </label>
-                <select
+                <Dropdown
                   id="heard-about"
+                  ariaLabel="How did you hear about Reelezy?"
                   value={heard}
-                  onChange={(e) => pickHeard(e.target.value)}
+                  onChange={pickHeard}
+                  options={HEARD_OPTIONS}
+                  placeholder="Choose one"
                   disabled={isSigningUp}
-                  style={{ ...inputStyle, appearance: 'auto', cursor: 'pointer', color: heard ? 'var(--ink)' : 'var(--text-secondary)' }}
-                >
-                  <option value="">Choose one</option>
-                  {HEARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                  height={46}
+                  fontSize={14}
+                  listHeight={320}
+                  style={{ background: '#FFFFFF' }}
+                />
               </div>
             )}
 

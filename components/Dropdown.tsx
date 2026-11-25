@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 export type DropdownOption = { value: string; label: string; style?: React.CSSProperties }
 
 // A drop-down that matches the rest of the site (the browser's own menu cannot be styled).
-export default function Dropdown({ value, onChange, options, ariaLabel, style, height = 40, disabled = false, placeholder }: {
+export default function Dropdown({ value, onChange, options, ariaLabel, style, height = 40, disabled = false, placeholder, fontSize = 13, listHeight = 240, id: buttonId }: {
   value: string
   onChange: (value: string) => void
   options: DropdownOption[]
@@ -14,6 +14,9 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
   height?: number
   disabled?: boolean
   placeholder?: string
+  fontSize?: number
+  listHeight?: number
+  id?: string
 }) {
   const [open, setOpen] = useState(false)
   const [up, setUp] = useState(false)
@@ -37,7 +40,7 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
 
   const openList = () => {
     const r = wrapRef.current?.getBoundingClientRect()
-    setUp(!!r && window.innerHeight - r.bottom < 260 && r.top > 260)
+    setUp(!!r && window.innerHeight - r.bottom < listHeight + 20 && r.top > listHeight + 20)
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
     setOpen(true)
   }
@@ -61,21 +64,21 @@ export default function Dropdown({ value, onChange, options, ariaLabel, style, h
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', width: '100%', ...style }}>
-      <button type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={ariaLabel}
+      <button id={buttonId} type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={ariaLabel}
         disabled={disabled} onClick={() => (open ? setOpen(false) : openList())} onKeyDown={onKey}
-        style={{ width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px', borderRadius: 4, border: `1px solid ${open ? 'var(--ink)' : 'rgba(128,128,128,0.25)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', boxSizing: 'border-box' }}>
+        style={{ width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 12px', borderRadius: 4, border: `1px solid ${open ? 'var(--ink)' : 'rgba(128,128,128,0.25)'}`, background: 'var(--card-bg)', color: 'var(--ink)', fontSize, fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', boxSizing: 'border-box' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: !current && placeholder ? 'var(--text-muted)' : undefined, ...current?.style }}>{current?.label ?? (value || placeholder || '')}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
       </button>
       {open && (
         <ul ref={listRef} id={`${id}-list`} role="listbox" aria-label={ariaLabel}
-          style={{ position: 'absolute', left: 0, minWidth: '100%', width: 'max-content', maxWidth: 300, zIndex: 60, margin: 0, padding: 4, listStyle: 'none', maxHeight: 240, overflowY: 'auto', background: '#fff', border: '1px solid var(--line, #E5E5E5)', borderRadius: 4, boxShadow: '0 6px 20px rgba(0,0,0,0.08)', ...(up ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }) }}>
+          style={{ position: 'absolute', left: 0, minWidth: '100%', width: 'max-content', maxWidth: 300, zIndex: 60, margin: 0, padding: 4, listStyle: 'none', maxHeight: listHeight, overflowY: 'auto', background: '#fff', border: '1px solid var(--line, #E5E5E5)', borderRadius: 4, boxShadow: '0 6px 20px rgba(0,0,0,0.08)', ...(up ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }) }}>
           {options.map((o, i) => {
             const sel = o.value === value
             return (
               <li key={o.value} role="option" aria-selected={sel} data-active={i === active}
                 onMouseEnter={() => setActive(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.value)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 10px', borderRadius: 3, fontSize: 13, cursor: 'pointer', color: sel ? 'var(--coral)' : 'var(--ink)', fontWeight: sel ? 600 : 400, background: i === active ? 'var(--sand, #F9F9F9)' : 'transparent' }}>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 10px', borderRadius: 3, fontSize, cursor: 'pointer', color: sel ? 'var(--coral)' : 'var(--ink)', fontWeight: sel ? 600 : 400, background: i === active ? 'var(--sand, #F9F9F9)' : 'transparent' }}>
                 <span style={o.style}>{o.label}</span>
                 {sel && <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2.5 6.5 2.3 2.3 4.7-5.1" /></svg>}
               </li>
